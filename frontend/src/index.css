@@ -1,0 +1,43 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #FAF7F7;
+  font-family: 'Nunito Sans', sans-serif;
+  color: #3D3238;
+}
+
+input,
+button,
+textarea,
+select {
+  font-family: inherit;
+}
+
+input:focus {
+  border-color: #8C5A66 !important;
+}
+
+button:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.btn-accion:hover {
+  background: var(--hover) !important;
+}
+
+.btn-reponer:hover {
+  background: #F0E2E4;
+}
+
+.th-orden:hover {
+  background: rgba(140, 90, 102, 0.09) !important;
+}
