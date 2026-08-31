@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './contexto/AuthContext'
 import Layout from './componentes/Layout'
-import Login from './paginas/gestion/Login'
-import CambiarPassword from './paginas/gestion/CambiarPassword'
-import Materiales from './paginas/gestion/Materiales'
-import Categorias from './paginas/gestion/Categorias'
+import Login from './funcionalidades/auth/Login'
+import CambiarPassword from './funcionalidades/auth/CambiarPassword'
+import Materiales from './funcionalidades/materiales/Materiales'
+import Categorias from './funcionalidades/categorias/Categorias'
 
 
 

@@ -3,10 +3,17 @@
 import os
 import sys
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+    load_dotenv(BASE_DIR / '.env')
+    entorno = os.getenv('ENTORNO', 'desarrollo') #busca de .env que entorno tiene que usar
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'config.settings.{entorno}')    #setea desarrollo por defecto
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
