@@ -396,7 +396,7 @@ function Grilla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDi
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(268px, 300px))',
         gap: 16,
       }}
     >
@@ -465,7 +465,15 @@ function Grilla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDi
               )}
             </div>
 
-            <div style={{ marginTop: 'auto' }}>
+            <div
+              style={{
+                marginTop: 'auto',
+                paddingTop: 10,
+                borderTop: '1px solid #EBE0E2',
+                display: 'flex',
+                justifyContent: 'flex-end',
+              }}
+            >
               <Acciones
                 material={m}
                 onVer={onVer}

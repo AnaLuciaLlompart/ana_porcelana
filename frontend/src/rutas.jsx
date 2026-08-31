@@ -4,6 +4,9 @@ import Layout from './componentes/Layout'
 import Login from './paginas/gestion/Login'
 import CambiarPassword from './paginas/gestion/CambiarPassword'
 import Materiales from './paginas/gestion/Materiales'
+import Categorias from './paginas/gestion/Categorias'
+
+
 
 function Protegido() {
   const { usuario, cargando } = useAuth()
@@ -61,7 +64,7 @@ export default function Rutas() {
             <Route path="/" element={<Inicio />} />
             <Route path="/password" element={<CambiarPassword />} />
             <Route path="/materiales" element={<Materiales />} />
-            <Route path="/categorias" element={<EnConstruccion />} />
+            <Route path="/categorias" element={<Categorias />} />
             <Route path="/productos" element={<EnConstruccion />} />
             <Route path="/clientes" element={<EnConstruccion />} />
             <Route path="/pedidos" element={<EnConstruccion />} />

@@ -41,3 +41,14 @@ button:not(:disabled):hover {
 .th-orden:hover {
   background: rgba(140, 90, 102, 0.09) !important;
 }
+
+.btn-ver-productos:hover {
+  color: #8C5A66 !important;
+  text-decoration: underline;
+}
+
+.btn-agregar:hover {
+  border-color: #8C5A66 !important;
+  color: #8C5A66 !important;
+  background: rgba(240, 226, 228, 0.4) !important;
+}

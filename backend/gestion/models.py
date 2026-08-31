@@ -168,6 +168,9 @@ class Categoria(models.Model):
         unique=True,
         verbose_name='nombre',
         help_text='Denominación de la categoría. Ej: "Aros", "Harry Potter".',
+        error_messages={
+            'unique': 'Ya existe una categoría con este nombre.',
+        },
     )
 
     tipo = models.CharField(
