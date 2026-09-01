@@ -269,6 +269,7 @@ python manage.py check --deploy
 **Ana Lucía Llompart** — desarrollo
 
 **Enzo André Sémola** — tutor
+
 **Carlos Albaca Paraván** — co-tutor
 
 Facultad de Ciencias Exactas y Tecnología · Universidad Nacional de Tucumán
