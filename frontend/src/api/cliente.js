@@ -10,7 +10,7 @@ const cliente = axios.create({
 }) // axios lee la cookie csrftoken y copia su valor en la cabecera X-CSRFToken, en cada POST, PUT, PATCH y DELETE
 
 
-// Creamos las funciones para el cliente HTTP. Estas las usara React y encapsula las URL (evito de escribirlas en React). 
+// Creamos las funciones para el cliente HTTP. Estas las usara React y encapsulan las URL (evito de escribirlas en React). 
 // Las 4 devuelven una PROMESA (como Playwright)
 
 export function consultarSesion() {
