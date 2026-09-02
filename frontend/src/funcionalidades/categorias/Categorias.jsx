@@ -405,7 +405,7 @@ export default function Categorias() {
 
   const acciones = {
     onEditar: (c) => setCategoriaEditando(c),
-    onDarDeBaja: (c) => cambiarEstado(c, darDeBajaCategoria),
+    onDarDeBaja: (c) => setCategoriaDandoBaja(c),
     onReactivar: (c) => cambiarEstado(c, reactivarCategoria),
     onEliminar: (c) => setCategoriaEliminando(c),
   }
