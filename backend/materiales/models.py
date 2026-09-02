@@ -1,6 +1,8 @@
 
 from django.db import models
 
+from config.validadores import validar_tamano_archivo
+
 
 # =====================================================================
 # MATERIALES  ·  CU04 a CU10
@@ -82,6 +84,7 @@ class Material(models.Model):
     url_imagen = models.ImageField(
         max_length=255,                   # coincide con el modelo lógico
         upload_to='materiales/',          # subcarpeta dentro de MEDIA_ROOT
+        validators=[validar_tamano_archivo],
         blank=True,
         null=True,
         verbose_name='imagen',

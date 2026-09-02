@@ -1,18 +1,27 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from categorias.models import Categoria
 from categorias.serializers import CategoriaSerializer
+from materiales.models import Material
 
-from .models import Producto
-from .serializers import ProductoDetalleSerializer, ProductoListaSerializer
+from .models import MaterialProducto, Producto
+from .serializers import (
+    ImagenProductoCrearSerializer,
+    ImagenProductoModificarSerializer,
+    ImagenProductoSerializer,
+    MaterialProductoSerializer,
+    ProductoDetalleSerializer,
+    ProductoListaSerializer,
+)
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
-    """CRUD de productos (CU17 a CU24).
+    """CRUD de productos y sus relaciones (CU17 a CU35).
 
     Hereda IsAuthenticated de la configuración global de DRF, por lo
     que todos los endpoints exigen sesión activa.
@@ -20,14 +29,28 @@ class ProductoViewSet(viewsets.ModelViewSet):
     Devuelve todos los productos, activos y de baja. La separación
     visual entre ambos grupos se resuelve en el frontend.
 
-    Los casos de uso de las relaciones anidadas (receta, categorías e
-    imágenes, CU25 a CU35) tienen sus propios endpoints y no pasan por
-    acá.
+    Además del CRUD y de los cambios de estado (CU17 a CU24), expone
+    como sub-recursos las dos colecciones que cuelgan de un producto:
+
+    - sus categorías, en /categorias/ (CU25 a CU27)
+    - los materiales que necesita, en /materiales/ (CU28 a CU31)
+    - sus imágenes, en /imagenes/ (CU32 a CU35)
     """
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre', 'descripcion']
     ordering_fields = ['nombre', 'precio_actual', 'dificultad', 'estado']
+
+    # Los tres formatos en los que puede llegar el cuerpo de un pedido.
+    # JSON es el de siempre; los otros dos hacen falta para subir
+    # imágenes (CU32), porque un archivo no viaja dentro de un JSON:
+    # el navegador lo manda como multipart/form-data, que es el formato
+    # de los formularios con adjuntos.
+    #
+    # Coincide con lo que DRF trae por defecto, así que no cambia el
+    # comportamiento: se escribe para dejarlo a la vista y para que
+    # siga valiendo aunque mañana se toque la configuración global.
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     # -----------------------------------------------------------------
     # Dos serializers según la acción
@@ -57,7 +80,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         - El listado solo cuenta materiales y mira cuáles están
           discontinuados. Las dos cosas leen producto.materiales, que
           ya devuelve objetos Material.
-        - La ficha además dibuja la receta con
+        - La ficha además dibuja los materiales del producto con
           MaterialProductoSerializer, que por cada línea salta de la
           fila de MaterialProducto a su Material para sacarle el nombre
           y el estado. Sin prefetch ese salto es una consulta por línea.
@@ -106,7 +129,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     # -----------------------------------------------------------------
-    # Casos de uso además del CRUD
+    # Casos de uso además del CRUD (CU20 a CU24)
     # -----------------------------------------------------------------
 
     @action(detail=True, methods=['post'])
@@ -340,6 +363,345 @@ class ProductoViewSet(viewsets.ModelViewSet):
             )
 
         producto.categorias.remove(categoria)
+        producto.refresh_from_db()
+
+        return Response(self.get_serializer(producto).data)
+
+
+
+    # -----------------------------------------------------------------
+    # Los materiales del producto (CU28 a CU31)
+    # -----------------------------------------------------------------
+    # Misma forma que las categorías, con una diferencia importante: el
+    # id de la ruta es el de la LÍNEA (MaterialProducto), no el del
+    # material.
+    #
+    #   GET    /api/productos/1/materiales/     lista            (CU29)
+    #   POST   /api/productos/1/materiales/     agrega una línea (CU28)
+    #   PATCH  /api/productos/1/materiales/3/   cambia cantidad  (CU30)
+    #   DELETE /api/productos/1/materiales/3/   quita la línea   (CU31)
+    #
+    # Se usa el id de la línea y no el del material porque la línea es
+    # la que tiene la cantidad, que es lo único editable.
+
+    def _buscar_linea_de_materiales(self, producto, linea_id):
+        """Busca una línea ENTRE LAS DE ESTE PRODUCTO, o devuelve None.
+
+        Recorre producto.materiales_usados, que get_object() ya trajo
+        con el prefetch. Buscar dentro de esa lista, y no en
+        MaterialProducto.objects, es lo que garantiza que la línea sea
+        de este producto: una línea ajena directamente no está en la
+        lista. Sin eso, mandando un id cualquiera se podrían editar los
+        materiales de otro producto.
+
+        El \\d+ del url_path ya garantizó que linea_id sean dígitos, así
+        que el int() no puede fallar.
+        """
+        for linea in producto.materiales_usados.all():
+            if linea.pk == int(linea_id):
+                return linea
+
+        return None
+
+
+
+    @action(detail=True, methods=['get'], url_path='materiales')
+    def materiales(self, request, pk=None):
+        """CU29 - Listar los materiales de un producto.
+
+        Devuelve las líneas con el nombre y el estado de cada material,
+        para que la pantalla pueda marcar los discontinuados.
+
+        No mira el estado del producto: consultar uno dado de baja está
+        permitido.
+        """
+        producto = self.get_object()
+
+        return Response(
+            MaterialProductoSerializer(
+                producto.materiales_usados.all(), many=True
+            ).data
+        )
+
+
+
+    @materiales.mapping.post
+    def asignar_material(self, request, pk=None):
+        """CU28 - Agregar un material al producto.
+
+        En el cuerpo llegan 'material' (el id) y 'cantidad' (texto
+        libre, opcional: "dos gotas", "media plancha").
+
+        Se permite agregar un material discontinuado: los materiales
+        del producto son el registro de cómo se hace la pieza, y la
+        propiedad materiales_discontinuados es la que después avisa.
+        """
+        producto = self.get_object()
+
+        if producto.estado == Producto.Estado.BAJA:
+            return Response(
+                {'detail': 'El producto está dado de baja. '
+                           'Reactivalo para poder modificar sus materiales.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        material_id = request.data.get('material')
+
+        if not material_id:
+            return Response(
+                {'detail': 'Falta el id del material.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            material = Material.objects.get(pk=material_id)
+        except (Material.DoesNotExist, ValueError):
+            return Response(
+                {'detail': 'No existe un material con ese id.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Este chequeo es el que evita el IntegrityError crudo del
+        # UniqueConstraint (producto, material). Sin él, PostgreSQL
+        # rechaza la fila, Django levanta la excepción y el frontend
+        # recibe un 500 en vez de un mensaje que se pueda mostrar.
+        if material in producto.materiales.all():
+            return Response(
+                {'detail': f'El producto ya tiene «{material.nombre}» '
+                           f'entre sus materiales.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        MaterialProducto.objects.create(
+            producto=producto,
+            material=material,
+            cantidad=request.data.get('cantidad') or '',
+        )
+
+        producto.refresh_from_db()
+
+        return Response(self.get_serializer(producto).data)
+
+
+
+    @action(detail=True, methods=['patch'],
+            url_path=r'materiales/(?P<linea_id>\d+)')
+    def modificar_cantidad(self, request, pk=None, linea_id=None):
+        """CU30 - Cambiar la cantidad de una línea de materiales.
+
+        Solo se cambia la cantidad. El material de una línea no se
+        cambia: se quita la línea y se agrega otra, porque cambiarlo
+        serían otros materiales.
+        """
+        producto = self.get_object()
+
+        if producto.estado == Producto.Estado.BAJA:
+            return Response(
+                {'detail': 'El producto está dado de baja. '
+                           'Reactivalo para poder modificar sus materiales.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        linea = self._buscar_linea_de_materiales(producto, linea_id)
+
+        if linea is None:
+            return Response(
+                {'detail': 'Esa línea no pertenece a los materiales de este producto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Se exige que la clave venga, aunque su valor pueda ser vacío:
+        # mandar un PATCH sin 'cantidad' es un error de quien llama, no
+        # una forma de borrar la cantidad.
+        if 'cantidad' not in request.data:
+            return Response(
+                {'detail': 'Falta la cantidad.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        linea.cantidad = request.data.get('cantidad') or ''
+        linea.save(update_fields=['cantidad'])
+
+        producto.refresh_from_db()
+
+        return Response(self.get_serializer(producto).data)
+
+
+
+    @modificar_cantidad.mapping.delete
+    def quitar_material(self, request, pk=None, linea_id=None):
+        """CU31 - Quitar un material del producto.
+
+        Borra la línea, no el material: el material sigue existiendo y
+        puede estar entre los materiales de otros productos. Es lo
+        que protege el PROTECT de la clave foránea.
+        """
+        producto = self.get_object()
+
+        if producto.estado == Producto.Estado.BAJA:
+            return Response(
+                {'detail': 'El producto está dado de baja. '
+                           'Reactivalo para poder modificar sus materiales.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        linea = self._buscar_linea_de_materiales(producto, linea_id)
+
+        if linea is None:
+            return Response(
+                {'detail': 'Esa línea no pertenece a los materiales de este producto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        linea.delete()
+
+        producto.refresh_from_db()
+
+        return Response(self.get_serializer(producto).data)
+
+    # -----------------------------------------------------------------
+    # Las imágenes del producto (CU32 a CU35)
+    # -----------------------------------------------------------------
+    # Misma forma que las otras dos colecciones:
+    #
+    #   GET    /api/productos/1/imagenes/     lista           (CU33)
+    #   POST   /api/productos/1/imagenes/     sube una        (CU32)
+    #   PATCH  /api/productos/1/imagenes/3/   edita los datos (CU34)
+    #   DELETE /api/productos/1/imagenes/3/   la borra        (CU35)
+    #
+    # El POST es el único endpoint de todo el ViewSet que no recibe
+    # JSON: el archivo llega como multipart/form-data, por eso los
+    # parser_classes de más arriba.
+
+    def _buscar_imagen_del_producto(self, producto, imagen_id):
+        """Busca una imagen ENTRE LAS DE ESTE PRODUCTO, o devuelve None.
+
+        Mismo criterio que el buscador de materiales: recorre
+        producto.imagenes, que get_object() ya trajo con el prefetch.
+        Buscar dentro de esa lista es lo que garantiza que la imagen sea
+        de este producto y no de otro.
+        """
+        for imagen in producto.imagenes.all():
+            if imagen.pk == int(imagen_id):
+                return imagen
+
+        return None
+
+    @action(detail=True, methods=['get'], url_path='imagenes')
+    def imagenes(self, request, pk=None):
+        """CU33 - Listar las imágenes de un producto.
+
+        Vienen ordenadas por el campo orden, así que la primera de la
+        lista es la principal.
+
+        No mira el estado del producto: consultar uno dado de baja está
+        permitido.
+        """
+        producto = self.get_object()
+
+        return Response(
+            ImagenProductoSerializer(producto.imagenes.all(), many=True).data
+        )
+
+    @imagenes.mapping.post
+    def subir_imagen(self, request, pk=None):
+        """CU32 - Subir una imagen a un producto.
+
+        El archivo llega en 'imagen' y es obligatorio. 'titulo', 'tipo'
+        y 'orden' son opcionales.
+
+        Se usa ImagenProductoCrearSerializer y no el de lectura, porque
+        este tiene el ImageField de verdad: valida que sea una imagen y
+        que no pase de 15 MB, y guarda el archivo en media/productos/.
+        """
+        producto = self.get_object()
+
+        if producto.estado == Producto.Estado.BAJA:
+            return Response(
+                {'detail': 'El producto está dado de baja. '
+                           'Reactivalo para poder modificar sus imágenes.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = ImagenProductoCrearSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # El producto no viene en el cuerpo: sale de la URL, y se lo
+        # pasamos acá para que nadie pueda subirle una imagen a otro
+        # producto mandándolo en el formulario.
+        serializer.save(producto=producto)
+
+        producto.refresh_from_db()
+
+        return Response(self.get_serializer(producto).data)
+
+    @action(detail=True, methods=['patch'],
+            url_path=r'imagenes/(?P<imagen_id>\d+)')
+    def modificar_imagen(self, request, pk=None, imagen_id=None):
+        """CU34 - Cambiar el título, el tipo o el orden de una imagen.
+
+        El archivo no se cambia: para eso se borra la imagen y se sube
+        otra. La garantía es estructural, porque
+        ImagenProductoModificarSerializer no tiene el campo del archivo.
+        """
+        producto = self.get_object()
+
+        if producto.estado == Producto.Estado.BAJA:
+            return Response(
+                {'detail': 'El producto está dado de baja. '
+                           'Reactivalo para poder modificar sus imágenes.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        imagen = self._buscar_imagen_del_producto(producto, imagen_id)
+
+        if imagen is None:
+            return Response(
+                {'detail': 'Esa imagen no pertenece a este producto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = ImagenProductoModificarSerializer(
+            imagen,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        producto.refresh_from_db()
+
+        return Response(self.get_serializer(producto).data)
+
+    @modificar_imagen.mapping.delete
+    def borrar_imagen(self, request, pk=None, imagen_id=None):
+        """CU35 - Borrar una imagen de un producto.
+
+        Si era la principal, pasa a serlo la siguiente por orden.
+
+        OJO: esto borra la fila, no el archivo del disco. El archivo
+        queda huérfano en media/productos/. Está pendiente decidir qué
+        hacer con eso.
+        """
+        producto = self.get_object()
+
+        if producto.estado == Producto.Estado.BAJA:
+            return Response(
+                {'detail': 'El producto está dado de baja. '
+                           'Reactivalo para poder modificar sus imágenes.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        imagen = self._buscar_imagen_del_producto(producto, imagen_id)
+
+        if imagen is None:
+            return Response(
+                {'detail': 'Esa imagen no pertenece a este producto.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        imagen.delete()
+
         producto.refresh_from_db()
 
         return Response(self.get_serializer(producto).data)

@@ -2,6 +2,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 
 from categorias.models import Categoria
+from config.validadores import validar_tamano_archivo
 from materiales.models import Material
 
 # =====================================================================
@@ -189,10 +190,10 @@ class Producto(models.Model):
 
     @property
     def materiales_discontinuados(self):
-        """Los nombres de los materiales de la receta que ya no se usan.
+        """Los nombres de los materiales del producto que ya no se usan.
 
         La emprendedora necesita saberlo antes de ponerse a producir: la
-        receta pide algo que discontinuó y va a tener que reemplazar.
+        pieza lleva algo que discontinuó y va a tener que reemplazar.
         """
         return [
             material.nombre
@@ -216,7 +217,7 @@ class Producto(models.Model):
 
 
 class MaterialProducto(models.Model):
-    """Receta del producto: qué material lleva y cuánto (CU17 a CU35).
+    """Un material del producto: cuál lleva y cuánto (CU28 a CU31).
 
     Es la tabla intermedia entre Producto y Material, pero con un dato
     propio (la cantidad), y por eso se escribe a mano en vez de dejar
@@ -224,12 +225,13 @@ class MaterialProducto(models.Model):
 
     Los dos on_delete son distintos a propósito:
 
-    - CASCADE en producto: si se elimina el producto, su receta ya no
-      tiene sentido y se va con él.
-    - PROTECT en material: Django impide eliminar un material que está
-      usado en alguna receta. Es la salvaguarda para no vaciar una
-      receta sin darse cuenta. Para dejar de usar un material está la
-      baja lógica (estado DISCONTINUADO), no la eliminación.
+    - CASCADE en producto: si se elimina el producto, sus materiales ya
+      no tienen sentido y se van con él.
+    - PROTECT en material: Django impide eliminar un material que algún
+      producto está usando. Es la salvaguarda para no vaciarle los
+      materiales a un producto sin darse cuenta. Para dejar de usar un
+      material está la baja lógica (estado DISCONTINUADO), no la
+      eliminación.
     """
 
     producto = models.ForeignKey(
@@ -237,7 +239,7 @@ class MaterialProducto(models.Model):
         on_delete=models.CASCADE,
         related_name='materiales_usados',
         verbose_name='producto',
-        help_text='La pieza a la que pertenece esta línea de la receta.',
+        help_text='La pieza que lleva este material.',
     )
 
     material = models.ForeignKey(
@@ -264,7 +266,7 @@ class MaterialProducto(models.Model):
         # El modelo lógico define la clave primaria compuesta
         # (producto, material). Acá la PK sigue siendo el id automático
         # y la unicidad del par se garantiza con esta restricción: un
-        # mismo material no puede aparecer dos veces en la misma receta.
+        # mismo material no puede aparecer dos veces en el mismo producto.
         constraints = [
             models.UniqueConstraint(
                 fields=['producto', 'material'],
@@ -279,7 +281,7 @@ class MaterialProducto(models.Model):
 
 
 class ImagenProducto(models.Model):
-    """Foto asociada a un producto (CU17 a CU35).
+    """Foto asociada a un producto (CU32 a CU35).
 
     Un producto puede tener varias. Se distinguen dos clases: las de
     REFERENCIA son las que manda el cliente al hacer un encargo, las de
@@ -307,6 +309,7 @@ class ImagenProducto(models.Model):
     imagen = models.ImageField(
         max_length=255,
         upload_to='productos/',
+        validators=[validar_tamano_archivo],
         verbose_name='imagen',
         help_text='Archivo de la foto. Pillow valida que sea una imagen real.',
     )

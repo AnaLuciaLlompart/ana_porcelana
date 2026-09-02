@@ -5,17 +5,20 @@ from categorias.serializers import CategoriaSerializer
 from .models import ImagenProducto, MaterialProducto, Producto
 
 # Hay DOS serializers de Producto y no uno: el listado en grilla trae
-# muchos productos y no necesita el paso a paso, la receta ni todas las
-# fotos. La ficha sí. Mandar todo en el listado sería peso al pedo.
+# muchos productos y no necesita el paso a paso, los materiales ni
+# todas las fotos. La ficha sí. Mandar todo en el listado sería peso al pedo.
 
+
+
+# MATERIALES---------------------------
 
 class MaterialProductoSerializer(serializers.ModelSerializer):
-    """Una línea de la receta de un producto (CU29, CU30).
+    """Uno de los materiales de un producto (CU29, CU30).
 
     Qué material lleva la pieza y cuánto. Viaja con el nombre y el
-    estado del material al lado del id, porque la pantalla de la receta
-    tiene que poder avisar que un material quedó discontinuado sin
-    cruzar la lista de materiales por su cuenta.
+    estado del material al lado del id, porque la pantalla de los
+    materiales del producto tiene que poder avisar que uno quedó
+    discontinuado sin cruzar la lista de materiales por su cuenta.
     """
 
     material_nombre = serializers.CharField(
@@ -46,8 +49,11 @@ class MaterialProductoSerializer(serializers.ModelSerializer):
         ]
 
 
+
+# IMAGENES ----------------------------------
+
 class ImagenProductoSerializer(serializers.ModelSerializer):
-    """Imagen de un producto (CU33, CU34).
+    """Imagen de un producto (CU33).
 
     Las de referencia son las que manda el cliente al encargar; las de
     resultado, la pieza terminada. El orden define cuál es la principal.
@@ -78,12 +84,65 @@ class ImagenProductoSerializer(serializers.ModelSerializer):
         return obj.imagen.url
 
 
+
+
+class ImagenProductoCrearSerializer(serializers.ModelSerializer):
+    """Subir una imagen a un producto (CU32).
+
+    Existe aparte del de arriba porque los dos hacen cosas distintas.
+    En ImagenProductoSerializer el campo 'imagen' es un
+    SerializerMethodField, que sirve para devolver la ruta relativa
+    pero es de SOLO LECTURA: no recibe archivos, no los valida y no los
+    guarda. Acá 'imagen' es el ImageField de verdad, el que Pillow
+    revisa para confirmar que sea una imagen y sobre el que corre el
+    validador de 15 MB.
+
+    Uno describe lo que ya está guardado; el otro recibe lo que llega.
+
+    'imagen' es obligatoria. 'titulo' puede ir vacío, y 'tipo' y
+    'orden' tienen valor por defecto en el modelo, así que también son
+    opcionales.
+    """
+
+    class Meta:
+        model = ImagenProducto
+        fields = [
+            'imagen',
+            'titulo',
+            'tipo',
+            'orden',
+        ]
+
+
+
+class ImagenProductoModificarSerializer(serializers.ModelSerializer):
+    """Modificar los datos de una imagen ya subida (CU34).
+
+    Solo el título, el tipo y el orden. El archivo NO está entre los
+    campos, y eso es lo que garantiza que no se pueda reemplazar: para
+    cambiar la foto se borra la imagen y se sube otra.
+    """
+
+    class Meta:
+        model = ImagenProducto
+        fields = [
+            'titulo',
+            'tipo',
+            'orden',
+        ]
+
+
+
+
+# PRODUCTOS --------------------------------------------
+
+
 class ProductoListaSerializer(serializers.ModelSerializer):
     """Producto en la grilla del listado (CU18).
 
     Trae lo justo para dibujar una tarjeta y para que la emprendedora
     entienda de un vistazo el estado de la pieza: si se ve en el
-    catálogo, si la esconde una categoría de baja, y si su receta pide
+    catálogo, si la esconde una categoría de baja, y si lleva
     materiales que ya no usa.
     """
 
@@ -148,16 +207,17 @@ class ProductoListaSerializer(serializers.ModelSerializer):
     # evitamos en las propiedades del modelo.
 
     def get_cantidad_materiales(self, obj):
-        """Cuántos materiales distintos lleva la receta."""
+        """Cuántos materiales distintos lleva la pieza."""
         # Cuento sobre 'materiales' y no sobre 'materiales_usados': da
         # el mismo número, porque la restricción de unicidad impide que
-        # un material se repita en una receta, y así el listado tiene
+        # un material se repita en un producto, y así el listado tiene
         # una relación menos que prefetchear.
         return len(obj.materiales.all())
 
     def get_cantidad_imagenes(self, obj):
         """Cuántas fotos tiene cargadas la pieza."""
         return len(obj.imagenes.all())
+
 
 
 class ProductoDetalleSerializer(ProductoListaSerializer):
@@ -167,8 +227,8 @@ class ProductoDetalleSerializer(ProductoListaSerializer):
     vez: cómo se hace, qué materiales lleva y con qué cantidades, y
     todas sus fotos.
 
-    La receta y las imágenes se muestran, pero no se cargan por acá:
-    tienen sus propios casos de uso.
+    Los materiales y las imágenes se muestran, pero no se cargan por
+    acá: tienen sus propios casos de uso.
     """
 
     materiales_usados = MaterialProductoSerializer(many=True, read_only=True)
