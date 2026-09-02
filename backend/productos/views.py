@@ -20,6 +20,18 @@ from .serializers import (
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
 
 
+# Las cuatro operaciones del CRUD no llevan docstring con su CU porque
+# no están escritas acá: las hereda el ModelViewSet de DRF. La
+# correspondencia es esta, para no tener que deducirla:
+#
+#   list      GET    /productos/       CU18 - buscar
+#   create    POST   /productos/       CU17 - alta
+#   update    PUT    /productos/{id}/  CU19 - modificar
+#   destroy   DELETE /productos/{id}/  CU22 - eliminar
+#
+# retrieve (GET /productos/{id}/) no implementa un CU propio: devuelve
+# la ficha que CU19 usa para cargar el formulario.
+
 class ProductoViewSet(viewsets.ModelViewSet):
     """CRUD de productos y sus relaciones (CU17 a CU35).
 

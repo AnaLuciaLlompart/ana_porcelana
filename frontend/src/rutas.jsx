@@ -5,6 +5,8 @@ import Login from './funcionalidades/auth/Login'
 import CambiarPassword from './funcionalidades/auth/CambiarPassword'
 import Materiales from './funcionalidades/materiales/Materiales'
 import Categorias from './funcionalidades/categorias/Categorias'
+import Productos from './funcionalidades/productos/Productos'
+import DetalleProducto from './funcionalidades/productos/DetalleProducto'
 
 
 
@@ -65,7 +67,8 @@ export default function Rutas() {
             <Route path="/password" element={<CambiarPassword />} />
             <Route path="/materiales" element={<Materiales />} />
             <Route path="/categorias" element={<Categorias />} />
-            <Route path="/productos" element={<EnConstruccion />} />
+            <Route path="/productos" element={<Productos />} />
+            <Route path="/productos/:id" element={<DetalleProducto />} />
             <Route path="/clientes" element={<EnConstruccion />} />
             <Route path="/pedidos" element={<EnConstruccion />} />
             <Route path="/gastos" element={<EnConstruccion />} />

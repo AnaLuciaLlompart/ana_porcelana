@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FAF7F7; font-family: 'Nunito Sans', sans-serif; color: #3D3238; }
+  * { box-sizing: border-box; }
+  a { color: #8C5A66; }
+  a:hover { color: #B08791; }
+  input, select, button, textarea { font-family: inherit; }
+  input[type=range] { accent-color: #8C5A66; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #EBE0E2; border-radius: 3px; }
+</style>
+</helmet>
+<div style="display: flex; height: 100vh; overflow: hidden; background: #FAF7F7">
+  <aside style="display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; background: #8C5A66; transition: width .2s; width: {{ sidebarWidth }}">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 6px 0; flex: 1">
+      <button onClick="{{ toggleSidebar }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: white">Menú</span>
+        </sc-if>
+      </button>
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin: 6px 0"></div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+        <button onClick="{{ item.onClick }}" title="{{ item.title }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; cursor: pointer; background: {{ item.bg }}; justify-content: {{ item.justify }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ item.stroke }}" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ item.icon }}"></path></svg>
+          <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: {{ item.stroke }}">{{ item.label }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div style="padding: 0 6px 16px">
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin-bottom: 6px"></div>
+      <button title="Cerrar sesión" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cerrar sesión</span>
+        </sc-if>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex: 1; overflow-y: auto; padding: 32px">
+
+    <sc-if value="{{ enListado }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px">
+        <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #3D3238">Gestión de Productos</h1>
+        <button onClick="{{ abrirNuevo }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #8C5A66; color: white; border: 0; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+          Nuevo producto
+        </button>
+      </div>
+      <p style="margin: 0 0 24px; font-size: 15px; color: #857078">{{ resumen }}</p>
+
+      <sc-if value="{{ moduloVacio }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 64px 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px">
+          <div style="width: 62px; height: 62px; border-radius: 16px; background: #FAF7F7; border: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          </div>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #3D3238">Todavía no cargaste ningún producto</p>
+          <p style="margin: 0; max-width: 420px; font-size: 15px; color: #857078; text-wrap: pretty">Cargá tus piezas con su precio y dificultad. Después podés sumarles materiales, fotos y categorías.</p>
+          <button onClick="{{ abrirNuevo }}" style="display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 10px 20px; background: #8C5A66; color: white; border: 0; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+            Cargar el primero
+          </button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ hayProductos }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap">
+        <div style="position: relative; width: 420px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#857078" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%)"><path stroke-linecap="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input value="{{ busqueda }}" onChange="{{ onBuscar }}" placeholder="Buscar producto..." style="width: 100%; padding: 8px 16px 8px 36px; border: 1px solid #EBE0E2; background: white; font-size: 16px; color: #3D3238; border-radius: 5px; outline: none">
+        </div>
+        <button onClick="{{ abrirFiltros }}" style="margin-left: auto; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; min-width: 130px; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border: {{ filtrosBorder }}; background: {{ filtrosBg }}; color: #8C5A66">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+          Filtros
+          <sc-if value="{{ hayFiltros }}" hint-placeholder-val="{{ false }}">
+            <span style="min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; border-radius: 10px; background: #8C5A66; color: white; font-size: 12px; font-weight: 600">{{ cantFiltros }}</span>
+          </sc-if>
+        </button>
+        <select value="{{ ordenValor }}" onChange="{{ onOrden }}" title="Ordenar" style="padding: 8px 12px; border: 1px solid #EBE0E2; background: white; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #8C5A66; border-radius: 5px; outline: none; cursor: pointer">
+          <sc-for list="{{ ordenOpciones }}" as="o" hint-placeholder-count="5">
+            <option value="{{ o.valor }}">{{ o.label }}</option>
+          </sc-for>
+        </select>
+        <div style="display: flex; align-items: center; gap: 2px; padding: 3px; background: white; border: 1px solid #EBE0E2; border-radius: 6px">
+          <sc-for list="{{ vistas }}" as="v" hint-placeholder-count="2">
+            <button onClick="{{ v.onClick }}" title="{{ v.title }}" style="width: 34px; height: 30px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; cursor: pointer; background: {{ v.bg }}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ v.color }}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ v.icon }}"></path></svg>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ hayFiltros }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 20px">
+          <sc-for list="{{ chipsActivos }}" as="ch" hint-placeholder-count="2">
+            <button onClick="{{ ch.onQuitar }}" style="display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #8C5A66; background: #F0E2E4; color: #8C5A66; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #EBD5D8">
+              {{ ch.label }}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </sc-for>
+          <button onClick="{{ limpiarFiltros }}" style="padding: 6px 12px; border: 0; background: transparent; color: #857078; cursor: pointer; font-size: 14px; text-decoration: underline">Limpiar todo</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vistaGrid }}" hint-placeholder-val="{{ true }}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(238px, 1fr)); gap: 18px">
+          <sc-for list="{{ productos }}" as="p" hint-placeholder-count="8">
+            <article style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column">
+              <button onClick="{{ p.onAbrir }}" style="position: relative; height: 168px; padding: 0; border: 0; border-bottom: 1px solid #EBE0E2; background: #FAF7F7; cursor: pointer; display: flex; align-items: center; justify-content: center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span title="{{ p.catTitle }}" style="position: absolute; top: 10px; left: 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; border-radius: 20px; padding: 4px 11px; border: 1px solid {{ p.catColor }}; background: {{ p.catBg }}; color: {{ p.catColor }}">{{ p.catTexto }}</span>
+                <sc-if value="{{ p.matAviso }}" hint-placeholder-val="{{ false }}">
+                  <span title="{{ p.matAvisoTexto }}" style="position: absolute; bottom: 10px; right: 10px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 14px; border: 1px solid #EEDCB4; background: #FDF3E0">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B8862B" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  </span>
+                </sc-if>
+              </button>
+              <div style="padding: 14px; display: flex; flex-direction: column; gap: 9px; flex: 1">
+                <h3 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238; text-wrap: pretty">{{ p.nombre }}</h3>
+                <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px">
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 19px; color: #8C5A66">{{ p.precioTexto }}</span>
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; border-radius: 20px; padding: 3px 11px; border: 1px solid {{ p.difColor }}; background: {{ p.difBg }}; color: {{ p.difColor }}">{{ p.dificultadTexto }}</span>
+                </div>
+                <p style="margin: 0; font-size: 13px; color: #857078; text-wrap: pretty">{{ p.categoriasTexto }}</p>
+
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid #EBE0E2">
+                  <div style="display: flex; align-items: center; gap: 4px">
+                    <sc-for list="{{ p.acciones }}" as="a" hint-placeholder-count="3">
+                      <button title="{{ a.title }}" onClick="{{ a.onClick }}" style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: {{ a.hoverBg }}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ a.color }}" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="{{ a.icon }}"></path></svg>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </sc-for>
+          <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+            <div style="grid-column: 1 / -1; background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 48px; text-align: center">
+              <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Ningún producto coincide</p>
+              <p style="margin: 0; font-size: 15px; color: #857078">Probá con otra búsqueda o limpiá los filtros.</p>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vistaLista }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+          <table style="width: 100%; border-collapse: collapse">
+            <thead>
+              <tr style="background: #F0E2E4">
+                <sc-for list="{{ columnas }}" as="col" hint-placeholder-count="4">
+                  <th style="text-align: left; padding: 0">
+                    <button onClick="{{ col.onSort }}" style="display: flex; align-items: center; gap: 5px; width: 100%; padding: 12px 16px; border: 0; background: transparent; cursor: pointer; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em" style-hover="background: rgba(140,90,102,.09)">
+                      {{ col.label }}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: {{ col.opacity }}"><path stroke-linecap="round" stroke-linejoin="round" d="{{ col.icon }}"></path></svg>
+                    </button>
+                  </th>
+                </sc-for>
+                <th style="text-align: left; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">CATÁLOGO</th>
+                <th style="text-align: left; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ productos }}" as="p" hint-placeholder-count="8">
+                <tr style="border-top: 1px solid #EBE0E2">
+                  <td style="padding: 16px">
+                    <button onClick="{{ p.onAbrir }}" style="padding: 0; border: 0; background: transparent; cursor: pointer; font-size: 16px; color: #3D3238; text-align: left" style-hover="color: #8C5A66; text-decoration: underline">{{ p.nombre }}</button>
+                    <sc-if value="{{ p.matAviso }}" hint-placeholder-val="{{ false }}">
+                      <span title="{{ p.matAvisoTexto }}" style="display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-left: 8px; width: 22px; height: 22px; border-radius: 11px; border: 1px solid #EEDCB4; background: #FDF3E0">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B8862B" stroke-width="2.1"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                      </span>
+                    </sc-if>
+                  </td>
+                  <td style="padding: 16px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 16px; color: #8C5A66">{{ p.precioTexto }}</td>
+                  <td style="padding: 16px">
+                    <span style="display: inline-block; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border-radius: 20px; padding: 6px 16px; border: 1px solid {{ p.difColor }}; background: {{ p.difBg }}; color: {{ p.difColor }}">{{ p.dificultadTexto }}</span>
+                  </td>
+                  <td style="padding: 16px; font-size: 14px; color: #857078">{{ p.categoriasTexto }}</td>
+                  <td style="padding: 16px">
+                    <span title="{{ p.catTitle }}" style="display: inline-block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border-radius: 20px; padding: 6px 16px; border: 1px solid {{ p.catColor }}; background: {{ p.catBg }}; color: {{ p.catColor }}">{{ p.catTexto }}</span>
+                  </td>
+                  <td style="padding: 16px">
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <sc-for list="{{ p.acciones }}" as="a" hint-placeholder-count="3">
+                        <button title="{{ a.title }}" onClick="{{ a.onClick }}" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: {{ a.hoverBg }}">
+                          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{ a.color }}" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="{{ a.icon }}"></path></svg>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </td>
+                </tr>
+              </sc-for>
+              <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+                <tr style="border-top: 1px solid #EBE0E2">
+                  <td colspan="6" style="padding: 32px; text-align: center; font-size: 15px; color: #857078">Ningún producto coincide con esos filtros.</td>
+                </tr>
+              </sc-if>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+
+      <section style="margin-top: 34px">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078; letter-spacing: .06em">DADOS DE BAJA</h2>
+          <span style="font-size: 13px; color: #B08791">Separados según de dónde viene la baja</span>
+          <div style="flex: 1; height: 1px; background: #EBE0E2"></div>
+          <button onClick="{{ toggleBajas }}" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #F0E2E4">
+            {{ bajasTexto }}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ bajasChevron }}"></path></svg>
+          </button>
+        </div>
+        <sc-if value="{{ bajasAbierto }}" hint-placeholder-val="{{ false }}">
+          <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+            <sc-if value="{{ hayBajasProducto }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: #FAF7F7; border-bottom: 1px solid #EBE0E2">
+                <span style="width: 8px; height: 8px; flex-shrink: 0; border-radius: 4px; background: #C0442F"></span>
+                <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">BAJA DEL PROPIO PRODUCTO</span>
+                <span style="font-size: 13px; color: #B08791; text-wrap: pretty">Productos particulares que se dieron de baja</span>
+              </div>
+              <sc-for list="{{ bajasProducto }}" as="b" hint-placeholder-count="2">
+                <div style="display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid #EBE0E2">
+                  <div style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px; background: #F5F0F1; border: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  </div>
+                  <div style="flex: 1; min-width: 0">
+                    <p style="margin: 0 0 2px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #857078">{{ b.nombre }}</p>
+                    <p style="margin: 0; font-size: 13px; color: #B08791">{{ b.metaTexto }}</p>
+                  </div>
+                  <span style="flex-shrink: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 14px; border: 1px solid #C0442F; background: #FAEAE8; color: #C0442F">De baja</span>
+                  <button title="Ver" onClick="{{ b.onAbrir }}" style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                  </button>
+                  <button onClick="{{ b.onReactivar }}" title="Volver a activar este producto" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 7px 14px; border: 1px solid #4E8C6A; background: white; color: #4E8C6A; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #E8F5EF">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Reactivar producto
+                  </button>
+                </div>
+              </sc-for>
+            </sc-if>
+
+            <sc-if value="{{ hayBajasCategoria }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: #FAF7F7; border-bottom: 1px solid #EBE0E2">
+                <span style="width: 8px; height: 8px; flex-shrink: 0; border-radius: 4px; background: #D9A441"></span>
+                <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">BAJA POR SU CATEGORÍA</span>
+                <span style="font-size: 13px; color: #B08791; text-wrap: pretty">Al reactivar la categoría vuelven todos sus productos</span>
+              </div>
+              <sc-for list="{{ arbolCategorias }}" as="cat" hint-placeholder-count="2">
+                <div style="border-bottom: 1px solid #EBE0E2">
+                  <div style="display: flex; align-items: center; gap: 12px; padding: 13px 18px; background: #FDF9F2">
+                    <button onClick="{{ cat.onToggle }}" title="{{ cat.toggleTitle }}" style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="2.2" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ cat.chevron }}"></path></svg>
+                      <div style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; background: #FDF3E0; display: flex; align-items: center; justify-content: center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D9A441" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ cat.icono }}"></path></svg>
+                      </div>
+                      <div style="flex: 1; min-width: 0">
+                        <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238">{{ cat.nombre }}</p>
+                        <p style="margin: 1px 0 0; font-size: 13px; color: #B08791">{{ cat.metaTexto }}</p>
+                      </div>
+                    </button>
+                    <span style="flex-shrink: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 14px; border: 1px solid #D9A441; background: #FDF3E0; color: #D9A441">Categoría de baja</span>
+                    <button onClick="{{ cat.onReactivar }}" title="{{ cat.accionTitle }}" style="display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 7px 14px; border: 1px solid #4E8C6A; background: white; color: #4E8C6A; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #E8F5EF">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      Reactivar categoría
+                    </button>
+                  </div>
+                  <sc-if value="{{ cat.abierto }}" hint-placeholder-val="{{ true }}">
+                  <sc-for list="{{ cat.productos }}" as="b" hint-placeholder-count="2">
+                    <div style="display: flex; align-items: center; gap: 12px; padding: 11px 18px 11px 34px; border-top: 1px solid #F2E9EA">
+                      <span style="width: 18px; height: 18px; flex-shrink: 0; border-left: 1px solid #DCC9CD; border-bottom: 1px solid #DCC9CD; border-bottom-left-radius: 6px; margin-top: -10px"></span>
+                      <div style="flex: 1; min-width: 0">
+                        <p style="margin: 0; font-size: 15px; color: #857078">{{ b.nombre }}</p>
+                        <p style="margin: 1px 0 0; font-size: 13px; color: #B08791">{{ b.metaTexto }}</p>
+                      </div>
+                      <button title="Ver producto" onClick="{{ b.onAbrir }}" style="width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                      </button>
+                    </div>
+                  </sc-for>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ sinBajas }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 32px; text-align: center; font-size: 15px; color: #857078">No hay productos fuera del catálogo por una baja.</div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </section>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ enDetalle }}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 14px">
+        <button onClick="{{ volver }}" style="padding: 0; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #8C5A66" style-hover="text-decoration: underline">Productos</button>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+        <span style="font-size: 15px; color: #857078">{{ d.titulo }}</span>
+        <sc-if value="{{ d.dirty }}" hint-placeholder-val="{{ false }}">
+          <span style="display: flex; align-items: center; gap: 6px; margin-left: 4px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 3px 11px; border: 1px solid #EEDCB4; background: #FDF3E0; color: #8A6320">Cambios sin guardar</span>
+        </sc-if>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 22px; flex-wrap: wrap; max-width: 720px">
+        <div style="min-width: 0">
+          <h1 style="margin: 0 0 8px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #3D3238; text-wrap: pretty">{{ d.titulo }}</h1>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 22px; color: #8C5A66">{{ d.precioTexto }}</span>
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 14px; border: 1px solid {{ d.difColor }}; background: {{ d.difBg }}; color: {{ d.difColor }}">{{ d.dificultadTexto }}</span>
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 14px; border: 1px solid {{ d.estadoColor }}; background: {{ d.estadoBg }}; color: {{ d.estadoColor }}">{{ d.estado }}</span>
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 14px; border: 1px solid {{ d.catColor }}; background: {{ d.catBg }}; color: {{ d.catColor }}">{{ d.catTexto }}</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px">
+          <button onClick="{{ pedirBaja }}" style="padding: 10px 16px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">{{ d.bajaTexto }}</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ d.avisoCategorias }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; margin-bottom: 20px; background: #FAEAE8; border: 1px solid #f0b8b0; border-radius: 6px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <span style="font-size: 15px; color: #C0442F; text-wrap: pretty">{{ d.avisoTexto }}</span>
+        </div>
+      </sc-if>
+
+      <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #EBE0E2">
+        <sc-for list="{{ pestanas }}" as="t" hint-placeholder-count="4">
+          <button onClick="{{ t.onClick }}" style="display: flex; align-items: center; gap: 7px; padding: 11px 18px; border: 0; border-bottom: 2px solid {{ t.borde }}; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: {{ t.color }}">
+            {{ t.label }}
+            <sc-if value="{{ t.hayCuenta }}" hint-placeholder-val="{{ false }}">
+              <span style="min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; border-radius: 10px; background: {{ t.badgeBg }}; color: {{ t.badgeColor }}; font-size: 12px; font-weight: 700">{{ t.cuenta }}</span>
+            </sc-if>
+          </button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ tabDatos }}" hint-placeholder-val="{{ true }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 24px; max-width: 720px; display: flex; flex-direction: column; gap: 20px">
+          <div>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; margin-bottom: 7px; letter-spacing: .03em">Nombre del producto *</label>
+            <input value="{{ d.nombre }}" onChange="{{ onNombre }}" style="width: 100%; padding: 10px 16px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+          </div>
+          <div style="display: flex; gap: 20px; flex-wrap: wrap">
+            <div style="flex: 1; min-width: 200px">
+              <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; margin-bottom: 7px; letter-spacing: .03em">Precio actual *</label>
+              <input value="{{ d.precio }}" onChange="{{ onPrecio }}" style="width: 100%; padding: 10px 16px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+            </div>
+            <div style="flex: 1; min-width: 220px">
+              <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; margin-bottom: 7px; letter-spacing: .03em">Dificultad *</label>
+              <div style="display: flex; gap: 8px">
+                <sc-for list="{{ opcionesDificultad }}" as="op" hint-placeholder-count="3">
+                  <button onClick="{{ op.onClick }}" style="flex: 1; padding: 10px 0; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; padding: 14px 16px; background: #FAF7F7; border: 1px solid #EBE0E2; border-radius: 6px">
+            <input type="checkbox" checked="{{ d.esPersonalizado }}" onChange="{{ togglePersonalizado }}" style="accent-color: #8C5A66; width: 16px; height: 16px; margin-top: 2px; cursor: pointer">
+            <span>
+              <span style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #3D3238">Es un pedido personalizado</span>
+              <span style="display: block; font-size: 13px; color: #857078; margin-top: 2px">Los personalizados no salen en el catálogo público hasta que los destildes.</span>
+            </span>
+          </label>
+          <div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px">
+              <label style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; letter-spacing: .03em">Paso a paso de elaboración (opcional)</label>
+              <span style="font-size: 12px; color: #B08791">Solo uso interno</span>
+            </div>
+            <textarea value="{{ d.pasoAPaso }}" onChange="{{ onPasoAPaso }}" rows="6" placeholder="Modelado, secado, pintura, barniz..." style="width: 100%; padding: 12px 16px; border: 1px solid #EBE0E2; font-size: 15px; line-height: 1.55; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none; resize: vertical" style-focus="border-color: #8C5A66"></textarea>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-top: 4px">
+            <button onClick="{{ volver }}" style="padding: 10px 20px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">CANCELAR</button>
+            <button onClick="{{ guardarDetalle }}" style="padding: 10px 20px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">{{ d.guardarTexto }}</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ tabMateriales }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; max-width: 720px; overflow: hidden">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+            <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">La cantidad se escribe como la medís: “dos gotas”, “medio paquete”.</p>
+            <button onClick="{{ abrirAgregarMaterial }}" style="display: flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 8px 14px; border: 1px solid #8C5A66; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #F0E2E4">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" d="M12 5v14m7-7H5"></path></svg>
+              Agregar material
+            </button>
+          </div>
+          <sc-for list="{{ d.materiales }}" as="m" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid #EBE0E2">
+              <div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; background: #FAF7F7; border: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+              </div>
+              <span style="flex: 1; min-width: 0; font-size: 15px; color: #3D3238">{{ m.nombre }}</span>
+              <sc-if value="{{ m.disc }}" hint-placeholder-val="{{ false }}">
+                <span title="Este material está discontinuado" style="display: flex; align-items: center; gap: 5px; flex-shrink: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid #EEDCB4; background: #FDF3E0; color: #8A6320">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B8862B" stroke-width="2.1"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  Discontinuado
+                </span>
+              </sc-if>
+              <input value="{{ m.cantidad }}" onChange="{{ m.onCantidad }}" placeholder="Cantidad aprox." style="width: 168px; flex-shrink: 0; padding: 8px 14px; border: 1px solid #EBE0E2; font-size: 14px; color: #3D3238; background: #FAF7F7; border-radius: 5px; outline: none" style-focus="border-color: #8C5A66">
+              <button title="Quitar del producto" onClick="{{ m.onQuitar }}" style="width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #FAEAE8">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.9"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ d.sinMateriales }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 40px 20px; text-align: center">
+              <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238">Todavía no anotaste los materiales</p>
+              <p style="margin: 0; font-size: 14px; color: #857078">Sirve para reproducir la pieza tiempo después.</p>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ tabImagenes }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 26px; max-width: 860px">
+          <sc-for list="{{ d.gruposImagenes }}" as="g" hint-placeholder-count="2">
+            <section>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px">
+                <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078; letter-spacing: .06em">{{ g.titulo }}</h2>
+                <div style="flex: 1; height: 1px; background: #EBE0E2"></div>
+                <span style="font-size: 13px; color: #B08791">{{ g.ayuda }}</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 14px">
+                <sc-for list="{{ g.items }}" as="img" hint-placeholder-count="2">
+                  <article draggable="{{ true }}" onDragStart="{{ img.onDragStart }}" onDragOver="{{ img.onDragOver }}" onDrop="{{ img.onDrop }}" onDragEnd="{{ img.onDragEnd }}" title="Arrastrá para cambiar el orden" style="background: white; border: 1px solid {{ img.borde }}; border-radius: 8px; overflow: hidden; cursor: grab; opacity: {{ img.opacidad }}">
+                    <div style="position: relative; height: 140px; background: #FAF7F7; display: flex; align-items: center; justify-content: center">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                      <span style="position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; border: 1px solid {{ img.ordenBorde }}; background: {{ img.ordenBg }}; color: {{ img.ordenColor }}">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"></path></svg>
+                        {{ img.ordenTexto }}
+                      </span>
+                      <button title="Borrar imagen" onClick="{{ img.onBorrar }}" style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 5px; cursor: pointer" style-hover="background: #FAEAE8">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.9"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                      </button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-top: 1px solid #EBE0E2">
+                      <input value="{{ img.titulo }}" onChange="{{ img.onTitulo }}" maxLength="50" placeholder="Sin título" style="width: 100%; padding: 2px 0; border: 0; background: transparent; font-size: 14px; color: #3D3238; outline: none">
+                    </div>
+                  </article>
+                </sc-for>
+                <button onClick="{{ g.onAgregar }}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 178px; background: transparent; border: 1px dashed #DCC9CD; border-radius: 8px; cursor: pointer; color: #B08791" style-hover="border-color: #8C5A66; color: #8C5A66; background: rgba(240,226,228,.4)">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M12 5v14m7-7H5"></path></svg>
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px">{{ g.textoAgregar }}</span>
+                </button>
+              </div>
+            </section>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ tabCategorias }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; max-width: 720px; overflow: hidden">
+          <div style="padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+            <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Un producto puede estar en varias categorías, o en ninguna. Si alguna está de baja, el producto no sale en el catálogo.</p>
+          </div>
+          <sc-for list="{{ d.categoriasAsignadas }}" as="c" hint-placeholder-count="2">
+            <div style="display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid #EBE0E2">
+              <div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; background: {{ c.iconBg }}; display: flex; align-items: center; justify-content: center">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{ c.iconColor }}" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="{{ c.icono }}"></path></svg>
+              </div>
+              <div style="flex: 1; min-width: 0">
+                <p style="margin: 0; font-size: 15px; color: #3D3238">{{ c.nombre }}</p>
+                <p style="margin: 1px 0 0; font-size: 13px; color: #B08791">{{ c.tipo }}</p>
+              </div>
+              <span style="flex-shrink: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid {{ c.estadoColor }}; background: {{ c.estadoBg }}; color: {{ c.estadoColor }}">{{ c.estado }}</span>
+              <button title="Quitar categoría" onClick="{{ c.onQuitar }}" style="width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #FAEAE8">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.9"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+          </sc-for>
+          <sc-if value="{{ d.sinCategorias }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 32px 20px; text-align: center; font-size: 15px; color: #857078">Este producto no está en ninguna categoría.</div>
+          </sc-if>
+          <div style="padding: 18px 20px">
+            <p style="margin: 0 0 12px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">AGREGAR A UNA CATEGORÍA</p>
+            <div style="display: flex; flex-direction: column; gap: 16px">
+              <sc-for list="{{ d.gruposDisponibles }}" as="g" hint-placeholder-count="2">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 9px">
+                    <div style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 6px; background: {{ g.iconBg }}; display: flex; align-items: center; justify-content: center">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ g.iconColor }}" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="{{ g.icono }}"></path></svg>
+                    </div>
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #3D3238">{{ g.titulo }}</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                    <sc-for list="{{ g.items }}" as="c" hint-placeholder-count="3">
+                      <button onClick="{{ c.onAgregar }}" style="display: flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid #EBE0E2; background: white; color: #857078; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="border-color: #8C5A66; color: #8C5A66; background: #F0E2E4">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" d="M12 5v14m7-7H5"></path></svg>
+                        {{ c.nombre }}
+                      </button>
+                    </sc-for>
+                    <sc-if value="{{ g.vacio }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size: 14px; color: #B08791">{{ g.textoVacio }}</span>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ modalFiltros }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cerrarFiltrosFondo }}" style="position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; flex-shrink: 0; background: #8C5A66">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: white">Filtrar productos</h2>
+          <button onClick="{{ cerrarFiltros }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto">
+          <div>
+            <p style="margin: 0 0 12px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">CATEGORÍAS</p>
+            <div style="display: flex; flex-direction: column; gap: 16px">
+              <sc-for list="{{ gruposFiltroCategorias }}" as="g" hint-placeholder-count="2">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 9px">
+                    <div style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 6px; background: {{ g.iconBg }}; display: flex; align-items: center; justify-content: center">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{ g.iconColor }}" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="{{ g.icono }}"></path></svg>
+                    </div>
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #3D3238">{{ g.titulo }}</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                    <sc-for list="{{ g.opciones }}" as="op" hint-placeholder-count="4">
+                      <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">ESTADO DEL PRODUCTO</p>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <sc-for list="{{ fEstados }}" as="op" hint-placeholder-count="2">
+                <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+              </sc-for>
+            </div>
+            <p style="margin: 8px 0 0; font-size: 13px; color: #B08791">Sin elegir nada se muestran solo los activos.</p>
+          </div>
+          <div>
+            <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">DIFICULTAD</p>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <sc-for list="{{ fDificultades }}" as="op" hint-placeholder-count="3">
+                <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px">
+              <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">RANGO DE PRECIO</p>
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 15px; color: #8C5A66">{{ rangoTexto }}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span style="width: 46px; flex-shrink: 0; font-size: 13px; color: #857078">Desde</span>
+                <input type="range" min="{{ precioMin }}" max="{{ precioMax }}" step="500" value="{{ desdeValor }}" onChange="{{ onDesde }}" style="flex: 1; cursor: pointer">
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span style="width: 46px; flex-shrink: 0; font-size: 13px; color: #857078">Hasta</span>
+                <input type="range" min="{{ precioMin }}" max="{{ precioMax }}" step="500" value="{{ hastaValor }}" onChange="{{ onHasta }}" style="flex: 1; cursor: pointer">
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">CATÁLOGO PÚBLICO</p>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <sc-for list="{{ fCatalogo }}" as="op" hint-placeholder-count="2">
+                <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">TIPO DE PRODUCTO</p>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+              <sc-for list="{{ fTipo }}" as="op" hint-placeholder-count="2">
+                <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">USA EL MATERIAL</p>
+            <select value="{{ fMaterial }}" onChange="{{ onMaterial }}" style="width: 100%; padding: 10px 16px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none; cursor: pointer">
+              <option value="">Cualquier material</option>
+              <sc-for list="{{ materialesDisponibles }}" as="m" hint-placeholder-count="4">
+                <option value="{{ m.nombre }}">{{ m.nombre }}</option>
+              </sc-for>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; flex-shrink: 0; border-top: 1px solid #EBE0E2">
+          <span style="font-size: 14px; color: #857078">{{ previewTexto }}</span>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <button onClick="{{ limpiarBorrador }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">LIMPIAR</button>
+            <button onClick="{{ aplicarFiltros }}" style="padding: 10px 20px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">APLICAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modalMaterial }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cerrarMaterialFondo }}" style="position: fixed; inset: 0; z-index: 55; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 450px; max-height: 82vh; display: flex; flex-direction: column; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; flex-shrink: 0; background: #8C5A66">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: white">Agregar material</h2>
+          <button onClick="{{ cerrarMaterial }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="overflow-y: auto">
+          <sc-for list="{{ materialesParaAgregar }}" as="m" hint-placeholder-count="4">
+            <button onClick="{{ m.onAgregar }}" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 24px; border: 0; border-bottom: 1px solid #EBE0E2; background: white; cursor: pointer; text-align: left" style-hover="background: #FAF7F7">
+              <div style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 8px; background: #FAF7F7; border: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+              </div>
+              <span style="flex: 1; font-size: 15px; color: #3D3238">{{ m.nombre }}</span>
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid {{ m.dispColor }}; background: {{ m.dispBg }}; color: {{ m.dispColor }}">{{ m.disponibilidad }}</span>
+            </button>
+          </sc-for>
+          <sc-if value="{{ sinMaterialesParaAgregar }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 36px 24px; text-align: center; font-size: 15px; color: #857078">Ya asignaste todos los materiales activos.</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hayToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 24px; background: #3D3238; box-shadow: 0 10px 30px rgba(61,50,56,.3)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+      <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: white">{{ toast }}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmarSalir }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 65; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 450px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: #8C5A66">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Tenés cambios sin guardar</h2>
+        </div>
+        <div style="padding: 22px 24px">
+          <p style="margin: 0; font-size: 15px; color: #857078; text-wrap: pretty">{{ salirTexto }}</p>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+          <button onClick="{{ salirSinGuardar }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #C0442F; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #FAEAE8">Salir sin guardar</button>
+          <button onClick="{{ guardarYSalir }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Guardar y salir</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmarReactivarCat }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 65; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 470px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Reactivar categoría</h2>
+          <button onClick="{{ cancelarReactivarCat }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="padding: 22px 24px">
+          <p style="margin: 0 0 10px; font-size: 16px; color: #3D3238; text-wrap: pretty">{{ reactivarCatTitulo }}</p>
+          <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">{{ reactivarCatDetalle }}</p>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+          <button onClick="{{ cancelarReactivarCat }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+          <button onClick="{{ reactivarCat }}" style="padding: 10px 18px; border: 0; background: #4E8C6A; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Reactivar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmarBaja }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 450px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Dar de baja producto</h2>
+          <button onClick="{{ cancelarBaja }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="padding: 22px 24px">
+          <p style="margin: 0 0 10px; font-size: 16px; color: #3D3238; text-wrap: pretty">{{ bajaTitulo }}</p>
+          <p style="margin: 0 0 8px; font-size: 14px; color: #857078; text-wrap: pretty">Dejará de aparecer en el catálogo público y no podrás agregarlo a pedidos nuevos. Los pedidos anteriores lo conservan.</p>
+          <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Podés reactivarlo en cualquier momento y todo vuelve como estaba.</p>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+          <button onClick="{{ cancelarBaja }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+          <button onClick="{{ darDeBaja }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Dar de baja</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ confirmarBorrar }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 450px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Eliminar producto</h2>
+          <button onClick="{{ cancelarBorrar }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="padding: 22px 24px">
+          <p style="margin: 0 0 10px; font-size: 16px; color: #3D3238; text-wrap: pretty">{{ borrarTitulo }}</p>
+          <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Se pierden sus imágenes, sus materiales y su paso a paso. Si el producto aparece en pedidos anteriores, dale de baja en lugar de eliminarlo.</p>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+          <button onClick="{{ cancelarBorrar }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+          <button onClick="{{ borrarProducto }}" style="padding: 10px 18px; border: 0; background: #C0442F; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const NAV = [
+  { id: "inicio", label: "Inicio", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+  { id: "materiales", label: "Materiales", icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" },
+  { id: "categorias", label: "Categorías", icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" },
+  { id: "productos", label: "Productos", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { id: "clientes", label: "Clientes", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { id: "pedidos", label: "Pedidos", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
+  { id: "gastos", label: "Gastos", icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
+  { id: "informes", label: "Informes", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" }
+];
+
+const ICONO_VER = "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z";
+const ICONO_BAJA = "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636";
+const ICONO_BORRAR = "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16";
+const ICONO_TIPO = "M4 6h16M4 12h16M4 18h7";
+const ICONO_TEMA = "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z";
+const OJO_ABIERTO = "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z";
+const OJO_CERRADO = "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18";
+
+const CATEGORIAS = [
+  { id: 1, nombre: "Aros", tipo: "Tipo de accesorio", estado: "Activa" },
+  { id: 2, nombre: "Collares", tipo: "Tipo de accesorio", estado: "Activa" },
+  { id: 3, nombre: "Llaveros", tipo: "Tipo de accesorio", estado: "Activa" },
+  { id: 4, nombre: "Imanes", tipo: "Tipo de accesorio", estado: "Activa" },
+  { id: 5, nombre: "Stitch", tipo: "Temática", estado: "Activa" },
+  { id: 6, nombre: "Harry Potter", tipo: "Temática", estado: "Activa" },
+  { id: 7, nombre: "Flores", tipo: "Temática", estado: "Activa" },
+  { id: 8, nombre: "Navidad", tipo: "Temática", estado: "De baja" }
+];
+
+const MATERIALES = [
+  { nombre: "Arcilla polimérica blanca", disponibilidad: "Baja", estado: "Activo" },
+  { nombre: "Arcilla polimérica negra", disponibilidad: "Alta", estado: "Activo" },
+  { nombre: "Pintura acrílica rosa palo", disponibilidad: "Media", estado: "Activo" },
+  { nombre: "Pintura acrílica terracota", disponibilidad: "Media", estado: "Discontinuado" },
+  { nombre: "Barniz acabado brillante", disponibilidad: "Baja", estado: "Activo" },
+  { nombre: "Alambre de cobre 0,4 mm", disponibilidad: "Baja", estado: "Activo" },
+  { nombre: "Argollas para aros doradas", disponibilidad: "Alta", estado: "Activo" },
+  { nombre: "Imanes de neodimio pequeños", disponibilidad: "Alta", estado: "Activo" },
+  { nombre: "Llaveros mosquetón dorado", disponibilidad: "Media", estado: "Activo" },
+  { nombre: "Hilo encerado marrón", disponibilidad: "Media", estado: "Activo" }
+];
+const ICONO_ALERTA = "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z";
+
+const PRODUCTOS = [
+  { id: 1, nombre: "Aros Luna Menguante", precio: 6500, dificultad: "Media", estado: "Activo", esPersonalizado: false,
+    pasoAPaso: "Modelar la luna en porcelana blanca, dejar secar 48 h, pintar en dos capas y sellar con barniz brillante.",
+    categorias: [1, 7], materiales: [{ nombre: "Arcilla polimérica blanca", cantidad: "un cuarto de paquete" }, { nombre: "Pintura acrílica rosa palo", cantidad: "dos gotas" }, { nombre: "Argollas para aros doradas", cantidad: "un par" }],
+    imagenes: [{ id: 1, titulo: "Par terminado", tipo: "Resultado", url: "/img/productos/1-par-terminado.jpg" }, { id: 2, titulo: "Detalle del pintado", tipo: "Resultado", url: "/img/productos/1-detalle-pintado.jpg" }] },
+  { id: 2, nombre: "Aros Stitch", precio: 7200, dificultad: "Alta", estado: "Activo", esPersonalizado: false,
+    pasoAPaso: "", categorias: [1, 5], materiales: [{ nombre: "Arcilla polimérica blanca", cantidad: "medio paquete" }, { nombre: "Pintura acrílica terracota", cantidad: "" }],
+    imagenes: [{ id: 3, titulo: "Foto de catálogo", tipo: "Resultado", url: "/img/productos/2-catalogo.jpg" }, { id: 4, titulo: "Referencia del cliente", tipo: "Referencia", url: "/img/productos/2-referencia.jpg" }] },
+  { id: 3, nombre: "Llavero Stitch", precio: 5400, dificultad: "Media", estado: "Activo", esPersonalizado: false,
+    pasoAPaso: "", categorias: [3, 5], materiales: [{ nombre: "Arcilla polimérica blanca", cantidad: "" }, { nombre: "Llaveros mosquetón dorado", cantidad: "uno" }],
+    imagenes: [{ id: 5, titulo: "", tipo: "Resultado", url: "/img/productos/3-llavero.jpg" }] },
+  { id: 4, nombre: "Collar Hongo", precio: 8900, dificultad: "Alta", estado: "Activo", esPersonalizado: false,
+    pasoAPaso: "Dos piezas separadas: sombrero y tallo. Secado de 72 h por el grosor.",
+    categorias: [2, 7], materiales: [{ nombre: "Arcilla polimérica blanca", cantidad: "medio paquete" }, { nombre: "Hilo encerado marrón", cantidad: "40 cm" }, { nombre: "Barniz acabado brillante", cantidad: "una capa" }],
+    imagenes: [{ id: 6, titulo: "Colgante terminado", tipo: "Resultado", url: "/img/productos/4-colgante.jpg" }] },
+  { id: 5, nombre: "Imán Girasol", precio: 3200, dificultad: "Baja", estado: "Activo", esPersonalizado: false,
+    pasoAPaso: "", categorias: [4, 7], materiales: [{ nombre: "Imanes de neodimio pequeños", cantidad: "uno" }, { nombre: "Pintura acrílica terracota", cantidad: "" }],
+    imagenes: [] },
+  { id: 6, nombre: "Aros Varita", precio: 6800, dificultad: "Media", estado: "Activo", esPersonalizado: false,
+    pasoAPaso: "", categorias: [1, 6], materiales: [{ nombre: "Alambre de cobre 0,4 mm", cantidad: "" }],
+    imagenes: [{ id: 7, titulo: "", tipo: "Resultado", url: "/img/productos/6-aros-varita.jpg" }] },
+  { id: 7, nombre: "Set Navidad tres piezas", precio: 12500, dificultad: "Alta", estado: "Activo", esPersonalizado: false,
+    pasoAPaso: "", categorias: [8], materiales: [{ nombre: "Arcilla polimérica blanca", cantidad: "un paquete" }],
+    imagenes: [] },
+  { id: 8, nombre: "Aros gatito con moño (encargo Rocío)", precio: 9500, dificultad: "Alta", estado: "Activo", esPersonalizado: true,
+    pasoAPaso: "Copiar el moño de la referencia. Confirmar tono exacto antes de pintar.",
+    categorias: [1], materiales: [{ nombre: "Arcilla polimérica negra", cantidad: "un cuarto de paquete" }, { nombre: "Pintura acrílica rosa palo", cantidad: "" }],
+    imagenes: [{ id: 8, titulo: "Referencia de Instagram", tipo: "Referencia", url: "/img/productos/8-ref-instagram.jpg" }, { id: 9, titulo: "Resultado final", tipo: "Resultado", url: "/img/productos/8-resultado.jpg" }] },
+  { id: 9, nombre: "Collar inicial personalizado", precio: 7800, dificultad: "Media", estado: "Activo", esPersonalizado: true,
+    pasoAPaso: "", categorias: [2], materiales: [{ nombre: "Hilo encerado marrón", cantidad: "45 cm" }],
+    imagenes: [] },
+  { id: 10, nombre: "Aros cereza (temporada vieja)", precio: 4800, dificultad: "Baja", estado: "Baja", esPersonalizado: false,
+    pasoAPaso: "", categorias: [1], materiales: [{ nombre: "Arcilla polimérica blanca", cantidad: "" }],
+    imagenes: [] },
+  { id: 11, nombre: "Broche hongo", precio: 4200, dificultad: "Baja", estado: "Baja", esPersonalizado: false,
+    pasoAPaso: "", categorias: [7], materiales: [],
+    imagenes: [] }
+];
+
+const FILTROS_VACIOS = { categorias: [], dificultades: [], catalogo: [], tipo: [], estados: [], material: "", desde: null, hasta: null };
+const ORDENES = [
+  { valor: "", label: "Sin ordenar" },
+  { valor: "nombre:asc", label: "Nombre A–Z" },
+  { valor: "nombre:desc", label: "Nombre Z–A" },
+  { valor: "precio:asc", label: "Precio: menor primero" },
+  { valor: "precio:desc", label: "Precio: mayor primero" },
+  { valor: "dificultad:asc", label: "Dificultad: baja primero" },
+  { valor: "dificultad:desc", label: "Dificultad: alta primero" }
+];
+const PRECIO_MIN = 3000;
+const PRECIO_MAX = 13000;
+
+class Component extends DCLogic {
+  state = {
+    productos: PRODUCTOS, categorias: CATEGORIAS,
+    busqueda: "", vista: "grid", sidebarExpanded: false, activo: "productos",
+    filtros: Object.assign({}, FILTROS_VACIOS), borrador: Object.assign({}, FILTROS_VACIOS), modalFiltros: false,
+    sortBy: null, sortDir: "asc", bajasAbierto: false,
+    detalle: null, tab: "datos", modalMaterial: false,
+    confirmarBaja: false, aBaja: null, confirmarBorrar: false, aBorrar: null,
+    nuevo: false, dirty: false, confirmarSalir: false, toast: "", dragImg: null,
+    aReactivarCat: null, catsColapsadas: []
+  };
+
+  mostrarToast(texto) {
+    this.setState({ toast: texto });
+    clearTimeout(this._toast);
+    this._toast = setTimeout(() => this.setState({ toast: "" }), 2600);
+  }
+
+  cerrarDetalle() {
+    this.setState(st => ({
+      productos: st.nuevo ? st.productos.filter(p => p.id !== st.detalle) : st.productos,
+      detalle: null, nuevo: false, dirty: false, confirmarSalir: false, tab: "datos"
+    }));
+  }
+
+  guardarDetalle() {
+    const det = this.state.productos.filter(p => p.id === this.state.detalle)[0];
+    if (!det || !det.nombre.trim()) {
+      this.mostrarToast("Ponele un nombre al producto");
+      return false;
+    }
+    this.mostrarToast(this.state.nuevo ? "Producto creado" : "Cambios guardados");
+    this.setState({ detalle: null, nuevo: false, dirty: false, confirmarSalir: false, tab: "datos" });
+    return true;
+  }
+
+  fmt(n) {
+    return "$" + Math.round(n).toLocaleString("es-AR");
+  }
+
+  colorDificultad(d) {
+    if (d === "Baja") return { bg: "#E8F5EF", color: "#4E8C6A" };
+    if (d === "Media") return { bg: "#FDF3E0", color: "#D9A441" };
+    return { bg: "#F0E2E4", color: "#8C5A66" };
+  }
+
+  colorDisponibilidad(d) {
+    if (d === "Alta") return { bg: "#E8F5EF", color: "#4E8C6A" };
+    if (d === "Media") return { bg: "#FDF3E0", color: "#D9A441" };
+    return { bg: "#FAEAE8", color: "#C0442F" };
+  }
+
+  matsDiscontinuados(p) {
+    return p.materiales.filter(m => MATERIALES.some(x => x.nombre === m.nombre && x.estado === "Discontinuado")).map(m => m.nombre);
+  }
+
+  cats(p) {
+    return p.categorias.map(id => this.state.categorias.filter(c => c.id === id)[0]).filter(Boolean);
+  }
+
+  enCatalogo(p) {
+    const cs = this.cats(p);
+    return p.estado === "Activo" && !p.esPersonalizado && cs.every(c => c.estado === "Activa");
+  }
+
+  motivoFuera(p) {
+    if (p.esPersonalizado) return "Es un pedido personalizado, así que no aparece en el catálogo público.";
+    const bajas = this.cats(p).filter(c => c.estado === "De baja");
+    if (bajas.length > 0) {
+      const nombres = bajas.map(c => "“" + c.nombre + "”").join(", ");
+      return "No aparece en el catálogo porque " + (bajas.length === 1 ? "su categoría " + nombres + " está" : "sus categorías " + nombres + " están") + " dada" + (bajas.length === 1 ? "" : "s") + " de baja.";
+    }
+    return "";
+  }
+
+  setFiltro(campo, valor) {
+    this.setState(s => {
+      const cur = s.borrador[campo];
+      const nuevo = cur.indexOf(valor) >= 0 ? cur.filter(v => v !== valor) : cur.concat(valor);
+      return { borrador: Object.assign({}, s.borrador, { [campo]: nuevo }) };
+    });
+  }
+
+  editarDetalle(cambio) {
+    this.setState(s => ({
+      productos: s.productos.map(p => p.id === s.detalle ? Object.assign({}, p, cambio) : p),
+      dirty: true
+    }));
+  }
+
+  chip(label, activo) {
+    return {
+      label,
+      border: activo ? "1px solid #8C5A66" : "1px solid #EBE0E2",
+      bg: activo ? "#F0E2E4" : "white",
+      color: activo ? "#8C5A66" : "#857078"
+    };
+  }
+
+  tarjeta(p) {
+    const dif = this.colorDificultad(p.dificultad);
+    const cs = this.cats(p);
+    const pub = this.enCatalogo(p);
+    const porCategoria = !pub && !p.esPersonalizado && cs.some(c => c.estado === "De baja");
+    const nMat = p.materiales.length;
+    const nImg = p.imagenes.length;
+    const discont = this.matsDiscontinuados(p);
+    return {
+      matAviso: discont.length > 0,
+      matAvisoTexto: discont.length === 1 ? "Usa un material discontinuado: " + discont[0] : "Usa " + discont.length + " materiales discontinuados",
+      matAvisoTitle: discont.join(", "),
+      nombre: p.nombre,
+      precioTexto: this.fmt(p.precio),
+      dificultadTexto: "Dificultad " + p.dificultad.toLowerCase(),
+      difBg: dif.bg, difColor: dif.color,
+      esPersonalizado: false,
+      catTexto: p.estado !== "Activo" ? "Dado de baja" : (p.esPersonalizado ? "Personalizado" : (pub ? "En catálogo" : (porCategoria ? "Categoría de baja" : "Sin publicar"))),
+      catBg: p.estado !== "Activo" ? "#FAEAE8" : (p.esPersonalizado ? "#F0E2E4" : (pub ? "#E8F5EF" : (porCategoria ? "#FDF3E0" : "#FAF7F7"))),
+      catColor: p.estado !== "Activo" ? "#C0442F" : (p.esPersonalizado ? "#8C5A66" : (pub ? "#4E8C6A" : (porCategoria ? "#D9A441" : "#857078"))),
+      catTitle: p.estado !== "Activo" ? "Este producto está dado de baja" : (p.esPersonalizado ? "Personalizado, fuera del catálogo" : (pub ? "Visible en el catálogo público" : this.motivoFuera(p))),
+      categoriasTexto: cs.length === 0 ? "Sin categorías" : cs.map(c => c.nombre).join(" · "),
+      metaTexto: (nMat === 1 ? "1 material" : nMat + " materiales") + " · " + (nImg === 1 ? "1 foto" : nImg + " fotos"),
+      onAbrir: () => this.setState({ detalle: p.id, tab: "datos" }),
+      acciones: [
+        { title: "Ver y editar", icon: ICONO_VER, color: "#8C5A66", hoverBg: "#F0E2E4", onClick: () => this.setState({ detalle: p.id, tab: "datos" }) },
+        { title: "Dar de baja", icon: ICONO_BAJA, color: "#D9A441", hoverBg: "#FDF3E0", onClick: () => this.setState({ confirmarBaja: true, aBaja: p }) },
+        { title: "Eliminar", icon: ICONO_BORRAR, color: "#C0442F", hoverBg: "#FAEAE8", onClick: () => this.setState({ confirmarBorrar: true, aBorrar: p }) }
+      ]
+    };
+  }
+
+  aplicaFiltros(p, f) {
+    if (f.categorias.length > 0 && !p.categorias.some(id => f.categorias.indexOf(id) >= 0)) return false;
+    if (f.dificultades.length > 0 && f.dificultades.indexOf(p.dificultad) < 0) return false;
+    if (f.desde !== null && p.precio < f.desde) return false;
+    if (f.hasta !== null && p.precio > f.hasta) return false;
+    if (f.catalogo.length > 0) {
+      const etiqueta = this.enCatalogo(p) ? "En catálogo" : "Sin publicar";
+      if (f.catalogo.indexOf(etiqueta) < 0) return false;
+    }
+    if (f.tipo.length > 0) {
+      const etiqueta = p.esPersonalizado ? "Personalizado" : "De catálogo";
+      if (f.tipo.indexOf(etiqueta) < 0) return false;
+    }
+    if (f.material && !p.materiales.some(m => m.nombre === f.material)) return false;
+    return true;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const f = s.filtros;
+    const b = s.borrador;
+    const q = s.busqueda.trim().toLowerCase();
+
+    const activos = s.productos.filter(p => p.estado === "Activo");
+    const bajas = s.productos.filter(p => p.estado === "Baja");
+    const conCatBaja = p => this.cats(p).some(c => c.estado === "De baja");
+    const enGrilla = activos.filter(p => !conCatBaja(p));
+    const candidatos = filtro => s.productos.filter(p => {
+      if (conCatBaja(p)) return false;
+      const etiqueta = p.estado === "Activo" ? "Activo" : "De baja";
+      return filtro.estados.length > 0 ? filtro.estados.indexOf(etiqueta) >= 0 : p.estado === "Activo";
+    });
+    let visibles = candidatos(f).filter(p => p.nombre.toLowerCase().includes(q) && this.aplicaFiltros(p, f));
+
+    if (s.sortBy) {
+      const dir = s.sortDir === "asc" ? 1 : -1;
+      const ORDEN_DIF = { Baja: 0, Media: 1, Alta: 2 };
+      visibles = visibles.slice().sort((x, y) => {
+        if (s.sortBy === "nombre") return x.nombre.localeCompare(y.nombre, "es") * dir;
+        if (s.sortBy === "precio") return (x.precio - y.precio) * dir;
+        if (s.sortBy === "dificultad") return (ORDEN_DIF[x.dificultad] - ORDEN_DIF[y.dificultad]) * dir;
+        return this.cats(x).length - this.cats(y).length;
+      });
+    }
+
+    const ICON_ASC = "M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4";
+    const columna = (campo, label) => ({
+      label, onSort: () => this.setState(st => ({ sortBy: campo, sortDir: st.sortBy === campo && st.sortDir === "asc" ? "desc" : "asc" })),
+      opacity: s.sortBy === campo ? 1 : 0.4,
+      icon: s.sortBy === campo ? (s.sortDir === "asc" ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7") : ICON_ASC
+    });
+
+    const cantFiltros = f.categorias.length + f.dificultades.length + f.catalogo.length + f.tipo.length + f.estados.length + (f.material ? 1 : 0) + (f.desde !== null || f.hasta !== null ? 1 : 0);
+    const chipsActivos = [];
+    f.estados.forEach(e => chipsActivos.push({ label: e === "Activo" ? "Activos" : "Dados de baja", onQuitar: () => this.setState(st => ({ filtros: Object.assign({}, st.filtros, { estados: st.filtros.estados.filter(v => v !== e) }) })) }));
+    f.categorias.forEach(id => {
+      const c = s.categorias.filter(x => x.id === id)[0];
+      if (c) chipsActivos.push({ label: c.nombre, onQuitar: () => this.setState(st => ({ filtros: Object.assign({}, st.filtros, { categorias: st.filtros.categorias.filter(v => v !== id) }) })) });
+    });
+    f.dificultades.forEach(d => chipsActivos.push({ label: "Dificultad " + d.toLowerCase(), onQuitar: () => this.setState(st => ({ filtros: Object.assign({}, st.filtros, { dificultades: st.filtros.dificultades.filter(v => v !== d) }) })) }));
+    f.catalogo.forEach(c => chipsActivos.push({ label: c, onQuitar: () => this.setState(st => ({ filtros: Object.assign({}, st.filtros, { catalogo: st.filtros.catalogo.filter(v => v !== c) }) })) }));
+    f.tipo.forEach(t => chipsActivos.push({ label: t, onQuitar: () => this.setState(st => ({ filtros: Object.assign({}, st.filtros, { tipo: st.filtros.tipo.filter(v => v !== t) }) })) }));
+    if (f.material) chipsActivos.push({ label: "Usa " + f.material, onQuitar: () => this.setState(st => ({ filtros: Object.assign({}, st.filtros, { material: "" }) })) });
+    if (f.desde !== null || f.hasta !== null) {
+      chipsActivos.push({
+        label: this.fmt(f.desde === null ? PRECIO_MIN : f.desde) + " – " + this.fmt(f.hasta === null ? PRECIO_MAX : f.hasta),
+        onQuitar: () => this.setState(st => ({ filtros: Object.assign({}, st.filtros, { desde: null, hasta: null }) }))
+      });
+    }
+
+    const desdeValor = b.desde === null ? PRECIO_MIN : b.desde;
+    const hastaValor = b.hasta === null ? PRECIO_MAX : b.hasta;
+    const preview = candidatos(b).filter(p => p.nombre.toLowerCase().includes(q) && this.aplicaFiltros(p, b)).length;
+
+    const porCategoria = activos.filter(p => this.cats(p).some(c => c.estado === "De baja"));
+    const catsActivas = s.categorias.filter(c => c.estado === "Activa");
+    const TIPOS_CAT = [
+      { tipo: "Tipo de accesorio", titulo: "Por tipo de accesorio", icono: ICONO_TIPO, iconBg: "#F0E2E4", iconColor: "#8C5A66" },
+      { tipo: "Temática", titulo: "Por temática", icono: ICONO_TEMA, iconBg: "#FDF3E0", iconColor: "#D9A441" }
+    ];
+    const publicables = activos.filter(p => this.enCatalogo(p)).length;
+
+    const det = s.detalle ? s.productos.filter(p => p.id === s.detalle)[0] : null;
+    let d = {};
+    if (det) {
+      const dif = this.colorDificultad(det.dificultad);
+      const pub = this.enCatalogo(det);
+      const asignadas = this.cats(det);
+      const motivo = this.motivoFuera(det);
+      const detPorCategoria = !pub && !det.esPersonalizado && asignadas.some(c => c.estado === "De baja");
+      const puedeCategoria = catsActivas.filter(c => det.categorias.indexOf(c.id) < 0);
+      const grupo = (tipo, titulo, ayuda, textoAgregar) => ({
+        titulo, ayuda, textoAgregar,
+        items: det.imagenes.filter(i => i.tipo === tipo).map((i, idx) => ({
+          ordenTexto: tipo === "Resultado" && idx === 0 ? "Principal" : String(idx + 1),
+          ordenBg: tipo === "Resultado" && idx === 0 ? "#F0E2E4" : "white",
+          ordenBorde: tipo === "Resultado" && idx === 0 ? "#8C5A66" : "#EBE0E2",
+          ordenColor: tipo === "Resultado" && idx === 0 ? "#8C5A66" : "#857078",
+          borde: s.dragImg === i.id ? "#8C5A66" : "#EBE0E2",
+          opacidad: s.dragImg === i.id ? 0.5 : 1,
+          onDragStart: e => { e.dataTransfer.effectAllowed = "move"; this.setState({ dragImg: i.id }); },
+          onDragOver: e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; },
+          onDragEnd: () => this.setState({ dragImg: null }),
+          onDrop: e => {
+            e.preventDefault();
+            const origen = this.state.dragImg;
+            if (!origen || origen === i.id) return this.setState({ dragImg: null });
+            const lista = det.imagenes.slice();
+            const src = lista.filter(x => x.id === origen)[0];
+            if (!src || src.tipo !== i.tipo) return this.setState({ dragImg: null });
+            const sinSrc = lista.filter(x => x.id !== origen);
+            const destino = sinSrc.map(x => x.id).indexOf(i.id);
+            sinSrc.splice(destino, 0, src);
+            this.editarDetalle({ imagenes: sinSrc });
+            this.setState({ dragImg: null });
+          },
+          titulo: i.titulo,
+          url: i.url || "",
+          archivo: (i.url || "").split("/").pop() || "Sin archivo",
+          onTitulo: e => {
+            const v = e.target.value;
+            this.editarDetalle({ imagenes: det.imagenes.map(x => x.id === i.id ? Object.assign({}, x, { titulo: v }) : x) });
+          },
+          onBorrar: () => this.editarDetalle({ imagenes: det.imagenes.filter(x => x.id !== i.id) })
+        })),
+        onAgregar: () => this.editarDetalle({ imagenes: det.imagenes.concat({ id: Date.now(), titulo: "", tipo, url: "/img/productos/" + det.id + "-" + Date.now() + ".jpg" }) })
+      });
+      d = {
+        nombre: det.nombre,
+        titulo: s.nuevo ? (det.nombre.trim() || "Nuevo producto") : det.nombre,
+        dirty: s.dirty,
+        guardarTexto: s.nuevo ? "CREAR PRODUCTO" : "GUARDAR CAMBIOS",
+        precio: String(det.precio),
+        precioTexto: this.fmt(det.precio),
+        dificultadTexto: "Dificultad " + det.dificultad.toLowerCase(),
+        difBg: dif.bg, difColor: dif.color,
+        estado: det.estado === "Activo" ? "Activo" : "De baja",
+        estadoBg: det.estado === "Activo" ? "#E8F5EF" : "#FAEAE8",
+        estadoColor: det.estado === "Activo" ? "#4E8C6A" : "#C0442F",
+        catTexto: det.esPersonalizado ? "Personalizado, fuera del catálogo" : (pub ? "En catálogo" : (detPorCategoria ? "Categoría de baja" : "Sin publicar")),
+        catBg: det.esPersonalizado ? "#F0E2E4" : (pub ? "#E8F5EF" : (detPorCategoria ? "#FDF3E0" : "#FAF7F7")),
+        catColor: det.esPersonalizado ? "#8C5A66" : (pub ? "#4E8C6A" : (detPorCategoria ? "#D9A441" : "#857078")),
+        esPersonalizado: det.esPersonalizado,
+        pasoAPaso: det.pasoAPaso,
+        avisoCategorias: !pub && det.estado === "Activo" && motivo !== "",
+        avisoTexto: motivo,
+        puedePublicar: det.estado === "Activo" && !det.esPersonalizado && asignadas.every(c => c.estado === "Activa"),
+        pubTexto: pub ? "Quitar del catálogo" : "Publicar en el catálogo",
+        pubIcon: pub ? OJO_CERRADO : OJO_ABIERTO,
+        pubBorder: pub ? "#EBE0E2" : "#4E8C6A",
+        pubBg: "white",
+        pubColor: pub ? "#8C5A66" : "#4E8C6A",
+        bajaTexto: det.estado === "Activo" ? "Dar de baja" : "Reactivar",
+        materiales: det.materiales.map(m => {
+          const ref = MATERIALES.filter(x => x.nombre === m.nombre)[0] || { disponibilidad: "Media", estado: "Activo" };
+          const dcol = { Alta: { bg: "#E8F5EF", color: "#4E8C6A" }, Media: { bg: "#FDF3E0", color: "#8A6320" }, Baja: { bg: "#FAEAE8", color: "#C0442F" } }[ref.disponibilidad];
+          return {
+          nombre: m.nombre,
+          cantidad: m.cantidad,
+          dispTexto: "Stock " + { Alta: "alto", Media: "medio", Baja: "bajo" }[ref.disponibilidad],
+          dispBg: dcol.bg,
+          dispColor: dcol.color,
+          disc: ref.estado === "Discontinuado",
+          onCantidad: e => {
+            const v = e.target.value;
+            this.editarDetalle({ materiales: det.materiales.map(x => x.nombre === m.nombre ? Object.assign({}, x, { cantidad: v }) : x) });
+          },
+          onQuitar: () => this.editarDetalle({ materiales: det.materiales.filter(x => x.nombre !== m.nombre) })
+          };
+        }),
+        sinMateriales: det.materiales.length === 0,
+        gruposImagenes: [
+          grupo("Resultado", "PIEZA TERMINADA", "Arrastrá para ordenarlas: la primera es la del catálogo", "Subir foto"),
+          grupo("Referencia", "REFERENCIAS DEL CLIENTE", "Uso interno, no se publican", "Subir referencia")
+        ],
+        categoriasAsignadas: asignadas.map(c => ({
+          nombre: c.nombre, tipo: c.tipo, estado: c.estado === "Activa" ? "Activa" : "De baja",
+          estadoBg: c.estado === "Activa" ? "#E8F5EF" : "#FAEAE8",
+          estadoColor: c.estado === "Activa" ? "#4E8C6A" : "#C0442F",
+          icono: c.tipo === "Temática" ? ICONO_TEMA : ICONO_TIPO,
+          iconBg: c.tipo === "Temática" ? "#FDF3E0" : "#F0E2E4",
+          iconColor: c.tipo === "Temática" ? "#D9A441" : "#8C5A66",
+          onQuitar: () => this.editarDetalle({ categorias: det.categorias.filter(id => id !== c.id) })
+        })),
+        sinCategorias: asignadas.length === 0,
+        gruposDisponibles: TIPOS_CAT.map(g => {
+          const items = puedeCategoria.filter(c => c.tipo === g.tipo);
+          return Object.assign({}, g, {
+            vacio: items.length === 0,
+            textoVacio: "Ya está en todas las categorías activas de este grupo.",
+            items: items.map(c => ({
+              nombre: c.nombre,
+              onAgregar: () => this.editarDetalle({ categorias: det.categorias.concat(c.id) })
+            }))
+          });
+        })
+      };
+    }
+
+    const yaAsignados = det ? det.materiales.map(m => m.nombre) : [];
+    const paraAgregar = MATERIALES.filter(m => yaAsignados.indexOf(m.nombre) < 0 && m.estado === "Activo");
+
+    return {
+      sidebarExpanded: s.sidebarExpanded,
+      sidebarWidth: s.sidebarExpanded ? "210px" : "58px",
+      contentJustify: s.sidebarExpanded ? "flex-start" : "center",
+      toggleSidebar: () => this.setState(st => ({ sidebarExpanded: !st.sidebarExpanded })),
+      navItems: NAV.map(n => ({
+        label: n.label, icon: n.icon, title: s.sidebarExpanded ? "" : n.label,
+        bg: s.activo === n.id ? "rgba(255,255,255,0.2)" : "transparent",
+        stroke: s.activo === n.id ? "white" : "rgba(255,255,255,0.75)",
+        justify: s.sidebarExpanded ? "flex-start" : "center",
+        onClick: () => this.setState({ activo: n.id })
+      })),
+
+      enListado: !det,
+      enDetalle: !!det,
+      volver: () => { if (s.dirty) this.setState({ confirmarSalir: true }); else this.cerrarDetalle(); },
+      guardarDetalle: () => this.guardarDetalle(),
+      confirmarSalir: s.confirmarSalir,
+      salirTexto: s.nuevo ? "Si salís ahora, el producto nuevo no se va a crear." : "Editaste “" + (det ? det.nombre || "este producto" : "") + "” y todavía no guardaste.",
+      salirSinGuardar: () => this.cerrarDetalle(),
+      guardarYSalir: () => this.guardarDetalle(),
+      hayToast: s.toast !== "",
+      toast: s.toast,
+
+      hayProductos: s.productos.length > 0,
+      moduloVacio: s.productos.length === 0,
+      resumen: enGrilla.length + " productos activos · " + publicables + " visibles en el catálogo público",
+      busqueda: s.busqueda,
+      onBuscar: e => this.setState({ busqueda: e.target.value }),
+      abrirNuevo: () => {
+        const id = Date.now();
+        this.setState(st => ({
+          productos: st.productos.concat({
+            id, nombre: "", precio: 0, dificultad: "Baja", estado: "Activo", esPersonalizado: false,
+            publicado: false, categorias: [], materiales: [], imagenes: [], pasoAPaso: ""
+          }),
+          detalle: id, nuevo: true, dirty: false, tab: "datos"
+        }));
+      },
+
+      ordenOpciones: ORDENES,
+      ordenValor: s.sortBy ? s.sortBy + ":" + s.sortDir : "",
+      onOrden: e => {
+        const v = e.target.value;
+        if (!v) return this.setState({ sortBy: null });
+        const partes = v.split(":");
+        this.setState({ sortBy: partes[0], sortDir: partes[1] });
+      },
+
+      vistaGrid: s.vista === "grid",
+      vistaLista: s.vista === "lista",
+      vistas: [
+        { id: "grid", title: "Ver como imágenes", icon: "M4 5h6v6H4V5zm10 0h6v6h-6V5zM4 13h6v6H4v-6zm10 0h6v6h-6v-6z" },
+        { id: "lista", title: "Ver como lista", icon: "M4 6h16M4 12h16M4 18h16" }
+      ].map(v => ({
+        title: v.title, icon: v.icon,
+        bg: s.vista === v.id ? "#F0E2E4" : "transparent",
+        color: s.vista === v.id ? "#8C5A66" : "#B08791",
+        onClick: () => this.setState({ vista: v.id })
+      })),
+
+      hayFiltros: cantFiltros > 0,
+      cantFiltros,
+      chipsActivos,
+      filtrosBorder: cantFiltros > 0 ? "1px solid #8C5A66" : "1px solid #EBE0E2",
+      filtrosBg: cantFiltros > 0 ? "#F0E2E4" : "white",
+      limpiarFiltros: () => this.setState({ filtros: Object.assign({}, FILTROS_VACIOS) }),
+
+      modalFiltros: s.modalFiltros,
+      abrirFiltros: () => this.setState(st => ({ modalFiltros: true, borrador: Object.assign({}, st.filtros) })),
+      cerrarFiltros: () => this.setState({ modalFiltros: false }),
+      cerrarFiltrosFondo: e => { if (e.target === e.currentTarget) this.setState({ modalFiltros: false }); },
+      aplicarFiltros: () => this.setState(st => ({ filtros: Object.assign({}, st.borrador), modalFiltros: false })),
+      limpiarBorrador: () => this.setState({ borrador: Object.assign({}, FILTROS_VACIOS) }),
+      previewTexto: preview === 1 ? "1 producto coincide" : preview + " productos coinciden",
+
+      gruposFiltroCategorias: TIPOS_CAT.map(g => Object.assign({}, g, {
+        opciones: catsActivas.filter(c => c.tipo === g.tipo).map(c => Object.assign(this.chip(c.nombre, b.categorias.indexOf(c.id) >= 0), { onClick: () => this.setFiltro("categorias", c.id) }))
+      })),
+      fEstados: [{ id: "Activo", label: "Activos" }, { id: "De baja", label: "Dados de baja" }].map(x => Object.assign(this.chip(x.label, b.estados.indexOf(x.id) >= 0), { onClick: () => this.setFiltro("estados", x.id) })),
+      fDificultades: ["Baja", "Media", "Alta"].map(x => Object.assign(this.chip(x, b.dificultades.indexOf(x) >= 0), { onClick: () => this.setFiltro("dificultades", x) })),
+      fCatalogo: ["En catálogo", "Sin publicar"].map(x => Object.assign(this.chip(x, b.catalogo.indexOf(x) >= 0), { onClick: () => this.setFiltro("catalogo", x) })),
+      fTipo: ["De catálogo", "Personalizado"].map(x => Object.assign(this.chip(x, b.tipo.indexOf(x) >= 0), { onClick: () => this.setFiltro("tipo", x) })),
+      fMaterial: b.material,
+      onMaterial: e => this.setState(st => ({ borrador: Object.assign({}, st.borrador, { material: e.target.value }) })),
+      materialesDisponibles: MATERIALES.map(m => ({ nombre: m.nombre })),
+      precioMin: PRECIO_MIN,
+      precioMax: PRECIO_MAX,
+      desdeValor,
+      hastaValor,
+      rangoTexto: this.fmt(desdeValor) + " – " + this.fmt(hastaValor),
+      onDesde: e => {
+        const v = Math.min(Number(e.target.value), hastaValor);
+        this.setState(st => ({ borrador: Object.assign({}, st.borrador, { desde: v }) }));
+      },
+      onHasta: e => {
+        const v = Math.max(Number(e.target.value), desdeValor);
+        this.setState(st => ({ borrador: Object.assign({}, st.borrador, { hasta: v }) }));
+      },
+
+      productos: visibles.map(p => this.tarjeta(p)),
+      sinResultados: visibles.length === 0,
+      columnas: [columna("nombre", "PRODUCTO"), columna("precio", "PRECIO"), columna("dificultad", "DIFICULTAD"), columna("categorias", "CATEGORÍAS")],
+
+      bajasAbierto: s.bajasAbierto,
+      toggleBajas: () => this.setState(st => ({ bajasAbierto: !st.bajasAbierto })),
+      bajasTexto: bajas.length + " por el producto · " + porCategoria.length + " por su categoría",
+      bajasChevron: s.bajasAbierto ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7",
+      sinBajas: bajas.length === 0 && porCategoria.length === 0,
+      confirmarReactivarCat: s.aReactivarCat !== null,
+      reactivarCatTitulo: (() => {
+        const c = s.categorias.filter(x => x.id === s.aReactivarCat)[0];
+        return c ? "¿Reactivar “" + c.nombre + "”?" : "";
+      })(),
+      reactivarCatDetalle: (() => {
+        const c = s.categorias.filter(x => x.id === s.aReactivarCat)[0];
+        if (!c) return "";
+        const n = porCategoria.filter(p => p.categorias.indexOf(c.id) >= 0).length;
+        return "Esta categoría va a regresar al catálogo público, junto con sus " + n + " productos.";
+      })(),
+      cancelarReactivarCat: () => this.setState({ aReactivarCat: null }),
+      reactivarCat: () => {
+        const c = s.categorias.filter(x => x.id === s.aReactivarCat)[0];
+        this.setState(st => ({ categorias: st.categorias.map(x => x.id === st.aReactivarCat ? Object.assign({}, x, { estado: "Activa" }) : x), aReactivarCat: null }));
+        if (c) this.mostrarToast("“" + c.nombre + "” reactivada");
+      },
+
+      hayBajasProducto: bajas.length > 0,
+      bajasProducto: bajas.map(p => ({
+        nombre: p.nombre,
+        metaTexto: this.fmt(p.precio) + " · dificultad " + p.dificultad.toLowerCase(),
+        onAbrir: () => this.setState({ detalle: p.id, tab: "datos" }),
+        onReactivar: () => this.setState(st => ({ productos: st.productos.map(x => x.id === p.id ? Object.assign({}, x, { estado: "Activo" }) : x) }))
+      })),
+      hayBajasCategoria: porCategoria.length > 0,
+      arbolCategorias: s.categorias.filter(c => c.estado === "De baja").map(c => {
+        const hijos = porCategoria.filter(p => p.categorias.indexOf(c.id) >= 0);
+        return {
+          nombre: c.nombre,
+          icono: c.tipo === "Temática" ? ICONO_TEMA : ICONO_TIPO,
+          metaTexto: c.tipo + " · " + (hijos.length === 1 ? "1 producto afectado" : hijos.length + " productos afectados"),
+          accionTitle: "Reactiva “" + c.nombre + "” y todos sus productos",
+          abierto: s.catsColapsadas.indexOf(c.id) < 0,
+          chevron: s.catsColapsadas.indexOf(c.id) < 0 ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7",
+          toggleTitle: s.catsColapsadas.indexOf(c.id) < 0 ? "Ocultar sus productos" : "Ver sus productos",
+          onToggle: () => this.setState(st => ({ catsColapsadas: st.catsColapsadas.indexOf(c.id) >= 0 ? st.catsColapsadas.filter(x => x !== c.id) : st.catsColapsadas.concat(c.id) })),
+          onReactivar: () => this.setState({ aReactivarCat: c.id }),
+          productos: hijos.map(p => ({
+            nombre: p.nombre,
+            metaTexto: this.fmt(p.precio) + " · dificultad " + p.dificultad.toLowerCase(),
+            onAbrir: () => this.setState({ detalle: p.id, tab: "categorias" })
+          }))
+        };
+      }).filter(n => n.productos.length > 0),
+
+      d,
+      pestanas: [
+        { id: "datos", label: "Datos", cuenta: 0 },
+        { id: "materiales", label: "Materiales", cuenta: det ? det.materiales.length : 0 },
+        { id: "imagenes", label: "Imágenes", cuenta: det ? det.imagenes.length : 0 },
+        { id: "categorias", label: "Categorías", cuenta: det ? det.categorias.length : 0 }
+      ].map(t => ({
+        label: t.label,
+        cuenta: t.cuenta,
+        hayCuenta: t.id !== "datos",
+        badgeBg: s.tab === t.id ? "#8C5A66" : "#F0E2E4",
+        badgeColor: s.tab === t.id ? "white" : "#8C5A66",
+        borde: s.tab === t.id ? "#8C5A66" : "transparent",
+        color: s.tab === t.id ? "#8C5A66" : "#857078",
+        onClick: () => this.setState({ tab: t.id })
+      })),
+      tabDatos: s.tab === "datos",
+      tabMateriales: s.tab === "materiales",
+      tabImagenes: s.tab === "imagenes",
+      tabCategorias: s.tab === "categorias",
+
+      onNombre: e => this.editarDetalle({ nombre: e.target.value }),
+      onPrecio: e => {
+        const n = Number(String(e.target.value).replace(/[^0-9]/g, ""));
+        this.editarDetalle({ precio: isNaN(n) ? 0 : n });
+      },
+      onPasoAPaso: e => this.editarDetalle({ pasoAPaso: e.target.value }),
+      togglePersonalizado: () => det && this.editarDetalle({ esPersonalizado: !det.esPersonalizado }),
+      togglePublicado: () => det && this.editarDetalle({ esPersonalizado: this.enCatalogo(det) ? true : false }),
+      opcionesDificultad: ["Baja", "Media", "Alta"].map(x => {
+        const c = this.colorDificultad(x);
+        const activo = det && det.dificultad === x;
+        return {
+          label: x,
+          border: activo ? "2px solid " + c.color : "1px solid #EBE0E2",
+          bg: activo ? c.bg : "white",
+          color: activo ? c.color : "#857078",
+          onClick: () => this.editarDetalle({ dificultad: x })
+        };
+      }),
+
+      modalMaterial: s.modalMaterial,
+      abrirAgregarMaterial: () => this.setState({ modalMaterial: true }),
+      cerrarMaterial: () => this.setState({ modalMaterial: false }),
+      cerrarMaterialFondo: e => { if (e.target === e.currentTarget) this.setState({ modalMaterial: false }); },
+      sinMaterialesParaAgregar: paraAgregar.length === 0,
+      materialesParaAgregar: paraAgregar.map(m => {
+        const c = this.colorDisponibilidad(m.disponibilidad);
+        return {
+          nombre: m.nombre, disponibilidad: m.disponibilidad, dispBg: c.bg, dispColor: c.color,
+          onAgregar: () => {
+            if (det) this.editarDetalle({ materiales: det.materiales.concat({ nombre: m.nombre, cantidad: "" }) });
+            this.setState({ modalMaterial: false });
+          }
+        };
+      }),
+
+      confirmarBaja: s.confirmarBaja,
+      bajaTitulo: s.aBaja ? "¿Dar de baja el producto “" + s.aBaja.nombre + "”?" : "",
+      cancelarBaja: () => this.setState({ confirmarBaja: false, aBaja: null }),
+      darDeBaja: () => this.setState(st => ({
+        productos: st.productos.map(p => p.id === st.aBaja.id ? Object.assign({}, p, { estado: "Baja" }) : p),
+        confirmarBaja: false, aBaja: null, detalle: null
+      })),
+      pedirBaja: () => {
+        if (!det) return;
+        if (det.estado === "Baja") this.editarDetalle({ estado: "Activo" });
+        else this.setState({ confirmarBaja: true, aBaja: det });
+      },
+
+      confirmarBorrar: s.confirmarBorrar,
+      borrarTitulo: s.aBorrar ? "¿Eliminar el producto “" + s.aBorrar.nombre + "”?" : "",
+      cancelarBorrar: () => this.setState({ confirmarBorrar: false, aBorrar: null }),
+      borrarProducto: () => this.setState(st => ({
+        productos: st.productos.filter(p => p.id !== st.aBorrar.id),
+        confirmarBorrar: false, aBorrar: null, detalle: null
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

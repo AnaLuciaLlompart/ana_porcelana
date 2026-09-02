@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FAF7F7; font-family: 'Nunito Sans', sans-serif; color: #3D3238; }
+  * { box-sizing: border-box; }
+  a { color: #8C5A66; }
+  a:hover { color: #B08791; }
+  input, select, button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #EBE0E2; border-radius: 3px; }
+</style>
+</helmet>
+<div style="display: flex; height: 100vh; overflow: hidden; background: #FAF7F7;">
+  <aside style="display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; background: #8C5A66; transition: width .2s; width: {{ sidebarWidth }}">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 6px 0; flex: 1">
+      <button onClick="{{ toggleSidebar }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: white">Menú</span>
+        </sc-if>
+      </button>
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin: 6px 0"></div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+        <button onClick="{{ item.onClick }}" title="{{ item.title }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; cursor: pointer; background: {{ item.bg }}; justify-content: {{ item.justify }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ item.stroke }}" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ item.icon }}"></path></svg>
+          <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: {{ item.stroke }}">{{ item.label }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div style="padding: 0 6px 16px">
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin-bottom: 6px"></div>
+      <button title="Cerrar sesión" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cerrar sesión</span>
+        </sc-if>
+      </button>
+    </div>
+  </aside>
+
+  <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden">
+    <main style="flex: 1; overflow-y: auto; padding: 32px">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
+        <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #3D3238">Gestión de Materiales</h1>
+        <button onClick="{{ abrirModal }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #8C5A66; color: white; border: 0; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+          Nuevo material
+        </button>
+      </div>
+
+      <sc-if value="{{ avisoA }}" hint-placeholder-val="{{ true }}">
+        <div style="background: white; border: 1px solid #f0b8b0; border-radius: 8px; margin-bottom: 16px; overflow: hidden">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 12px 18px; background: #FAEAE8">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #C0442F">{{ tituloPorReponer }}</span>
+          </div>
+          <sc-for list="{{ listaPorReponer }}" as="p" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-top: 1px solid #EBE0E2">
+              <span style="font-size: 15px; color: #3D3238">{{ p.nombre }}</span>
+              <div style="display: flex; align-items: center; gap: 14px">
+                <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 4px 14px; border: 1px solid #C0442F; background: #FAEAE8; color: #C0442F">Baja</span>
+                <button onClick="{{ p.onEditar }}" style="padding: 6px 14px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #F0E2E4">Reponer</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px">
+        <div style="position: relative; width: 420px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#857078" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%)"><path stroke-linecap="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input value="{{ busqueda }}" onChange="{{ onBuscar }}" placeholder="Buscar material..." style="width: 100%; padding: 8px 16px 8px 36px; border: 1px solid #EBE0E2; background: white; font-size: 16px; color: #3D3238; border-radius: 5px; outline: none">
+        </div>
+        <button onClick="{{ toggleFiltros }}" style="margin-left: auto; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; min-width: 130px; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border: {{ filtrosBorder }}; background: {{ filtrosBg }}; color: #8C5A66">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+          Filtros
+          <sc-if value="{{ hayFiltros }}" hint-placeholder-val="{{ false }}">
+            <span style="min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; border-radius: 10px; background: #8C5A66; color: white; font-size: 12px; font-weight: 600">{{ cantFiltros }}</span>
+          </sc-if>
+        </button>
+        <div style="display: flex; align-items: center; gap: 2px; padding: 3px; background: white; border: 1px solid #EBE0E2; border-radius: 6px">
+          <sc-for list="{{ vistas }}" as="v" hint-placeholder-count="2">
+            <button onClick="{{ v.onClick }}" title="{{ v.title }}" style="width: 34px; height: 30px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; cursor: pointer; background: {{ v.bg }}">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ v.color }}" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="{{ v.icon }}"></path></svg>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ filtrosAbiertos }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; display: flex; align-items: flex-end; gap: 40px; flex-wrap: wrap">
+          <div>
+            <p style="margin: 0 0 9px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">DISPONIBILIDAD</p>
+            <div style="display: flex; gap: 8px">
+              <sc-for list="{{ filtroDisp }}" as="op" hint-placeholder-count="3">
+                <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 12px">
+            <span style="font-size: 14px; color: #857078">{{ resultadosTexto }}</span>
+            <button onClick="{{ limpiarFiltros }}" style="padding: 8px 14px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #F0E2E4">Limpiar</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ haySeleccion }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 12px 20px; margin-bottom: 12px; background: #F0E2E4; border: 1px solid #F0E2E4; border-radius: 8px">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #8C5A66">{{ seleccionTexto }}</span>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; color: #857078">Marcar disponibilidad como</span>
+            <sc-for list="{{ accionesDisp }}" as="a" hint-placeholder-count="3">
+              <button onClick="{{ a.onClick }}" style="padding: 6px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border: {{ a.border }}; background: {{ a.bg }}; color: {{ a.color }}">{{ a.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 14px; color: #857078">Marcar estado como</span>
+            <sc-for list="{{ accionesEstado }}" as="a" hint-placeholder-count="2">
+              <button onClick="{{ a.onClick }}" style="padding: 6px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border: {{ a.border }}; background: {{ a.bg }}; color: {{ a.color }}">{{ a.label }}</button>
+            </sc-for>
+          </div>
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 8px">
+            <button onClick="{{ pedirConfirmacion }}" style="display: flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid #C0442F; background: white; color: #C0442F; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #FAEAE8">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              Eliminar
+            </button>
+            <button onClick="{{ limpiarSeleccion }}" style="padding: 8px 14px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: white">Cancelar</button>
+            <button onClick="{{ guardarLote }}" style="padding: 8px 16px; border: 0; background: #8C5A66; color: white; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="opacity: .9">Guardar cambios</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vistaGrid }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-bottom: 16px">
+          <sc-for list="{{ rows }}" as="m" hint-placeholder-count="7">
+            <article style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column">
+              <div style="position: relative; height: 130px; background: #FAF7F7; border-bottom: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <label style="position: absolute; top: 10px; left: 10px; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: white; border: 1px solid #EBE0E2; border-radius: 5px; cursor: pointer">
+                  <input type="checkbox" checked="{{ m.checked }}" onChange="{{ m.onToggle }}" style="accent-color: #8C5A66; cursor: pointer; width: 15px; height: 15px; margin: 0" />
+                </label>
+              </div>
+              <div style="padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 10px; flex: 1">
+                <h3 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238; text-wrap: pretty">{{ m.nombre }}</h3>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap">
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid {{ m.dispColor }}; background: {{ m.dispBg }}; color: {{ m.dispColor }}">{{ m.disponibilidad }}</span>
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid {{ m.estadoColor }}; background: {{ m.estadoBg }}; color: {{ m.estadoColor }}">{{ m.estado }}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 4px; margin-top: auto; padding-top: 8px; border-top: 1px solid #EBE0E2">
+                  <button title="Ver" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                  </button>
+                  <button title="Editar" onClick="{{ m.onEditar }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                  </button>
+                  <button title="Eliminar" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #FAEAE8">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                </div>
+              </div>
+            </article>
+          </sc-for>
+          <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+            <div style="grid-column: 1 / -1; background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 40px; text-align: center; font-size: 15px; color: #857078">No se encontraron materiales con esos filtros.</div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vistaLista }}" hint-placeholder-val="{{ true }}">
+      <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+        <table style="width: 100%; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 40px; padding: 12px 16px; text-align: left">
+                <input type="checkbox" checked="{{ allSelected }}" onChange="{{ toggleAll }}" style="accent-color: #8C5A66; cursor: pointer; width: 16px; height: 16px">
+              </th>
+              <sc-for list="{{ columnas }}" as="col" hint-placeholder-count="3">
+                <th style="text-align: left; padding: 0">
+                  <button onClick="{{ col.onSort }}" style="display: flex; align-items: center; gap: 5px; width: 100%; padding: 12px 16px; border: 0; background: transparent; cursor: pointer; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em" style-hover="background: rgba(140,90,102,.09)">
+                    {{ col.label }}
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: {{ col.opacity }}"><path stroke-linecap="round" stroke-linejoin="round" d="{{ col.icon }}"></path></svg>
+                  </button>
+                </th>
+              </sc-for>
+              <th style="text-align: left; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">ESTADO</th>
+              <th style="text-align: left; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ rows }}" as="m" hint-placeholder-count="7">
+              <tr style="border-top: 1px solid #EBE0E2; background: {{ m.rowBg }}">
+                <td style="padding: 14px 16px">
+                  <input type="checkbox" checked="{{ m.checked }}" onChange="{{ m.onToggle }}" style="accent-color: #8C5A66; cursor: pointer; width: 16px; height: 16px">
+                </td>
+                <td style="padding: 16px; font-size: 16px; color: #3D3238">{{ m.nombre }}</td>
+                <td style="padding: 16px">
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border-radius: 20px; padding: 6px 16px; border: 1px solid {{ m.dispColor }}; background: {{ m.dispBg }}; color: {{ m.dispColor }}">{{ m.disponibilidad }}</span>
+                </td>
+                <td style="padding: 16px">
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border-radius: 20px; padding: 6px 16px; border: 1px solid {{ m.estadoColor }}; background: {{ m.estadoBg }}; color: {{ m.estadoColor }}">{{ m.estado }}</span>
+                </td>
+                <td style="padding: 16px">
+                  <div style="display: flex; align-items: center; gap: 4px">
+                    <button title="Ver" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </button>
+                    <button title="Editar" onClick="{{ m.onEditar }}" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </button>
+                    <button title="Eliminar" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #FAEAE8">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </sc-for>
+            <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+              <tr style="border-top: 1px solid #EBE0E2">
+                <td colspan="5" style="padding: 32px; text-align: center; font-size: 15px; color: #857078">No se encontraron materiales con esos filtros.</td>
+              </tr>
+            </sc-if>
+          </tbody>
+        </table>
+      </div>
+      </sc-if>
+
+      <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; margin-top: 12px">
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 20px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 15px; color: #857078">Filas por página</span>
+            <select value="{{ porPagina }}" onChange="{{ onPorPagina }}" style="padding: 4px 8px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: white; border-radius: 4px; outline: none; cursor: pointer">
+              <option value="7">7</option><option value="10">10</option><option value="25">25</option>
+            </select>
+          </div>
+          <span style="font-size: 15px; color: #857078">{{ rangoTexto }}</span>
+          <div style="display: flex; align-items: center; gap: 4px">
+            <button onClick="{{ prevPage }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ prevOpacity }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button onClick="{{ nextPage }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ nextOpacity }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <section style="margin-top: 34px">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078; letter-spacing: .06em">DISCONTINUADOS</h2>
+          <div style="flex: 1; height: 1px; background: #EBE0E2"></div>
+          <span style="font-size: 14px; color: #B08791">{{ discTexto }}</span>
+          <button onClick="{{ toggleDisc }}" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #F0E2E4">
+            {{ discBoton }}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ discChevron }}"></path></svg>
+          </button>
+        </div>
+
+        <sc-if value="{{ discGrid }}" hint-placeholder-val="{{ false }}">
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px">
+            <sc-for list="{{ discRows }}" as="d" hint-placeholder-count="2">
+              <article style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column">
+                <div style="height: 130px; background: #F5F0F1; border-bottom: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+                <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px; flex: 1">
+                  <h3 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #857078; text-wrap: pretty">{{ d.nombre }}</h3>
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap">
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid #DCC9CD; background: #FAF7F7; color: #857078">{{ d.disponibilidad }}</span>
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid #C0442F; background: #FAEAE8; color: #C0442F">Discontinuado</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px solid #EBE0E2">
+                    <button title="Ver" onClick="{{ d.onVer }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </button>
+                    <button onClick="{{ d.onReactivar }}" style="display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid #4E8C6A; background: white; color: #4E8C6A; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #E8F5EF">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M20 9a8 8 0 00-14.9-2M4 15a8 8 0 0014.9 2"></path></svg>
+                      Reactivar
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </sc-for>
+            <sc-if value="{{ sinDisc }}" hint-placeholder-val="{{ false }}">
+              <div style="grid-column: 1 / -1; background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 32px; text-align: center; font-size: 15px; color: #857078">No hay materiales discontinuados.</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ discLista }}" hint-placeholder-val="{{ false }}">
+          <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+            <table style="width: 100%; border-collapse: collapse">
+              <thead>
+                <tr style="background: #FAF7F7">
+                  <th style="text-align: left; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">MATERIAL</th>
+                  <th style="text-align: left; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">DISPONIBILIDAD</th>
+                  <th style="text-align: left; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">ESTADO</th>
+                  <th style="text-align: right; padding: 12px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ discRows }}" as="d" hint-placeholder-count="2">
+                  <tr style="border-top: 1px solid #EBE0E2">
+                    <td style="padding: 16px; font-size: 16px; color: #857078">{{ d.nombre }}</td>
+                    <td style="padding: 16px">
+                      <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border-radius: 20px; padding: 6px 16px; border: 1px solid #DCC9CD; background: #FAF7F7; color: #857078">{{ d.disponibilidad }}</span>
+                    </td>
+                    <td style="padding: 16px">
+                      <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border-radius: 20px; padding: 6px 16px; border: 1px solid #C0442F; background: #FAEAE8; color: #C0442F">Discontinuado</span>
+                    </td>
+                    <td style="padding: 16px">
+                      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px">
+                        <button title="Ver" onClick="{{ d.onVer }}" style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        </button>
+                        <button onClick="{{ d.onReactivar }}" style="display: flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1px solid #4E8C6A; background: white; color: #4E8C6A; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #E8F5EF">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M20 9a8 8 0 00-14.9-2M4 15a8 8 0 0014.9 2"></path></svg>
+                          Reactivar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </sc-for>
+                <sc-if value="{{ sinDisc }}" hint-placeholder-val="{{ false }}">
+                  <tr style="border-top: 1px solid #EBE0E2">
+                    <td colspan="4" style="padding: 28px; text-align: center; font-size: 15px; color: #857078">No hay materiales discontinuados.</td>
+                  </tr>
+                </sc-if>
+              </tbody>
+            </table>
+          </div>
+        </sc-if>
+      </section>
+    </main>
+  </div>
+
+  <sc-if value="{{ confirmarEliminar }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 430px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Eliminar materiales</h2>
+          <button onClick="{{ cancelarEliminar }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="padding: 22px 24px">
+          <p style="margin: 0 0 8px; font-size: 16px; color: #3D3238">{{ confirmarTexto }}</p>
+          <p style="margin: 0; font-size: 14px; color: #857078">Esta acción no se puede deshacer.</p>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+          <button onClick="{{ cancelarEliminar }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+          <button onClick="{{ eliminarLote }}" style="padding: 10px 18px; border: 0; background: #C0442F; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showModal }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ cerrarModalFondo }}" style="position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5)">
+      <div style="width: 100%; max-width: 490px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; background: white; border-radius: 10px; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; flex-shrink: 0; background: #8C5A66">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: white">{{ modalTitulo }}</h2>
+          <button onClick="{{ cerrarModal }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto">
+          <div>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; margin-bottom: 7px; letter-spacing: .03em">Nombre del material *</label>
+            <input value="{{ formNombre }}" onChange="{{ onFormNombre }}" disabled="{{ inputDisabled }}" placeholder="Ej: Arcilla polimérica blanca" style="width: 100%; padding: 10px 16px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none">
+          </div>
+          <div>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; margin-bottom: 7px; letter-spacing: .03em">Disponibilidad *</label>
+            <div style="display: flex; gap: 8px">
+              <sc-for list="{{ dispOpciones }}" as="op" hint-placeholder-count="3">
+                <button onClick="{{ op.onClick }}" style="flex: 1; padding: 10px 0; border-radius: 5px; cursor: {{ op.cursor }}; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; margin-bottom: 7px; letter-spacing: .03em">Estado *</label>
+            <select value="{{ formEstado }}" onChange="{{ onFormEstado }}" disabled="{{ inputDisabled }}" style="width: 100%; padding: 10px 16px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none; cursor: pointer">
+              <option value="Activo">Activo</option><option value="Discontinuado">Discontinuado</option>
+            </select>
+          </div>
+          <sc-if value="{{ soloLectura }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #FAEAE8; border: 1px solid #f0b8b0; border-radius: 6px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              <span style="font-size: 14px; color: #C0442F">Material discontinuado: solo lectura. Reactivalo para poder editarlo.</span>
+            </div>
+          </sc-if>
+          <div>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #857078; margin-bottom: 7px; letter-spacing: .03em">Imagen (opcional)</label>
+            <div style="width: 100%; height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; border: 2px dashed #EBE0E2; background: #FAF7F7; border-radius: 6px">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              <p style="margin: 0; font-size: 14px; color: #857078">Hacé clic para subir una foto</p>
+              <p style="margin: 0; font-size: 12px; color: #B08791">PNG, JPG hasta 5 MB</p>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; flex-shrink: 0; border-top: 1px solid #EBE0E2">
+          <button onClick="{{ cerrarModal }}" style="padding: 10px 20px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">{{ textoCerrar }}</button>
+          <sc-if value="{{ editable }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ guardarModal }}" style="padding: 10px 20px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">GUARDAR</button>
+          </sc-if>
+          <sc-if value="{{ soloLectura }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ reactivarDesdeModal }}" style="display: flex; align-items: center; gap: 7px; padding: 10px 18px; border: 1px solid #4E8C6A; background: white; color: #4E8C6A; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #E8F5EF">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M20 9a8 8 0 00-14.9-2M4 15a8 8 0 0014.9 2"></path></svg>
+              Reactivar
+            </button>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+const MATERIALES = [
+  { nombre: "Arcilla polimérica blanca", disponibilidad: "Baja", estado: "Activo" },
+  { nombre: "Pintura acrílica rosa palo", disponibilidad: "Media", estado: "Activo" },
+  { nombre: "Barniz acabado brillante", disponibilidad: "Baja", estado: "Activo" },
+  { nombre: "Alambre de cobre 0,4 mm", disponibilidad: "Baja", estado: "Activo" },
+  { nombre: "Argollas para aros doradas", disponibilidad: "Alta", estado: "Activo" },
+  { nombre: "Imanes de neodimio pequeños", disponibilidad: "Alta", estado: "Activo" },
+  { nombre: "Pintura acrílica terracota", disponibilidad: "Media", estado: "Discontinuado" },
+  { nombre: "Arcilla polimérica negra", disponibilidad: "Alta", estado: "Activo" },
+  { nombre: "Llaveros mosquetón dorado", disponibilidad: "Media", estado: "Activo" },
+  { nombre: "Pintura acrílica verde salvia", disponibilidad: "Alta", estado: "Discontinuado" },
+  { nombre: "Hilo encerado marrón", disponibilidad: "Media", estado: "Activo" }
+];
+
+const NAV = [
+  { id: "inicio", label: "Inicio", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+  { id: "materiales", label: "Materiales", icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" },
+  { id: "categorias", label: "Categorías", icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" },
+  { id: "productos", label: "Productos", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { id: "clientes", label: "Clientes", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { id: "pedidos", label: "Pedidos", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
+  { id: "gastos", label: "Gastos", icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
+  { id: "informes", label: "Informes", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" }
+];
+
+const PER_PAGE = 7;
+
+class Component extends DCLogic {
+  state = { materiales: MATERIALES, busqueda: "", page: 1, selected: [], showModal: false, sidebarExpanded: false, activo: "materiales", disp: "", filtrosAbiertos: false, fDisp: [], fEstado: [], sortBy: null, sortDir: "asc", porPagina: 7, loteDisp: null, loteEstado: null, snapshot: null, confirmarEliminar: false, aviso: "A", vista: "lista", discAbierto: false, modalTitulo: "Nuevo material", editando: null, form: { nombre: "", disp: "", estado: "" } };
+
+  toggleFiltro(campo, valor) {
+    this.setState(s => {
+      const cur = s[campo];
+      return { [campo]: cur.includes(valor) ? cur.filter(v => v !== valor) : cur.concat(valor), page: 1 };
+    });
+  }
+
+  ordenarPor(campo) {
+    this.setState(s => ({
+      sortBy: campo,
+      sortDir: s.sortBy === campo && s.sortDir === "asc" ? "desc" : "asc",
+      page: 1
+    }));
+  }
+
+  aplicarLote(campo, valor) {
+    this.setState(s => ({
+      snapshot: s.snapshot || s.materiales,
+      materiales: s.materiales.map(m => s.selected.includes(m.nombre) ? Object.assign({}, m, { [campo]: valor }) : m),
+      loteDisp: campo === "disponibilidad" ? valor : s.loteDisp,
+      loteEstado: campo === "estado" ? valor : s.loteEstado
+    }));
+  }
+
+  chip(label, activo, colores) {
+    return {
+      label,
+      border: activo ? "1px solid " + colores.color : "1px solid #EBE0E2",
+      bg: activo ? colores.bg : "white",
+      color: activo ? colores.color : "#857078"
+    };
+  }
+
+  abrirEditar(m) {
+    const soloLectura = m.estado === "Discontinuado";
+    this.setState({
+      showModal: true,
+      modalTitulo: soloLectura ? "Material discontinuado" : "Editar material",
+      soloLectura,
+      form: { nombre: m.nombre, disp: m.disponibilidad, estado: m.estado },
+      editando: soloLectura ? null : m.nombre
+    });
+  }
+
+  guardarModal() {
+    this.setState(s => {
+      if (!s.editando) return { showModal: false };
+      return {
+        showModal: false,
+        materiales: s.materiales.map(m => m.nombre === s.editando
+          ? { nombre: s.form.nombre, disponibilidad: s.form.disp || m.disponibilidad, estado: s.form.estado || m.estado }
+          : m),
+        editando: null
+      };
+    });
+  }
+
+  estadoColor(e) {
+    return e === "Activo" ? { bg: "#E8F5EF", color: "#4E8C6A" } : { bg: "#FAEAE8", color: "#C0442F" };
+  }
+
+  disponibilidadColor(d) {
+    if (d === "Alta") return { bg: "#E8F5EF", color: "#4E8C6A" };
+    if (d === "Media") return { bg: "#FDF3E0", color: "#D9A441" };
+    return { bg: "#FAEAE8", color: "#C0442F" };
+  }
+
+  toggleOne(nombre) {
+    this.setState(s => ({
+      selected: s.selected.includes(nombre) ? s.selected.filter(n => n !== nombre) : s.selected.concat(nombre)
+    }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const discontinuados = s.materiales.filter(m => m.estado === "Discontinuado");
+    const filtrados = s.materiales.filter(m => m.estado === "Activo").filter(m =>
+      m.nombre.toLowerCase().includes(s.busqueda.toLowerCase()) &&
+      (s.fDisp.length === 0 || s.fDisp.includes(m.disponibilidad)) &&
+      (s.fEstado.length === 0 || s.fEstado.includes(m.estado))
+    );
+    const cantFiltros = s.fDisp.length + s.fEstado.length;
+    const porReponer = s.materiales.filter(m => m.disponibilidad === "Baja" && m.estado === "Activo");
+
+    const ORDEN_DISP = { Alta: 0, Media: 1, Baja: 2 };
+    const ORDEN_ESTADO = { Activo: 0, Discontinuado: 1 };
+    if (s.sortBy) {
+      const dir = s.sortDir === "asc" ? 1 : -1;
+      filtrados.sort((a, b) => {
+        if (s.sortBy === "nombre") return a.nombre.localeCompare(b.nombre, "es") * dir;
+        if (s.sortBy === "disponibilidad") return (ORDEN_DISP[a.disponibilidad] - ORDEN_DISP[b.disponibilidad]) * dir;
+        return (ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado]) * dir;
+      });
+    }
+    const ICON_ASC = "M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4";
+    const ICON_UP = "M5 15l7-7 7 7";
+    const ICON_DOWN = "M19 9l-7 7-7-7";
+    const columna = (campo, label) => ({
+      label,
+      onSort: () => this.ordenarPor(campo),
+      opacity: s.sortBy === campo ? 1 : 0.4,
+      icon: s.sortBy === campo ? (s.sortDir === "asc" ? ICON_UP : ICON_DOWN) : ICON_ASC
+    });
+    const porPagina = s.porPagina;
+    const totalPages = Math.max(1, Math.ceil(filtrados.length / porPagina));
+    const page = Math.min(s.page, totalPages);
+    const start = (page - 1) * porPagina;
+    const pageItems = filtrados.slice(start, start + porPagina);
+    const allSelected = pageItems.length > 0 && pageItems.every(m => s.selected.includes(m.nombre));
+
+    return {
+      sidebarExpanded: s.sidebarExpanded,
+      sidebarWidth: s.sidebarExpanded ? "210px" : "58px",
+      contentJustify: s.sidebarExpanded ? "flex-start" : "center",
+      toggleSidebar: () => this.setState(st => ({ sidebarExpanded: !st.sidebarExpanded })),
+      navItems: NAV.map(n => ({
+        label: n.label, icon: n.icon, title: s.sidebarExpanded ? "" : n.label,
+        bg: s.activo === n.id ? "rgba(255,255,255,0.2)" : "transparent",
+        stroke: s.activo === n.id ? "white" : "rgba(255,255,255,0.75)",
+        justify: s.sidebarExpanded ? "flex-start" : "center",
+        onClick: () => this.setState({ activo: n.id })
+      })),
+      avisoA: porReponer.length > 0,
+      tituloPorReponer: porReponer.length === 1
+        ? "1 material con disponibilidad baja"
+        : porReponer.length + " materiales con disponibilidad baja",
+      listaPorReponer: porReponer.map(m => ({ nombre: m.nombre, onEditar: () => this.abrirEditar(m) })),
+      verSoloBaja: () => this.setState({ fDisp: ["Baja"], fEstado: [], filtrosAbiertos: true, page: 1 }),
+      columnas: [columna("nombre", "MATERIAL"), columna("disponibilidad", "DISPONIBILIDAD")],
+      filtrosAbiertos: s.filtrosAbiertos,
+      toggleFiltros: () => this.setState(st => ({ filtrosAbiertos: !st.filtrosAbiertos })),
+      filtrosBorder: s.filtrosAbiertos || cantFiltros > 0 ? "1px solid #8C5A66" : "1px solid #EBE0E2",
+      filtrosBg: s.filtrosAbiertos || cantFiltros > 0 ? "#F0E2E4" : "white",
+      hayFiltros: cantFiltros > 0,
+      cantFiltros,
+      filtroDisp: ["Alta", "Media", "Baja"].map(op => Object.assign(
+        this.chip(op, s.fDisp.includes(op), this.disponibilidadColor(op)),
+        { onClick: () => this.toggleFiltro("fDisp", op) }
+      )),
+      filtroEstado: ["Activo", "Discontinuado"].map(op => Object.assign(
+        this.chip(op, s.fEstado.includes(op), this.estadoColor(op)),
+        { onClick: () => this.toggleFiltro("fEstado", op) }
+      )),
+      limpiarFiltros: () => this.setState({ fDisp: [], fEstado: [], page: 1 }),
+      resultadosTexto: filtrados.length === 1 ? "1 material" : filtrados.length + " materiales",
+      busqueda: s.busqueda,
+      onBuscar: e => this.setState({ busqueda: e.target.value, page: 1 }),
+      rows: pageItems.map(m => {
+        const d = this.disponibilidadColor(m.disponibilidad);
+        const est = this.estadoColor(m.estado);
+        const checked = s.selected.includes(m.nombre);
+        return {
+          nombre: m.nombre, disponibilidad: m.disponibilidad, estado: m.estado,
+          dispBg: d.bg, dispColor: d.color, estadoBg: est.bg, estadoColor: est.color,
+          checked, rowBg: checked ? "#FAF7F7" : "white",
+          onToggle: () => this.toggleOne(m.nombre),
+          onEditar: () => this.abrirEditar(m)
+        };
+      }),
+      haySeleccion: s.selected.length > 0,
+      seleccionTexto: s.selected.length === 1 ? "1 material seleccionado" : s.selected.length + " materiales seleccionados",
+      accionesDisp: ["Alta", "Media", "Baja"].map(op => Object.assign(
+        this.chip(op, s.loteDisp === op, this.disponibilidadColor(op)),
+        { onClick: () => this.aplicarLote("disponibilidad", op) }
+      )),
+      accionesEstado: ["Activo", "Discontinuado"].map(op => Object.assign(
+        this.chip(op, s.loteEstado === op, this.estadoColor(op)),
+        { onClick: () => this.aplicarLote("estado", op) }
+      )),
+      confirmarEliminar: s.confirmarEliminar,
+      confirmarTexto: s.selected.length === 1
+        ? "¿Estás segura de eliminar el material \u201C" + s.selected[0] + "\u201D?"
+        : "¿Estás segura de eliminar " + s.selected.length + " materiales?",
+      pedirConfirmacion: () => this.setState({ confirmarEliminar: true }),
+      cancelarEliminar: () => this.setState({ confirmarEliminar: false }),
+      eliminarLote: () => this.setState(st => ({ materiales: st.materiales.filter(m => !st.selected.includes(m.nombre)), selected: [], loteDisp: null, loteEstado: null, snapshot: null, confirmarEliminar: false })),
+      guardarLote: () => this.setState({ selected: [], loteDisp: null, loteEstado: null, snapshot: null }),
+      limpiarSeleccion: () => this.setState(st => ({ materiales: st.snapshot || st.materiales, selected: [], loteDisp: null, loteEstado: null, snapshot: null })),
+      vistaLista: s.vista === "lista",
+      vistaGrid: s.vista === "grid",
+      discLista: s.discAbierto && s.vista === "lista",
+      discGrid: s.discAbierto && s.vista === "grid",
+      vistas: [
+        { id: "lista", title: "Ver como lista", icon: "M4 6h16M4 12h16M4 18h16" },
+        { id: "grid", title: "Ver como imágenes", icon: "M4 5h6v6H4V5zm10 0h6v6h-6V5zM4 13h6v6H4v-6zm10 0h6v6h-6v-6z" }
+      ].map(v => ({
+        title: v.title, icon: v.icon,
+        bg: s.vista === v.id ? "#F0E2E4" : "transparent",
+        color: s.vista === v.id ? "#8C5A66" : "#B08791",
+        onClick: () => this.setState({ vista: v.id })
+      })),
+      discAbierto: s.discAbierto,
+      toggleDisc: () => this.setState(st => ({ discAbierto: !st.discAbierto })),
+      discBoton: s.discAbierto ? "Ocultar" : "Ver",
+      discChevron: s.discAbierto ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7",
+      discTexto: discontinuados.length === 1 ? "1 material dado de baja" : discontinuados.length + " materiales dados de baja",
+      sinDisc: discontinuados.length === 0,
+      discRows: discontinuados.map(m => ({
+        nombre: m.nombre,
+        disponibilidad: m.disponibilidad,
+        onVer: () => this.abrirEditar(m),
+        onReactivar: () => this.setState(st => ({
+          materiales: st.materiales.map(x => x.nombre === m.nombre ? Object.assign({}, x, { estado: "Activo" }) : x)
+        }))
+      })),
+      sinResultados: filtrados.length === 0,
+      allSelected,
+      toggleAll: () => this.setState(st => {
+        const names = pageItems.map(m => m.nombre);
+        return { selected: allSelected ? st.selected.filter(n => !names.includes(n)) : Array.from(new Set(st.selected.concat(names))) };
+      }),
+      porPagina: String(porPagina),
+      onPorPagina: e => this.setState({ porPagina: Number(e.target.value), page: 1 }),
+      rangoTexto: filtrados.length === 0 ? "0 de 0" : (start + 1) + "–" + Math.min(start + porPagina, filtrados.length) + " de " + filtrados.length,
+      prevPage: () => this.setState(st => ({ page: Math.max(1, st.page - 1) })),
+      nextPage: () => this.setState(st => ({ page: Math.min(totalPages, st.page + 1) })),
+      prevOpacity: page === 1 ? 0.3 : 1,
+      nextOpacity: page >= totalPages ? 0.3 : 1,
+      showModal: s.showModal,
+      modalTitulo: s.modalTitulo,
+      soloLectura: !!s.soloLectura,
+      editable: !s.soloLectura,
+      inputDisabled: !!s.soloLectura,
+      inputBg: s.soloLectura ? "#F5F0F1" : "#FAF7F7",
+      inputColor: s.soloLectura ? "#857078" : "#3D3238",
+      textoCerrar: s.soloLectura ? "CERRAR" : "CANCELAR",
+      reactivarDesdeModal: () => this.setState(st => ({
+        materiales: st.materiales.map(x => x.nombre === st.form.nombre ? Object.assign({}, x, { estado: "Activo" }) : x),
+        showModal: false, soloLectura: false
+      })),
+      formNombre: s.form.nombre,
+      formEstado: s.form.estado || "Activo",
+      onFormNombre: e => this.setState({ form: Object.assign({}, this.state.form, { nombre: e.target.value }) }),
+      onFormEstado: e => this.setState({ form: Object.assign({}, this.state.form, { estado: e.target.value }) }),
+      abrirModal: () => this.setState({ showModal: true, modalTitulo: "Nuevo material", soloLectura: false, editando: null, form: { nombre: "", disp: "", estado: "" } }),
+      guardarModal: () => this.guardarModal(),
+      cerrarModal: () => this.setState({ showModal: false, editando: null }),
+      cerrarModalFondo: e => { if (e.target === e.currentTarget) this.setState({ showModal: false, editando: null }); },
+      dispOpciones: ["Alta", "Media", "Baja"].map(op => {
+        const c = this.disponibilidadColor(op);
+        const active = s.form.disp === op;
+        const ro = !!s.soloLectura;
+        return {
+          label: op,
+          border: active ? "2px solid " + c.color : "1px solid #EBE0E2",
+          bg: active ? c.bg : (ro ? "#F5F0F1" : "white"),
+          color: active ? c.color : "#857078",
+          cursor: ro ? "default" : "pointer",
+          onClick: ro ? () => {} : () => this.setState({ form: Object.assign({}, this.state.form, { disp: op }) })
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

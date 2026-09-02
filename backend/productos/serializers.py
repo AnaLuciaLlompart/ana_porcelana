@@ -221,7 +221,7 @@ class ProductoListaSerializer(serializers.ModelSerializer):
 
 
 class ProductoDetalleSerializer(ProductoListaSerializer):
-    """Ficha completa de un producto (CU19).
+    """Ficha completa de un producto (CU19, CU23 a CU35).
 
     Todo lo de la grilla más lo que solo se mira de a un producto por
     vez: cómo se hace, qué materiales lleva y con qué cantidades, y
