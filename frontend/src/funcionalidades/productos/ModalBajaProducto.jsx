@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { darDeBajaCategoria } from './api'
+import { darDeBajaProducto } from './api'
 
-export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }) {
+export default function ModalBajaProducto({ producto, onCerrar, onConfirmado }) {
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -10,10 +10,10 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
     setEnviando(true)
 
     try {
-      await darDeBajaCategoria(categoria.id)
+      await darDeBajaProducto(producto.id)
       onConfirmado()
     } catch (err) {
-      setError(err.response?.data?.detail || 'No se pudo dar de baja la categoría.')
+      setError(err.response?.data?.detail || 'No se pudo dar de baja el producto.')
       setEnviando(false)
     }
   }
@@ -37,7 +37,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
         style={{
           background: 'white',
           width: '100%',
-          maxWidth: 440,
+          maxWidth: 450,
           borderRadius: 10,
           overflow: 'hidden',
           boxShadow: '0 20px 50px rgba(61,50,56,.25)',
@@ -57,11 +57,11 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
               margin: 0,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
-              fontSize: 19,
+              fontSize: 18,
               color: 'white',
             }}
           >
-            Dar de baja categoría
+            Dar de baja producto
           </h2>
 
           <button
@@ -74,28 +74,28 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
               justifyContent: 'center',
               border: 0,
               background: 'transparent',
-              borderRadius: 5,
+              borderRadius: 6,
               cursor: 'pointer',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         <div style={{ padding: '22px 24px' }}>
-          <p style={{ margin: '0 0 10px', fontSize: 16, color: '#3D3238' }}>
-            ¿Dar de baja la categoría «{categoria.nombre}»?
+          <p style={{ margin: '0 0 10px', fontSize: 16, color: '#3D3238', textWrap: 'pretty' }}>
+            ¿Dar de baja el producto “{producto.nombre}”?
           </p>
 
-          <p style={{ margin: '0 0 10px', fontSize: 14, color: '#857078' }}>
-            Sus productos dejarán de aparecer en el catálogo público, aunque
-            pertenezcan también a otras categorías activas.
+          <p style={{ margin: '0 0 8px', fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
+            Dejará de aparecer en el catálogo público y no podrás agregarlo a
+            pedidos nuevos. Los pedidos anteriores lo conservan.
           </p>
 
-          <p style={{ margin: 0, fontSize: 14, color: '#857078' }}>
-            Podés reactivarla en cualquier momento y todo vuelve como estaba.
+          <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
+            Podés reactivarlo en cualquier momento y todo vuelve como estaba.
           </p>
 
           {error && (
@@ -120,6 +120,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
         <div
           style={{
             display: 'flex',
+            alignItems: 'center',
             justifyContent: 'flex-end',
             gap: 12,
             padding: '16px 24px',
@@ -129,7 +130,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
           <button
             onClick={onCerrar}
             style={{
-              padding: '10px 20px',
+              padding: '10px 18px',
               border: '1px solid #EBE0E2',
               background: 'white',
               color: '#8C5A66',
@@ -147,7 +148,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
             onClick={confirmar}
             disabled={enviando}
             style={{
-              padding: '10px 20px',
+              padding: '10px 18px',
               border: 0,
               background: '#8C5A66',
               color: 'white',

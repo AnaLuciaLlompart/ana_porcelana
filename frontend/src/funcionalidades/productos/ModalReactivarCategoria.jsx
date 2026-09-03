@@ -1,7 +1,22 @@
 import { useState } from 'react'
-import { darDeBajaCategoria } from './api'
 
-export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }) {
+// Este import cruza a otra funcionalidad, y es a propósito. La acción es
+// reactivar una CATEGORÍA, así que el endpoint pertenece a categorías y
+// vive en su api.js. Se importa desde ahí en lugar de duplicar la función
+// acá: si mañana cambia la ruta del endpoint, se corrige en un solo lugar.
+//
+// La pantalla de Productos la necesita porque en su sección de dados de
+// baja aparecen los productos que están fuera del catálogo por culpa de una
+// categoría de baja, y la única forma de devolverlos es reactivar esa
+// categoría.
+import { reactivarCategoria } from '../categorias/api'
+
+export default function ModalReactivarCategoria({
+  categoria,
+  cantidadProductos,
+  onCerrar,
+  onConfirmado,
+}) {
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -10,10 +25,10 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
     setEnviando(true)
 
     try {
-      await darDeBajaCategoria(categoria.id)
+      await reactivarCategoria(categoria.id)
       onConfirmado()
     } catch (err) {
-      setError(err.response?.data?.detail || 'No se pudo dar de baja la categoría.')
+      setError(err.response?.data?.detail || 'No se pudo reactivar la categoría.')
       setEnviando(false)
     }
   }
@@ -37,7 +52,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
         style={{
           background: 'white',
           width: '100%',
-          maxWidth: 440,
+          maxWidth: 470,
           borderRadius: 10,
           overflow: 'hidden',
           boxShadow: '0 20px 50px rgba(61,50,56,.25)',
@@ -57,11 +72,11 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
               margin: 0,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
-              fontSize: 19,
+              fontSize: 18,
               color: 'white',
             }}
           >
-            Dar de baja categoría
+            Reactivar categoría
           </h2>
 
           <button
@@ -74,28 +89,24 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
               justifyContent: 'center',
               border: 0,
               background: 'transparent',
-              borderRadius: 5,
+              borderRadius: 6,
               cursor: 'pointer',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         <div style={{ padding: '22px 24px' }}>
-          <p style={{ margin: '0 0 10px', fontSize: 16, color: '#3D3238' }}>
-            ¿Dar de baja la categoría «{categoria.nombre}»?
+          <p style={{ margin: '0 0 10px', fontSize: 16, color: '#3D3238', textWrap: 'pretty' }}>
+            ¿Reactivar “{categoria.nombre}”?
           </p>
 
-          <p style={{ margin: '0 0 10px', fontSize: 14, color: '#857078' }}>
-            Sus productos dejarán de aparecer en el catálogo público, aunque
-            pertenezcan también a otras categorías activas.
-          </p>
-
-          <p style={{ margin: 0, fontSize: 14, color: '#857078' }}>
-            Podés reactivarla en cualquier momento y todo vuelve como estaba.
+          <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
+            Esta categoría va a regresar al catálogo público, junto con sus{' '}
+            {cantidadProductos} productos.
           </p>
 
           {error && (
@@ -120,6 +131,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
         <div
           style={{
             display: 'flex',
+            alignItems: 'center',
             justifyContent: 'flex-end',
             gap: 12,
             padding: '16px 24px',
@@ -129,7 +141,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
           <button
             onClick={onCerrar}
             style={{
-              padding: '10px 20px',
+              padding: '10px 18px',
               border: '1px solid #EBE0E2',
               background: 'white',
               color: '#8C5A66',
@@ -147,9 +159,9 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
             onClick={confirmar}
             disabled={enviando}
             style={{
-              padding: '10px 20px',
+              padding: '10px 18px',
               border: 0,
-              background: '#8C5A66',
+              background: '#4E8C6A',
               color: 'white',
               borderRadius: 6,
               cursor: enviando ? 'default' : 'pointer',
@@ -159,7 +171,7 @@ export default function ModalBajaCategoria({ categoria, onCerrar, onConfirmado }
               fontSize: 15,
             }}
           >
-            {enviando ? 'Guardando…' : 'Dar de baja'}
+            {enviando ? 'Reactivando…' : 'Reactivar'}
           </button>
         </div>
       </div>

@@ -1,33 +1,38 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { listarProductos, reactivarProducto } from './api'
+import BotonAccion from './BotonAccion'
+import TarjetaProducto from './TarjetaProducto'
+import SeccionBajas from './SeccionBajas'
+import ModalBajaProducto from './ModalBajaProducto'
+import ModalEliminarProducto from './ModalEliminarProducto'
+import ModalReactivarCategoria from './ModalReactivarCategoria'
+import ModalFiltros from './ModalFiltros'
+import { FILTROS_VACIOS, candidatos, contarFiltros, rangoDePrecios } from './filtros'
 
+// Segundo import que cruza de funcionalidad, con el mismo criterio que el
+// modal de reactivar: el endpoint de categorías vive en su carpeta y ahí se
+// queda. Acá hace falta la lista completa para el filtro por categoría.
+import { listarCategorias } from '../categorias/api'
+import {
+  ICONO_NUEVO,
+  ICONO_CAJA,
+  ICONO_BUSCAR,
+  ICONO_FILTROS,
+  ICONO_ALERTA,
+  ICONO_GRILLA,
+  ICONO_LISTA,
+  CHEVRON_ABAJO,
+  CHEVRON_ARRIBA,
+  ORDEN_SIN_USAR,
+  COLOR_DIFICULTAD,
+  formatearPrecio,
+  estadoCatalogo,
+  avisoMateriales,
+  textoDificultad,
+  accionesDe,
+} from './presentacion'
 
-const ICONO_NUEVO = 'M12 4v16m8-8H4'
-const ICONO_CAJA = 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'
-const ICONO_BUSCAR = 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
-const ICONO_FILTROS = 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z'
-const ICONO_IMAGEN = 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
-const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-const ICONO_VER = 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
-const ICONO_BAJA = 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636'
-const ICONO_BORRAR = 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'
-const ICONO_ALTA = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
-const ICONO_TIPO = 'M4 6h16M4 12h16M4 18h7'
-const ICONO_TEMA = 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'
-const ICONO_GRILLA = 'M4 5h6v6H4V5zm10 0h6v6h-6V5zM4 13h6v6H4v-6zm10 0h6v6h-6v-6z'
-const ICONO_LISTA = 'M4 6h16M4 12h16M4 18h16'
-
-const CHEVRON_ABAJO = 'M19 9l-7 7-7-7'
-const CHEVRON_ARRIBA = 'M5 15l7-7 7 7'
-const CHEVRON_DERECHA = 'M9 5l7 7-7 7'
-const ORDEN_SIN_USAR = 'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4'
-
-
-const COLOR_DIFICULTAD = {
-  BAJA: { color: '#4E8C6A', fondo: '#E8F5EF' },
-  MEDIA: { color: '#D9A441', fondo: '#FDF3E0' },
-  ALTA: { color: '#8C5A66', fondo: '#F0E2E4' },
-}
 
 // Para ordenar por dificultad hay que decir el orden a mano: alfabéticamente
 // daría ALTA, BAJA, MEDIA, que no significa nada.
@@ -42,301 +47,6 @@ const ORDENES = [
   { valor: 'dificultad:asc', label: 'Dificultad: baja primero' },
   { valor: 'dificultad:desc', label: 'Dificultad: alta primero' },
 ]
-
-
-// El precio llega del backend como texto ("5500.00"), no como número: DRF
-// serializa los Decimal así para que no pierdan precisión al pasar por el
-// float de JavaScript. Hay que convertirlo para poder formatearlo.
-function formatearPrecio(texto) {
-  return '$' + Math.round(Number(texto)).toLocaleString('es-AR')
-}
-
-
-function motivoFuera(producto) {
-  const bajas = producto.categorias_de_baja
-  if (bajas.length === 0) return ''
-
-  const nombres = bajas.map((c) => `“${c.nombre}”`).join(', ')
-
-  return bajas.length === 1
-    ? `No aparece en el catálogo porque su categoría ${nombres} está dada de baja.`
-    : `No aparece en el catálogo porque sus categorías ${nombres} están dadas de baja.`
-}
-
-
-// La etiqueta de catálogo. El backend ya manda visible_en_catalogo y
-// oculto_por_categoria calculados, así que la regla de visibilidad no se
-// repite acá: solo se elige qué mostrar según lo que llegó.
-function estadoCatalogo(producto) {
-  if (producto.estado !== 'ACTIVO') {
-    return {
-      texto: 'Dado de baja',
-      color: '#C0442F',
-      fondo: '#FAEAE8',
-      title: 'Este producto está dado de baja',
-    }
-  }
-
-  if (producto.es_personalizado) {
-    return {
-      texto: 'Personalizado',
-      color: '#8C5A66',
-      fondo: '#F0E2E4',
-      title: 'Personalizado, fuera del catálogo',
-    }
-  }
-
-  if (producto.visible_en_catalogo) {
-    return {
-      texto: 'En catálogo',
-      color: '#4E8C6A',
-      fondo: '#E8F5EF',
-      title: 'Visible en el catálogo público',
-    }
-  }
-
-  if (producto.oculto_por_categoria) {
-    return {
-      texto: 'Categoría de baja',
-      color: '#D9A441',
-      fondo: '#FDF3E0',
-      title: motivoFuera(producto),
-    }
-  }
-
-  return { texto: 'Sin publicar', color: '#857078', fondo: '#FAF7F7', title: '' }
-}
-
-
-function avisoMateriales(producto) {
-  const discontinuados = producto.materiales_discontinuados
-  if (discontinuados.length === 0) return ''
-
-  return discontinuados.length === 1
-    ? `Usa un material discontinuado: ${discontinuados[0]}`
-    : `Usa ${discontinuados.length} materiales discontinuados`
-}
-
-
-function textoDificultad(producto) {
-  return `Dificultad ${producto.dificultad_display.toLowerCase()}`
-}
-
-
-function textoMeta(producto) {
-  return `${formatearPrecio(producto.precio_actual)} · dificultad ${producto.dificultad_display.toLowerCase()}`
-}
-
-
-function accionesDe(producto, { onVer, onDarDeBaja, onEliminar }) {
-  return [
-    { title: 'Ver y editar', icono: ICONO_VER, color: '#8C5A66', hover: '#F0E2E4', onClick: () => onVer(producto) },
-    { title: 'Dar de baja', icono: ICONO_BAJA, color: '#D9A441', hover: '#FDF3E0', onClick: () => onDarDeBaja(producto) },
-    { title: 'Eliminar', icono: ICONO_BORRAR, color: '#C0442F', hover: '#FAEAE8', onClick: () => onEliminar(producto) },
-  ]
-}
-
-
-
-function BotonAccion({ onClick, titulo, color, hover, icono, lado = 36 }) {
-  return (
-    <button
-      onClick={onClick}
-      title={titulo}
-      className="btn-accion"
-      style={{
-        width: lado,
-        height: lado,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: 0,
-        background: 'transparent',
-        borderRadius: 5,
-        cursor: 'pointer',
-        color,
-        '--hover': hover,
-      }}
-    >
-      <svg
-        width={lado > 34 ? 19 : 18}
-        height={lado > 34 ? 19 : 18}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d={icono} />
-      </svg>
-    </button>
-  )
-}
-
-
-
-function TarjetaProducto({ producto, acciones }) {
-  const dificultad = COLOR_DIFICULTAD[producto.dificultad]
-  const catalogo = estadoCatalogo(producto)
-  const aviso = avisoMateriales(producto)
-
-  return (
-    <article
-      style={{
-        background: 'white',
-        border: '1px solid #EBE0E2',
-        borderRadius: 8,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <button
-        onClick={() => acciones.onVer(producto)}
-        style={{
-          position: 'relative',
-          height: 168,
-          padding: 0,
-          border: 0,
-          borderBottom: '1px solid #EBE0E2',
-          background: '#FAF7F7',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {producto.imagen_principal ? (
-          <img
-            src={producto.imagen_principal}
-            alt={producto.nombre}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" strokeWidth="1.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_IMAGEN} />
-          </svg>
-        )}
-
-        <span
-          title={catalogo.title}
-          style={{
-            position: 'absolute',
-            top: 10,
-            left: 10,
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 12,
-            borderRadius: 20,
-            padding: '4px 11px',
-            border: `1px solid ${catalogo.color}`,
-            background: catalogo.fondo,
-            color: catalogo.color,
-          }}
-        >
-          {catalogo.texto}
-        </span>
-
-        {aviso && (
-          <span
-            title={aviso}
-            style={{
-              position: 'absolute',
-              bottom: 10,
-              right: 10,
-              width: 28,
-              height: 28,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 14,
-              border: '1px solid #EEDCB4',
-              background: '#FDF3E0',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B8862B" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_ALERTA} />
-            </svg>
-          </span>
-        )}
-      </button>
-
-      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 16,
-            color: '#3D3238',
-            textWrap: 'pretty',
-          }}
-        >
-          {producto.nombre}
-        </h3>
-
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <span
-            style={{
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 700,
-              fontSize: 19,
-              color: '#8C5A66',
-            }}
-          >
-            {formatearPrecio(producto.precio_actual)}
-          </span>
-          <span
-            style={{
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 12,
-              borderRadius: 20,
-              padding: '3px 11px',
-              border: `1px solid ${dificultad.color}`,
-              background: dificultad.fondo,
-              color: dificultad.color,
-            }}
-          >
-            {textoDificultad(producto)}
-          </span>
-        </div>
-
-        <p style={{ margin: 0, fontSize: 13, color: '#857078', textWrap: 'pretty' }}>
-          {producto.categorias.length === 0
-            ? 'Sin categorías'
-            : producto.categorias.map((c) => c.nombre).join(' · ')}
-        </p>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 8,
-            marginTop: 'auto',
-            paddingTop: 10,
-            borderTop: '1px solid #EBE0E2',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {accionesDe(producto, acciones).map((a) => (
-              <BotonAccion
-                key={a.title}
-                onClick={a.onClick}
-                titulo={a.title}
-                color={a.color}
-                hover={a.hover}
-                icono={a.icono}
-                lado={34}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </article>
-  )
-}
-
 
 
 function FilaProducto({ producto, acciones }) {
@@ -460,8 +170,6 @@ function FilaProducto({ producto, acciones }) {
   )
 }
 
-
-
 function EstadoVacio({ onNuevo }) {
   return (
     <div
@@ -537,8 +245,6 @@ function EstadoVacio({ onNuevo }) {
   )
 }
 
-
-
 function SinResultados() {
   return (
     <div
@@ -569,431 +275,8 @@ function SinResultados() {
   )
 }
 
-
-
-function SeccionBajas({
-  deBaja,
-  grupos,
-  abierto,
-  onToggle,
-  colapsadas,
-  onToggleCategoria,
-  onVer,
-  onReactivarProducto,
-  onReactivarCategoria,
-}) {
-  const cantidadPorCategoria = grupos.reduce((total, g) => total + g.productos.length, 0)
-
-  return (
-    <section style={{ marginTop: 34 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 15,
-            color: '#857078',
-            letterSpacing: '.06em',
-          }}
-        >
-          DADOS DE BAJA
-        </h2>
-        <span style={{ fontSize: 13, color: '#B08791' }}>
-          Separados según de dónde viene la baja
-        </span>
-        <div style={{ flex: 1, height: 1, background: '#EBE0E2' }} />
-
-        <button
-          onClick={onToggle}
-          className="btn-colapsar-bajas"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 12px',
-            border: '1px solid #EBE0E2',
-            background: 'white',
-            color: '#8C5A66',
-            borderRadius: 5,
-            cursor: 'pointer',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
-          {`${deBaja.length} por el producto · ${cantidadPorCategoria} por su categoría`}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d={abierto ? CHEVRON_ARRIBA : CHEVRON_ABAJO}
-            />
-          </svg>
-        </button>
-      </div>
-
-      {abierto && (
-        <div style={{ background: 'white', border: '1px solid #EBE0E2', borderRadius: 8, overflow: 'hidden' }}>
-
-          {deBaja.length > 0 && (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 18px',
-                  background: '#FAF7F7',
-                  borderBottom: '1px solid #EBE0E2',
-                }}
-              >
-                <span style={{ width: 8, height: 8, flexShrink: 0, borderRadius: 4, background: '#C0442F' }} />
-                <span
-                  style={{
-                    fontFamily: "'Quicksand', sans-serif",
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: '#857078',
-                    letterSpacing: '.06em',
-                  }}
-                >
-                  BAJA DEL PROPIO PRODUCTO
-                </span>
-                <span style={{ fontSize: 13, color: '#B08791', textWrap: 'pretty' }}>
-                  Productos particulares que se dieron de baja
-                </span>
-              </div>
-
-              {deBaja.map((producto) => (
-                <div
-                  key={producto.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    padding: '14px 18px',
-                    borderBottom: '1px solid #EBE0E2',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      flexShrink: 0,
-                      borderRadius: 8,
-                      background: '#F5F0F1',
-                      border: '1px solid #EBE0E2',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {producto.imagen_principal ? (
-                      <img
-                        src={producto.imagen_principal}
-                        alt={producto.nombre}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                      />
-                    ) : (
-                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#B08791" strokeWidth="1.6">
-                        <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_IMAGEN} />
-                      </svg>
-                    )}
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p
-                      style={{
-                        margin: '0 0 2px',
-                        fontFamily: "'Quicksand', sans-serif",
-                        fontWeight: 600,
-                        fontSize: 16,
-                        color: '#857078',
-                      }}
-                    >
-                      {producto.nombre}
-                    </p>
-                    <p style={{ margin: 0, fontSize: 13, color: '#B08791' }}>{textoMeta(producto)}</p>
-                  </div>
-
-                  <span
-                    style={{
-                      flexShrink: 0,
-                      fontFamily: "'Quicksand', sans-serif",
-                      fontWeight: 600,
-                      fontSize: 14,
-                      borderRadius: 20,
-                      padding: '5px 14px',
-                      border: '1px solid #C0442F',
-                      background: '#FAEAE8',
-                      color: '#C0442F',
-                    }}
-                  >
-                    De baja
-                  </span>
-
-                  <BotonAccion
-                    onClick={() => onVer(producto)}
-                    titulo="Ver"
-                    color="#8C5A66"
-                    hover="#F0E2E4"
-                    icono={ICONO_VER}
-                  />
-
-                  <button
-                    onClick={() => onReactivarProducto(producto)}
-                    title="Volver a activar este producto"
-                    className="btn-reactivar"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      flexShrink: 0,
-                      padding: '7px 14px',
-                      border: '1px solid #4E8C6A',
-                      background: 'white',
-                      color: '#4E8C6A',
-                      borderRadius: 5,
-                      cursor: 'pointer',
-                      fontFamily: "'Quicksand', sans-serif",
-                      fontWeight: 600,
-                      fontSize: 14,
-                    }}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_ALTA} />
-                    </svg>
-                    Reactivar producto
-                  </button>
-                </div>
-              ))}
-            </>
-          )}
-
-          {grupos.length > 0 && (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '10px 18px',
-                  background: '#FAF7F7',
-                  borderBottom: '1px solid #EBE0E2',
-                }}
-              >
-                <span style={{ width: 8, height: 8, flexShrink: 0, borderRadius: 4, background: '#D9A441' }} />
-                <span
-                  style={{
-                    fontFamily: "'Quicksand', sans-serif",
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: '#857078',
-                    letterSpacing: '.06em',
-                  }}
-                >
-                  BAJA POR SU CATEGORÍA
-                </span>
-                <span style={{ fontSize: 13, color: '#B08791', textWrap: 'pretty' }}>
-                  Al reactivar la categoría vuelven todos sus productos
-                </span>
-              </div>
-
-              {grupos.map((grupo) => {
-                const colapsado = colapsadas.includes(grupo.categoria.id)
-
-                return (
-                  <div key={grupo.categoria.id} style={{ borderBottom: '1px solid #EBE0E2' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '13px 18px',
-                        background: '#FDF9F2',
-                      }}
-                    >
-                      <button
-                        onClick={() => onToggleCategoria(grupo.categoria.id)}
-                        title={colapsado ? 'Ver sus productos' : 'Ocultar sus productos'}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 12,
-                          flex: 1,
-                          minWidth: 0,
-                          padding: 0,
-                          border: 0,
-                          background: 'transparent',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#B08791"
-                          strokeWidth="2.2"
-                          style={{ flexShrink: 0 }}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d={colapsado ? CHEVRON_DERECHA : CHEVRON_ABAJO}
-                          />
-                        </svg>
-
-                        <div
-                          style={{
-                            width: 32,
-                            height: 32,
-                            flexShrink: 0,
-                            borderRadius: 8,
-                            background: '#FDF3E0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D9A441" strokeWidth="1.8">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d={grupo.categoria.tipo === 'TEMATICA' ? ICONO_TEMA : ICONO_TIPO}
-                            />
-                          </svg>
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p
-                            style={{
-                              margin: 0,
-                              fontFamily: "'Quicksand', sans-serif",
-                              fontWeight: 600,
-                              fontSize: 16,
-                              color: '#3D3238',
-                            }}
-                          >
-                            {grupo.categoria.nombre}
-                          </p>
-                          <p style={{ margin: '1px 0 0', fontSize: 13, color: '#B08791' }}>
-                            {`${grupo.categoria.tipo_display} · ${
-                              grupo.productos.length === 1
-                                ? '1 producto afectado'
-                                : `${grupo.productos.length} productos afectados`
-                            }`}
-                          </p>
-                        </div>
-                      </button>
-
-                      <span
-                        style={{
-                          flexShrink: 0,
-                          fontFamily: "'Quicksand', sans-serif",
-                          fontWeight: 600,
-                          fontSize: 14,
-                          borderRadius: 20,
-                          padding: '5px 14px',
-                          border: '1px solid #D9A441',
-                          background: '#FDF3E0',
-                          color: '#D9A441',
-                        }}
-                      >
-                        Categoría de baja
-                      </span>
-
-                      <button
-                        onClick={() => onReactivarCategoria(grupo.categoria)}
-                        title={`Reactiva “${grupo.categoria.nombre}” y todos sus productos`}
-                        className="btn-reactivar"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          flexShrink: 0,
-                          padding: '7px 14px',
-                          border: '1px solid #4E8C6A',
-                          background: 'white',
-                          color: '#4E8C6A',
-                          borderRadius: 5,
-                          cursor: 'pointer',
-                          fontFamily: "'Quicksand', sans-serif",
-                          fontWeight: 600,
-                          fontSize: 14,
-                        }}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_ALTA} />
-                        </svg>
-                        Reactivar categoría
-                      </button>
-                    </div>
-
-                    {!colapsado &&
-                      grupo.productos.map((producto) => (
-                        <div
-                          key={producto.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            padding: '11px 18px 11px 34px',
-                            borderTop: '1px solid #F2E9EA',
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: 18,
-                              height: 18,
-                              flexShrink: 0,
-                              borderLeft: '1px solid #DCC9CD',
-                              borderBottom: '1px solid #DCC9CD',
-                              borderBottomLeftRadius: 6,
-                              marginTop: -10,
-                            }}
-                          />
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 15, color: '#857078' }}>{producto.nombre}</p>
-                            <p style={{ margin: '1px 0 0', fontSize: 13, color: '#B08791' }}>
-                              {textoMeta(producto)}
-                            </p>
-                          </div>
-
-                          <BotonAccion
-                            onClick={() => onVer(producto)}
-                            titulo="Ver producto"
-                            color="#8C5A66"
-                            hover="#F0E2E4"
-                            icono={ICONO_VER}
-                            lado={34}
-                          />
-                        </div>
-                      ))}
-                  </div>
-                )
-              })}
-            </>
-          )}
-
-          {deBaja.length === 0 && grupos.length === 0 && (
-            <div style={{ padding: 32, textAlign: 'center', fontSize: 15, color: '#857078' }}>
-              No hay productos fuera del catálogo por una baja.
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-  )
-}
-
-
-
 export default function Productos() {
+  const navegar = useNavigate()
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -1003,12 +286,25 @@ export default function Productos() {
   const [sortDir, setSortDir] = useState('asc')
   const [bajasAbierto, setBajasAbierto] = useState(false)
   const [catsColapsadas, setCatsColapsadas] = useState([])
+  const [productoDandoBaja, setProductoDandoBaja] = useState(null)
+  const [productoEliminando, setProductoEliminando] = useState(null)
+  const [categoriaReactivando, setCategoriaReactivando] = useState(null)
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS)
+  const [filtrosAbierto, setFiltrosAbierto] = useState(false)
+  const [categorias, setCategorias] = useState([])
 
   useEffect(() => {
     listarProductos()
       .then((res) => setProductos(res.data))
       .catch(() => setError('No se pudieron cargar los productos.'))
       .finally(() => setCargando(false))
+
+    // Las categorías se piden acá y no adentro del modal porque hacen falta
+    // también afuera: el filtro guarda ids, y los chips de arriba de la
+    // grilla tienen que mostrar el nombre de cada una.
+    listarCategorias()
+      .then((res) => setCategorias(res.data))
+      .catch(() => setError('No se pudieron cargar las categorías.'))
   }, [])
 
 
@@ -1050,8 +346,65 @@ export default function Productos() {
 
   const publicables = activos.filter((p) => p.visible_en_catalogo).length
 
-  const texto = busqueda.trim().toLowerCase()
-  const filtrados = enGrilla.filter((p) => p.nombre.toLowerCase().includes(texto))
+  // enGrilla se usa solo para la línea de resumen, que cuenta los activos
+  // sin importar los filtros: tiene que seguir diciendo la verdad aunque la
+  // grilla esté filtrada.
+  //
+  // La grilla sale de candidatos(), que además del buscador aplica los
+  // filtros y respeta el criterio de estado: sin elegir nada, los activos.
+  const filtrados = candidatos(productos, filtros, busqueda)
+
+  const cantidadFiltros = contarFiltros(filtros)
+
+  // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo:
+  // saca su valor del criterio al que pertenece y deja el resto igual.
+  function quitarDe(campo, valor) {
+    setFiltros({ ...filtros, [campo]: filtros[campo].filter((v) => v !== valor) })
+  }
+
+  const chips = []
+
+  filtros.estados.forEach((e) =>
+    chips.push({
+      clave: `estado-${e}`,
+      label: e === 'ACTIVO' ? 'Activos' : 'Dados de baja',
+      onQuitar: () => quitarDe('estados', e),
+    })
+  )
+
+  filtros.categorias.forEach((id) => {
+    const categoria = categorias.find((c) => c.id === id)
+    if (categoria) {
+      chips.push({
+        clave: `cat-${id}`,
+        label: categoria.nombre,
+        onQuitar: () => quitarDe('categorias', id),
+      })
+    }
+  })
+
+  filtros.dificultades.forEach((d) =>
+    chips.push({
+      clave: `dif-${d}`,
+      label: `Dificultad ${d.toLowerCase()}`,
+      onQuitar: () => quitarDe('dificultades', d),
+    })
+  )
+
+  filtros.tipo.forEach((t) =>
+    chips.push({ clave: `tipo-${t}`, label: t, onQuitar: () => quitarDe('tipo', t) })
+  )
+
+  if (filtros.desde !== null || filtros.hasta !== null) {
+    const rango = rangoDePrecios(productos)
+    chips.push({
+      clave: 'precio',
+      label: `${formatearPrecio(filtros.desde === null ? rango.min : filtros.desde)} – ${formatearPrecio(
+        filtros.hasta === null ? rango.max : filtros.hasta
+      )}`,
+      onQuitar: () => setFiltros({ ...filtros, desde: null, hasta: null }),
+    })
+  }
 
   const visibles = !sortBy
     ? filtrados
@@ -1094,12 +447,10 @@ export default function Productos() {
   ]
 
 
-  // TODO(paso siguiente): la ficha del producto. Por ahora ver no navega.
-  // TODO(paso siguiente): los modales de dar de baja y de eliminar.
   const acciones = {
-    onVer: () => {},
-    onDarDeBaja: () => {},
-    onEliminar: () => {},
+    onVer: (p) => navegar(`/productos/${p.id}`),
+    onDarDeBaja: (p) => setProductoDandoBaja(p),
+    onEliminar: (p) => setProductoEliminando(p),
   }
 
   return (
@@ -1201,11 +552,8 @@ export default function Productos() {
               />
             </div>
 
-            {/* TODO(paso siguiente): el modal de filtros y los chips de
-                filtros activos. El botón queda dibujado pero no abre nada
-                y todavía no muestra el contador. */}
             <button
-              onClick={() => {}}
+              onClick={() => setFiltrosAbierto(true)}
               style={{
                 marginLeft: 'auto',
                 display: 'flex',
@@ -1219,8 +567,8 @@ export default function Productos() {
                 fontFamily: "'Quicksand', sans-serif",
                 fontWeight: 600,
                 fontSize: 15,
-                border: '1px solid #EBE0E2',
-                background: 'white',
+                border: cantidadFiltros > 0 ? '1px solid #8C5A66' : '1px solid #EBE0E2',
+                background: cantidadFiltros > 0 ? '#F0E2E4' : 'white',
                 color: '#8C5A66',
               }}
             >
@@ -1228,6 +576,25 @@ export default function Productos() {
                 <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FILTROS} />
               </svg>
               Filtros
+              {cantidadFiltros > 0 && (
+                <span
+                  style={{
+                    minWidth: 20,
+                    height: 20,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 6px',
+                    borderRadius: 10,
+                    background: '#8C5A66',
+                    color: 'white',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  {cantidadFiltros}
+                </span>
+              )}
             </button>
 
             <select
@@ -1305,6 +672,61 @@ export default function Productos() {
               ))}
             </div>
           </div>
+
+
+          {chips.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                marginBottom: 20,
+              }}
+            >
+              {chips.map((chip) => (
+                <button
+                  key={chip.clave}
+                  onClick={chip.onQuitar}
+                  className="chip-filtro"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '6px 12px',
+                    borderRadius: 20,
+                    cursor: 'pointer',
+                    border: '1px solid #8C5A66',
+                    background: '#F0E2E4',
+                    color: '#8C5A66',
+                    fontFamily: "'Quicksand', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  {chip.label}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                    <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              ))}
+
+              <button
+                onClick={() => setFiltros(FILTROS_VACIOS)}
+                style={{
+                  padding: '6px 12px',
+                  border: 0,
+                  background: 'transparent',
+                  color: '#857078',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  textDecoration: 'underline',
+                }}
+              >
+                Limpiar todo
+              </button>
+            </div>
+          )}
 
 
           {vista === 'grid' && (
@@ -1423,6 +845,7 @@ export default function Productos() {
           )}
 
 
+          {!filtros.estados.includes('BAJA') && (
           <SeccionBajas
             deBaja={deBaja}
             grupos={grupos}
@@ -1436,10 +859,69 @@ export default function Productos() {
             }
             onVer={acciones.onVer}
             onReactivarProducto={(p) => cambiarEstado(p, reactivarProducto)}
-            /* TODO(paso siguiente): el modal de reactivar categoría. */
-            onReactivarCategoria={() => {}}
+            onReactivarCategoria={(categoria) => setCategoriaReactivando(categoria)}
           />
+          )}
         </>
+      )}
+
+
+      {productoDandoBaja && (
+        <ModalBajaProducto
+          producto={productoDandoBaja}
+          onCerrar={() => setProductoDandoBaja(null)}
+          onConfirmado={() => {
+            setProductoDandoBaja(null)
+            recargar()
+          }}
+        />
+      )}
+
+      {productoEliminando && (
+        <ModalEliminarProducto
+          producto={productoEliminando}
+          onCerrar={() => setProductoEliminando(null)}
+          onEliminado={() => {
+            setProductoEliminando(null)
+            recargar()
+          }}
+        />
+      )}
+
+      {filtrosAbierto && (
+        <ModalFiltros
+          filtros={filtros}
+          productos={productos}
+          busqueda={busqueda}
+          // Solo las activas: filtrar por una categoría de baja no tendría
+          // sentido, porque sus productos no están en la grilla.
+          categorias={categorias.filter((c) => c.estado === 'ACTIVO')}
+          onCerrar={() => setFiltrosAbierto(false)}
+          onAplicar={(borrador) => {
+            setFiltros(borrador)
+            setFiltrosAbierto(false)
+          }}
+        />
+      )}
+
+      {categoriaReactivando && (
+        <ModalReactivarCategoria
+          categoria={categoriaReactivando}
+          // Cuántos productos vuelven al catálogo con ella: sale del grupo
+          // que ya armamos más arriba para el árbol de dados de baja.
+          cantidadProductos={
+            grupos.find((g) => g.categoria.id === categoriaReactivando.id)
+              ?.productos.length ?? 0
+          }
+          onCerrar={() => setCategoriaReactivando(null)}
+          onConfirmado={() => {
+            setCategoriaReactivando(null)
+            // Se recargan los productos y no las categorías: reactivar la
+            // categoría cambia la visibilidad de todos los suyos, y esos
+            // campos los recalcula el backend en cada consulta.
+            recargar()
+          }}
+        />
       )}
     </div>
   )

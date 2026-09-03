@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listarCategorias, darDeBajaCategoria, reactivarCategoria,} from './api'
+import { listarCategorias, reactivarCategoria,} from './api'
 import ModalCategoria from './ModalCategoria'
 import ModalBajaCategoria from './ModalBajaCategoria'
 import ModalEliminarCategoria from './ModalEliminarCategoria'
@@ -17,28 +17,6 @@ const ICONO_ALTA = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
 const ICONO_ELIMINAR = 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'
 const ICONO_TIPO = 'M4 6h16M4 12h16M4 18h7'
 const ICONO_TEMA = 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z'
-
-
-
-function Etiqueta({ colores, children }) {
-  return (
-    <span
-      style={{
-        fontFamily: "'Quicksand', sans-serif",
-        fontWeight: 600,
-        fontSize: 14,
-        borderRadius: 20,
-        padding: '5px 14px',
-        border: `1px solid ${colores.texto}`,
-        background: colores.fondo,
-        color: colores.texto,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {children}
-    </span>
-  )
-}
 
 
 
@@ -71,7 +49,7 @@ function BotonAccion({ onClick, titulo, color, hover, icono }) {
 
 
 
-function Seccion({ titulo, categorias, acciones, vacio, onAgregar, textoAgregar }) {
+function Seccion({ titulo, categorias, acciones, onAgregar, textoAgregar }) {
   if (categorias.length === 0 && !onAgregar) return null
 
   return (

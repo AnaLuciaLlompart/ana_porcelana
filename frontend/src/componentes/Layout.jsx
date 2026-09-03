@@ -120,7 +120,10 @@ export default function Layout() {
       </aside>
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-        <main style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+        {/* scrollbarGutter reserva el espacio de la barra de scroll aunque
+            no haga falta, así el ancho del contenido no cambia cuando una
+            pantalla crece y la barra aparece. */}
+        <main style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: 32 }}>
           <Outlet />
         </main>
       </div>
