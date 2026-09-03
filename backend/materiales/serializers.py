@@ -30,4 +30,21 @@ class MaterialSerializer(serializers.ModelSerializer):
             'descripcion',
             'url_imagen',
         ]
+        # DRF trae un mensaje de dos oraciones para el archivo que no es una
+        # imagen: "Adjunte una imagen válida. El archivo adjunto o bien no
+        # es una imagen o bien está dañado." La primera oración no aporta
+        # nada, así que se deja solo la segunda. Es el mismo texto que usa
+        # la subida de imágenes de productos.
+        #
+        # Va en extra_kwargs y no declarando el campo de nuevo, porque así
+        # el campo lo sigue armando el modelo: conserva el upload_to, el
+        # max_length y el validador de 15 MB.
+        extra_kwargs = {
+            'url_imagen': {
+                'error_messages': {
+                    'invalid_image': 'El archivo adjunto o bien no es una imagen '
+                                     'o bien está dañado.',
+                },
+            },
+        }
 

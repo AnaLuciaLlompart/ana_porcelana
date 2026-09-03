@@ -205,13 +205,21 @@ class Producto(models.Model):
     def imagen_principal(self):
         """La foto que representa a la pieza, o None si no tiene ninguna.
 
-        Es la de orden más bajo. No hay un campo que la marque: se
-        cambia reordenando las fotos.
+        Es la de orden más bajo ENTRE LAS DE RESULTADO. Las de referencia
+        nunca son la principal: son material de trabajo y no salen al
+        catálogo.
+
+        No hay campo que la marque: se cambia reordenando las fotos.
         """
-        # El ordering de ImagenProducto ya las trae por orden, así que
-        # la principal es la primera de la lista.
-        imagenes = list(self.imagenes.all())
-        return imagenes[0] if imagenes else None
+        # El ordering de ImagenProducto ya las trae por orden, así que la
+        # primera de resultado que aparece es la de orden más bajo. Se
+        # recorre con .all() y se filtra en Python, como las demás
+        # propiedades, para no romper el prefetch del ViewSet.
+        for imagen in self.imagenes.all():
+            if imagen.tipo == ImagenProducto.Tipo.RESULTADO:
+                return imagen
+
+        return None
 
 
 
@@ -284,11 +292,15 @@ class ImagenProducto(models.Model):
     """Foto asociada a un producto (CU32 a CU35).
 
     Un producto puede tener varias. Se distinguen dos clases: las de
-    REFERENCIA son las que manda el cliente al hacer un encargo, las de
-    RESULTADO son de la pieza ya terminada.
+    REFERENCIA son imágenes que sirven de guía para hacer la pieza, las
+    de RESULTADO son de la pieza ya terminada.
+
+    El orden se numera por separado dentro de cada clase: las de
+    resultado van 1, 2, 3 y las de referencia también.
 
     No hay campo para marcar la imagen principal: es la de orden más
-    bajo. Reordenar las fotos alcanza para cambiarla.
+    bajo entre las de resultado. Reordenar las fotos alcanza para
+    cambiarla.
     """
 
     class Tipo(models.TextChoices):
@@ -326,7 +338,7 @@ class ImagenProducto(models.Model):
         choices=Tipo.choices,
         default=Tipo.RESULTADO,
         verbose_name='tipo',
-        help_text='Referencia la manda el cliente; resultado es la pieza terminada.',
+        help_text='Referencia es una guía para hacer la pieza; resultado es la pieza terminada.',
     )
 
     # PositiveIntegerField y no IntegerField: un orden negativo no
@@ -334,7 +346,7 @@ class ImagenProducto(models.Model):
     orden = models.PositiveIntegerField(
         default=0,
         verbose_name='orden',
-        help_text='Posición en la galería. La de orden más bajo es la principal.',
+        help_text='Posición dentro de su tipo. La de orden más bajo entre las de resultado es la principal.',
     )
 
     class Meta:

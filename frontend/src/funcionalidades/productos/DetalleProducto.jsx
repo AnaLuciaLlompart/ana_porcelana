@@ -12,6 +12,9 @@ import {
   quitarMaterialDeProducto,
   asignarCategoriaAProducto,
   quitarCategoriaDeProducto,
+  subirImagenDeProducto,
+  modificarImagenDeProducto,
+  borrarImagenDeProducto,
 } from './api'
 
 // Tercer import que cruza de funcionalidad, con el mismo criterio de
@@ -23,6 +26,7 @@ import { listarMateriales } from '../materiales/api'
 import PestanaDatos from './PestanaDatos'
 import PestanaMateriales from './PestanaMateriales'
 import PestanaCategorias from './PestanaCategorias'
+import PestanaImagenes from './PestanaImagenes'
 import ModalAgregarMaterial from './ModalAgregarMaterial'
 import ModalSalirSinGuardar from './ModalSalirSinGuardar'
 import ModalBajaProducto from './ModalBajaProducto'
@@ -57,6 +61,22 @@ function borradorDe(producto) {
     dificultad: producto.dificultad,
     paso_a_paso: producto.paso_a_paso,
   }
+}
+
+
+// El backend contesta de dos formas según qué falló: las reglas de negocio
+// mandan {'detail': '...'} y los errores de campo mandan
+// {'imagen': ['La imagen pesa 20.0 MB...']}. La subida de fotos usa la
+// segunda, así que hay que mirar las dos para no tragarse el mensaje.
+function mensajeDeError(err) {
+  const datos = err.response?.data
+  if (!datos) return 'No se pudo completar la acción.'
+  if (datos.detail) return datos.detail
+
+  const primerCampo = Object.values(datos)[0]
+  if (Array.isArray(primerCampo) && primerCampo.length > 0) return primerCampo[0]
+
+  return 'No se pudo completar la acción.'
 }
 
 
@@ -140,6 +160,12 @@ export default function DetalleProducto() {
   const [modalBaja, setModalBaja] = useState(false)
   const [toast, setToast] = useState('')
 
+  // El error de las imágenes va aparte del general, y guarda EN QUÉ GRUPO
+  // falló: { tipo, mensaje }. Se muestra arriba de la grilla de ese grupo,
+  // al lado del botón que lo provocó, y no al final de la pestaña, donde
+  // quedaba tan lejos que no se veía.
+  const [errorImagen, setErrorImagen] = useState(null)
+
   useEffect(() => {
     obtenerProducto(id)
       .then((res) => {
@@ -177,7 +203,41 @@ export default function DetalleProducto() {
       setProducto(res.data)
       mostrarToast(textoToast)
     } catch (err) {
-      setError(err.response?.data?.detail || 'No se pudo completar la acción.')
+      setError(mensajeDeError(err))
+    }
+  }
+
+
+  // Como accionInmediata, pero para las imágenes: el error se recuerda
+  // junto con el grupo donde ocurrió. Empezar cualquier acción nueva borra
+  // el error anterior, así que se limpia solo al reintentar.
+  async function accionDeImagen(tipo, llamada, textoToast) {
+    setErrorImagen(null)
+    try {
+      const res = await llamada()
+      setProducto(res.data)
+      mostrarToast(textoToast)
+    } catch (err) {
+      setErrorImagen({ tipo, mensaje: mensajeDeError(err) })
+    }
+  }
+
+
+  // Mover una imagen es intercambiar el campo 'orden' de dos: dos PATCH que
+  // se mandan juntos, y recién después se refresca con la última respuesta.
+  async function intercambiarOrden(a, b) {
+    setErrorImagen(null)
+    try {
+      await modificarImagenDeProducto(id, a.id, { orden: b.orden })
+      const res = await modificarImagenDeProducto(id, b.id, { orden: a.orden })
+      setProducto(res.data)
+      mostrarToast('Orden actualizado')
+    } catch (err) {
+      // Las dos son del mismo grupo, así que alcanza con el tipo de una.
+      setErrorImagen({ tipo: a.tipo, mensaje: mensajeDeError(err) })
+      // Si el segundo PATCH falló, el primero ya se aplicó: se vuelve a
+      // pedir la ficha para mostrar cómo quedó de verdad.
+      obtenerProducto(id).then((res) => setProducto(res.data)).catch(() => {})
     }
   }
 
@@ -507,34 +567,50 @@ export default function DetalleProducto() {
         />
       )}
 
+      {/* Diferencia deliberada con el prototipo: allá las imágenes se
+          reordenan arrastrándolas, acá con dos flechitas por tarjeta.
+          Arrastrar mueve un número variable de imágenes de una vez, así que
+          serían N pedidos y si uno falla la galería queda a medias.
+          Intercambiar de a dos es siempre la misma operación: dos PATCH que
+          se cruzan el campo 'orden'. */}
       {tab === 'imagenes' && (
-        <div
-          style={{
-            background: 'white',
-            border: '1px solid #EBE0E2',
-            borderRadius: 8,
-            padding: 48,
-            maxWidth: 720,
-            textAlign: 'center',
-          }}
-        >
-          <p
-            style={{
-              margin: '0 0 6px',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 17,
-              color: '#3D3238',
-            }}
-          >
-            Las imágenes vienen en el paso siguiente
-          </p>
-          <p style={{ margin: 0, fontSize: 15, color: '#857078' }}>
-            El producto ya tiene {producto.cantidad_imagenes === 1
-              ? '1 foto cargada'
-              : `${producto.cantidad_imagenes} fotos cargadas`}.
-          </p>
-        </div>
+        <PestanaImagenes
+          imagenes={producto.imagenes}
+          error={errorImagen}
+          onSubirArchivo={(tipo, archivo) =>
+            accionDeImagen(
+              tipo,
+              () =>
+                subirImagenDeProducto(id, {
+                  imagen: archivo,
+                  tipo,
+                  // El orden se numera por separado dentro de cada tipo,
+                  // así que la nueva va al final de SU grupo. Además le da
+                  // un valor distinto al de sus compañeras, que si no
+                  // quedarían todas empatadas en el 0 que trae el modelo
+                  // por defecto: entre dos con el mismo orden,
+                  // intercambiarlo no cambiaría nada.
+                  orden: producto.imagenes.filter((i) => i.tipo === tipo).length,
+                }),
+              'Imagen subida'
+            )
+          }
+          onIntercambiar={intercambiarOrden}
+          onGuardarTitulo={(imagen, titulo) =>
+            accionDeImagen(
+              imagen.tipo,
+              () => modificarImagenDeProducto(id, imagen.id, { titulo }),
+              'Título guardado'
+            )
+          }
+          onBorrar={(imagen) =>
+            accionDeImagen(
+              imagen.tipo,
+              () => borrarImagenDeProducto(id, imagen.id),
+              'Imagen borrada'
+            )
+          }
+        />
       )}
 
       {tab === 'categorias' && (
@@ -557,7 +633,9 @@ export default function DetalleProducto() {
       )}
 
 
-      {error && tab !== 'datos' && (
+      {/* Datos muestra su error adentro del formulario e Imágenes arriba
+          del grupo que falló; este del pie es solo para las otras dos. */}
+      {error && (tab === 'materiales' || tab === 'categorias') && (
         <p role="alert" style={{ marginTop: 16, color: '#C0442F', fontSize: 14 }}>
           {error}
         </p>
