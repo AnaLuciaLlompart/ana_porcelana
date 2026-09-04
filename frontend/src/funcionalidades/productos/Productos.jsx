@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listarProductos, reactivarProducto } from './api'
 import BotonAccion from './BotonAccion'
 import TarjetaProducto from './TarjetaProducto'
@@ -277,6 +277,7 @@ function SinResultados() {
 
 export default function Productos() {
   const navegar = useNavigate()
+  const [parametros] = useSearchParams()
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -293,6 +294,45 @@ export default function Productos() {
   const [filtrosAbierto, setFiltrosAbierto] = useState(false)
   const [categorias, setCategorias] = useState([])
 
+  // Para el link "Ver productos" de una categoría: /productos?categoria=3
+  const seccionBajas = useRef(null)
+  const irABajas = useRef(false)
+
+  // El link "Ver productos" de una categoría llega como /productos?categoria=3.
+  //
+  // Un solo parámetro para los dos casos: el link significa "los productos
+  // de esta categoría", y DÓNDE se ven depende de si está activa o de baja,
+  // que se resuelve al llegar. Con un parámetro distinto para cada caso, el
+  // link quedaría atado al estado que la categoría tenía cuando se copió.
+  //
+  // Se llama una sola vez, desde la carga inicial, así que no puede pisar lo
+  // que la usuaria toque después.
+  function abrirCategoriaDeLaUrl(lista) {
+    const pedida = parametros.get('categoria')
+    if (!pedida) return
+
+    const categoria = lista.find((c) => String(c.id) === pedida)
+
+    // Un id que no existe se ignora: la pantalla abre normal.
+    if (!categoria) return
+
+    if (categoria.estado === 'ACTIVO') {
+      setFiltros({ ...FILTROS_VACIOS, categorias: [categoria.id] })
+      return
+    }
+
+    // Los productos de una categoría de baja no están en la grilla, así que
+    // no hay filtro que aplicar ni chip que mostrar: están abajo, agrupados
+    // bajo su categoría. Se abre la sección con ese grupo desplegado y se
+    // deja pedido el deslizamiento.
+    setBajasAbierto(true)
+    setCatsColapsadas(
+      lista.filter((c) => c.estado === 'BAJA' && c.id !== categoria.id).map((c) => c.id)
+    )
+    irABajas.current = true
+  }
+
+
   useEffect(() => {
     listarProductos()
       .then((res) => setProductos(res.data))
@@ -303,9 +343,26 @@ export default function Productos() {
     // también afuera: el filtro guarda ids, y los chips de arriba de la
     // grilla tienen que mostrar el nombre de cada una.
     listarCategorias()
-      .then((res) => setCategorias(res.data))
+      .then((res) => {
+        setCategorias(res.data)
+        abrirCategoriaDeLaUrl(res.data)
+      })
       .catch(() => setError('No se pudieron cargar las categorías.'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+
+  // Deslizar hasta la sección es lo único que no se puede hacer en el
+  // callback: ahí la sección todavía no está en la pantalla. Este efecto no
+  // toca estado, solo el DOM, y se apaga solo con la marca.
+  useEffect(() => {
+    if (!irABajas.current || !seccionBajas.current) return
+
+    irABajas.current = false
+    seccionBajas.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [productos])
+
+
 
 
   function recargar() {
@@ -846,6 +903,7 @@ export default function Productos() {
 
 
           {!filtros.estados.includes('BAJA') && (
+          <div ref={seccionBajas}>
           <SeccionBajas
             deBaja={deBaja}
             grupos={grupos}
@@ -861,6 +919,7 @@ export default function Productos() {
             onReactivarProducto={(p) => cambiarEstado(p, reactivarProducto)}
             onReactivarCategoria={(categoria) => setCategoriaReactivando(categoria)}
           />
+          </div>
           )}
         </>
       )}

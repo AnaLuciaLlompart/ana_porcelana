@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { listarCategorias, reactivarCategoria,} from './api'
 import ModalCategoria from './ModalCategoria'
 import ModalBajaCategoria from './ModalBajaCategoria'
@@ -313,6 +314,7 @@ function Tarjeta({ categoria, onEditar, onDarDeBaja, onReactivar, onEliminar, on
 
 
 export default function Categorias() {
+  const navegar = useNavigate()
   const [categorias, setCategorias] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -386,6 +388,9 @@ export default function Categorias() {
     onDarDeBaja: (c) => setCategoriaDandoBaja(c),
     onReactivar: (c) => cambiarEstado(c, reactivarCategoria),
     onEliminar: (c) => setCategoriaEliminando(c),
+    // La categoría viaja por la URL y no por el estado de navegación, para
+    // que el link se pueda compartir y sobreviva a recargar la página.
+    onVerProductos: (c) => navegar(`/productos?categoria=${c.id}`),
   }
 
   return (
