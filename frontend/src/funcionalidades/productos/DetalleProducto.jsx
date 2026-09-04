@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import {
   obtenerProducto,
+  crearProducto,
   modificarProducto,
   reactivarProducto,
   publicarProducto,
@@ -28,7 +29,6 @@ import PestanaMateriales from './PestanaMateriales'
 import PestanaCategorias from './PestanaCategorias'
 import PestanaImagenes from './PestanaImagenes'
 import ModalAgregarMaterial from './ModalAgregarMaterial'
-import ModalSalirSinGuardar from './ModalSalirSinGuardar'
 import ModalBajaProducto from './ModalBajaProducto'
 import {
   COLOR_DIFICULTAD,
@@ -40,8 +40,8 @@ import {
 
 
 const ICONO_FLECHA = 'M9 5l7 7-7 7'
-const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
 const ICONO_TILDE = 'M5 13l4 4L19 7'
+const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
 
 const PESTANAS = [
   { id: 'datos', label: 'Datos' },
@@ -60,7 +60,21 @@ function borradorDe(producto) {
     precio: String(Math.round(Number(producto.precio_actual))),
     dificultad: producto.dificultad,
     paso_a_paso: producto.paso_a_paso,
+    es_personalizado: producto.es_personalizado,
   }
+}
+
+
+// Con qué arranca el formulario en un alta. Además de ser el punto de
+// partida, es la línea de base contra la que se mide si hay algo escrito:
+// en la edición se compara contra el producto cargado, acá contra esto.
+const BORRADOR_VACIO = {
+  nombre: '',
+  descripcion: '',
+  precio: '',
+  dificultad: '',
+  paso_a_paso: '',
+  es_personalizado: false,
 }
 
 
@@ -78,6 +92,8 @@ function mensajeDeError(err) {
 
   return 'No se pudo completar la acción.'
 }
+
+
 
 
 function Toast({ texto }) {
@@ -137,12 +153,16 @@ function Chip({ texto, color, fondo }) {
 }
 
 
-export default function DetalleProducto() {
+// La misma ficha atiende dos casos: el alta (/productos/nuevo) y la edición
+// (/productos/:id). Cuál es lo dice la ruta con la prop, en vez de que el
+// componente lo deduzca de que falte el id.
+export default function DetalleProducto({ esAlta = false }) {
   const { id } = useParams()
   const navegar = useNavigate()
 
   const [producto, setProducto] = useState(null)
-  const [cargando, setCargando] = useState(true)
+  // En un alta no hay nada que traer del servidor.
+  const [cargando, setCargando] = useState(!esAlta)
   const [error, setError] = useState('')
   const [tab, setTab] = useState('datos')
 
@@ -150,40 +170,48 @@ export default function DetalleProducto() {
   // borrador del modal de filtros. El motivo es que tiene que sobrevivir al
   // cambio de pestaña: si viviera en la pestaña, pasar a Materiales la
   // desmontaría y se perdería lo escrito.
-  const [borrador, setBorrador] = useState(null)
+  const [borrador, setBorrador] = useState(esAlta ? BORRADOR_VACIO : null)
   const [guardando, setGuardando] = useState(false)
 
   const [categorias, setCategorias] = useState([])
   const [materiales, setMateriales] = useState([])
 
   const [modalMaterial, setModalMaterial] = useState(false)
-  const [modalSalir, setModalSalir] = useState(false)
   const [modalBaja, setModalBaja] = useState(false)
-  const [toast, setToast] = useState('')
 
   // El error de las imágenes va aparte del general, y guarda EN QUÉ GRUPO
   // falló: { tipo, mensaje }. Se muestra arriba de la grilla de ese grupo,
   // al lado del botón que lo provocó, y no al final de la pestaña, donde
   // quedaba tan lejos que no se veía.
   const [errorImagen, setErrorImagen] = useState(null)
+  const [toast, setToast] = useState('')
+  const temporizador = useRef(null)
 
   useEffect(() => {
-    obtenerProducto(id)
-      .then((res) => {
-        setProducto(res.data)
-        setBorrador(borradorDe(res.data))
-      })
-      .catch(() => setError('No se pudo cargar el producto.'))
-      .finally(() => setCargando(false))
+    if (!esAlta) {
+      obtenerProducto(id)
+        .then((res) => {
+          setProducto(res.data)
+          setBorrador(borradorDe(res.data))
+        })
+        .catch(() => setError('No se pudo cargar el producto.'))
+        .finally(() => setCargando(false))
+    }
 
     listarCategorias().then((res) => setCategorias(res.data)).catch(() => {})
     listarMateriales().then((res) => setMateriales(res.data)).catch(() => {})
-  }, [id])
+  }, [id, esAlta])
+
+
 
 
   function mostrarToast(texto) {
     setToast(texto)
-    setTimeout(() => setToast(''), 2600)
+    // Se cancela el anterior: si no, al hacer dos acciones seguidas el
+    // temporizador de la primera apaga el cartel de la segunda antes de
+    // tiempo.
+    clearTimeout(temporizador.current)
+    temporizador.current = setTimeout(() => setToast(''), 2600)
   }
 
 
@@ -243,33 +271,54 @@ export default function DetalleProducto() {
   }
 
 
+  // Devuelve el id del producto si salió bien, o null si no. En un alta ese
+  // id es el del producto recién creado, y hace falta para navegar a su
+  // ficha.
   async function guardarDatos() {
     setError('')
 
+    // Los tres que el backend exige y no tienen valor por defecto. Se
+    // muestra el primero que falte: es un formulario corto y una lista de
+    // errores sería más ruido que ayuda.
     if (!borrador.nombre.trim()) {
       setError('Ponele un nombre al producto.')
-      return false
+      return null
+    }
+    if (!borrador.precio) {
+      setError('Ponele un precio al producto.')
+      return null
+    }
+    if (!borrador.dificultad) {
+      setError('Elegí la dificultad.')
+      return null
     }
 
     setGuardando(true)
 
-    try {
-      const res = await modificarProducto(id, {
-        nombre: borrador.nombre.trim(),
-        descripcion: borrador.descripcion.trim(),
-        precio_actual: borrador.precio || '0',
-        dificultad: borrador.dificultad,
-        paso_a_paso: borrador.paso_a_paso,
-      })
+    const datos = {
+      nombre: borrador.nombre.trim(),
+      descripcion: borrador.descripcion.trim(),
+      precio_actual: borrador.precio,
+      dificultad: borrador.dificultad,
+      paso_a_paso: borrador.paso_a_paso,
+    }
 
+    try {
+      if (esAlta) {
+        // El tilde de personalizado viaja acá porque en el alta todavía no
+        // hay producto al que pedirle CU23 o CU24.
+        const res = await crearProducto({ ...datos, es_personalizado: borrador.es_personalizado })
+        return res.data.id
+      }
+
+      const res = await modificarProducto(id, datos)
       setProducto(res.data)
       setBorrador(borradorDe(res.data))
       mostrarToast('Cambios guardados')
-      return true
+      return res.data.id
     } catch (err) {
-      const datos = err.response?.data
-      setError(datos?.detail || datos?.nombre?.[0] || datos?.precio_actual?.[0] || 'No se pudieron guardar los cambios.')
-      return false
+      setError(mensajeDeError(err))
+      return null
     } finally {
       setGuardando(false)
     }
@@ -280,46 +329,59 @@ export default function DetalleProducto() {
     return <p style={{ color: '#857078' }}>Cargando…</p>
   }
 
-  if (!producto) {
+  if (!esAlta && !producto) {
     return <p style={{ color: '#C0442F' }}>{error || 'No se encontró el producto.'}</p>
   }
 
 
   // Derivados, calculados en cada render.
-  const hayCambios =
-    borrador.nombre !== producto.nombre ||
-    borrador.descripcion !== producto.descripcion ||
-    borrador.precio !== String(Math.round(Number(producto.precio_actual))) ||
-    borrador.dificultad !== producto.dificultad ||
-    borrador.paso_a_paso !== producto.paso_a_paso
+  //
+  // Lo que cambia entre el alta y la edición no es la comparación sino la
+  // LÍNEA DE BASE: en la edición se mide contra el producto que se cargó,
+  // en el alta contra el borrador vacío, o sea "hay algo escrito".
+  const original = esAlta ? BORRADOR_VACIO : borradorDe(producto)
 
-  // Salir de la ficha es el único momento en que se avisa de los cambios sin
-  // guardar. Cambiar de pestaña no pregunta nada, porque el borrador sigue
-  // vivo y no se pierde.
+  const hayCambios =
+    borrador.nombre !== original.nombre ||
+    borrador.descripcion !== original.descripcion ||
+    borrador.precio !== original.precio ||
+    borrador.dificultad !== original.dificultad ||
+    borrador.paso_a_paso !== original.paso_a_paso ||
+    borrador.es_personalizado !== original.es_personalizado
+
+  // El botón del formulario: en un alta, además de crear, lleva a la ficha
+  // del producto nuevo, que ya es una edición con las cuatro pestañas.
+  async function guardarFormulario() {
+    const nuevoId = await guardarDatos()
+    if (esAlta && nuevoId) navegar(`/productos/${nuevoId}`)
+  }
+
+
+  // Salir descarta lo escrito sin preguntar. El aviso mientras se está en la
+  // ficha es el chip del breadcrumb.
   function volver() {
-    if (hayCambios) {
-      setModalSalir(true)
-      return
-    }
     navegar('/productos')
   }
 
-  const activo = producto.estado === 'ACTIVO'
-  const dificultad = COLOR_DIFICULTAD[producto.dificultad]
-  const catalogo = estadoCatalogoFicha(producto)
-  const avisoOculto = activo && !producto.visible_en_catalogo && motivoFuera(producto)
+  // Todo lo que sigue describe un producto que existe, así que en un alta
+  // no aplica y el encabezado lo omite.
+  const activo = !esAlta && producto.estado === 'ACTIVO'
+  const dificultad = esAlta ? null : COLOR_DIFICULTAD[producto.dificultad]
+  const catalogo = esAlta ? null : estadoCatalogoFicha(producto)
+  const avisoOculto = !esAlta && activo && !producto.visible_en_catalogo && motivoFuera(producto)
 
-  const idsAsignados = producto.categorias.map((c) => c.id)
+  const idsAsignados = esAlta ? [] : producto.categorias.map((c) => c.id)
   const categoriasDisponibles = categorias.filter(
     (c) => c.estado === 'ACTIVO' && !idsAsignados.includes(c.id)
   )
 
-  const idsMateriales = producto.materiales_usados.map((l) => l.material)
+  const idsMateriales = esAlta ? [] : producto.materiales_usados.map((l) => l.material)
   const materialesDisponibles = materiales.filter(
     (m) => m.estado === 'ACTIVO' && !idsMateriales.includes(m.id)
   )
 
-  const CUENTAS = {
+  // En un alta no hay nada que contar, así que las pestañas van sin globito.
+  const CUENTAS = esAlta ? {} : {
     materiales: producto.cantidad_materiales,
     imagenes: producto.cantidad_imagenes,
     categorias: producto.categorias.length,
@@ -330,7 +392,7 @@ export default function DetalleProducto() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
         <button
           onClick={volver}
-          className="btn-breadcrumb"
+          className="btn-ver-productos"
           style={{
             padding: 0,
             border: 0,
@@ -349,7 +411,9 @@ export default function DetalleProducto() {
           <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FLECHA} />
         </svg>
 
-        <span style={{ fontSize: 15, color: '#857078' }}>{producto.nombre}</span>
+        <span style={{ fontSize: 15, color: '#857078' }}>
+          {esAlta ? 'Nuevo producto' : producto.nombre}
+        </span>
 
         {hayCambios && (
           <span
@@ -395,9 +459,10 @@ export default function DetalleProducto() {
               textWrap: 'pretty',
             }}
           >
-            {producto.nombre}
+            {esAlta ? 'Nuevo producto' : producto.nombre}
           </h1>
 
+          {!esAlta && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span
               style={{
@@ -418,8 +483,11 @@ export default function DetalleProducto() {
             />
             <Chip texto={catalogo.texto} color={catalogo.color} fondo={catalogo.fondo} />
           </div>
+          )}
         </div>
 
+        {/* Dar de baja no tiene sentido sobre algo que todavía no existe. */}
+        {!esAlta && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
           <button
             onClick={() =>
@@ -427,7 +495,7 @@ export default function DetalleProducto() {
                 ? setModalBaja(true)
                 : accionInmediata(() => reactivarProducto(id), 'Producto reactivado')
             }
-            className="btn-baja-ficha"
+            className="btn-reponer"
             style={{
               padding: '10px 16px',
               border: '1px solid #EBE0E2',
@@ -443,6 +511,7 @@ export default function DetalleProducto() {
             {activo ? 'Dar de baja' : 'Reactivar'}
           </button>
         </div>
+        )}
       </div>
 
       {avisoOculto && (
@@ -485,11 +554,15 @@ export default function DetalleProducto() {
         {PESTANAS.map((p) => {
           const activa = tab === p.id
           const cuenta = CUENTAS[p.id]
+          // En un alta solo se puede estar en Datos: las otras tres piden un
+          // producto que todavía no existe.
+          const deshabilitada = esAlta && p.id !== 'datos'
 
           return (
             <button
               key={p.id}
               onClick={() => setTab(p.id)}
+              disabled={deshabilitada}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -498,11 +571,11 @@ export default function DetalleProducto() {
                 border: 0,
                 borderBottom: `2px solid ${activa ? '#8C5A66' : 'transparent'}`,
                 background: 'transparent',
-                cursor: 'pointer',
+                cursor: deshabilitada ? 'default' : 'pointer',
                 fontFamily: "'Quicksand', sans-serif",
                 fontWeight: 600,
                 fontSize: 15,
-                color: activa ? '#8C5A66' : '#857078',
+                color: deshabilitada ? '#B08791' : activa ? '#8C5A66' : '#857078',
               }}
             >
               {p.label}
@@ -531,18 +604,32 @@ export default function DetalleProducto() {
         })}
       </div>
 
+      {esAlta && (
+        <p style={{ margin: '-8px 0 20px', fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
+          Primero guardá el producto. Después vas a poder sumarle materiales,
+          fotos y categorías.
+        </p>
+      )}
+
 
       {tab === 'datos' && (
         <PestanaDatos
           borrador={borrador}
           onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-          esPersonalizado={producto.es_personalizado}
-          onTogglePersonalizado={() =>
-            producto.es_personalizado
+          esAlta={esAlta}
+          // En el alta el tilde sale del borrador y no llama a nada; en la
+          // edición sale del producto y dispara CU23 o CU24 al instante.
+          esPersonalizado={esAlta ? borrador.es_personalizado : producto.es_personalizado}
+          onTogglePersonalizado={() => {
+            if (esAlta) {
+              setBorrador({ ...borrador, es_personalizado: !borrador.es_personalizado })
+              return
+            }
+            return producto.es_personalizado
               ? accionInmediata(() => publicarProducto(id), 'Ya no es un pedido personalizado')
               : accionInmediata(() => quitarProductoDelCatalogo(id), 'Marcado como personalizado')
-          }
-          onGuardar={guardarDatos}
+          }}
+          onGuardar={guardarFormulario}
           onCancelar={volver}
           guardando={guardando}
           error={error}
@@ -654,19 +741,6 @@ export default function DetalleProducto() {
               () => asignarMaterialAProducto(id, material.id),
               `“${material.nombre}” agregado`
             )
-          }}
-        />
-      )}
-
-      {modalSalir && (
-        <ModalSalirSinGuardar
-          nombre={producto.nombre}
-          onCancelar={() => setModalSalir(false)}
-          onSalirSinGuardar={() => navegar('/productos')}
-          onGuardarYSalir={async () => {
-            const guardado = await guardarDatos()
-            if (guardado) navegar('/productos')
-            else setModalSalir(false)
           }}
         />
       )}

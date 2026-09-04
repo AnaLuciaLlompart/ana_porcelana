@@ -52,3 +52,11 @@ button:not(:disabled):hover {
   color: #8C5A66 !important;
   background: rgba(240, 226, 228, 0.4) !important;
 }
+
+.btn-reactivar:hover {
+  background: #E8F5EF !important;
+}
+
+.fila-material:hover {
+  background: #FAF7F7 !important;
+}

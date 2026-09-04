@@ -538,6 +538,7 @@ export default function Categorias() {
             <div style={{ marginTop: 24 }}>
               <button
                 onClick={() => setBajasAbierto((v) => !v)}
+                className="btn-reponer"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -620,8 +621,7 @@ export default function Categorias() {
             recargar()
           }}
         />
-      )}      
-
+      )}
 
     </div>
   )

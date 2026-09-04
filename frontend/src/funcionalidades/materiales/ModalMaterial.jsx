@@ -38,6 +38,9 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
   const [descripcion, setDescripcion] = useState(material?.descripcion || '')
   const [imagen, setImagen] = useState(null)
   const [previa, setPrevia] = useState(material?.url_imagen || null)
+  // Pedir que se vacíe el campo es distinto de no mandarlo: sin esto,
+  // no habría forma de sacarle la foto a un material.
+  const [quitarImagen, setQuitarImagen] = useState(false)
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -56,6 +59,15 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
     setError('')
     setImagen(archivo)
     setPrevia(URL.createObjectURL(archivo))
+    // Elegir una foto nueva es reemplazar, no vaciar.
+    setQuitarImagen(false)
+  }
+
+
+  function quitar() {
+    setImagen(null)
+    setPrevia(null)
+    setQuitarImagen(true)
   }
 
   async function guardar() {
@@ -77,7 +89,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
 
     try {
       if (editando) {
-        await actualizarMaterial(material.id, datos, imagen)
+        await actualizarMaterial(material.id, datos, imagen, quitarImagen)
       } else {
         await crearMaterial(datos, imagen)
       }
@@ -110,8 +122,13 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
           width: '100%',
           maxWidth: 490,
           maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           borderRadius: 10,
-          overflow: 'auto',
+          // La tarjeta no scrollea: scrollea el cuerpo. Con overflow en la
+          // tarjeta entera aparecía una barra a lo largo de todo el modal en
+          // cuanto el contenido se pasaba por un pixel.
+          overflow: 'hidden',
           boxShadow: '0 20px 50px rgba(61,50,56,.25)',
         }}
       >
@@ -121,6 +138,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 24px',
+            flexShrink: 0,
             background: '#8C5A66',
           }}
         >
@@ -156,7 +174,15 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
           </button>
         </div>
 
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div
+          style={{
+            padding: '20px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20,
+            overflowY: 'auto',
+          }}
+        >
           <div>
             <label htmlFor="nombre" style={estiloEtiqueta}>
               Nombre del material *
@@ -266,6 +292,27 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
               onChange={elegirImagen}
               style={{ display: 'none' }}
             />
+
+            {previa && (
+              <button
+                onClick={quitar}
+                className="btn-reponer"
+                style={{
+                  marginTop: 8,
+                  padding: '6px 14px',
+                  border: '1px solid #EBE0E2',
+                  background: 'white',
+                  color: '#C0442F',
+                  borderRadius: 5,
+                  cursor: 'pointer',
+                  fontFamily: "'Quicksand', sans-serif",
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                Quitar imagen
+              </button>
+            )}
           </div>
 
           {error && (
@@ -292,6 +339,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
             justifyContent: 'flex-end',
             gap: 12,
             padding: '16px 24px',
+            flexShrink: 0,
             borderTop: '1px solid #EBE0E2',
           }}
         >

@@ -55,6 +55,7 @@ function EtiquetaConNota({ texto, nota }) {
 export default function PestanaDatos({
   borrador,
   onCambiar,
+  esAlta,
   esPersonalizado,
   onTogglePersonalizado,
   onGuardar,
@@ -153,10 +154,12 @@ export default function PestanaDatos({
         </div>
       </div>
 
-      {/* Este tilde NO espera al botón de guardar: es el único control del
-          formulario que actúa en el momento. Tildarlo es CU24 (quitar del
+      {/* Este tilde se comporta distinto según el caso, y es a propósito.
+          En la EDICIÓN no espera al botón: tildarlo es CU24 (quitar del
           catálogo) y destildarlo CU23 (publicar), que son casos de uso
-          propios con sus endpoints, no un campo del producto. */}
+          propios con sus endpoints. En el ALTA no hay producto todavía al
+          que llamar, así que es un campo más del formulario y viaja en el
+          POST con el resto. */}
       <label
         style={{
           display: 'flex',
@@ -247,7 +250,7 @@ export default function PestanaDatos({
             fontSize: 15,
           }}
         >
-          CANCELAR
+          Cancelar
         </button>
 
         <button
@@ -266,7 +269,9 @@ export default function PestanaDatos({
             fontSize: 15,
           }}
         >
-          {guardando ? 'GUARDANDO…' : 'GUARDAR CAMBIOS'}
+          {esAlta
+            ? (guardando ? 'Creando…' : 'Crear producto')
+            : (guardando ? 'Guardando…' : 'Guardar')}
         </button>
       </div>
     </div>

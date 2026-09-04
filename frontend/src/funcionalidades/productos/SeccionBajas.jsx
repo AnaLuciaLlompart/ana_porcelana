@@ -53,7 +53,7 @@ export default function SeccionBajas({
 
         <button
           onClick={onToggle}
-          className="btn-colapsar-bajas"
+          className="btn-reponer"
           style={{
             display: 'flex',
             alignItems: 'center',

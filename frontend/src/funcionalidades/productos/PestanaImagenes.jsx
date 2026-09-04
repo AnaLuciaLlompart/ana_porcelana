@@ -24,12 +24,12 @@ const GRUPOS = [
 ]
 
 
-function BotonSobreFoto({ titulo, icono, onClick, color = '#8C5A66' }) {
+function BotonSobreFoto({ titulo, icono, onClick, color = '#8C5A66', hover = '#F0E2E4' }) {
   return (
     <button
       title={titulo}
       onClick={onClick}
-      className="btn-sobre-foto"
+      className="btn-accion"
       style={{
         width: 28,
         height: 28,
@@ -40,6 +40,7 @@ function BotonSobreFoto({ titulo, icono, onClick, color = '#8C5A66' }) {
         background: 'white',
         borderRadius: 5,
         cursor: 'pointer',
+        '--hover': hover,
       }}
     >
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.9">
@@ -112,6 +113,7 @@ function Tarjeta({ imagen, posicion, esPrincipal, puedeSubir, puedeBajar, onSubi
             titulo="Borrar imagen"
             icono={ICONO_CRUZ}
             color="#C0442F"
+            hover="#FAEAE8"
             onClick={() => onBorrar(imagen)}
           />
         </div>

@@ -68,6 +68,9 @@ export default function Rutas() {
             <Route path="/materiales" element={<Materiales />} />
             <Route path="/categorias" element={<Categorias />} />
             <Route path="/productos" element={<Productos />} />
+            {/* El alta usa la misma ficha que la edición. Va ANTES que
+                /productos/:id para que "nuevo" no se lea como un id. */}
+            <Route path="/productos/nuevo" element={<DetalleProducto esAlta />} />
             <Route path="/productos/:id" element={<DetalleProducto />} />
             <Route path="/clientes" element={<EnConstruccion />} />
             <Route path="/pedidos" element={<EnConstruccion />} />

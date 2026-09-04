@@ -209,3 +209,7 @@ tarjeta.
 
 - El vocabulario sale de mis casos de uso, no de sinónimos. Los materiales de
   un producto son "los materiales del producto", nunca "la receta".
+
+  - Antes de crear un estilo, una clase o un componente nuevo, revisá si ya
+  existe uno equivalente en otro módulo y reusalo. Las pantallas nuevas
+  tienen que sentirse iguales a las que ya están, no más elaboradas.

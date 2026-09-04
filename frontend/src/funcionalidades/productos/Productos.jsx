@@ -59,7 +59,7 @@ function FilaProducto({ producto, acciones }) {
       <td style={{ padding: 16 }}>
         <button
           onClick={() => acciones.onVer(producto)}
-          className="btn-nombre-producto"
+          className="btn-ver-productos"
           style={{
             padding: 0,
             border: 0,
@@ -475,9 +475,8 @@ export default function Productos() {
           Gestión de Productos
         </h1>
 
-        {/* TODO(paso siguiente): el alta abre la ficha vacía. */}
         <button
-          onClick={() => {}}
+          onClick={() => navegar('/productos/nuevo')}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -509,7 +508,9 @@ export default function Productos() {
       {cargando && <p style={{ color: '#857078' }}>Cargando…</p>}
 
 
-      {!cargando && productos.length === 0 && <EstadoVacio onNuevo={() => {}} />}
+      {!cargando && productos.length === 0 && (
+        <EstadoVacio onNuevo={() => navegar('/productos/nuevo')} />
+      )}
 
       {!cargando && productos.length > 0 && (
         <>
@@ -688,7 +689,6 @@ export default function Productos() {
                 <button
                   key={chip.clave}
                   onClick={chip.onQuitar}
-                  className="chip-filtro"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -754,7 +754,7 @@ export default function Productos() {
                       <th key={col.campo} style={{ textAlign: 'left', padding: 0 }}>
                         <button
                           onClick={() => ordenarPor(col.campo)}
-                          className="btn-columna"
+                          className="th-orden"
                           style={{
                             display: 'flex',
                             alignItems: 'center',

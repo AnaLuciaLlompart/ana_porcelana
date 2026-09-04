@@ -96,7 +96,7 @@ function Fila({ linea, onGuardarCantidad, onQuitar }) {
       <button
         title="Quitar del producto"
         onClick={() => onQuitar(linea)}
-        className="btn-quitar"
+        className="btn-accion"
         style={{
           width: 34,
           height: 34,
@@ -108,6 +108,7 @@ function Fila({ linea, onGuardarCantidad, onQuitar }) {
           background: 'transparent',
           borderRadius: 5,
           cursor: 'pointer',
+          '--hover': '#FAEAE8',
         }}
       >
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#C0442F" strokeWidth="1.9">
@@ -151,7 +152,7 @@ export default function PestanaMateriales({
 
         <button
           onClick={onAgregar}
-          className="btn-agregar-linea"
+          className="btn-reponer"
           style={{
             display: 'flex',
             alignItems: 'center',
