@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { crearMaterial, actualizarMaterial } from './api'
+import { TAMANO_MAXIMO_MB, validarTamanoArchivo } from '../../validadores'
 
 const DISPONIBILIDADES = [
   { valor: 'ALTA', etiqueta: 'Alta', color: '#4E8C6A', fondo: '#E8F5EF' },
@@ -45,8 +46,10 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
     const archivo = e.target.files[0]
     if (!archivo) return
 
-    if (archivo.size > 5 * 1024 * 1024) {
-      setError('La imagen no puede superar los 5 MB.')
+    const problema = validarTamanoArchivo(archivo)
+
+    if (problema) {
+      setError(problema)
       return
     }
 
@@ -250,7 +253,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
                     Hacé clic para subir una foto
                   </span>
                   <span style={{ fontSize: 12, color: '#B08791' }}>
-                    PNG, JPG hasta 5 MB
+                    PNG, JPG hasta {TAMANO_MAXIMO_MB} MB
                   </span>
                 </>
               )}

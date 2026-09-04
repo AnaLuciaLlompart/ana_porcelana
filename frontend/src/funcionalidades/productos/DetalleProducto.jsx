@@ -94,11 +94,12 @@ function Toast({ texto }) {
         gap: 9,
         padding: '11px 20px',
         borderRadius: 24,
-        background: '#3D3238',
-        boxShadow: '0 10px 30px rgba(61,50,56,.3)',
+        background: '#E8F5EF',
+        border: '1px solid #4E8C6A',
+        boxShadow: '0 4px 12px rgba(61,50,56,.12)',
       }}
     >
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" strokeWidth="2.2">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4E8C6A" strokeWidth="2.2">
         <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_TILDE} />
       </svg>
       <span
@@ -106,7 +107,7 @@ function Toast({ texto }) {
           fontFamily: "'Quicksand', sans-serif",
           fontWeight: 600,
           fontSize: 15,
-          color: 'white',
+          color: '#4E8C6A',
         }}
       >
         {texto}
@@ -577,6 +578,7 @@ export default function DetalleProducto() {
         <PestanaImagenes
           imagenes={producto.imagenes}
           error={errorImagen}
+          onError={(tipo, mensaje) => setErrorImagen({ tipo, mensaje })}
           onSubirArchivo={(tipo, archivo) =>
             accionDeImagen(
               tipo,

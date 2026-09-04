@@ -13,10 +13,7 @@ export default function ModalEliminarMaterial({ material, onCerrar, onEliminado 
       await eliminarMaterial(material.id)
       onEliminado()
     } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-          'No se pudo eliminar el material. Puede estar en uso en productos o gastos.'
-      )
+      setError(err.response?.data?.detail || 'No se pudo eliminar el material.')
       setEnviando(false)
     }
   }

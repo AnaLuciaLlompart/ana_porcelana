@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { validarTamanoArchivo } from '../../validadores'
 
 const ICONO_CRUZ = 'M6 18L18 6M6 6l12 12'
 const ICONO_MAS = 'M12 5v14m7-7H5'
@@ -164,7 +165,7 @@ function Tarjeta({ imagen, posicion, esPrincipal, puedeSubir, puedeBajar, onSubi
 }
 
 
-function Grupo({ grupo, imagenes, principalId, error, onSubirArchivo, onIntercambiar, onGuardarTitulo, onBorrar }) {
+function Grupo({ grupo, imagenes, principalId, error, onSubirArchivo, onError, onIntercambiar, onGuardarTitulo, onBorrar }) {
   const entrada = useRef(null)
 
   // Mover una imagen es intercambiar su orden con el de su vecina DENTRO
@@ -260,7 +261,19 @@ function Grupo({ grupo, imagenes, principalId, error, onSubirArchivo, onIntercam
             // Se limpia la entrada para que elegir DOS VECES el mismo
             // archivo vuelva a disparar el onChange.
             e.target.value = ''
-            if (archivo) onSubirArchivo(grupo.tipo, archivo)
+            if (!archivo) return
+
+            // Se mira el tamaño acá para no subir un archivo que el
+            // backend va a rechazar igual. El de allá sigue estando: este
+            // solo evita el viaje.
+            const problema = validarTamanoArchivo(archivo)
+
+            if (problema) {
+              onError(grupo.tipo, problema)
+              return
+            }
+
+            onSubirArchivo(grupo.tipo, archivo)
           }}
         />
       </div>
@@ -273,6 +286,7 @@ export default function PestanaImagenes({
   imagenes,
   error,
   onSubirArchivo,
+  onError,
   onIntercambiar,
   onGuardarTitulo,
   onBorrar,
@@ -294,6 +308,7 @@ export default function PestanaImagenes({
           // El error se muestra solo en el grupo donde falló.
           error={error && error.tipo === grupo.tipo ? error.mensaje : ''}
           onSubirArchivo={onSubirArchivo}
+          onError={onError}
           onIntercambiar={onIntercambiar}
           onGuardarTitulo={onGuardarTitulo}
           onBorrar={onBorrar}

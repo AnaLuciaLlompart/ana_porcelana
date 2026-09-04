@@ -53,6 +53,37 @@ class MaterialViewSet(viewsets.ModelViewSet): # ModelViewSet es la clase que ya 
         return super().update(request, *args, **kwargs)
 
 
+    # -----------------------------------------------------------------
+    # Sobreescribo destroy, para explicar por qué no se puede eliminar
+    # -----------------------------------------------------------------
+
+    def destroy(self, request, *args, **kwargs):
+        """Impide eliminar un material que algún producto está usando.
+
+        La clave foránea de MaterialProducto es PROTECT, así que la base
+        rechaza el borrado igual. Pero sin este chequeo la excepción sale
+        como un 500 con el traceback, y quien está del otro lado no se
+        entera de por qué falló ni en cuántos productos está el material.
+        """
+        material = self.get_object()
+
+        # Acá sí corresponde .count(): es un solo material y no hay ningún
+        # prefetch que respetar, así que conviene una consulta que devuelve
+        # un número antes que traerse las filas para contarlas en Python.
+        cantidad = material.usos.count()
+
+        if cantidad > 0:
+            en_productos = '1 producto' if cantidad == 1 else f'{cantidad} productos'
+
+            return Response(
+                {'detail': f'No se puede eliminar «{material.nombre}» porque está '
+                           f'usado en {en_productos}. Si ya no lo conseguís o no '
+                           f'lo querés usar más, discontinualo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(request, *args, **kwargs)
+
 
     # -----------------------------------------------------------------
     # Acciones propias, además del CRUD (activar y desactivar)
