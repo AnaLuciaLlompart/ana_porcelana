@@ -380,7 +380,7 @@ export default function ModalFiltros({
                 fontSize: 15,
               }}
             >
-              LIMPIAR
+              Limpiar
             </button>
 
             <button
@@ -397,7 +397,7 @@ export default function ModalFiltros({
                 fontSize: 15,
               }}
             >
-              APLICAR
+              Aplicar
             </button>
           </div>
         </div>

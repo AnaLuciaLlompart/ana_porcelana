@@ -72,7 +72,8 @@ afuera: `api/cliente.js`, `contexto/AuthContext.jsx`,
 `componentes/Layout.jsx`.
 
 Apps terminadas: `usuarios` (CU01–CU03), `materiales` (CU04–CU10),
-`categorias` (CU11–CU16). En curso: **productos** (CU17–CU35).
+`categorias` (CU11–CU16), `productos` (CU17–CU35).
+En curso: **clientes** (CU36–CU39).
 
 ---
 
@@ -104,11 +105,14 @@ Convenciones que ya uso:
 importando `cliente` → pantalla con el patrón de tres estados
 (cargando / error / datos) → modales → una línea en `rutas.jsx`.
 
-En las pantallas: debounce de 300 ms en los buscadores, derivados
-calculados con `.filter()` y nunca guardados en estado, objeto
-`acciones` que se expande con `{...acciones}`, y una función
-`cambiarEstado(entidad, accion)` que recibe la función de la API como
-argumento.
+En las pantallas: derivados calculados con `.filter()` y nunca
+guardados en estado, objeto `acciones` que se expande con
+`{...acciones}`, y una función `cambiarEstado(entidad, accion)` que
+recibe la función de la API como argumento.
+
+**Debounce solo cuando el buscador consulta al servidor**, con 300 ms,
+como en Materiales. Si el filtrado es local sobre datos ya cargados no
+lleva debounce, como en Categorías y Productos.
 
 ---
 
@@ -137,6 +141,13 @@ argumento.
   archivo en `media/`, y Pillow valida que sea una imagen real.
 - **Gestión optimizada para escritorio**; la adaptación a móvil va al
   final. El catálogo público sí se diseña directamente para celular.
+- **Eliminar un cliente con pedidos está prohibido.** La FK de Pedido a
+  Cliente va con `on_delete=models.PROTECT`, y `ClienteViewSet.destroy`
+  cuenta los pedidos antes de borrar para devolver un 400 con mensaje
+  entendible, igual que hace `materiales/views.py`. CASCADE borraría
+  historial de cobros; SET_NULL contradice el modelo lógico, donde
+  IdCliente es obligatorio. Cliente no tiene baja lógica, así que el
+  mensaje NO puede ofrecer discontinuar: la salida es dejarlo cargado.
 
 ---
 
@@ -159,6 +170,59 @@ Un producto sin categorías depende solo de su propio estado.
 
 Eliminar una categoría no elimina sus productos: solo borra las
 asociaciones. Los que queden sin categorías siguen visibles.
+
+---
+
+## Módulo Clientes (CU36–CU39)
+
+Diseño en `disenio/Clientes.dc.html`.
+
+**Cliente NO tiene baja lógica.** La tabla no tiene campo Estado. Las
+únicas operaciones son alta, búsqueda, modificación y eliminación.
+
+**El usuario de Instagram es único y se guarda normalizado:** sin
+espacios, sin el `@` inicial y en minúscula. En Instagram
+`Sofi.Delgado` y `sofi.delgado` son la misma cuenta, pero `unique=True`
+sobre un `CharField` en PostgreSQL distingue mayúsculas y dejaría
+entrar las dos. La normalización va en `Model.save()` para que ningún
+camino de escritura la esquive. El serializer necesita además
+normalizar en `to_internal_value()`, porque DRF corre el validador de
+unicidad ANTES del código propio y si no devolvería un 500 de la base
+en vez de un mensaje.
+
+**Clientes sigue el patrón de Materiales, no el de Productos.** La
+entidad tiene cuatro campos, así que no lleva pantalla de detalle:
+lleva `Clientes.jsx` más los modales de alta/edición, ver y eliminar,
+igual que `ModalMaterial`, `ModalVerMaterial` y `ModalEliminarMaterial`.
+El modal de ver reusa los mismos campos del formulario en
+`readOnly disabled`, con el placeholder cambiado a "Sin cargar".
+
+**Implementación por etapas: lo que depende de Pedidos NO se hace
+todavía**, y no se simula con ceros ni con "Sin pedidos". Espera al
+módulo de Pedidos:
+
+- las columnas PEDIDOS, ÚLTIMO y SALDO, y su ordenamiento
+- los dos chips de filtro (con saldo pendiente, con pedidos en curso)
+- la línea de resumen bajo el título
+- el recuento de pedidos y el chip de saldo dentro del modal Ver
+- la rama bloqueada del modal Eliminar, con candado
+
+Esto no es una diferencia con el prototipo como las cinco de Productos,
+que son permanentes. Es orden de construcción, y se documenta así.
+
+**Mientras tanto la tabla ordena por usuario de Instagram ascendente**,
+que es el `ordering` del modelo. Cuando exista Pedidos, el orden
+inicial vuelve a ser ÚLTIMO como dice el prototipo.
+
+**El único aviso flotante del módulo es el de copiar el usuario.** Las
+otras acciones ya se confirman solas: se cierra el modal y la fila
+aparece, cambia o desaparece de la tabla. Copiar al portapapeles es la
+única acción sin efecto visible.
+
+**Dos componentes a compartir antes de escribir el frontend:**
+`BotonAccion.jsx` hoy vive en `funcionalidades/productos/` y `Toast`
+está declarado adentro de `DetalleProducto.jsx`. Clientes es la segunda
+funcionalidad que los usa, así que van a `componentes/`.
 
 ---
 
@@ -202,9 +266,9 @@ oscurecido que cierra al hacer clic, con `e.stopPropagation()` en la
 tarjeta.
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
-`#8C5A66`), Editar (lápiz, `#8C5A66`), Dar de baja (prohibido,
-`#D9A441`), Reactivar (tilde, `#4E8C6A`), Eliminar (papelera,
-`#C0442F`).
+`#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
+`#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar (tilde,
+`#4E8C6A`), Eliminar (papelera, `#C0442F`).
 
 
 - El vocabulario sale de mis casos de uso, no de sinónimos. Los materiales de

@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FAF7F7; font-family: 'Nunito Sans', sans-serif; color: #3D3238; }
+  * { box-sizing: border-box; }
+  a { color: #8C5A66; }
+  a:hover { color: #B08791; }
+  input, select, button, textarea { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #EBE0E2; border-radius: 3px; }
+</style>
+</helmet>
+<div style="display: flex; height: 100vh; overflow: hidden; background: #FAF7F7">
+  <aside style="display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; background: #8C5A66; transition: width .2s; width: {{ sidebarWidth }}">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 6px 0; flex: 1">
+      <button onClick="{{ toggleSidebar }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: white">Menú</span>
+        </sc-if>
+      </button>
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin: 6px 0"></div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+        <button onClick="{{ item.onClick }}" title="{{ item.title }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; cursor: pointer; background: {{ item.bg }}; justify-content: {{ item.justify }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ item.stroke }}" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ item.icon }}"></path></svg>
+          <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: {{ item.stroke }}">{{ item.label }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div style="padding: 0 6px 16px">
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin-bottom: 6px"></div>
+      <button title="Cerrar sesión" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cerrar sesión</span>
+        </sc-if>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex: 1; overflow-y: auto; padding: 32px">
+
+    <sc-if value="{{ enListado }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px">
+        <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #3D3238">Gestión de Clientes</h1>
+        <button onClick="{{ abrirNuevo }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #8C5A66; color: white; border: 0; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+          Nuevo cliente
+        </button>
+      </div>
+      <p style="margin: 0 0 24px; font-size: 15px; color: #857078">{{ resumen }}</p>
+
+      <sc-if value="{{ moduloVacio }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 64px 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px">
+          <div style="width: 62px; height: 62px; border-radius: 16px; background: #FAF7F7; border: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          </div>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #3D3238">Todavía no cargaste ningún cliente</p>
+          <p style="margin: 0; max-width: 430px; font-size: 15px; color: #857078; text-wrap: pretty">Con el usuario de Instagram y el nombre alcanza para empezar. Los pedidos que registres después se van a agrupar acá.</p>
+          <button onClick="{{ abrirNuevo }}" style="display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 10px 20px; background: #8C5A66; color: white; border: 0; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+            Cargar el primero
+          </button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ hayClientes }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap">
+          <div style="position: relative; width: 420px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#857078" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%)"><path stroke-linecap="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input value="{{ busqueda }}" onChange="{{ onBuscar }}" placeholder="Buscar por @usuario, nombre o email..." style="width: 100%; padding: 8px 16px 8px 36px; border: 1px solid #EBE0E2; background: white; font-size: 16px; color: #3D3238; border-radius: 5px; outline: none">
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap">
+            <sc-for list="{{ filtros }}" as="f" hint-placeholder-count="2">
+              <button onClick="{{ f.onClick }}" style="display: flex; align-items: center; gap: 7px; padding: 7px 15px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ f.border }}; background: {{ f.bg }}; color: {{ f.color }}">
+                {{ f.label }}
+                <span style="min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; border-radius: 10px; font-size: 12px; background: {{ f.countBg }}; color: {{ f.countColor }}">{{ f.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+          <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+            <thead>
+              <tr style="background: #F0E2E4">
+                <sc-for list="{{ columnas }}" as="col" hint-placeholder-count="5">
+                  <th style="text-align: {{ col.align }}; padding: 0; width: {{ col.ancho }}">
+                    
+                  <button onClick="{{ col.onSort }}" style="display: flex; align-items: center; gap: 4px; width: 100%; padding: 12px {{ col.padX }}; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em; justify-content: {{ col.justify }}" style-hover="background: rgba(140,90,102,.09)">
+                      
+                      <span style="white-space: nowrap; margin-left: 20px; margin-right: 20px">{{ col.label }}</span>
+                      <sc-if value="{{ col.mostrarFlecha }}" hint-placeholder-val="{{ false }}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ col.icon }}"></path></svg>
+                      </sc-if>
+                    </button></th>
+                </sc-for>
+                <th style="text-align: center; padding: 12px 8px; width: 22%; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ clientes }}" as="c" hint-placeholder-count="7">
+                <tr style="border-top: 1px solid #EBE0E2">
+                  
+                  <td style="padding: 14px 8px">
+                    
+                  <button onClick="{{ c.onVer }}" style="display: block; width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; padding: 0">
+                      
+                    <span style="display: block; white-space: nowrap; line-height: 1.3; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238; text-decoration-line: none; position: static; padding-left: 20px; padding-right: 20px" style-hover="color: #8C5A66">{{ c.arroba }}</span></button></td><td style="padding: 14px 8px; text-align: center">
+                    <p style="margin: 0; white-space: nowrap; font-size: 16px; line-height: 1.3; color: #3D3238">{{ c.nombreCompleto }}</p>
+                    <sc-if value="{{ c.mostrarEmail }}" hint-placeholder-val="{{ true }}">
+                      <p style="margin: 2px 0 0; white-space: nowrap; line-height: 1.3; font-size: 13px; color: #B08791">{{ c.emailTexto }}</p>
+                    </sc-if>
+                  </td>
+                  <td style="padding: 14px 8px; text-align: center">
+                    <span title="{{ c.pedidosTitle }}" style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">{{ c.cantPedidos }}</span>
+                    <sc-if value="{{ c.tieneActivos }}" hint-placeholder-val="{{ false }}">
+                      <p style="margin: 2px 0 0; white-space: nowrap; font-size: 14px; color: #8C5A66">{{ c.activosTexto }}</p>
+                    </sc-if>
+                  </td>
+                  <td style="padding: 14px 8px; text-align: center; font-size: 15px; color: #857078; white-space: nowrap">{{ c.ultimoTexto }}</td>
+                  <td style="padding: 14px 8px; text-align: center">
+                    <span style="display: inline-block; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 9px; border: 1px solid {{ c.saldoBorde }}; background: {{ c.saldoBg }}; color: {{ c.saldoColor }}">{{ c.saldoTexto }}</span>
+                  </td>
+                  <td style="padding: 14px 8px">
+                    
+                  <div style="display: flex; align-items: center; justify-content: center; gap: 6px">
+                      <sc-for list="{{ c.acciones }}" as="a" hint-placeholder-count="4">
+                        <button title="{{ a.title }}" onClick="{{ a.onClick }}" style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: {{ a.hoverBg }}">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ a.color }}" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="{{ a.icon }}"></path></svg>
+                        </button>
+                      </sc-for>
+                    </div></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 48px; text-align: center; border-top: 1px solid #EBE0E2">
+              <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Ningún cliente coincide</p>
+              <p style="margin: 0; font-size: 15px; color: #857078">Probá con otra búsqueda o soltá los filtros.</p>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </sc-if>
+
+  </main>
+</div>
+
+<sc-if value="{{ hayToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 24px; background: #3D3238; box-shadow: 0 10px 30px rgba(61,50,56,.3)">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: white">{{ toast }}</span>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalVer }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 480px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Ver cliente</h2>
+        <button onClick="{{ cerrarVer }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+        <sc-for list="{{ v.campos }}" as="f" hint-placeholder-count="4">
+          <div>
+            <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">{{ f.label }}</span>
+              <span style="font-size: 12px; color: #B08791">{{ f.ayuda }}</span>
+            </label>
+            <input value="{{ f.valor }}" readOnly="{{ true }}" placeholder="{{ f.placeholder }}" style="width: 100%; padding: 10px 13px; border: 1px solid #EBE0E2; background: #FAF7F7; font-size: 16px; color: #3D3238; border-radius: 5px; outline: none">
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cerrarVer }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cerrar</button>
+        <button onClick="{{ v.onEditar }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Editar</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalEditar }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 480px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Editar cliente</h2>
+        <button onClick="{{ cerrarEditar }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+        <sc-for list="{{ camposEditar }}" as="f" hint-placeholder-count="4">
+          <div>
+            <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">{{ f.label }}</span>
+              <span style="font-size: 12px; color: #B08791">{{ f.ayuda }}</span>
+            </label>
+            <input value="{{ f.valor }}" onChange="{{ f.onChange }}" maxLength="{{ f.max }}" placeholder="{{ f.placeholder }}" style="width: 100%; padding: 10px 13px; border: 1px solid {{ f.borde }}; background: white; font-size: 16px; color: #3D3238; border-radius: 5px; outline: none">
+            <sc-if value="{{ f.hayError }}" hint-placeholder-val="{{ false }}">
+              <p style="margin: 6px 0 0; font-size: 13px; color: #C0442F">{{ f.error }}</p>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cerrarEditar }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+        <button onClick="{{ guardarEditar }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Guardar</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalNuevo }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 480px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Nuevo cliente</h2>
+        <button onClick="{{ cerrarNuevo }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+        <sc-for list="{{ camposNuevo }}" as="f" hint-placeholder-count="4">
+          <div>
+            <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">{{ f.label }}</span>
+              <span style="font-size: 12px; color: #B08791">{{ f.ayuda }}</span>
+            </label>
+            <input value="{{ f.valor }}" onChange="{{ f.onChange }}" maxLength="{{ f.max }}" placeholder="{{ f.placeholder }}" style="width: 100%; padding: 10px 13px; border: 1px solid {{ f.borde }}; background: white; font-size: 16px; color: #3D3238; border-radius: 5px; outline: none">
+            <sc-if value="{{ f.hayError }}" hint-placeholder-val="{{ false }}">
+              <p style="margin: 6px 0 0; font-size: 13px; color: #C0442F">{{ f.error }}</p>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cerrarNuevo }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+        <button onClick="{{ crearCliente }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Crear cliente</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalBorrar }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 65; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 480px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: {{ borrarHeaderBg }}">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ borrarIcono }}"></path></svg>
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">{{ borrarTitulo }}</h2>
+      </div>
+      <div style="padding: 22px 24px">
+        <p style="margin: 0 0 10px; font-size: 16px; color: #3D3238; text-wrap: pretty">{{ borrarPregunta }}</p>
+        <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">{{ borrarDetalle }}</p>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cancelarBorrar }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">{{ borrarCancelarTexto }}</button>
+        <sc-if value="{{ puedeBorrar }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ borrarCliente }}" style="padding: 10px 18px; border: 0; background: #C0442F; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Eliminar cliente</button>
+        </sc-if>
+        <sc-if value="{{ bloqueado }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ verPedidosBloqueo }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Ver cliente</button>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;ordenInicial&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ultimo&quot;,&quot;saldo&quot;,&quot;instagram&quot;,&quot;pedidos&quot;],&quot;default&quot;:&quot;ultimo&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Listado&quot;},&quot;mostrarEmailEnTabla&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Listado&quot;},&quot;avisarSaldoAlDia&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Listado&quot;}}">
+const NAV = [
+  { id: "inicio", label: "Inicio", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+  { id: "materiales", label: "Materiales", icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" },
+  { id: "categorias", label: "Categorías", icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" },
+  { id: "productos", label: "Productos", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { id: "clientes", label: "Clientes", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { id: "pedidos", label: "Pedidos", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
+  { id: "gastos", label: "Gastos", icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
+  { id: "informes", label: "Informes", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" }
+];
+
+const ICONO_VER = "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z";
+const ICONO_EDITAR = "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z";
+const ICONO_COPIAR = "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z";
+const ICONO_BORRAR = "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16";
+const ICONO_CANDADO = "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z";
+const ICONO_ALERTA = "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z";
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+const CLIENTES = [
+  { id: 1, instagram: "sofi.delgado", nombre: "Sofía", apellido: "Delgado", email: "sofi.delgado@gmail.com" },
+  { id: 2, instagram: "martinariosok", nombre: "Martina", apellido: "Ríos", email: "" },
+  { id: 3, instagram: "lu.gimenez", nombre: "Luciana", apellido: "Giménez", email: "lugimenez@hotmail.com" },
+  { id: 4, instagram: "carolina.p", nombre: "Carolina", apellido: "", email: "" },
+  { id: 5, instagram: "juli.artesanal", nombre: "Julieta", apellido: "Navarro", email: "juli.navarro@gmail.com" },
+  { id: 6, instagram: "belu.romero", nombre: "Belén", apellido: "Romero", email: "" },
+  { id: 7, instagram: "eugegc", nombre: "Eugenia", apellido: "Gómez Castro", email: "euge.gc@gmail.com" },
+  { id: 8, instagram: "flor.tucuman", nombre: "Florencia", apellido: "", email: "" },
+  { id: 9, instagram: "agus.mmm", nombre: "Agustina", apellido: "Molina", email: "agusmolina@gmail.com" }
+];
+
+const PEDIDOS = [
+  { id: 41, idCliente: 1, estado: "En producción", fecha: "2026-08-24", items: "3 pares de aros · 1 llavero", total: 27400, cobrado: 13700 },
+  { id: 36, idCliente: 1, estado: "Entregado", fecha: "2026-06-12", items: "Collar Luna + aros a juego", total: 18900, cobrado: 18900 },
+  { id: 28, idCliente: 1, estado: "Entregado", fecha: "2026-03-02", items: "2 imanes Stitch", total: 7200, cobrado: 7200 },
+  { id: 43, idCliente: 2, estado: "Pendiente", fecha: "2026-08-29", items: "Set Harry Potter personalizado", total: 34500, cobrado: 0 },
+  { id: 30, idCliente: 2, estado: "Entregado", fecha: "2026-04-18", items: "Aros flores", total: 9800, cobrado: 9800 },
+  { id: 39, idCliente: 3, estado: "Listo", fecha: "2026-08-07", items: "6 llaveros para souvenirs", total: 21000, cobrado: 21000 },
+  { id: 22, idCliente: 3, estado: "Entregado", fecha: "2026-01-21", items: "Collar personalizado", total: 12500, cobrado: 12500 },
+  { id: 42, idCliente: 5, estado: "En producción", fecha: "2026-08-26", items: "12 imanes temáticos", total: 30000, cobrado: 15000 },
+  { id: 33, idCliente: 5, estado: "Entregado", fecha: "2026-05-09", items: "Aros Luna Menguante", total: 8600, cobrado: 8600 },
+  { id: 31, idCliente: 6, estado: "Entregado", fecha: "2026-04-30", items: "Llavero Stitch", total: 6400, cobrado: 6400 },
+  { id: 40, idCliente: 7, estado: "Listo", fecha: "2026-08-15", items: "2 collares + packaging especial", total: 24800, cobrado: 12000 },
+  { id: 26, idCliente: 7, estado: "Entregado", fecha: "2026-02-14", items: "Aros corazón", total: 7900, cobrado: 7900 },
+  { id: 38, idCliente: 8, estado: "Entregado", fecha: "2026-07-28", items: "Set de 4 imanes", total: 11200, cobrado: 11200 }
+];
+
+const ORDENES = [
+  { id: "instagram", label: "@USUARIO" },
+  { id: "nombre", label: "CLIENTE" },
+  { id: "pedidos", label: "PEDIDOS" },
+  { id: "ultimo", label: "ÚLTIMO" },
+  { id: "saldo", label: "SALDO" }
+];
+
+class Component extends DCLogic {
+  state = {
+    sidebarExpanded: false, activo: "clientes",
+    clientes: CLIENTES, pedidos: PEDIDOS,
+    busqueda: "", fSaldo: false, fActivos: false,
+    sortBy: null, sortDir: "desc",
+    verId: null, editarId: null, borrador: null, tocadoEditar: false,
+    aBorrar: null, toast: "",
+    modalNuevo: false, nuevo: { instagram: "", nombre: "", apellido: "", email: "" }, tocadoNuevo: false
+  };
+
+  fmt(n) {
+    return "$" + Math.round(n).toLocaleString("es-AR");
+  }
+
+  fmtFecha(iso) {
+    const p = iso.split("-");
+    return Number(p[2]) + " " + MESES[Number(p[1]) - 1] + " " + p[0];
+  }
+
+  pedidosDe(id) {
+    return this.state.pedidos.filter(p => p.idCliente === id).sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+  }
+
+  saldoDe(id) {
+    return this.pedidosDe(id).reduce((acc, p) => acc + (p.total - p.cobrado), 0);
+  }
+
+  activosDe(id) {
+    return this.pedidosDe(id).filter(p => p.estado !== "Entregado");
+  }
+
+  colorEstado(e) {
+    if (e === "Pendiente") return { bg: "#FDF3E0", color: "#8A6320" };
+    if (e === "En producción") return { bg: "#F0E2E4", color: "#8C5A66" };
+    if (e === "Listo") return { bg: "#E8F5EF", color: "#4E8C6A" };
+    return { bg: "#FAF7F7", color: "#857078" };
+  }
+
+  chipSaldo(saldo) {
+    if (saldo > 0) return { saldoTexto: "Debe " + this.fmt(saldo), saldoBg: "#FAEAE8", saldoBorde: "#C0442F", saldoColor: "#C0442F" };
+    if (this.props.avisarSaldoAlDia ?? true) return { saldoTexto: "Al día", saldoBg: "#E8F5EF", saldoBorde: "#4E8C6A", saldoColor: "#4E8C6A" };
+    return { saldoTexto: "—", saldoBg: "transparent", saldoBorde: "transparent", saldoColor: "#B08791" };
+  }
+
+  mostrarToast(texto) {
+    this.setState({ toast: texto });
+    clearTimeout(this._toast);
+    this._toast = setTimeout(() => this.setState({ toast: "" }), 2600);
+  }
+
+  errores(datos, idPropio) {
+    const inst = datos.instagram.trim().replace(/^@/, "");
+    const e = {};
+    if (!inst) e.instagram = "El usuario de Instagram es obligatorio.";
+    else if (this.state.clientes.some(c => c.id !== idPropio && c.instagram.toLowerCase() === inst.toLowerCase())) e.instagram = "Ya tenés un cliente con ese usuario.";
+    if (!datos.nombre.trim()) e.nombre = "El nombre es obligatorio.";
+    if (datos.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(datos.email.trim())) e.email = "Revisá el email, parece incompleto.";
+    return e;
+  }
+
+  campos(datos, errs, mostrar, onCambio) {
+    const def = [
+      { key: "instagram", label: "INSTAGRAM", ayuda: "obligatorio, único", max: 30, placeholder: "usuario sin @" },
+      { key: "nombre", label: "NOMBRE", ayuda: "obligatorio", max: 50, placeholder: "Cómo la llamás" },
+      { key: "apellido", label: "APELLIDO", ayuda: "opcional", max: 50, placeholder: "Si te lo dio" },
+      { key: "email", label: "EMAIL", ayuda: "opcional, para mandarle el comprobante", max: 254, placeholder: "nombre@correo.com" }
+    ];
+    return def.map(f => {
+      const err = mostrar ? errs[f.key] : null;
+      return {
+        label: f.label, ayuda: f.ayuda, max: f.max, placeholder: f.placeholder,
+        valor: datos[f.key],
+        borde: err ? "#C0442F" : "#EBE0E2",
+        hayError: !!err, error: err || "",
+        onChange: e => onCambio(f.key, e.target.value)
+      };
+    });
+  }
+
+  abrirEditar(c) {
+    this.setState({
+      editarId: c.id, verId: null, tocadoEditar: false,
+      borrador: { instagram: c.instagram, nombre: c.nombre, apellido: c.apellido, email: c.email }
+    });
+  }
+
+  guardarEditar() {
+    const s = this.state;
+    const errs = this.errores(s.borrador, s.editarId);
+    if (Object.keys(errs).length > 0) {
+      this.setState({ tocadoEditar: true });
+      return;
+    }
+    const limpio = {
+      instagram: s.borrador.instagram.trim().replace(/^@/, ""),
+      nombre: s.borrador.nombre.trim(),
+      apellido: s.borrador.apellido.trim(),
+      email: s.borrador.email.trim()
+    };
+    this.setState(st => ({
+      clientes: st.clientes.map(c => c.id === st.editarId ? Object.assign({}, c, limpio) : c),
+      editarId: null, borrador: null, tocadoEditar: false
+    }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const q = s.busqueda.trim().toLowerCase();
+    const verC = s.clientes.filter(c => c.id === s.verId)[0];
+    const editC = s.clientes.filter(c => c.id === s.editarId)[0];
+
+    const conSaldo = s.clientes.filter(c => this.saldoDe(c.id) > 0).length;
+    const conActivos = s.clientes.filter(c => this.activosDe(c.id).length > 0).length;
+
+    let visibles = s.clientes.filter(c => {
+      const texto = (c.instagram + " " + c.nombre + " " + c.apellido + " " + c.email).toLowerCase();
+      if (q && texto.indexOf(q) < 0) return false;
+      if (s.fSaldo && this.saldoDe(c.id) <= 0) return false;
+      if (s.fActivos && this.activosDe(c.id).length === 0) return false;
+      return true;
+    });
+
+    const sortBy = s.sortBy || (this.props.ordenInicial ?? "ultimo");
+    const dir = s.sortDir === "asc" ? 1 : -1;
+    visibles = visibles.slice().sort((a, b) => {
+      if (sortBy === "instagram") return a.instagram.localeCompare(b.instagram) * dir;
+      if (sortBy === "nombre") return (a.nombre + a.apellido).localeCompare(b.nombre + b.apellido) * dir;
+      if (sortBy === "pedidos") return (this.pedidosDe(a.id).length - this.pedidosDe(b.id).length) * dir;
+      if (sortBy === "saldo") return (this.saldoDe(a.id) - this.saldoDe(b.id)) * dir;
+      const fa = this.pedidosDe(a.id)[0], fb = this.pedidosDe(b.id)[0];
+      return ((fa ? fa.fecha : "").localeCompare(fb ? fb.fecha : "")) * dir;
+    });
+
+    const aBorrar = s.clientes.filter(c => c.id === s.aBorrar)[0];
+    const pedidosBorrar = aBorrar ? this.pedidosDe(aBorrar.id) : [];
+    const bloqueado = !!aBorrar && pedidosBorrar.length > 0;
+
+    const vals = {
+      sidebarExpanded: s.sidebarExpanded,
+      sidebarWidth: s.sidebarExpanded ? "210px" : "58px",
+      contentJustify: s.sidebarExpanded ? "flex-start" : "center",
+      toggleSidebar: () => this.setState(st => ({ sidebarExpanded: !st.sidebarExpanded })),
+      navItems: NAV.map(n => ({
+        label: n.label, icon: n.icon, title: s.sidebarExpanded ? "" : n.label,
+        bg: s.activo === n.id ? "rgba(255,255,255,0.2)" : "transparent",
+        stroke: s.activo === n.id ? "white" : "rgba(255,255,255,0.75)",
+        justify: s.sidebarExpanded ? "flex-start" : "center",
+        onClick: () => this.setState({ activo: n.id })
+      })),
+
+      enListado: true,
+      hayClientes: s.clientes.length > 0,
+      moduloVacio: s.clientes.length === 0,
+      resumen: s.clientes.length + " clientes · " + conActivos + " con pedidos en curso · " + conSaldo + " con saldo pendiente",
+      busqueda: s.busqueda,
+      onBuscar: e => this.setState({ busqueda: e.target.value }),
+      sinResultados: visibles.length === 0 && s.clientes.length > 0,
+
+      hayToast: s.toast !== "",
+      toast: s.toast,
+
+      filtros: [
+        { key: "fSaldo", label: "Con saldo pendiente", count: conSaldo, activo: s.fSaldo },
+        { key: "fActivos", label: "Con pedidos en curso", count: conActivos, activo: s.fActivos }
+      ].map(f => ({
+        label: f.label, count: f.count,
+        border: f.activo ? "1px solid #8C5A66" : "1px solid #EBE0E2",
+        bg: f.activo ? "#F0E2E4" : "white",
+        color: f.activo ? "#8C5A66" : "#857078",
+        countBg: f.activo ? "#8C5A66" : "#F5F0F1",
+        countColor: f.activo ? "white" : "#857078",
+        onClick: () => this.setState(st => { const o = {}; o[f.key] = !st[f.key]; return o; })
+      })),
+
+      columnas: ORDENES.map(o => {
+        const activo = sortBy === o.id;
+        return {
+          label: o.label,
+          align: o.id === "instagram" ? "left" : "center",
+          justify: o.id === "instagram" ? "flex-start" : "center",
+          padX: "8px",
+          ancho: { instagram: "17%", nombre: "21%", pedidos: "11%", ultimo: "14%", saldo: "15%" }[o.id],
+          mostrarFlecha: activo,
+          opacity: activo ? 1 : 0,
+          icon: activo && s.sortDir === "asc" ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7",
+          onSort: () => this.setState(st => ({ sortBy: o.id, sortDir: (st.sortBy || (this.props.ordenInicial ?? "ultimo")) === o.id && st.sortDir === "desc" ? "asc" : "desc" }))
+        };
+      }),
+
+      clientes: visibles.map(c => {
+        const peds = this.pedidosDe(c.id);
+        const activos = this.activosDe(c.id);
+        const ultimo = peds[0];
+        const nombreCompleto = (c.nombre + " " + c.apellido).trim();
+        return Object.assign({
+          arroba: "@" + c.instagram,
+          inicial: c.nombre.charAt(0).toUpperCase(),
+          nombreCompleto: nombreCompleto,
+          mostrarEmail: c.email !== "" && (this.props.mostrarEmailEnTabla ?? true),
+          emailTexto: c.email,
+          cantPedidos: peds.length,
+          pedidosTitle: peds.length === 1 ? "1 pedido registrado" : peds.length + " pedidos registrados",
+          tieneActivos: activos.length > 0,
+          activosTexto: activos.length === 1 ? "1 en curso" : activos.length + " en curso",
+          ultimoTexto: ultimo ? this.fmtFecha(ultimo.fecha) : "Sin pedidos",
+          onVer: () => this.setState({ verId: c.id }),
+          acciones: [
+            { title: "Ver cliente", icon: ICONO_VER, color: "#8C5A66", hoverBg: "#F0E2E4", onClick: () => this.setState({ verId: c.id }) },
+            { title: "Editar cliente", icon: ICONO_EDITAR, color: "#8C5A66", hoverBg: "#F0E2E4", onClick: () => this.abrirEditar(c) },
+            { title: "Copiar @" + c.instagram, icon: ICONO_COPIAR, color: "#8C5A66", hoverBg: "#F0E2E4", onClick: () => this.mostrarToast("@" + c.instagram + " copiado") },
+            { title: "Eliminar cliente", icon: ICONO_BORRAR, color: "#C0442F", hoverBg: "#FAEAE8", onClick: () => this.setState({ aBorrar: c.id }) }
+          ]
+        }, this.chipSaldo(this.saldoDe(c.id)));
+      }),
+
+      abrirNuevo: () => this.setState({ modalNuevo: true, tocadoNuevo: false, nuevo: { instagram: "", nombre: "", apellido: "", email: "" } }),
+      cerrarNuevo: () => this.setState({ modalNuevo: false }),
+      modalNuevo: s.modalNuevo,
+      camposNuevo: this.campos(s.nuevo, this.errores(s.nuevo, null), s.tocadoNuevo, (k, v) => this.setState(st => {
+        const n = Object.assign({}, st.nuevo); n[k] = v; return { nuevo: n };
+      })),
+      crearCliente: () => {
+        const errs = this.errores(s.nuevo, null);
+        if (Object.keys(errs).length > 0) { this.setState({ tocadoNuevo: true }); return; }
+        const id = Date.now();
+        this.setState(st => ({
+          clientes: st.clientes.concat({
+            id, instagram: st.nuevo.instagram.trim().replace(/^@/, ""),
+            nombre: st.nuevo.nombre.trim(), apellido: st.nuevo.apellido.trim(), email: st.nuevo.email.trim()
+          }),
+          modalNuevo: false, tocadoNuevo: false
+        }));
+      },
+
+      modalVer: !!verC,
+      cerrarVer: () => this.setState({ verId: null }),
+
+      modalEditar: !!editC && !!s.borrador,
+      cerrarEditar: () => this.setState({ editarId: null, borrador: null, tocadoEditar: false }),
+      guardarEditar: () => this.guardarEditar(),
+      camposEditar: this.campos(s.borrador || { instagram: "", nombre: "", apellido: "", email: "" }, this.errores(s.borrador || { instagram: "", nombre: "", apellido: "", email: "" }, s.editarId), s.tocadoEditar, (k, v) => this.setState(st => {
+        const b = Object.assign({}, st.borrador); b[k] = v; return { borrador: b };
+      })),
+
+      modalBorrar: !!aBorrar,
+      bloqueado: bloqueado,
+      puedeBorrar: !!aBorrar && !bloqueado,
+      borrarHeaderBg: bloqueado ? "#8C5A66" : "#C0442F",
+      borrarIcono: bloqueado ? ICONO_CANDADO : ICONO_ALERTA,
+      borrarTitulo: bloqueado ? "No se puede eliminar" : "Eliminar cliente",
+      borrarPregunta: aBorrar
+        ? (bloqueado
+            ? "@" + aBorrar.instagram + " tiene " + (pedidosBorrar.length === 1 ? "1 pedido registrado" : pedidosBorrar.length + " pedidos registrados") + "."
+            : "¿Eliminar a @" + aBorrar.instagram + "?")
+        : "",
+      borrarDetalle: aBorrar
+        ? (bloqueado
+            ? "Los pedidos guardan a qué cliente pertenecen, así que borrarlo dejaría ese historial sin dueño. Si ya no le vendés, dejalo cargado: no molesta en el listado."
+            : "No tiene pedidos registrados, así que se puede eliminar sin perder historial. Esta acción no se puede deshacer.")
+        : "",
+      borrarCancelarTexto: bloqueado ? "Entendido" : "Cancelar",
+      cancelarBorrar: () => this.setState({ aBorrar: null }),
+      verPedidosBloqueo: () => this.setState(st => ({ verId: st.aBorrar, aBorrar: null })),
+      borrarCliente: () => {
+        const nombre = aBorrar ? "@" + aBorrar.instagram : "";
+        this.setState(st => ({ clientes: st.clientes.filter(c => c.id !== st.aBorrar), aBorrar: null, verId: null, editarId: null, borrador: null }));
+      }
+    };
+
+    if (verC) {
+      const peds = this.pedidosDe(verC.id);
+      const activos = this.activosDe(verC.id);
+      const nombreCompleto = (verC.nombre + " " + verC.apellido).trim();
+      vals.v = Object.assign({
+        campos: this.campos(
+          { instagram: verC.instagram, nombre: verC.nombre, apellido: verC.apellido, email: verC.email },
+          {}, false, () => {}
+        ).map(f => Object.assign({}, f, { placeholder: "Sin cargar" })),
+        pedidosTexto: peds.length === 0
+          ? "Sin pedidos registrados"
+          : (peds.length === 1 ? "1 pedido" : peds.length + " pedidos") + (activos.length > 0 ? " · " + activos.length + " en curso" : ""),
+        onEditar: () => this.abrirEditar(verC)
+      }, this.chipSaldo(this.saldoDe(verC.id)));
+    }
+
+    return vals;
+  }
+}
+
+</script>
+</body>
+</html>

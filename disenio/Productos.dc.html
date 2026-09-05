@@ -486,8 +486,8 @@
           <sc-if value="{{ d.sinCategorias }}" hint-placeholder-val="{{ false }}">
             <div style="padding: 32px 20px; text-align: center; font-size: 15px; color: #857078">Este producto no está en ninguna categoría.</div>
           </sc-if>
-          <div style="padding: 18px 20px">
-            <p style="margin: 0 0 12px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">AGREGAR A UNA CATEGORÍA</p>
+          <div style="padding: 20px; background: #FAF7F7; border-top: 1px solid #EBE0E2">
+            <p style="margin: 0 0 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078; letter-spacing: .06em">AGREGAR A UNA CATEGORÍA</p>
             <div style="display: flex; flex-direction: column; gap: 16px">
               <sc-for list="{{ d.gruposDisponibles }}" as="g" hint-placeholder-count="2">
                 <div>
@@ -526,8 +526,8 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
-        <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto">
-          <div>
+        <div style="display: flex; flex-direction: column; overflow-y: auto">
+          <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
             <p style="margin: 0 0 12px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">CATEGORÍAS</p>
             <div style="display: flex; flex-direction: column; gap: 16px">
               <sc-for list="{{ gruposFiltroCategorias }}" as="g" hint-placeholder-count="2">
@@ -547,7 +547,7 @@
               </sc-for>
             </div>
           </div>
-          <div>
+          <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
             <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">ESTADO DEL PRODUCTO</p>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
               <sc-for list="{{ fEstados }}" as="op" hint-placeholder-count="2">
@@ -556,7 +556,7 @@
             </div>
             <p style="margin: 8px 0 0; font-size: 13px; color: #B08791">Sin elegir nada se muestran solo los activos.</p>
           </div>
-          <div>
+          <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
             <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">DIFICULTAD</p>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
               <sc-for list="{{ fDificultades }}" as="op" hint-placeholder-count="3">
@@ -564,7 +564,7 @@
               </sc-for>
             </div>
           </div>
-          <div>
+          <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
             <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px">
               <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">RANGO DE PRECIO</p>
               <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 15px; color: #8C5A66">{{ rangoTexto }}</span>
@@ -580,7 +580,7 @@
               </div>
             </div>
           </div>
-          <div>
+          <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
             <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">CATÁLOGO PÚBLICO</p>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
               <sc-for list="{{ fCatalogo }}" as="op" hint-placeholder-count="2">
@@ -588,7 +588,7 @@
               </sc-for>
             </div>
           </div>
-          <div>
+          <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
             <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">TIPO DE PRODUCTO</p>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
               <sc-for list="{{ fTipo }}" as="op" hint-placeholder-count="2">
@@ -596,7 +596,7 @@
               </sc-for>
             </div>
           </div>
-          <div>
+          <div style="padding: 22px 24px">
             <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">USA EL MATERIAL</p>
             <select value="{{ fMaterial }}" onChange="{{ onMaterial }}" style="width: 100%; padding: 10px 16px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none; cursor: pointer">
               <option value="">Cualquier material</option>
@@ -633,7 +633,6 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
               </div>
               <span style="flex: 1; font-size: 15px; color: #3D3238">{{ m.nombre }}</span>
-              <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid {{ m.dispColor }}; background: {{ m.dispBg }}; color: {{ m.dispColor }}">{{ m.disponibilidad }}</span>
             </button>
           </sc-for>
           <sc-if value="{{ sinMaterialesParaAgregar }}" hint-placeholder-val="{{ false }}">
@@ -645,8 +644,8 @@
   </sc-if>
 
   <sc-if value="{{ hayToast }}" hint-placeholder-val="{{ false }}">
-    <div style="position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 24px; background: #3D3238; box-shadow: 0 10px 30px rgba(61,50,56,.3)">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+    <div style="position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 24px; background: #8C5A66; box-shadow: 0 10px 30px rgba(140,90,102,.32)">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
       <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: white">{{ toast }}</span>
     </div>
   </sc-if>

@@ -48,8 +48,13 @@ export default function ModalVerMaterial({ material, onCerrar }) {
           width: '100%',
           maxWidth: 490,
           maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           borderRadius: 10,
-          overflow: 'auto',
+          // La tarjeta no scrollea: scrollea el cuerpo. Con overflow acá
+          // aparecía una barra a lo largo de todo el modal en cuanto el
+          // contenido se pasaba por un pixel.
+          overflow: 'hidden',
           boxShadow: '0 20px 50px rgba(61,50,56,.25)',
         }}
       >
@@ -59,6 +64,7 @@ export default function ModalVerMaterial({ material, onCerrar }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 24px',
+            flexShrink: 0,
             background: '#8C5A66',
           }}
         >
@@ -94,7 +100,15 @@ export default function ModalVerMaterial({ material, onCerrar }) {
           </button>
         </div>
 
-        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div
+          style={{
+            padding: '20px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20,
+            overflowY: 'auto',
+          }}
+        >
           <div>
             <span style={estiloEtiqueta}>Nombre del material</span>
             <input value={material.nombre} readOnly disabled style={estiloCampo} />
@@ -180,6 +194,7 @@ export default function ModalVerMaterial({ material, onCerrar }) {
             display: 'flex',
             justifyContent: 'flex-end',
             padding: '16px 24px',
+            flexShrink: 0,
             borderTop: '1px solid #EBE0E2',
           }}
         >
