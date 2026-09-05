@@ -33,12 +33,15 @@ El sistema comprende **dos ámbitos diferenciados**:
 | Acceso al sistema | CU01–CU03 | Completo |
 | Materiales | CU04–CU10 | Completo |
 | Categorías | CU11–CU16 | Completo |
-| Productos | CU17–CU35 | Pendiente |
-| Clientes | CU36–CU39 | Pendiente |
+| Productos | CU17–CU35 | Completo |
+| Clientes | CU36–CU39 | Completo |
 | Pedidos | CU40–CU47 | Pendiente |
 | Cobros y gastos | CU48–CU58 | Pendiente |
 | Informes | CU59–CU61 | Pendiente |
 | Catálogo público | CU62–CU70 | Pendiente |
+
+39 de los 70 casos de uso implementados, con backend y frontend
+completos en cada módulo terminado.
 
 ---
 
@@ -72,6 +75,10 @@ dirección base como una **ruta relativa** —`/api`— en lugar de una
 dirección absoluta. Las peticiones se dirigen siempre al mismo origen
 del que se cargó la aplicación, de modo que la misma configuración
 funciona sin modificación en ambos entornos.
+
+El mismo criterio rige para los archivos: las direcciones de las
+imágenes se exponen como rutas relativas —`/media/...`— y nunca con
+host y puerto.
 
 ### Stack
 
@@ -107,10 +114,14 @@ ana_porcelana/
 │   │   │   ├── desarrollo.py    depuración activa, sin HTTPS
 │   │   │   └── produccion.py    cookies cifradas y cabeceras de seguridad
 │   │   ├── urls.py              monta /admin/ y /api/
+│   │   ├── validadores.py       límite de tamaño de las imágenes
+│   │   ├── limpieza_archivos.py señales que borran archivos del disco
 │   │   ├── wsgi.py · asgi.py    puntos de entrada para producción
 │   ├── usuarios/                modelo de usuario y autenticación
 │   ├── materiales/
 │   ├── categorias/
+│   ├── productos/
+│   ├── clientes/
 │   ├── media/                   archivos subidos (fuera de control de versiones)
 │   ├── manage.py
 │   ├── requirements.txt
@@ -122,14 +133,19 @@ ana_porcelana/
 │   └── src/
 │       ├── api/cliente.js       cliente HTTP compartido
 │       ├── contexto/            estado de sesión compartido
-│       ├── componentes/         estructura de navegación compartida
+│       ├── componentes/         navegación y elementos compartidos
 │       ├── funcionalidades/
 │       │   ├── auth/
 │       │   ├── materiales/
-│       │   └── categorias/
+│       │   ├── categorias/
+│       │   ├── productos/
+│       │   └── clientes/
+│       ├── validadores.js       límite de tamaño (espejo del backend)
 │       ├── rutas.jsx
 │       └── main.jsx
 │
+├── disenio/                     prototipos de interfaz de cada módulo
+├── CLAUDE.md                    convenciones y decisiones cerradas
 ├── .gitignore
 └── venv/                        entorno de Python (fuera de control de versiones)
 ```
@@ -202,8 +218,23 @@ salvo declaración explícita en contra. Una omisión produce un recurso
 inaccesible, no uno expuesto.
 
 **Baja lógica** en las entidades que integran el historial económico.
-Los materiales y categorías dados de baja conservan su registro, ya que
-aparecen referenciados en productos y gastos anteriores.
+Los materiales, categorías y productos dados de baja conservan su
+registro, ya que aparecen referenciados en productos, pedidos y gastos
+anteriores. Una entidad dada de baja queda de solo lectura, y esa
+condición alcanza también a sus relaciones. Los clientes, en cambio, no
+tienen baja lógica: no integran el historial por sí mismos, sino a
+través de sus pedidos.
+
+**Discontinuar no equivale a eliminar.** Discontinuar es una baja
+lógica reversible, destinada a los artículos que dejan de ofrecerse;
+eliminar corrige errores de carga y es definitivo.
+
+**La visibilidad en el catálogo se calcula y no se almacena.** Un
+producto se muestra si está activo, no es personalizado y ninguna de
+sus categorías está dada de baja. La regla se evalúa al consultar, de
+modo que dar de baja una categoría retira sus productos del catálogo y
+reactivarla los restituye exactamente como estaban, porque nunca se
+modificaron.
 
 **Precio congelado** en las líneas de pedido. El importe se copia al
 registrar la línea, de modo que modificar el precio de un producto no
@@ -222,6 +253,56 @@ representación separada que directamente no los incluye. La restricción
 resulta así **estructural en lugar de condicional**: los campos
 sensibles no pueden filtrarse por un error de lógica, porque no forman
 parte de la respuesta.
+
+**Un endpoint por caso de uso.** Las relaciones entre entidades se
+gestionan mediante subrecursos —`/api/productos/1/materiales/3/`— en
+lugar de enviar el objeto completo con sus vínculos. Los
+serializadores exponen las relaciones en modo de solo lectura.
+
+**Validación del tamaño de las imágenes en ambas capas.** El límite se
+aplica en el backend, que constituye la autoridad y no puede
+eludirse, y se replica en el frontend para evitar transferencias
+inútiles. Al eliminar un registro o sustituir una imagen, el archivo
+correspondiente se borra del disco dentro de una transacción
+confirmada, de modo que la operación solo se ejecuta si el cambio en la
+base de datos se consolidó.
+
+**Las claves primarias compuestas del modelo lógico** se implementan
+como clave sustituta acompañada de una restricción de unicidad sobre el
+par de columnas. Django admite claves compuestas desde la versión 5.2,
+pero los modelos que las emplean no pueden registrarse en el panel de
+administración ni ser referenciados por claves foráneas.
+
+**Normalización del identificador de cliente.** El usuario de Instagram
+se almacena sin arroba y en minúsculas, porque la plataforma no
+distingue mayúsculas y la restricción de unicidad de PostgreSQL sí lo
+hace. La normalización se aplica en el modelo, para que ninguna vía de
+escritura pueda eludirla, y en el serializador, porque la validación de
+unicidad se ejecuta antes que la lógica propia y de otro modo el
+conflicto se manifestaría como un error de base de datos en lugar de un
+mensaje comprensible.
+
+---
+
+## Documentación complementaria
+
+`CLAUDE.md` reúne las convenciones de código y las decisiones cerradas
+del proyecto, y sirve de referencia tanto para el desarrollo como para
+las herramientas de asistencia empleadas.
+
+`disenio/` contiene los prototipos de interfaz de cada módulo, que se
+implementan con fidelidad. Las diferencias deliberadas respecto de un
+prototipo se documentan junto con su fundamento.
+
+---
+
+## Limitaciones conocidas
+
+El sistema no contempla la edición concurrente. Si un mismo registro se
+modifica desde dos sesiones simultáneas, la última en guardar
+prevalece sobre la anterior. La restricción no resulta significativa
+con una única usuaria, y las validaciones del backend impiden en
+cualquier caso que la base de datos quede en un estado inconsistente.
 
 ---
 
