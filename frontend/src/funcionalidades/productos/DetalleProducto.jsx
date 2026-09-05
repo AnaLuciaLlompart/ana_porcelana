@@ -24,6 +24,8 @@ import {
 import { listarCategorias } from '../categorias/api'
 import { listarMateriales } from '../materiales/api'
 
+import Toast from '../../componentes/Toast'
+
 import PestanaDatos from './PestanaDatos'
 import PestanaMateriales from './PestanaMateriales'
 import PestanaCategorias from './PestanaCategorias'
@@ -40,7 +42,6 @@ import {
 
 
 const ICONO_FLECHA = 'M9 5l7 7-7 7'
-const ICONO_TILDE = 'M5 13l4 4L19 7'
 const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
 
 const PESTANAS = [
@@ -94,43 +95,6 @@ function mensajeDeError(err) {
 }
 
 
-
-
-function Toast({ texto }) {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 26,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 120,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 9,
-        padding: '11px 20px',
-        borderRadius: 24,
-        background: '#E8F5EF',
-        border: '1px solid #4E8C6A',
-        boxShadow: '0 4px 12px rgba(61,50,56,.12)',
-      }}
-    >
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4E8C6A" strokeWidth="2.2">
-        <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_TILDE} />
-      </svg>
-      <span
-        style={{
-          fontFamily: "'Quicksand', sans-serif",
-          fontWeight: 600,
-          fontSize: 15,
-          color: '#4E8C6A',
-        }}
-      >
-        {texto}
-      </span>
-    </div>
-  )
-}
 
 
 function Chip({ texto, color, fondo }) {

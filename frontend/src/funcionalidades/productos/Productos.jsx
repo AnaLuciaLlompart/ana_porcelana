@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listarProductos, reactivarProducto } from './api'
-import BotonAccion from './BotonAccion'
+import BotonAccion from '../../componentes/BotonAccion'
 import TarjetaProducto from './TarjetaProducto'
 import SeccionBajas from './SeccionBajas'
 import ModalBajaProducto from './ModalBajaProducto'

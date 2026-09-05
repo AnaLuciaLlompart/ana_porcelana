@@ -1,4 +1,4 @@
-import BotonAccion from './BotonAccion'
+import BotonAccion from '../../componentes/BotonAccion'
 import {
   ICONO_IMAGEN,
   ICONO_ALERTA,

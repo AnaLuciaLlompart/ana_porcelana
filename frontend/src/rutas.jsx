@@ -7,6 +7,7 @@ import Materiales from './funcionalidades/materiales/Materiales'
 import Categorias from './funcionalidades/categorias/Categorias'
 import Productos from './funcionalidades/productos/Productos'
 import DetalleProducto from './funcionalidades/productos/DetalleProducto'
+import Clientes from './funcionalidades/clientes/Clientes'
 
 
 
@@ -72,7 +73,7 @@ export default function Rutas() {
                 /productos/:id para que "nuevo" no se lea como un id. */}
             <Route path="/productos/nuevo" element={<DetalleProducto esAlta />} />
             <Route path="/productos/:id" element={<DetalleProducto />} />
-            <Route path="/clientes" element={<EnConstruccion />} />
+            <Route path="/clientes" element={<Clientes />} />
             <Route path="/pedidos" element={<EnConstruccion />} />
             <Route path="/gastos" element={<EnConstruccion />} />
             <Route path="/informes" element={<EnConstruccion />} />

@@ -60,3 +60,7 @@ button:not(:disabled):hover {
 .fila-material:hover {
   background: #FAF7F7 !important;
 }
+
+.btn-usuario:hover {
+  color: #8C5A66 !important;
+}
