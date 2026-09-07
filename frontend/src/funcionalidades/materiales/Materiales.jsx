@@ -3,6 +3,8 @@ import { listarMateriales, discontinuarMaterial, reactivarMaterial } from './api
 import ModalMaterial from './ModalMaterial'
 import ModalVerMaterial from './ModalVerMaterial'
 import ModalEliminarMaterial from './ModalEliminarMaterial'
+import BotonAccion from '../../componentes/BotonAccion'
+import Paginacion, { paginar } from '../../componentes/Paginacion'
 
 
 // Colores de cada valor
@@ -40,6 +42,10 @@ const ICONO_ELIMINAR = 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.99
 const ICONO_BAJA = 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636'
 const ICONO_ALTA = 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
 
+// El mismo icono que Materiales tiene en la barra lateral, igual que hacen
+// Productos con la caja y Clientes con las personas.
+const ICONO_MATERIAL = 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z'
+
 // Iconos del conmutador de vista
 const ICONO_LISTA = 'M4 6h16M4 12h16M4 18h16'
 const ICONO_GRID = 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z'
@@ -47,6 +53,120 @@ const ICONO_GRID = 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2
 // Orden lógico de los valores, no alfabético
 const ORDEN_DISPONIBILIDAD = { ALTA: 0, MEDIA: 1, BAJA: 2 }
 const ORDEN_ESTADO = { ACTIVO: 0, DISCONTINUADO: 1 }
+
+// Lo que se ve cuando todavía no hay ningún material cargado. Es distinto
+// de "ningún material coincide": ahí hay materiales y no los encontró ni la
+// búsqueda ni los filtros.
+function EstadoVacio({ onNuevo }) {
+  return (
+    <div
+      style={{
+        background: 'white',
+        border: '1px solid #EBE0E2',
+        borderRadius: 8,
+        padding: '64px 32px',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 14,
+      }}
+    >
+      <div
+        style={{
+          width: 62,
+          height: 62,
+          borderRadius: 16,
+          background: '#FAF7F7',
+          border: '1px solid #EBE0E2',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_MATERIAL} />
+        </svg>
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          fontFamily: "'Quicksand', sans-serif",
+          fontWeight: 600,
+          fontSize: 19,
+          color: '#3D3238',
+        }}
+      >
+        Todavía no cargaste ningún material
+      </p>
+      <p style={{ margin: 0, maxWidth: 430, fontSize: 15, color: '#857078', textWrap: 'pretty' }}>
+        Cargá la arcilla, los acrílicos y todo lo que usás para producir.
+        Después vas a poder asignárselos a tus productos.
+      </p>
+
+      <button
+        onClick={onNuevo}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: 6,
+          padding: '10px 20px',
+          background: '#8C5A66',
+          color: 'white',
+          border: 0,
+          borderRadius: 6,
+          cursor: 'pointer',
+          fontFamily: "'Quicksand', sans-serif",
+          fontWeight: 600,
+          fontSize: 16,
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" d="M12 4v16m8-8H4" />
+        </svg>
+        Cargar el primero
+      </button>
+    </div>
+  )
+}
+
+// El otro vacío: hay materiales, pero ninguno pasa la búsqueda o los
+// filtros. En la tabla va como una franja debajo del encabezado, y en la
+// grilla como una tarjeta más, que es como se ve en Clientes y Productos.
+function SinResultados({ enGrilla }) {
+  return (
+    <div
+      style={
+        enGrilla
+          ? {
+              background: 'white',
+              border: '1px solid #EBE0E2',
+              borderRadius: 8,
+              padding: 48,
+              textAlign: 'center',
+            }
+          : { padding: 48, textAlign: 'center', borderTop: '1px solid #EBE0E2' }
+      }
+    >
+      <p
+        style={{
+          margin: '0 0 6px',
+          fontFamily: "'Quicksand', sans-serif",
+          fontWeight: 600,
+          fontSize: 17,
+          color: '#3D3238',
+        }}
+      >
+        Ningún material coincide
+      </p>
+      <p style={{ margin: 0, fontSize: 15, color: '#857078' }}>
+        Probá con otra búsqueda o limpiá los filtros.
+      </p>
+    </div>
+  )
+}
 
 // Componentes auxiliares
 function Etiqueta({ colores, children }) {
@@ -69,33 +189,6 @@ function Etiqueta({ colores, children }) {
   )
 }
 
-function BotonAccion({ onClick, titulo, color, hover, icono }) {
-  return (
-    <button
-      onClick={onClick}
-      title={titulo}
-      className="btn-accion"
-      style={{
-        width: 36,
-        height: 36,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: 0,
-        background: 'transparent',
-        borderRadius: 5,
-        cursor: 'pointer',
-        color,
-        '--hover': hover,
-      }}
-    >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-        <path strokeLinecap="round" strokeLinejoin="round" d={icono} />
-      </svg>
-    </button>
-  )
-}
-
 // Botones de acción, compartidos por la tabla y la grilla
 function Acciones({ material, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
   const activo = material.estado === 'ACTIVO'
@@ -107,6 +200,7 @@ function Acciones({ material, onVer, onEditar, onEliminar, onDiscontinuar, onRea
         titulo="Ver"
         color="#8C5A66"
         hover="#F0E2E4"
+        tamanoIcono={20}
         icono={ICONO_VER}
       />
 
@@ -117,6 +211,7 @@ function Acciones({ material, onVer, onEditar, onEliminar, onDiscontinuar, onRea
             titulo="Editar"
             color="#8C5A66"
             hover="#F0E2E4"
+            tamanoIcono={20}
             icono={ICONO_EDITAR}
           />
           <BotonAccion
@@ -124,6 +219,7 @@ function Acciones({ material, onVer, onEditar, onEliminar, onDiscontinuar, onRea
             titulo="Discontinuar"
             color="#D9A441"
             hover="#FDF3E0"
+            tamanoIcono={20}
             icono={ICONO_BAJA}
           />
         </>
@@ -135,6 +231,7 @@ function Acciones({ material, onVer, onEditar, onEliminar, onDiscontinuar, onRea
           titulo="Reactivar"
           color="#4E8C6A"
           hover="#E8F5EF"
+          tamanoIcono={20}
           icono={ICONO_ALTA}
         />
       )}
@@ -144,6 +241,7 @@ function Acciones({ material, onVer, onEditar, onEliminar, onDiscontinuar, onRea
         titulo="Eliminar"
         color="#C0442F"
         hover="#FAEAE8"
+        tamanoIcono={20}
         icono={ICONO_ELIMINAR}
       />
     </div>
@@ -197,36 +295,9 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, centrado }) {
   )
 }
 
-// Flechas de anterior y siguiente del pie de tabla
-function BotonPagina({ onClick, deshabilitado, icono }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={deshabilitado}
-      style={{
-        width: 28,
-        height: 28,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: '1px solid #EBE0E2',
-        background: 'white',
-        borderRadius: 5,
-        cursor: deshabilitado ? 'default' : 'pointer',
-        opacity: deshabilitado ? 0.3 : 1,
-        color: '#8C5A66',
-      }}
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path strokeLinecap="round" strokeLinejoin="round" d={icono} />
-      </svg>
-    </button>
-  )
-}
-
-function Tabla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
+function Tabla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
   const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
-  const [porPagina, setPorPagina] = useState(10)
+  const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
 
   // Alterna asc/desc, o empieza en asc si es una columna nueva.
@@ -255,10 +326,7 @@ function Tabla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDis
     return orden.dir === 'asc' ? cmp : -cmp
   })
 
-  const totalPaginas = Math.max(1, Math.ceil(ordenados.length / porPagina))
-  const paginaActual = Math.min(pagina, totalPaginas)
-  const desde = (paginaActual - 1) * porPagina
-  const visibles = ordenados.slice(desde, desde + porPagina)
+  const { visibles, paginaActual, totalPaginas, desde } = paginar(ordenados, porPagina, pagina)
 
   return (
     <div
@@ -284,14 +352,6 @@ function Tabla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDis
             <tr>
               <td colSpan={4} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
                 Cargando…
-              </td>
-            </tr>
-          )}
-
-          {!cargando && visibles.length === 0 && vacio && (
-            <tr>
-              <td colSpan={4} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
-                {vacio}
               </td>
             </tr>
           )}
@@ -325,82 +385,53 @@ function Tabla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDis
         </tbody>
       </table>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 16,
-          padding: '12px 20px',
-          borderTop: '1px solid #EBE0E2',
+      {!cargando && visibles.length === 0 && <SinResultados />}
+
+      <Paginacion
+        total={ordenados.length}
+        desde={desde}
+        porPagina={porPagina}
+        pagina={paginaActual}
+        totalPaginas={totalPaginas}
+        onPorPagina={(n) => {
+          setPorPagina(n)
+          setPagina(1)
         }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, color: '#857078' }}>Filas por página</span>
-          <select
-            value={porPagina}
-            onChange={(e) => {
-              setPorPagina(Number(e.target.value))
-              setPagina(1)
-            }}
-            style={{
-              padding: '4px 8px',
-              border: '1px solid #EBE0E2',
-              borderRadius: 5,
-              background: 'white',
-              color: '#3D3238',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-        </div>
-
-        <span style={{ fontSize: 13, color: '#857078' }}>
-          {ordenados.length === 0
-            ? '0 de 0'
-            : `${desde + 1}–${Math.min(desde + porPagina, ordenados.length)} de ${ordenados.length}`}
-        </span>
-
-        <div style={{ display: 'flex', gap: 6 }}>
-          <BotonPagina
-            onClick={() => setPagina(paginaActual - 1)}
-            deshabilitado={paginaActual <= 1}
-            icono="M15 19l-7-7 7-7"
-          />
-          <BotonPagina
-            onClick={() => setPagina(paginaActual + 1)}
-            deshabilitado={paginaActual >= totalPaginas}
-            icono="M9 5l7 7-7 7"
-          />
-        </div>
-      </div>
+        onPagina={setPagina}
+      />
     </div>
   )
 }
 
 
-function Grilla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
+function Grilla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
+  // Su propia paginación, separada de la de la tabla. Los hooks van antes
+  // que los return de arriba: React exige que se llamen siempre, en el
+  // mismo orden, y uno adentro de un if no se llamaría en todos los
+  // renders.
+  const [porPagina, setPorPagina] = useState(12)
+  const [pagina, setPagina] = useState(1)
+
+  const { visibles, paginaActual, totalPaginas, desde } = paginar(materiales, porPagina, pagina)
+
   if (cargando) {
     return <p style={{ color: '#857078' }}>Cargando…</p>
   }
 
   if (materiales.length === 0) {
-    return vacio ? <p style={{ color: '#857078' }}>{vacio}</p> : null
+    return <SinResultados enGrilla />
   }
 
   return (
+    <>
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(268px, 300px))',
-        gap: 16,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(238px, 1fr))',
+        gap: 18,
       }}
     >
-      {materiales.map((m) => (
+      {visibles.map((m) => (
         <div
           key={m.id}
           style={{
@@ -487,6 +518,30 @@ function Grilla({ materiales, vacio, cargando, onVer, onEditar, onEliminar, onDi
         </div>
       ))}
     </div>
+
+    <div
+      style={{
+        background: 'white',
+        border: '1px solid #EBE0E2',
+        borderRadius: 8,
+        marginTop: 16,
+      }}
+    >
+      <Paginacion
+        total={materiales.length}
+        desde={desde}
+        porPagina={porPagina}
+        pagina={paginaActual}
+        totalPaginas={totalPaginas}
+        onPorPagina={(n) => {
+          setPorPagina(n)
+          setPagina(1)
+        }}
+        onPagina={setPagina}
+        borde={false}
+      />
+    </div>
+    </>
   )
 }
 
@@ -731,30 +786,21 @@ export default function Materiales() {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [fDisp, setFDisp] = useState([])
   const [fEstado, setFEstado] = useState([])
-  const [vista, setVista] = useState('lista')
+  const [vista, setVista] = useState('grid')
 
+  // Una sola carga al montar. El buscador filtra sobre estos datos, así que
+  // no vuelve a pedir nada y tampoco lleva debounce.
   useEffect(() => {
-    // El debounce espera 300 ms desde la última tecla. El clearTimeout
-    // del return cancela la espera anterior, así sale un solo pedido.
-    const tiempo = setTimeout(() => {
-      setCargando(true)
-
-      listarMateriales(busqueda ? { search: busqueda } : {})
-        .then((res) => {
-          setMateriales(res.data)
-          setError('')
-        })
-        .catch(() => setError('No se pudieron cargar los materiales.'))
-        .finally(() => setCargando(false))
-    }, 300)
-
-    return () => clearTimeout(tiempo)
-  }, [busqueda])
+    listarMateriales()
+      .then((res) => setMateriales(res.data))
+      .catch(() => setError('No se pudieron cargar los materiales.'))
+      .finally(() => setCargando(false))
+  }, [])
 
 
   function recargar() {
     setCargando(true)
-    listarMateriales(busqueda ? { search: busqueda } : {})
+    listarMateriales()
       .then((res) => setMateriales(res.data))
       .catch(() => setError('No se pudieron cargar los materiales.'))
       .finally(() => setCargando(false))
@@ -771,8 +817,13 @@ export default function Materiales() {
   }
 
   // Derivados: no se guardan en estado porque se calculan de materiales.
+  const texto = busqueda.trim().toLowerCase()
+
   const filtrados = materiales.filter(
     (m) =>
+      (!texto ||
+        m.nombre.toLowerCase().includes(texto) ||
+        m.descripcion.toLowerCase().includes(texto)) &&
       (fDisp.length === 0 || fDisp.includes(m.disponibilidad)) &&
       (fEstado.length === 0 || fEstado.includes(m.estado))
   )
@@ -783,9 +834,7 @@ export default function Materiales() {
 
   const cantFiltros = fDisp.length + fEstado.length
 
-  const vacio = busqueda
-    ? 'No se encontraron materiales con esa búsqueda.'
-    : 'Todavía no hay materiales activos.'
+  const moduloVacio = !cargando && materiales.length === 0
 
   // Propiedades comunes a la tabla y la grilla
   const accionesComunes = {
@@ -849,6 +898,10 @@ export default function Materiales() {
         onReponer={(m) => setMaterialEditando(m)}
       />
 
+      {moduloVacio && <EstadoVacio onNuevo={() => setModalAbierto(true)} />}
+
+      {!moduloVacio && (
+        <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <div style={{ position: 'relative', width: 420 }}>
           <svg
@@ -984,9 +1037,9 @@ export default function Materiales() {
       )}
 
       {vista === 'lista' ? (
-        <Tabla materiales={activos} cargando={cargando} vacio={vacio} {...accionesComunes} />
+        <Tabla materiales={activos} cargando={cargando} {...accionesComunes} />
       ) : (
-        <Grilla materiales={activos} cargando={cargando} vacio={vacio} {...accionesComunes} />
+        <Grilla materiales={activos} cargando={cargando} {...accionesComunes} />
       )}
 
       {discontinuados.length > 0 && (
@@ -1031,13 +1084,15 @@ export default function Materiales() {
           {discAbierto && (
             <div style={{ marginTop: 12 }}>
               {vista === 'lista' ? (
-                <Tabla materiales={discontinuados} cargando={false} vacio="" {...accionesComunes} />
+                <Tabla materiales={discontinuados} cargando={false} {...accionesComunes} />
               ) : (
-                <Grilla materiales={discontinuados} cargando={false} vacio="" {...accionesComunes} />
+                <Grilla materiales={discontinuados} cargando={false} {...accionesComunes} />
               )}
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {(modalAbierto || materialEditando) && (

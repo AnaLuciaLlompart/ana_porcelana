@@ -4,6 +4,7 @@ import { listarCategorias, reactivarCategoria,} from './api'
 import ModalCategoria from './ModalCategoria'
 import ModalBajaCategoria from './ModalBajaCategoria'
 import ModalEliminarCategoria from './ModalEliminarCategoria'
+import BotonAccion from '../../componentes/BotonAccion'
 
 
 const COLOR_ESTADO = {
@@ -21,32 +22,6 @@ const ICONO_TEMA = 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 0
 
 
 
-function BotonAccion({ onClick, titulo, color, hover, icono }) {
-  return (
-    <button
-      onClick={onClick}
-      title={titulo}
-      className="btn-accion"
-      style={{
-        width: 36,
-        height: 36,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: 0,
-        background: 'transparent',
-        borderRadius: 5,
-        cursor: 'pointer',
-        color,
-        '--hover': hover,
-      }}
-    >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-        <path strokeLinecap="round" strokeLinejoin="round" d={icono} />
-      </svg>
-    </button>
-  )
-}
 
 
 
@@ -277,6 +252,7 @@ function Tarjeta({ categoria, onEditar, onDarDeBaja, onReactivar, onEliminar, on
                 titulo="Editar"
                 color="#8C5A66"
                 hover="#F0E2E4"
+                tamanoIcono={20}
                 icono={ICONO_EDITAR}
               />
               <BotonAccion
@@ -284,6 +260,7 @@ function Tarjeta({ categoria, onEditar, onDarDeBaja, onReactivar, onEliminar, on
                 titulo="Dar de baja"
                 color="#D9A441"
                 hover="#FDF3E0"
+                tamanoIcono={20}
                 icono={ICONO_BAJA}
               />
             </>
@@ -295,6 +272,7 @@ function Tarjeta({ categoria, onEditar, onDarDeBaja, onReactivar, onEliminar, on
               titulo="Reactivar"
               color="#4E8C6A"
               hover="#E8F5EF"
+              tamanoIcono={20}
               icono={ICONO_ALTA}
             />
           )}
@@ -304,6 +282,7 @@ function Tarjeta({ categoria, onEditar, onDarDeBaja, onReactivar, onEliminar, on
             titulo="Eliminar"
             color="#C0442F"
             hover="#FAEAE8"
+            tamanoIcono={20}
             icono={ICONO_ELIMINAR}
           />
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listarProductos, reactivarProducto } from './api'
 import BotonAccion from '../../componentes/BotonAccion'
+import Paginacion, { paginar } from '../../componentes/Paginacion'
 import TarjetaProducto from './TarjetaProducto'
 import SeccionBajas from './SeccionBajas'
 import ModalBajaProducto from './ModalBajaProducto'
@@ -283,6 +284,8 @@ export default function Productos() {
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [vista, setVista] = useState('grid')
+  const [porPagina, setPorPagina] = useState(12)
+  const [pagina, setPagina] = useState(1)
   const [sortBy, setSortBy] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
   const [bajasAbierto, setBajasAbierto] = useState(false)
@@ -386,6 +389,7 @@ export default function Productos() {
   function ordenarPor(campo) {
     setSortDir(sortBy === campo && sortDir === 'asc' ? 'desc' : 'asc')
     setSortBy(campo)
+    setPagina(1)
   }
 
 
@@ -463,7 +467,7 @@ export default function Productos() {
     })
   }
 
-  const visibles = !sortBy
+  const ordenados = !sortBy
     ? filtrados
     : filtrados.slice().sort((x, y) => {
         const dir = sortDir === 'asc' ? 1 : -1
@@ -475,6 +479,10 @@ export default function Productos() {
         }
         return (x.categorias.length - y.categorias.length) * dir
       })
+
+  // La paginación se aplica a las dos vistas, porque las dos dibujan la
+  // misma lista.
+  const { visibles, paginaActual, totalPaginas, desde } = paginar(ordenados, porPagina, pagina)
 
   // El árbol de bajas por categoría se arma con las categorías que ya
   // vienen adentro de cada producto, en categorias_de_baja: llegan
@@ -659,6 +667,7 @@ export default function Productos() {
               value={sortBy ? `${sortBy}:${sortDir}` : ''}
               onChange={(e) => {
                 const valor = e.target.value
+                setPagina(1)
                 if (!valor) {
                   setSortBy(null)
                   return
@@ -802,6 +811,31 @@ export default function Productos() {
             </div>
           )}
 
+          {vista === 'grid' && (
+            <div
+              style={{
+                background: 'white',
+                border: '1px solid #EBE0E2',
+                borderRadius: 8,
+                marginTop: 16,
+              }}
+            >
+              <Paginacion
+                total={ordenados.length}
+                desde={desde}
+                porPagina={porPagina}
+                pagina={paginaActual}
+                totalPaginas={totalPaginas}
+                onPorPagina={(n) => {
+                  setPorPagina(n)
+                  setPagina(1)
+                }}
+                onPagina={setPagina}
+                borde={false}
+              />
+            </div>
+          )}
+
           {vista === 'lista' && (
             <div style={{ background: 'white', border: '1px solid #EBE0E2', borderRadius: 8, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -898,6 +932,19 @@ export default function Productos() {
                   )}
                 </tbody>
               </table>
+
+              <Paginacion
+                total={ordenados.length}
+                desde={desde}
+                porPagina={porPagina}
+                pagina={paginaActual}
+                totalPaginas={totalPaginas}
+                onPorPagina={(n) => {
+                  setPorPagina(n)
+                  setPagina(1)
+                }}
+                onPagina={setPagina}
+              />
             </div>
           )}
 

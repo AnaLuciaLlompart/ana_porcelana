@@ -167,6 +167,7 @@ export default function TarjetaProducto({ producto, acciones }) {
                 hover={a.hover}
                 icono={a.icono}
                 lado={34}
+                tamanoIcono={20}
               />
             ))}
           </div>

@@ -4,6 +4,7 @@ import ModalCliente from './ModalCliente'
 import ModalVerCliente from './ModalVerCliente'
 import ModalEliminarCliente from './ModalEliminarCliente'
 import BotonAccion from '../../componentes/BotonAccion'
+import Paginacion, { paginar } from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
 
 
@@ -120,6 +121,8 @@ function Acciones({ cliente, onVer, onEditar, onCopiar, onEliminar }) {
 
 function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
   const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
+  const [porPagina, setPorPagina] = useState(12)
+  const [pagina, setPagina] = useState(1)
 
   // Alterna asc/desc, o empieza en asc si es una columna nueva.
   function ordenarPor(campo) {
@@ -128,6 +131,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
         ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' }
         : { campo, dir: 'asc' }
     )
+    setPagina(1)
   }
 
   // Se copia con [...] para no modificar el arreglo original. Sin columna
@@ -147,6 +151,8 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
 
     return orden.dir === 'asc' ? cmp : -cmp
   })
+
+  const { visibles, paginaActual, totalPaginas, desde } = paginar(ordenados, porPagina, pagina)
 
   return (
     <div
@@ -189,7 +195,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
           )}
 
           {!cargando &&
-            ordenados.map((c) => (
+            visibles.map((c) => (
               <tr key={c.id} style={{ borderTop: '1px solid #EBE0E2' }}>
                 <td style={estiloTd}>
                   <button
@@ -253,6 +259,19 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
           </p>
         </div>
       )}
+
+      <Paginacion
+        total={ordenados.length}
+        desde={desde}
+        porPagina={porPagina}
+        pagina={paginaActual}
+        totalPaginas={totalPaginas}
+        onPorPagina={(n) => {
+          setPorPagina(n)
+          setPagina(1)
+        }}
+        onPagina={setPagina}
+      />
     </div>
   )
 }

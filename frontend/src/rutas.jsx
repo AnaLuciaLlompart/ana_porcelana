@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { useAuth } from './contexto/AuthContext'
 import Layout from './componentes/Layout'
 import Login from './funcionalidades/auth/Login'
-import CambiarPassword from './funcionalidades/auth/CambiarPassword'
+import MiCuenta from './funcionalidades/auth/MiCuenta'
 import Materiales from './funcionalidades/materiales/Materiales'
 import Categorias from './funcionalidades/categorias/Categorias'
 import Productos from './funcionalidades/productos/Productos'
@@ -65,7 +65,7 @@ export default function Rutas() {
         <Route element={<Protegido />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Inicio />} />
-            <Route path="/password" element={<CambiarPassword />} />
+            <Route path="/mi-cuenta" element={<MiCuenta />} />
             <Route path="/materiales" element={<Materiales />} />
             <Route path="/categorias" element={<Categorias />} />
             <Route path="/productos" element={<Productos />} />

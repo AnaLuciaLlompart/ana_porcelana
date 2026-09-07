@@ -194,7 +194,9 @@ export default function DetalleProducto({ esAlta = false }) {
     try {
       const res = await llamada()
       setProducto(res.data)
-      mostrarToast(textoToast)
+      // El texto es opcional: si la acción ya se ve en pantalla, no se
+      // llama con ninguno y no sale ningún cartel.
+      if (textoToast) mostrarToast(textoToast)
     } catch (err) {
       setError(mensajeDeError(err))
     }
@@ -589,9 +591,11 @@ export default function DetalleProducto({ esAlta = false }) {
               setBorrador({ ...borrador, es_personalizado: !borrador.es_personalizado })
               return
             }
+            // Sin aviso flotante: la casilla y el chip de la ficha ya
+            // muestran el cambio.
             return producto.es_personalizado
-              ? accionInmediata(() => publicarProducto(id), 'Ya no es un pedido personalizado')
-              : accionInmediata(() => quitarProductoDelCatalogo(id), 'Marcado como personalizado')
+              ? accionInmediata(() => publicarProducto(id))
+              : accionInmediata(() => quitarProductoDelCatalogo(id))
           }}
           onGuardar={guardarFormulario}
           onCancelar={volver}

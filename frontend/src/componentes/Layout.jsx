@@ -15,6 +15,7 @@ const NAV = [
 ]
 
 const ICONO_SALIR = 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'
+const ICONO_CUENTA = 'M5.121 17.804A13 13 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z'
 
 function Item({ icon, label, activo, expandida, onClick, title }) {
   const color = activo ? 'white' : 'rgba(255,255,255,.75)'
@@ -58,7 +59,7 @@ function Item({ icon, label, activo, expandida, onClick, title }) {
 }
 
 export default function Layout() {
-  const [expandida, setExpandida] = useState(false)
+  const [expandida, setExpandida] = useState(true)
   const navegar = useNavigate()
   const ubicacion = useLocation()
   const { salir } = useAuth()
@@ -108,6 +109,16 @@ export default function Layout() {
 
         <div style={{ padding: '0 6px 16px' }}>
           <div style={{ height: 1, background: 'rgba(255,255,255,.15)', marginBottom: 6 }} />
+          {/* Mi cuenta no va en NAV: esa lista es la de los módulos de
+              gestión, y esto es la cuenta de quien está usando el sistema. */}
+          <Item
+            icon={ICONO_CUENTA}
+            label="Mi cuenta"
+            title="Mi cuenta"
+            expandida={expandida}
+            activo={ubicacion.pathname === '/mi-cuenta'}
+            onClick={() => navegar('/mi-cuenta')}
+          />
           <Item
             icon={ICONO_SALIR}
             label="Cerrar sesión"

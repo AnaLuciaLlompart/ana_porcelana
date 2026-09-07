@@ -277,3 +277,10 @@ tarjeta.
   - Antes de crear un estilo, una clase o un componente nuevo, revisá si ya
   existe uno equivalente en otro módulo y reusalo. Las pantallas nuevas
   tienen que sentirse iguales a las que ya están, no más elaboradas.
+
+**El filtrado es siempre local**, sobre los datos ya cargados, así que
+ningún buscador lleva debounce. El volumen del emprendimiento no
+supera el centenar de productos, así que traer la lista completa y
+filtrarla en el navegador es instantáneo y evita un pedido por tecla.
+Los ViewSets igual declaran `search_fields` porque es lo que hace
+andar el buscador de la interfaz navegable de DRF.
