@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'categorias',
     'productos',
     'clientes',
+    'pedidos',
 ]
 
 

@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FAF7F7; font-family: 'Nunito Sans', sans-serif; color: #3D3238; }
+  * { box-sizing: border-box; }
+  a { color: #8C5A66; }
+  a:hover { color: #B08791; }
+  input, select, button, textarea { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #EBE0E2; border-radius: 3px; }
+</style>
+</helmet>
+<div style="display: flex; height: 100vh; overflow: hidden; background: #FAF7F7">
+  <aside style="display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; background: #8C5A66; transition: width .2s; width: {{ sidebarWidth }}">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 6px 0; flex: 1">
+      <button onClick="{{ toggleSidebar }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: white">Menú</span>
+        </sc-if>
+      </button>
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin: 6px 0"></div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+        <button onClick="{{ item.onClick }}" title="{{ item.title }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; cursor: pointer; background: {{ item.bg }}; justify-content: {{ item.justify }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ item.stroke }}" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ item.icon }}"></path></svg>
+          <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: {{ item.stroke }}">{{ item.label }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div style="padding: 0 6px 16px">
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin-bottom: 6px"></div>
+      <button title="Mi cuenta" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13 13 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Mi cuenta</span>
+        </sc-if>
+      </button>
+      <button title="Cerrar sesión" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cerrar sesión</span>
+        </sc-if>
+      </button>
+    </div>
+  </aside><main style="flex: 1; overflow-y: auto; padding: 32px">
+
+    <sc-if value="{{ enListado }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px">
+        <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #3D3238">Gestión de Pedidos</h1>
+        <button onClick="{{ abrirNuevo }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #8C5A66; color: white; border: 0; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+          Nuevo pedido
+        </button>
+      </div>
+      <p style="margin: 0 0 24px; font-size: 15px; color: #857078">{{ resumen }}</p>
+
+      <sc-if value="{{ moduloVacio }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 64px 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px">
+          <div style="width: 62px; height: 62px; border-radius: 16px; background: #FAF7F7; border: 1px solid #EBE0E2; display: flex; align-items: center; justify-content: center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DCC9CD" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+          </div>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #3D3238">Todavía no registraste ningún pedido</p>
+          <p style="margin: 0; max-width: 430px; font-size: 15px; color: #857078; text-wrap: pretty">Registrá un pedido cuando el cliente ya confirmó el encargo y el precio. Las consultas que no se concretan no van acá.</p>
+          <button onClick="{{ abrirNuevo }}" style="display: flex; align-items: center; gap: 8px; margin-top: 6px; padding: 10px 20px; background: #8C5A66; color: white; border: 0; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+            Registrar el primero
+          </button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ hayPedidos }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap">
+          <div style="position: relative; width: 380px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#857078" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%)"><path stroke-linecap="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input value="{{ busqueda }}" onChange="{{ onBuscar }}" placeholder="Buscar por cliente, número o producto..." style="width: 100%; padding: 8px 16px 8px 36px; border: 1px solid #EBE0E2; background: white; font-size: 16px; color: #3D3238; border-radius: 5px; outline: none">
+          </div>
+          <button onClick="{{ abrirFiltros }}" style="margin-left: auto; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; min-width: 130px; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; border: {{ filtrosBorder }}; background: {{ filtrosBg }}; color: #8C5A66">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+            Filtros
+            <sc-if value="{{ hayFiltros }}" hint-placeholder-val="{{ false }}">
+              <span style="min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; border-radius: 10px; background: #8C5A66; color: white; font-size: 12px; font-weight: 600">{{ cantFiltros }}</span>
+            </sc-if>
+          </button>
+        </div>
+
+        <sc-if value="{{ hayFiltros }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 18px">
+            <sc-for list="{{ chipsActivos }}" as="ch" hint-placeholder-count="2">
+              <button onClick="{{ ch.onQuitar }}" style="display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #8C5A66; background: #F0E2E4; color: #8C5A66; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #EBD5D8">
+                {{ ch.label }}
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </sc-for>
+            <button onClick="{{ limpiarFiltros }}" style="padding: 6px 12px; border: 0; background: transparent; color: #857078; cursor: pointer; font-size: 14px; text-decoration: underline">Limpiar todo</button>
+          </div>
+        </sc-if>
+
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow-x: auto">
+          <table style="width: 100%; min-width: 1040px; table-layout: fixed; border-collapse: collapse">
+            <thead>
+              <tr style="background: #F0E2E4">
+                <sc-for list="{{ columnas }}" as="col" hint-placeholder-count="6">
+                  <th style="text-align: {{ col.align }}; padding: 0; width: {{ col.ancho }}">
+                    <button onClick="{{ col.onSort }}" style="display: flex; align-items: center; gap: 4px; width: 100%; padding: 12px 16px; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em; justify-content: {{ col.justify }}" style-hover="background: rgba(140,90,102,.09)">
+                      <span style="white-space: nowrap">{{ col.label }}</span>
+                      <sc-if value="{{ col.mostrarFlecha }}" hint-placeholder-val="{{ false }}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ col.icon }}"></path></svg>
+                      </sc-if>
+                    </button>
+                  </th>
+                </sc-for>
+                <th style="text-align: center; padding: 12px 8px; width: 9%; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ pedidos }}" as="p" hint-placeholder-count="7">
+                <tr style="border-top: 1px solid #EBE0E2">
+                  <td style="padding: 14px 16px">
+                    <button onClick="{{ p.onAbrir }}" style="display: block; border: 0; background: transparent; cursor: pointer; text-align: left; padding: 0">
+                      <span style="display: block; white-space: nowrap; line-height: 1.3; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238" style-hover="color: #8C5A66">{{ p.numero }}</span>
+                    </button>
+                  </td>
+                  <td style="padding: 14px 16px">
+                    <p style="margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 16px; line-height: 1.3; color: #3D3238">{{ p.clienteArroba }}</p>
+                  </td>
+                  <td title="{{ p.itemsTitle }}" style="padding: 14px 16px">
+                    <div style="display: flex; align-items: center; gap: 7px; min-width: 0">
+                      <span style="min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; line-height: 1.3; color: #3D3238">{{ p.itemsTexto }}</span>
+                      <sc-if value="{{ p.hayResto }}" hint-placeholder-val="{{ false }}">
+                        <span style="flex-shrink: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; border-radius: 20px; padding: 2px 8px; background: #F0E2E4; color: #8C5A66">{{ p.itemsResto }}</span>
+                      </sc-if>
+                    </div>
+                  </td>
+                  <td title="{{ p.entregaTitle }}" style="padding: 14px 16px; text-align: center">
+                    <span style="white-space: nowrap; font-size: 15px; color: #3D3238">{{ p.entregaTexto }}</span>
+                  </td>
+                  <td style="padding: 14px 16px; text-align: center">
+                    <sc-if value="{{ p.esEntregado }}" hint-placeholder-val="{{ false }}">
+                      <span style="display: inline-block; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 11px; border: 1px solid #4E8C6A; background: #E8F5EF; color: #4E8C6A">{{ p.estado }}</span>
+                    </sc-if>
+                    <sc-if value="{{ p.noEntregado }}" hint-placeholder-val="{{ true }}">
+                      <span style="white-space: nowrap; font-size: 15px; color: #3D3238">{{ p.estado }}</span>
+                    </sc-if>
+                  </td>
+                  <td style="padding: 14px 16px; text-align: right; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238">{{ p.totalTexto }}</td>
+                  <td style="padding: 14px 16px; text-align: center">
+                    <span style="display: inline-block; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 9px; border: 1px solid {{ p.saldoBorde }}; background: {{ p.saldoBg }}; color: {{ p.saldoColor }}">{{ p.saldoTexto }}</span>
+                  </td>
+                  <td style="padding: 14px 8px">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 6px">
+                      <sc-for list="{{ p.acciones }}" as="a" hint-placeholder-count="2">
+                        <button title="{{ a.title }}" onClick="{{ a.onClick }}" style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: {{ a.hoverBg }}">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ a.color }}" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="{{ a.icon }}"></path></svg>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 48px; text-align: center; border-top: 1px solid #EBE0E2">
+              <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Ningún pedido coincide</p>
+              <p style="margin: 0; font-size: 15px; color: #857078">Probá con otra búsqueda o soltá los filtros.</p>
+            </div>
+          </sc-if>
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 20px; border-top: 1px solid #EBE0E2">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 15px; color: #857078">Filas por página</span>
+            <select value="{{ porPagina }}" onChange="{{ onPorPagina }}" style="padding: 4px 8px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: white; border-radius: 4px; outline: none; cursor: pointer">
+              <option value="10">10</option><option value="20">20</option><option value="50">50</option>
+            </select>
+          </div>
+          <span style="font-size: 15px; color: #857078">{{ rangoTexto }}</span>
+          <div style="display: flex; align-items: center; gap: 4px">
+            <button onClick="{{ prevPage }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ prevOpacity }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button onClick="{{ nextPage }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ nextOpacity }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+          </div>
+        </div>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <sc-if value="{{ enFicha }}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 14px">
+        <button onClick="{{ volver }}" style="padding: 0; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #8C5A66" style-hover="text-decoration: underline">Pedidos</button>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B08791" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+        <span style="font-size: 15px; color: #857078">{{ d.titulo }}</span>
+      </div>
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 22px; flex-wrap: wrap; max-width: 1140px">
+        <div style="min-width: 0">
+          <h1 style="margin: 0 0 8px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #3D3238">{{ d.titulo }}</h1>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; color: #857078">
+            <span>{{ d.subtitulo }}</span>
+            <sc-if value="{{ d.existente }}" hint-placeholder-val="{{ true }}">
+              <span style="white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 12px; border: 1px solid {{ d.saldoBorde }}; background: {{ d.saldoBg }}; color: {{ d.saldoColor }}">{{ d.saldoTexto }}</span>
+            </sc-if>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <button onClick="{{ generarComprobante }}" disabled="{{ d.nuevo }}" title="{{ d.comprobanteTitle }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; opacity: {{ d.comprobanteOpacidad }}" style-hover="background: #F0E2E4">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Comprobante
+          </button>
+          <sc-if value="{{ d.nuevo }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ volver }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+            <button onClick="{{ crearPedido }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Crear pedido</button>
+          </sc-if>
+        </div>
+      </div>
+
+      <sc-if value="{{ d.hayErrorAlta }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; margin-bottom: 20px; max-width: 1140px; background: #FAEAE8; border: 1px solid #f0b8b0; border-radius: 6px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          <span style="font-size: 15px; color: #C0442F; text-wrap: pretty">{{ d.errorAlta }}</span>
+        </div>
+      </sc-if>
+
+      <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #EBE0E2; max-width: 1140px">
+        <sc-for list="{{ pestanas }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.onClick }}" style="display: flex; align-items: center; gap: 7px; padding: 11px 18px; border: 0; border-bottom: 2px solid {{ t.borde }}; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: {{ t.color }}">
+            {{ t.label }}
+            <sc-if value="{{ t.hayCuenta }}" hint-placeholder-val="{{ false }}">
+              <span style="min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; border-radius: 10px; background: {{ t.badgeBg }}; color: {{ t.badgeColor }}; font-size: 12px; font-weight: 700">{{ t.cuenta }}</span>
+            </sc-if>
+          </button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ tabDatos }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 24px; max-width: 1140px">
+          <sc-if value="{{ d.existente }}" hint-placeholder-val="{{ true }}">
+            <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 20px">
+              <h2 style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #8C5A66; letter-spacing: .06em">ESTADO DEL PEDIDO</h2>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                <sc-for list="{{ d.estados }}" as="e" hint-placeholder-count="4">
+                  <button onClick="{{ e.onClick }}" style="padding: 9px 16px; border-radius: 5px; cursor: pointer; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ e.border }}; background: {{ e.bg }}; color: {{ e.color }}" style-hover="opacity: .85">{{ e.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+              <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #8C5A66; letter-spacing: .06em">DATOS DEL PEDIDO</h2>
+            </div>
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 18px">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px">
+                <div>
+                  <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">CLIENTE *</label>
+                  <select value="{{ d.idCliente }}" onChange="{{ d.onCliente }}" style="width: 100%; padding: 10px 13px; border: 1px solid {{ d.clienteBorde }}; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+                    <option value="">Elegí un cliente...</option>
+                    <sc-for list="{{ clientesOpciones }}" as="c" hint-placeholder-count="5">
+                      <option value="{{ c.id }}">{{ c.label }}</option>
+                    </sc-for>
+                  </select>
+                </div>
+                <div>
+                  <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">FECHA DEL PEDIDO *</label>
+                  <input type="date" value="{{ d.fecha }}" onChange="{{ d.onFecha }}" style="width: 100%; padding: 9px 13px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+                </div>
+                <div>
+                  <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">ENTREGA ESTIMADA</span>
+                    <span style="font-size: 12px; color: #B08791">Puede cambiar</span>
+                  </label>
+                  <input type="date" value="{{ d.entrega }}" onChange="{{ d.onEntrega }}" style="width: 100%; padding: 9px 13px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+                </div>
+                <div>
+                  <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">ENTREGA REAL</span>
+                    <span style="font-size: 12px; color: #B08791">Se completa al entregar</span>
+                  </label>
+                  <input type="date" value="{{ d.entregaReal }}" onChange="{{ d.onEntregaReal }}" style="width: 100%; padding: 9px 13px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px">
+                <div>
+                  <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">ENVÍO</label>
+                  <div style="display: flex; gap: 8px">
+                    <sc-for list="{{ d.envioOpciones }}" as="op" hint-placeholder-count="2">
+                      <button onClick="{{ op.onClick }}" style="flex: 1; padding: 10px 0; border-radius: 5px; cursor: pointer; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div>
+                  <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+                    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">COSTO DE ENTREGA</span>
+                    <span style="font-size: 12px; color: #B08791">{{ d.costoAyuda }}</span>
+                  </label>
+                  <input value="{{ d.costoEntrega }}" onChange="{{ d.onCosto }}" disabled="{{ d.costoDeshabilitado }}" placeholder="{{ d.costoPlaceholder }}" style="width: 100%; padding: 10px 13px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: {{ d.costoBg }}; border-radius: 6px; outline: none; opacity: {{ d.costoOpacidad }}" style-focus="border-color: #8C5A66">
+                </div>
+              </div>
+              <div>
+                <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">DIRECCIÓN DE ENTREGA</label>
+                <input value="{{ d.direccion }}" onChange="{{ d.onDireccion }}" placeholder="Calle y número, localidad, referencias..." style="width: 100%; padding: 10px 13px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+              </div>
+              <sc-if value="{{ d.datosDirty }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding-top: 2px">
+                  <button onClick="{{ descartarDatos }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+                  <button onClick="{{ guardarDatos }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Guardar</button>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+
+          <sc-if value="{{ d.existente }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <button onClick="{{ d.onEliminar }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid #EBE0E2; background: white; color: #C0442F; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #FAEAE8">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                Eliminar pedido
+              </button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ tabProductos }}" hint-placeholder-val="{{ false }}">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; max-width: 1140px">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+            <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #8C5A66; letter-spacing: .06em">PRODUCTOS DEL PEDIDO</h2>
+            <button onClick="{{ abrirLinea }}" style="display: flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 8px 14px; border: 1px solid #8C5A66; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: #F0E2E4">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" d="M12 5v14m7-7H5"></path></svg>
+              Agregar producto
+            </button>
+          </div>
+          <sc-if value="{{ d.hayLineas }}" hint-placeholder-val="{{ true }}">
+            <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+              <thead>
+                <tr style="background: #F0E2E4">
+                  <th style="width: 28%; padding: 10px 20px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">PRODUCTO</th>
+                  <th style="width: 10%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">CANTIDAD</th>
+                  <th style="width: 18%; padding: 10px 8px; text-align: right; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">PRECIO UNITARIO</th>
+                  <th style="width: 12%; padding: 10px 8px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">SUBTOTAL</th>
+                  <th style="width: 22%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #8C5A66; letter-spacing: .06em">ETAPA</th>
+                  <th style="width: 10%; padding: 10px 8px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ d.lineas }}" as="l" hint-placeholder-count="3">
+                  <tr style="border-top: 1px solid #EBE0E2; vertical-align: top">
+                    <td style="padding: 14px 20px">
+                      <p style="margin: 0; font-size: 15px; line-height: 1.3; color: #3D3238">{{ l.producto }}</p>
+                      <sc-if value="{{ l.hayDescripcion }}" hint-placeholder-val="{{ false }}">
+                        <p style="margin: 3px 0 0; font-size: 13px; line-height: 1.4; color: #857078; text-wrap: pretty">{{ l.descripcion }}</p>
+                      </sc-if>
+                      <a href="{{ l.materialesHref }}" title="{{ l.materialesTitle }}" style="display: inline-flex; align-items: center; gap: 6px; margin-top: 7px; color: #8C5A66; text-decoration: none; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px" style-hover="text-decoration: underline">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                        Ver/Editar Materiales
+                      </a>
+                    </td>
+                    <td style="padding: 14px 8px; text-align: center; font-size: 15px; color: #3D3238">{{ l.cantidad }}</td>
+                    <td style="padding: 14px 8px; text-align: right; white-space: nowrap; font-size: 15px; color: #3D3238">{{ l.unitarioTexto }}</td>
+                    <td style="padding: 14px 8px; text-align: right; white-space: nowrap; font-weight: 600; font-size: 15px; color: #3D3238">{{ l.subtotalTexto }}</td>
+                    <td style="padding: 11px 8px">
+                      <select value="{{ l.estado }}" onChange="{{ l.onEstado }}" style="width: 100%; max-width: 190px; padding: 8px 10px; border-radius: 6px; cursor: pointer; outline: none; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border: 1px solid {{ l.etapaBorde }}; background: {{ l.etapaBg }}; color: {{ l.etapaColor }}">
+                        <sc-for list="{{ etapasOpciones }}" as="op" hint-placeholder-count="5">
+                          <option value="{{ op }}">{{ op }}</option>
+                        </sc-for>
+                      </select>
+                      <sc-if value="{{ l.mostrarDias }}" hint-placeholder-val="{{ true }}">
+                        <p style="margin: 5px 0 0 10px; white-space: nowrap; font-size: 13px; color: {{ l.diasColor }}">{{ l.diasTexto }}</p>
+                      </sc-if>
+                    </td>
+                    <td style="padding: 11px 8px; text-align: center">
+                      <button title="Quitar producto" onClick="{{ l.onQuitar }}" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: #FAEAE8">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.9"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                      </button>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 24px; padding: 14px 20px; border-top: 1px solid #EBE0E2; background: #FAF7F7">
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 18px; color: #8C5A66">{{ d.subtotalTexto }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ d.sinLineas }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 40px 20px; text-align: center">
+              <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238">El pedido no tiene productos todavía</p>
+              <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Cargá cada producto con su cantidad y el precio que acordaron. Si el mismo modelo va en dos colores, cargalo dos veces.</p>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ tabCobros }}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; max-width: 1140px">
+          <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; min-width: 0">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+              <div>
+                <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #8C5A66; letter-spacing: .06em">COBROS</h2>
+                <p style="margin: 3px 0 0; font-size: 13px; color: #857078">Seña, pago restante o pago completo.</p>
+              </div>
+              <button onClick="{{ abrirCobro }}" disabled="{{ d.nuevo }}" title="{{ d.cobroTitle }}" style="display: flex; align-items: center; gap: 7px; flex-shrink: 0; padding: 8px 14px; border: 1px solid #8C5A66; background: white; color: #8C5A66; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; opacity: {{ d.cobroOpacidad }}" style-hover="background: #F0E2E4">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" d="M12 5v14m7-7H5"></path></svg>
+                Registrar cobro
+              </button>
+            </div>
+            <sc-for list="{{ d.cobros }}" as="c" hint-placeholder-count="2">
+              <div style="display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid #EBE0E2">
+                <div style="flex: 1; min-width: 0">
+                  <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #3D3238">{{ c.tipo }}</p>
+                  <p style="margin: 2px 0 0; font-size: 13px; color: #857078">{{ c.detalle }}</p>
+                </div>
+                <span style="white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #4E8C6A">{{ c.montoTexto }}</span>
+                <button title="Quitar cobro" onClick="{{ c.onQuitar }}" style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: #FAEAE8">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.9"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+            </sc-for>
+            <sc-if value="{{ d.sinCobros }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 40px 20px; text-align: center">
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238">Sin cobros todavía</p>
+                <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">{{ d.sinCobrosAyuda }}</p>
+              </div>
+            </sc-if>
+          </div>
+          <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 20px">
+            <h2 style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #8C5A66; letter-spacing: .06em">RESUMEN</h2>
+            <div style="display: flex; flex-direction: column; gap: 9px; font-size: 15px">
+              <div style="display: flex; justify-content: space-between; gap: 12px"><span style="color: #857078">Productos</span><span style="font-family: 'Quicksand', sans-serif; font-weight: 600">{{ d.subtotalTexto }}</span></div>
+              <sc-if value="{{ d.hayCostoEntrega }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; justify-content: space-between; gap: 12px"><span style="color: #857078">Envío</span><span style="font-family: 'Quicksand', sans-serif; font-weight: 600">{{ d.costoTexto }}</span></div>
+              </sc-if>
+              <sc-if value="{{ d.hayCostoCliente }}" hint-placeholder-val="{{ false }}">
+                <div style="display: flex; justify-content: space-between; gap: 12px"><span style="color: #B08791">Envío (lo paga el cliente)</span><span style="color: #B08791">{{ d.costoClienteTexto }}</span></div>
+              </sc-if>
+              <div style="height: 1px; background: #EBE0E2; margin: 4px 0"></div>
+              <div style="display: flex; justify-content: space-between; gap: 12px; align-items: baseline"><span style="font-family: 'Quicksand', sans-serif; font-weight: 600">Total</span><span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 20px; color: #8C5A66">{{ d.totalTexto }}</span></div>
+              <div style="display: flex; justify-content: space-between; gap: 12px"><span style="color: #857078">Cobrado</span><span style="font-family: 'Quicksand', sans-serif; font-weight: 600; color: #4E8C6A">{{ d.cobradoTexto }}</span></div>
+              <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center">
+                <span style="color: #857078">Saldo</span>
+                <span style="white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 10px; border: 1px solid {{ d.saldoBorde }}; background: {{ d.saldoBg }}; color: {{ d.saldoColor }}">{{ d.saldoTexto }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </sc-if>
+
+  </main>
+
+  
+</div>
+
+<sc-if value="{{ hayToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 24px; background: #3D3238; box-shadow: 0 10px 30px rgba(61,50,56,.3)">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: white">{{ toast }}</span>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalFiltros }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ cerrarFiltrosFondo }}" style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 520px; max-height: 88vh; display: flex; flex-direction: column; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; flex-shrink: 0; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Filtrar pedidos</h2>
+        <button onClick="{{ cerrarFiltros }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="display: flex; flex-direction: column; overflow-y: auto">
+        <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
+          <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">CLIENTE</p>
+          <select value="{{ fCliente }}" onChange="{{ onFiltroCliente }}" style="width: 100%; padding: 10px 13px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: white; border-radius: 6px; outline: none; cursor: pointer">
+            <option value="">Todos los clientes</option>
+            <sc-for list="{{ clientesOpciones }}" as="c" hint-placeholder-count="5">
+              <option value="{{ c.id }}">{{ c.label }}</option>
+            </sc-for>
+          </select>
+        </div>
+        <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
+          <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">ESTADO DEL PEDIDO</p>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+            <sc-for list="{{ fEstados }}" as="op" hint-placeholder-count="4">
+              <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+            </sc-for>
+          </div>
+          <p style="margin: 8px 0 0; font-size: 13px; color: #B08791">Sin elegir nada se muestran todos.</p>
+        </div>
+        <div style="padding: 22px 24px; border-bottom: 1px solid #EBE0E2">
+          <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">SALDO</p>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+            <sc-for list="{{ fSaldo }}" as="op" hint-placeholder-count="2">
+              <button onClick="{{ op.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding: 22px 24px">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px">
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">TOTAL DEL PEDIDO</p>
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 15px; color: #8C5A66">{{ rangoTexto }}</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <span style="width: 46px; flex-shrink: 0; font-size: 13px; color: #857078">Desde</span>
+              <input type="range" min="{{ totalMin }}" max="{{ totalMax }}" step="1000" value="{{ desdeValor }}" onChange="{{ onFiltroDesde }}" style="flex: 1; cursor: pointer; accent-color: #8C5A66">
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px">
+              <span style="width: 46px; flex-shrink: 0; font-size: 13px; color: #857078">Hasta</span>
+              <input type="range" min="{{ totalMin }}" max="{{ totalMax }}" step="1000" value="{{ hastaValor }}" onChange="{{ onFiltroHasta }}" style="flex: 1; cursor: pointer; accent-color: #8C5A66">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; flex-shrink: 0; border-top: 1px solid #EBE0E2">
+        <span style="font-size: 14px; color: #857078">{{ previewTexto }}</span>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <button onClick="{{ limpiarBorradorFiltros }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Limpiar</button>
+          <button onClick="{{ aplicarFiltros }}" style="padding: 10px 20px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Aplicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalLinea }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 480px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Agregar producto</h2>
+        <button onClick="{{ cerrarLinea }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+        <div>
+          <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">PRODUCTO *</label>
+          <select value="{{ nl.idProducto }}" onChange="{{ nl.onProducto }}" style="width: 100%; padding: 10px 13px; border: 1px solid {{ nl.productoBorde }}; font-size: 16px; color: #3D3238; background: white; border-radius: 5px; outline: none">
+            <option value="">Elegí un producto...</option>
+            <sc-for list="{{ productosOpciones }}" as="p" hint-placeholder-count="5">
+              <option value="{{ p.id }}">{{ p.label }}</option>
+            </sc-for>
+          </select>
+          <sc-if value="{{ nl.errorProducto }}" hint-placeholder-val="{{ false }}"><p style="margin: 6px 0 0; font-size: 13px; color: #C0442F">Elegí un producto.</p></sc-if>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px">
+          <div>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">CANTIDAD *</label>
+            <input type="number" min="1" value="{{ nl.cantidad }}" onChange="{{ nl.onCantidad }}" style="width: 100%; padding: 10px 13px; border: 1px solid {{ nl.cantidadBorde }}; font-size: 16px; color: #3D3238; background: white; border-radius: 5px; outline: none">
+          </div>
+          <div>
+            <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">PRECIO ACORDADO *</span>
+            </label>
+            <input value="{{ nl.precio }}" onChange="{{ nl.onPrecio }}" placeholder="$" style="width: 100%; padding: 10px 13px; border: 1px solid {{ nl.precioBorde }}; font-size: 16px; color: #3D3238; background: white; border-radius: 5px; outline: none">
+          </div>
+        </div>
+        <p style="margin: -6px 0 0; font-size: 12px; color: #B08791; text-wrap: pretty">Se guarda el precio de hoy: si después cambiás el del producto, este precio no se modifica.</p>
+        <div>
+          <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">DESCRIPCIÓN</span>
+            <span style="font-size: 12px; color: #B08791">Color, medida, lo que acordaron</span>
+          </label>
+          <textarea value="{{ nl.descripcion }}" onChange="{{ nl.onDescripcion }}" rows="3" style="width: 100%; padding: 10px 13px; border: 1px solid #EBE0E2; font-size: 15px; line-height: 1.5; color: #3D3238; background: white; border-radius: 5px; outline: none; resize: vertical"></textarea>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cerrarLinea }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+        <button onClick="{{ agregarLinea }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Agregar</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalCobro }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 480px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Registrar cobro</h2>
+        <button onClick="{{ cerrarCobro }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+        <div>
+          <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">TIPO</label>
+          <div style="display: flex; gap: 8px">
+            <sc-for list="{{ nc.tipos }}" as="op" hint-placeholder-count="3">
+              <button onClick="{{ op.onClick }}" style="flex: 1; padding: 10px 0; border-radius: 5px; cursor: pointer; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px">
+          <div>
+            <label style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px">
+              <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; letter-spacing: .06em">MONTO *</span>
+              <span style="font-size: 12px; color: #B08791">{{ nc.saldoAyuda }}</span>
+            </label>
+            <input value="{{ nc.monto }}" onChange="{{ nc.onMonto }}" placeholder="$" style="width: 100%; padding: 10px 13px; border: 1px solid {{ nc.montoBorde }}; font-size: 16px; color: #3D3238; background: white; border-radius: 5px; outline: none">
+            <sc-if value="{{ nc.errorMonto }}" hint-placeholder-val="{{ false }}"><p style="margin: 6px 0 0; font-size: 13px; color: #C0442F">Ingresá un monto mayor a cero.</p></sc-if>
+          </div>
+          <div>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">FECHA *</label>
+            <input type="date" value="{{ nc.fecha }}" onChange="{{ nc.onFecha }}" style="width: 100%; padding: 9px 13px; border: 1px solid #EBE0E2; font-size: 16px; color: #3D3238; background: white; border-radius: 5px; outline: none">
+          </div>
+        </div>
+        <div>
+          <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">MEDIO</label>
+          <div style="display: flex; gap: 8px">
+            <sc-for list="{{ nc.medios }}" as="op" hint-placeholder-count="2">
+              <button onClick="{{ op.onClick }}" style="flex: 1; padding: 10px 0; border-radius: 5px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ op.border }}; background: {{ op.bg }}; color: {{ op.color }}">{{ op.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cerrarCobro }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+        <button onClick="{{ registrarCobro }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Registrar</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ modalBorrar }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 65; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 480px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: #C0442F">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Eliminar pedido</h2>
+      </div>
+      <div style="padding: 22px 24px">
+        <p style="margin: 0 0 10px; font-size: 16px; color: #3D3238; text-wrap: pretty">{{ borrarPregunta }}</p>
+        <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">{{ borrarDetalle }}</p>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cancelarBorrar }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+        <button onClick="{{ borrarPedido }}" style="padding: 10px 18px; border: 0; background: #C0442F; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Eliminar pedido</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;ordenInicial&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;entrega&quot;,&quot;fecha&quot;,&quot;saldo&quot;,&quot;cliente&quot;],&quot;default&quot;:&quot;entrega&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Listado&quot;},&quot;mostrarDiasEnEtapa&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Ficha&quot;},&quot;avisarSecadoDias&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:7,&quot;min&quot;:1,&quot;max&quot;:30,&quot;unit&quot;:&quot;días&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Ficha&quot;}}">
+const NAV = [
+  { id: "inicio", label: "Inicio", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+  { id: "materiales", label: "Materiales", icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" },
+  { id: "categorias", label: "Categorías", icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" },
+  { id: "productos", label: "Productos", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { id: "clientes", label: "Clientes", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { id: "pedidos", label: "Pedidos", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
+  { id: "gastos", label: "Gastos", icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
+  { id: "informes", label: "Informes", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" }
+];
+const ICONO_VER = "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z";
+const ICONO_BORRAR = "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16";
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const HOY = "2026-09-05";
+const ESTADOS = ["Pendiente", "En producción", "Listo", "Entregado"];
+const ETAPAS = ["Pendiente", "Modelado", "Secado", "Pintura-Barniz", "Terminado"];
+const TIPOS_COBRO = ["Seña", "Pago restante", "Pago completo"];
+const MEDIOS = ["Efectivo", "Transferencia"];
+
+const CLIENTES = [
+  { id: 1, instagram: "sofi.delgado", nombre: "Sofía Delgado" },
+  { id: 2, instagram: "martinariosok", nombre: "Martina Ríos" },
+  { id: 3, instagram: "lu.gimenez", nombre: "Luciana Giménez" },
+  { id: 4, instagram: "carolina.p", nombre: "Carolina" },
+  { id: 5, instagram: "juli.artesanal", nombre: "Julieta Navarro" },
+  { id: 6, instagram: "belu.romero", nombre: "Belén Romero" },
+  { id: 7, instagram: "eugegc", nombre: "Eugenia Gómez Castro" },
+  { id: 8, instagram: "flor.tucuman", nombre: "Florencia" },
+  { id: 9, instagram: "agus.mmm", nombre: "Agustina Molina" }
+];
+const PRODUCTOS = [
+  { id: 1, nombre: "Aros Luna Menguante", precio: 6500 },
+  { id: 2, nombre: "Aros Stitch", precio: 7200 },
+  { id: 3, nombre: "Llavero Stitch", precio: 5400 },
+  { id: 4, nombre: "Collar Hongo", precio: 8900 },
+  { id: 5, nombre: "Imán Girasol", precio: 3200 },
+  { id: 6, nombre: "Aros Varita", precio: 6800 },
+  { id: 7, nombre: "Set Navidad tres piezas", precio: 12500 },
+  { id: 8, nombre: "Aros gatito con moño (encargo Rocío)", precio: 9500 },
+  { id: 9, nombre: "Collar inicial personalizado", precio: 7800 }
+];
+const PEDIDOS = [
+  { id: 43, idCliente: 2, estado: "Pendiente", fecha: "2026-08-29", entrega: "2026-09-01", entregaReal: "", envio: "cliente", direccion: "", costoEntrega: "",
+    lineas: [{ id: 1, idProducto: 7, cantidad: 1, precio: 12500, estado: "Pendiente", fechaEstado: "2026-08-29", descripcion: "Con los nombres de la familia en cada pieza" }],
+    cobros: [] },
+  { id: 42, idCliente: 5, estado: "En producción", fecha: "2026-08-26", entrega: "2026-09-03", entregaReal: "", envio: "mio", direccion: "Av. Rivadavia 4520, CABA", costoEntrega: "2500",
+    lineas: [
+      { id: 2, idProducto: 5, cantidad: 6, precio: 3200, estado: "Secado", fechaEstado: "2026-08-30", descripcion: "Serie bosque: hongos, zorro, hojas" },
+      { id: 3, idProducto: 5, cantidad: 6, precio: 3200, estado: "Modelado", fechaEstado: "2026-09-04", descripcion: "Serie mar: caracoles, estrellas" }
+    ],
+    cobros: [{ id: 1, tipo: "Seña", monto: 15000, fecha: "2026-08-26", medio: "Transferencia" }] },
+  { id: 41, idCliente: 1, estado: "En producción", fecha: "2026-08-24", entrega: "2026-09-12", entregaReal: "", envio: "cliente", direccion: "", costoEntrega: "",
+    lineas: [
+      { id: 4, idProducto: 1, cantidad: 2, precio: 6500, estado: "Pintura-Barniz", fechaEstado: "2026-09-03", descripcion: "Lila" },
+      { id: 5, idProducto: 1, cantidad: 1, precio: 6500, estado: "Secado", fechaEstado: "2026-08-28", descripcion: "Verde agua, con dorado" },
+      { id: 6, idProducto: 9, cantidad: 1, precio: 7800, estado: "Modelado", fechaEstado: "2026-09-04", descripcion: "Con inicial M" }
+    ],
+    cobros: [{ id: 2, tipo: "Seña", monto: 8000, fecha: "2026-08-24", medio: "Efectivo" }] },
+  { id: 40, idCliente: 7, estado: "Listo", fecha: "2026-08-15", entrega: "2026-09-06", entregaReal: "", envio: "mio", direccion: "Belgrano 1130, Tigre", costoEntrega: "3200",
+    lineas: [
+      { id: 7, idProducto: 4, cantidad: 2, precio: 8900, estado: "Terminado", fechaEstado: "2026-09-02", descripcion: "" },
+      { id: 8, idProducto: 5, cantidad: 2, precio: 3200, estado: "Terminado", fechaEstado: "2026-09-02", descripcion: "Para regalar junto con los collares" }
+    ],
+    cobros: [{ id: 3, tipo: "Seña", monto: 12000, fecha: "2026-08-15", medio: "Transferencia" }] },
+  { id: 39, idCliente: 3, estado: "Listo", fecha: "2026-08-07", entrega: "2026-09-08", entregaReal: "", envio: "cliente", direccion: "", costoEntrega: "",
+    lineas: [{ id: 9, idProducto: 3, cantidad: 6, precio: 5400, estado: "Terminado", fechaEstado: "2026-08-30", descripcion: "Souvenirs cumple de Emma, tonos pastel" }],
+    cobros: [{ id: 4, tipo: "Pago completo", monto: 32400, fecha: "2026-08-07", medio: "Transferencia" }] },
+  { id: 38, idCliente: 8, estado: "Entregado", fecha: "2026-07-28", entrega: "2026-08-12", entregaReal: "2026-08-12", envio: "mio", direccion: "Correo a Tucumán", costoEntrega: "1200",
+    lineas: [{ id: 10, idProducto: 5, cantidad: 4, precio: 3200, estado: "Terminado", fechaEstado: "2026-08-09", descripcion: "" }],
+    cobros: [{ id: 5, tipo: "Seña", monto: 5000, fecha: "2026-07-28", medio: "Transferencia" }, { id: 6, tipo: "Pago restante", monto: 9000, fecha: "2026-08-11", medio: "Transferencia" }] },
+  { id: 36, idCliente: 1, estado: "Entregado", fecha: "2026-06-12", entrega: "2026-06-30", entregaReal: "2026-06-30", envio: "cliente", direccion: "", costoEntrega: "",
+    lineas: [{ id: 11, idProducto: 4, cantidad: 1, precio: 8900, estado: "Terminado", fechaEstado: "2026-06-25", descripcion: "" }, { id: 12, idProducto: 1, cantidad: 1, precio: 6500, estado: "Terminado", fechaEstado: "2026-06-25", descripcion: "A juego con el collar" }],
+    cobros: [{ id: 7, tipo: "Pago completo", monto: 15400, fecha: "2026-06-30", medio: "Efectivo" }] },
+  { id: 33, idCliente: 5, estado: "Entregado", fecha: "2026-05-09", entrega: "", entregaReal: "2026-05-22", envio: "cliente", direccion: "", costoEntrega: "",
+    lineas: [{ id: 13, idProducto: 1, cantidad: 2, precio: 6500, estado: "Terminado", fechaEstado: "2026-05-20", descripcion: "" }],
+    cobros: [{ id: 8, tipo: "Pago completo", monto: 13000, fecha: "2026-05-22", medio: "Transferencia" }] }
+];
+const TOTAL_MIN = 0;
+const TOTAL_MAX = 60000;
+const COLS = [
+  { id: "id", label: "PEDIDO", ancho: "10%", align: "left" },
+  { id: "cliente", label: "CLIENTE", ancho: "16%", align: "left" },
+  { id: "items", label: "CONTENIDO", ancho: "17%", align: "left" },
+  { id: "entrega", label: "ENTREGA", ancho: "12%", align: "center" },
+  { id: "estado", label: "ESTADO", ancho: "13%", align: "center" },
+  { id: "total", label: "TOTAL", ancho: "10%", align: "right" },
+  { id: "saldo", label: "SALDO", ancho: "13%", align: "center" }
+];
+
+class Component extends DCLogic {
+  state = {
+    sidebarExpanded: false, activo: "pedidos",
+    pedidos: PEDIDOS, busqueda: "", page: 1, porPagina: 10,
+    filtros: { cliente: "", estados: [], saldo: [], desde: "", hasta: "" }, fBorrador: { cliente: "", estados: [], saldo: [], desde: "", hasta: "" }, modalFiltros: false,
+    sortBy: null, sortDir: "asc",
+    detalle: null, nuevo: false, borrador: null, errorAlta: "",
+    tab: "datos", modalLinea: false, nl: null, nlTocado: false,
+    modalCobro: false, nc: null, ncTocado: false,
+    aBorrar: null, toast: ""
+  };
+
+  fmt(n) { return "$" + Math.round(n).toLocaleString("es-AR"); }
+  fmtFecha(iso) { if (!iso) return ""; const p = iso.split("-"); return Number(p[2]) + " " + MESES[Number(p[1]) - 1]; }
+  fmtFechaNum(iso) { if (!iso) return ""; const p = iso.split("-"); return p[2] + "/" + p[1] + "/" + p[0]; }
+  fmtFechaLarga(iso) { if (!iso) return ""; const p = iso.split("-"); return Number(p[2]) + " " + MESES[Number(p[1]) - 1] + " " + p[0]; }
+  dias(desde, hasta) { return Math.round((new Date(hasta) - new Date(desde)) / 86400000); }
+  num(v) { const n = parseFloat(String(v).replace(/[^\d.,]/g, "").replace(",", ".")); return isNaN(n) ? 0 : n; }
+  cliente(id) { return CLIENTES.find(c => c.id === Number(id)); }
+  producto(id) { return PRODUCTOS.find(p => p.id === Number(id)); }
+  subtotal(p) { return p.lineas.reduce((a, l) => a + l.precio * l.cantidad, 0); }
+  costo(p) { return p.envio === "mio" ? this.num(p.costoEntrega) : 0; }
+  total(p) { return this.subtotal(p) + this.costo(p); }
+  cobrado(p) { return p.cobros.reduce((a, c) => a + c.monto, 0); }
+  saldo(p) { return this.total(p) - this.cobrado(p); }
+  atraso(p) { return p.entrega && p.estado !== "Entregado" && p.entrega < HOY ? this.dias(p.entrega, HOY) : 0; }
+
+  aplicaFiltros(p, f) {
+    if (f.cliente && p.idCliente !== Number(f.cliente)) return false;
+    if (f.estados.length > 0 && f.estados.indexOf(p.estado) < 0) return false;
+    if (f.saldo.indexOf("Con saldo pendiente") >= 0 && this.saldo(p) <= 0) return false;
+    if (f.saldo.indexOf("Al día") >= 0 && this.saldo(p) > 0) return false;
+    if (f.desde && this.total(p) < this.num(f.desde)) return false;
+    if (f.hasta && this.total(p) > this.num(f.hasta)) return false;
+    return true;
+  }
+
+  colorEstado(e) {
+    if (e === "Pendiente") return { bg: "white", color: "#B08791", borde: "#EBE0E2", solido: "#B08791" };
+    if (e === "En producción") return { bg: "white", color: "#8C5A66", borde: "#DCC9CD", solido: "#8C5A66" };
+    if (e === "Listo") return { bg: "white", color: "#8C5A66", borde: "#8C5A66", solido: "#8C5A66" };
+    return { bg: "#E8F5EF", color: "#4E8C6A", borde: "#4E8C6A", solido: "#4E8C6A" };
+  }
+  colorEtapa(e) {
+    if (e === "Terminado") return { bg: "#E8F5EF", color: "#4E8C6A", borde: "#4E8C6A" };
+    return { bg: "white", color: "#3D3238", borde: "#EBE0E2" };
+  }
+  chipSaldo(s) {
+    if (s > 0) return { saldoTexto: "Debe " + this.fmt(s), saldoBg: "#FAEAE8", saldoBorde: "#C0442F", saldoColor: "#C0442F" };
+    if (s < 0) return { saldoTexto: "A favor " + this.fmt(-s), saldoBg: "#FDF3E0", saldoBorde: "#D9A441", saldoColor: "#8A6320" };
+    return { saldoTexto: "Al día", saldoBg: "#E8F5EF", saldoBorde: "#4E8C6A", saldoColor: "#4E8C6A" };
+  }
+  segmento(activo, label, onClick) {
+    return activo
+      ? { label, onClick, border: "1px solid #8C5A66", bg: "#8C5A66", color: "white" }
+      : { label, onClick, border: "1px solid #EBE0E2", bg: "white", color: "#857078" };
+  }
+
+  mostrarToast(t) { this.setState({ toast: t }); clearTimeout(this._toast); this._toast = setTimeout(() => this.setState({ toast: "" }), 2600); }
+
+  actualizar(id, fn) { this.setState(s => ({ pedidos: s.pedidos.map(p => p.id === id ? fn(p) : p) })); }
+
+  datosDe(p) { return { idCliente: p.idCliente ? String(p.idCliente) : "", fecha: p.fecha, entrega: p.entrega, entregaReal: p.entregaReal || "", envio: p.envio, direccion: p.direccion, costoEntrega: p.costoEntrega }; }
+  editarBorrador(cambio) { this.setState(s => ({ borrador: Object.assign({}, s.borrador, cambio), errorAlta: "" })); }
+  aplicarBorrador(p, b) { return Object.assign({}, p, b, { idCliente: Number(b.idCliente) || null }); }
+
+  abrirFicha(id) { const p = this.state.pedidos.find(x => x.id === id); this.setState({ detalle: id, nuevo: false, tab: "datos", borrador: this.datosDe(p), errorAlta: "" }); }
+  cerrarFicha() { this.setState(s => ({ pedidos: s.nuevo ? s.pedidos.filter(p => p.id !== s.detalle) : s.pedidos, detalle: null, nuevo: false, tab: "datos", borrador: null, errorAlta: "" })); }
+
+  renderVals() {
+    const s = this.state;
+    const exp = s.sidebarExpanded;
+    const mostrarDias = this.props.mostrarDiasEnEtapa ?? true;
+    const umbralSecado = this.props.avisarSecadoDias ?? 7;
+
+    const base = {
+      sidebarWidth: exp ? "200px" : "56px", sidebarExpanded: exp, contentJustify: exp ? "flex-start" : "center",
+      toggleSidebar: () => this.setState({ sidebarExpanded: !exp }),
+      navItems: NAV.map(n => ({ label: n.label, title: n.label, icon: n.icon, onClick: () => this.setState({ activo: n.id }), justify: exp ? "flex-start" : "center",
+        bg: s.activo === n.id ? "rgba(255,255,255,.18)" : "transparent", stroke: s.activo === n.id ? "white" : "rgba(255,255,255,.75)" })),
+      hayToast: !!s.toast, toast: s.toast,
+      etapasOpciones: ETAPAS,
+      clientesOpciones: CLIENTES.slice().sort((a, b) => a.instagram.localeCompare(b.instagram, "es")).map(c => ({ id: String(c.id), label: "@" + c.instagram + " · " + c.nombre })),
+      productosOpciones: PRODUCTOS.map(p => ({ id: String(p.id), label: p.nombre + " · " + this.fmt(p.precio) })),
+      abrirNuevo: () => {
+        const id = Math.max(0, ...s.pedidos.map(p => p.id)) + 1;
+        const nuevo = { id, idCliente: null, estado: "Pendiente", fecha: HOY, entrega: "", entregaReal: "", envio: "cliente", direccion: "", costoEntrega: "", lineas: [], cobros: [] };
+        this.setState(st => ({ pedidos: [nuevo, ...st.pedidos], detalle: id, nuevo: true, tab: "datos", borrador: this.datosDe(nuevo), errorAlta: "" }));
+      },
+      modalBorrar: !!s.aBorrar,
+      borrarPregunta: s.aBorrar ? "¿Eliminar el pedido #" + s.aBorrar.id + " de @" + (this.cliente(s.aBorrar.idCliente) || {}).instagram + "?" : "",
+      borrarDetalle: s.aBorrar ? "Se borran sus " + s.aBorrar.lineas.length + (s.aBorrar.lineas.length === 1 ? " producto y " : " productos y ") + s.aBorrar.cobros.length + " cobros por " + this.fmt(this.cobrado(s.aBorrar)) + ". Esto no se puede deshacer." : "",
+      cancelarBorrar: () => this.setState({ aBorrar: null }),
+      borrarPedido: () => { const id = s.aBorrar.id; this.setState(st => ({ pedidos: st.pedidos.filter(p => p.id !== id), aBorrar: null, detalle: st.detalle === id ? null : st.detalle, borrador: st.detalle === id ? null : st.borrador })); this.mostrarToast("Pedido eliminado"); }
+    };
+
+    const det = s.detalle ? s.pedidos.find(p => p.id === s.detalle) : null;
+    if (!det) return Object.assign(base, this.valsListado());
+    return Object.assign(base, this.valsFicha(det, mostrarDias, umbralSecado));
+  }
+
+  valsListado() {
+    const s = this.state;
+    const reales = s.pedidos.filter(p => !(s.nuevo && p.id === s.detalle));
+    const q = s.busqueda.trim().toLowerCase();
+    let lista = reales.filter(p => {
+      const c = this.cliente(p.idCliente) || { instagram: "", nombre: "" };
+      const texto = ("#" + p.id + " " + c.instagram + " " + c.nombre + " " + p.lineas.map(l => (this.producto(l.idProducto) || {}).nombre + " " + l.descripcion).join(" ")).toLowerCase();
+      if (q && !texto.includes(q)) return false;
+      return this.aplicaFiltros(p, s.filtros);
+    });
+    const orden = s.sortBy || (this.props.ordenInicial ?? "entrega");
+    const dir = s.sortBy ? (s.sortDir === "asc" ? 1 : -1) : 1;
+    const clave = p => {
+      if (orden === "id") return -p.id;
+      if (orden === "cliente") return ((this.cliente(p.idCliente) || {}).instagram || "");
+      if (orden === "items") return p.lineas.reduce((a, l) => a + l.cantidad, 0);
+      if (orden === "entrega") return (p.estado === "Entregado" ? "9" : "0") + (p.entrega || "9999");
+      if (orden === "estado") return ESTADOS.indexOf(p.estado);
+      if (orden === "total") return this.total(p);
+      if (orden === "saldo") return -this.saldo(p);
+      return -p.fecha;
+    };
+    lista.sort((a, b) => { const ka = clave(a), kb = clave(b); return ka < kb ? -dir : ka > kb ? dir : 0; });
+
+    const porPagina = s.porPagina;
+    const totalPages = Math.max(1, Math.ceil(lista.length / porPagina));
+    const page = Math.min(s.page, totalPages);
+    const start = (page - 1) * porPagina;
+    const pageItems = lista.slice(start, start + porPagina);
+
+    const atrasados = reales.filter(p => this.atraso(p)).length;
+    const conSaldo = reales.filter(p => this.saldo(p) > 0).length;
+    const activos = reales.filter(p => p.estado !== "Entregado").length;
+    const f = s.filtros, fb = s.fBorrador;
+    const vacios = { cliente: "", estados: [], saldo: [], desde: "", hasta: "" };
+    const cantFiltros = (f.cliente ? 1 : 0) + f.estados.length + f.saldo.length + (f.desde || f.hasta ? 1 : 0);
+    const setF = cambio => this.setState(st => ({ filtros: Object.assign({}, st.filtros, cambio), page: 1 }));
+    const setB = cambio => this.setState(st => ({ fBorrador: Object.assign({}, st.fBorrador, cambio) }));
+    const chipsActivos = [];
+    if (f.cliente) { const cl = this.cliente(f.cliente); chipsActivos.push({ label: cl ? "@" + cl.instagram : "Cliente", onQuitar: () => setF({ cliente: "" }) }); }
+    f.estados.forEach(e => chipsActivos.push({ label: e, onQuitar: () => setF({ estados: f.estados.filter(v => v !== e) }) }));
+    f.saldo.forEach(e => chipsActivos.push({ label: e, onQuitar: () => setF({ saldo: f.saldo.filter(v => v !== e) }) }));
+    if (f.desde || f.hasta) chipsActivos.push({
+      label: f.desde && f.hasta ? this.fmt(this.num(f.desde)) + " – " + this.fmt(this.num(f.hasta)) : f.desde ? "Desde " + this.fmt(this.num(f.desde)) : "Hasta " + this.fmt(this.num(f.hasta)),
+      onQuitar: () => setF({ desde: "", hasta: "" })
+    });
+    const opcion = (grupo, valor, label) => {
+      const activo = fb[grupo].indexOf(valor) >= 0;
+      return {
+        label, border: activo ? "1px solid #8C5A66" : "1px solid #EBE0E2", bg: activo ? "#8C5A66" : "white", color: activo ? "white" : "#857078",
+        onClick: () => setB({ [grupo]: activo ? fb[grupo].filter(v => v !== valor) : fb[grupo].concat([valor]) })
+      };
+    };
+    const preview = reales.filter(p => {
+      const c = this.cliente(p.idCliente) || { instagram: "", nombre: "" };
+      const texto = ("#" + p.id + " " + c.instagram + " " + c.nombre + " " + p.lineas.map(l => (this.producto(l.idProducto) || {}).nombre + " " + l.descripcion).join(" ")).toLowerCase();
+      return (!q || texto.includes(q)) && this.aplicaFiltros(p, fb);
+    }).length;
+    const chip = (activo, label, count, onClick, alerta) => ({
+      label, count, onClick,
+      border: activo ? "1px solid " + (alerta ? "#C0442F" : "#8C5A66") : "1px solid #EBE0E2",
+      bg: activo ? (alerta ? "#C0442F" : "#8C5A66") : "white",
+      color: activo ? "white" : (alerta && count > 0 ? "#C0442F" : "#857078"),
+      countBg: activo ? "rgba(255,255,255,.25)" : (alerta && count > 0 ? "#FAEAE8" : "#F0E2E4"),
+      countColor: activo ? "white" : (alerta && count > 0 ? "#C0442F" : "#8C5A66")
+    });
+
+    return {
+      enListado: true, enFicha: false,
+      resumen: reales.length === 0 ? "Acá vas a ver los encargos confirmados." : activos + (activos === 1 ? " pedido activo" : " pedidos activos") + (atrasados ? " · " + atrasados + (atrasados === 1 ? " atrasado" : " atrasados") : "") + (conSaldo ? " · " + conSaldo + " con saldo pendiente" : ""),
+      moduloVacio: reales.length === 0, hayPedidos: reales.length > 0,
+      busqueda: s.busqueda, onBuscar: e => this.setState({ busqueda: e.target.value, page: 1 }),
+      hayFiltros: cantFiltros > 0, cantFiltros, chipsActivos,
+      filtrosBorder: cantFiltros > 0 ? "1px solid #8C5A66" : "1px solid #EBE0E2",
+      filtrosBg: cantFiltros > 0 ? "#F0E2E4" : "white",
+      limpiarFiltros: () => this.setState({ filtros: Object.assign({}, vacios), page: 1 }),
+      modalFiltros: s.modalFiltros,
+      abrirFiltros: () => this.setState(st => ({ modalFiltros: true, fBorrador: { cliente: st.filtros.cliente, estados: st.filtros.estados.slice(), saldo: st.filtros.saldo.slice(), desde: st.filtros.desde, hasta: st.filtros.hasta } })),
+      cerrarFiltros: () => this.setState({ modalFiltros: false }),
+      cerrarFiltrosFondo: e => { if (e.target === e.currentTarget) this.setState({ modalFiltros: false }); },
+      aplicarFiltros: () => this.setState(st => ({ filtros: st.fBorrador, modalFiltros: false, page: 1 })),
+      limpiarBorradorFiltros: () => this.setState({ fBorrador: Object.assign({}, vacios) }),
+      fCliente: fb.cliente, onFiltroCliente: e => setB({ cliente: e.target.value }),
+      fEstados: ESTADOS.map(e => opcion("estados", e, e)),
+      fSaldo: ["Con saldo pendiente", "Al día"].map(e => opcion("saldo", e, e)),
+      totalMin: TOTAL_MIN, totalMax: TOTAL_MAX,
+      desdeValor: fb.desde === "" ? TOTAL_MIN : this.num(fb.desde),
+      hastaValor: fb.hasta === "" ? TOTAL_MAX : this.num(fb.hasta),
+      rangoTexto: fb.desde === "" && fb.hasta === "" ? "Todos" : this.fmt(fb.desde === "" ? TOTAL_MIN : this.num(fb.desde)) + " – " + this.fmt(fb.hasta === "" ? TOTAL_MAX : this.num(fb.hasta)),
+      onFiltroDesde: e => { const v = Number(e.target.value); setB({ desde: v <= TOTAL_MIN ? "" : String(v), hasta: fb.hasta !== "" && this.num(fb.hasta) < v ? String(v) : fb.hasta }); },
+      onFiltroHasta: e => { const v = Number(e.target.value); setB({ hasta: v >= TOTAL_MAX ? "" : String(v), desde: fb.desde !== "" && this.num(fb.desde) > v ? String(v) : fb.desde }); },
+      previewTexto: preview === 1 ? "1 pedido coincide" : preview + " pedidos coinciden",
+      columnas: COLS.map(c => ({
+        label: c.label, ancho: c.ancho, align: c.align, justify: c.align === "left" ? "flex-start" : c.align === "right" ? "flex-end" : "center",
+        mostrarFlecha: s.sortBy === c.id, icon: s.sortDir === "asc" ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7",
+        onSort: () => this.setState({ sortBy: c.id, sortDir: s.sortBy === c.id && s.sortDir === "asc" ? "desc" : "asc" })
+      })),
+      porPagina: String(porPagina),
+      onPorPagina: e => this.setState({ porPagina: Number(e.target.value), page: 1 }),
+      rangoTexto: lista.length === 0 ? "0 de 0" : (start + 1) + "–" + Math.min(start + porPagina, lista.length) + " de " + lista.length,
+      prevPage: () => this.setState(st => ({ page: Math.max(1, st.page - 1) })),
+      nextPage: () => this.setState(st => ({ page: Math.min(totalPages, st.page + 1) })),
+      prevOpacity: page === 1 ? .4 : 1,
+      nextOpacity: page === totalPages ? .4 : 1,
+      pedidos: pageItems.map(p => {
+        const c = this.cliente(p.idCliente) || { instagram: "", nombre: "" };
+        const atr = this.atraso(p);
+        const falta = p.entrega && p.estado !== "Entregado" && p.entrega >= HOY ? this.dias(HOY, p.entrega) : null;
+        const cant = p.lineas.reduce((a, l) => a + l.cantidad, 0);
+        const nombres = [...new Set(p.lineas.map(l => (this.producto(l.idProducto) || {}).nombre))];
+        return Object.assign({
+          numero: "#" + p.id, fechaTexto: this.fmtFechaLarga(p.fecha),
+          clienteNombre: c.nombre, clienteArroba: "@" + c.instagram,
+          itemsTexto: nombres.length ? nombres[0] : "Sin productos",
+          itemsResto: nombres.length > 1 ? "+" + (nombres.length - 1) : "", hayResto: nombres.length > 1,
+          itemsTitle: nombres.length ? nombres.join(" · ") : "Sin productos",
+          cantidadTexto: (cant === 1 ? "1 pieza" : cant + " piezas") + (p.lineas.length > 1 ? " · " + p.lineas.length + " productos" : ""),
+          entregaTexto: p.estado === "Entregado" ? (p.entregaReal ? this.fmtFechaNum(p.entregaReal) : "Sin fecha") : atr > 0 ? (atr === 1 ? "Atrasado 1 día" : "Atrasado " + atr + " días") : falta === null ? "Sin fecha" : falta === 0 ? "Hoy" : falta === 1 ? "Mañana" : "En " + falta + " días",
+          entregaTitle: p.estado === "Entregado" ? (p.entregaReal ? "Entregado el " + this.fmtFechaLarga(p.entregaReal) : "Sin fecha de entrega") : p.entrega ? "Entrega estimada: " + this.fmtFechaLarga(p.entrega) : "Sin fecha de entrega estimada",
+          estado: p.estado, esEntregado: p.estado === "Entregado", noEntregado: p.estado !== "Entregado",
+          totalTexto: this.fmt(this.total(p)),
+          onAbrir: () => this.abrirFicha(p.id),
+          acciones: [
+            { title: "Ver pedido", icon: ICONO_VER, color: "#8C5A66", hoverBg: "#F0E2E4", onClick: () => this.abrirFicha(p.id) },
+            { title: "Eliminar", icon: ICONO_BORRAR, color: "#C0442F", hoverBg: "#FAEAE8", onClick: () => this.setState({ aBorrar: p }) }
+          ]
+        }, this.chipSaldo(this.saldo(p)));
+      }),
+      sinResultados: reales.length > 0 && lista.length === 0
+    };
+  }
+
+  valsFicha(det, mostrarDias, umbralSecado) {
+    const s = this.state;
+    const b = s.borrador || this.datosDe(det);
+    const vista = this.aplicarBorrador(det, b);
+    const c = this.cliente(vista.idCliente);
+    const atr = this.atraso(det);
+    const datosDirty = !s.nuevo && JSON.stringify(b) !== JSON.stringify(this.datosDe(det));
+    const saldo = this.saldo(vista);
+    const costoOn = b.envio === "mio";
+
+    const nl = s.nl || {};
+    const nlErr = { producto: !nl.idProducto, cantidad: !(Number(nl.cantidad) >= 1), precio: !(this.num(nl.precio) > 0) };
+    const nc = s.nc || {};
+    const ncErr = { monto: !(this.num(nc.monto) > 0) };
+
+    return {
+      enListado: false, enFicha: true,
+      volver: () => this.cerrarFicha(),
+      generarComprobante: () => { if (s.nuevo) return; this.mostrarToast("Comprobante del pedido #" + det.id); },
+      tabDatos: s.tab === "datos", tabProductos: s.tab === "productos", tabCobros: s.tab === "cobros",
+      pestanas: [
+        { id: "datos", label: "Datos y estado", cuenta: 0 },
+        { id: "productos", label: "Productos del pedido", cuenta: det.lineas.length },
+        { id: "cobros", label: "Cobros", cuenta: det.cobros.length }
+      ].map(t => ({
+        label: t.label, cuenta: t.cuenta, hayCuenta: t.id !== "datos",
+        badgeBg: s.tab === t.id ? "#8C5A66" : "#F0E2E4", badgeColor: s.tab === t.id ? "white" : "#8C5A66",
+        borde: s.tab === t.id ? "#8C5A66" : "transparent", color: s.tab === t.id ? "#8C5A66" : "#857078",
+        onClick: () => this.setState({ tab: t.id })
+      })),
+      d: Object.assign({
+        titulo: s.nuevo ? "Nuevo pedido" : "Pedido #" + det.id,
+        subtitulo: c ? "@" + c.instagram + " · " + c.nombre : "Sin cliente",
+        atrasado: atr > 0, atrasoTexto: atr === 1 ? "Atrasado 1 día" : "Atrasado " + atr + " días",
+        nuevo: s.nuevo, existente: !s.nuevo,
+        hayErrorAlta: !!s.errorAlta, errorAlta: s.errorAlta,
+        estadoTexto: det.estado, estadoBg: this.colorEstado(det.estado).bg, estadoColor: this.colorEstado(det.estado).color,
+        piezasTexto: (() => { const n = det.lineas.reduce((x, l) => x + l.cantidad, 0); return n === 1 ? "1 pieza a hacer" : n + " piezas a hacer"; })(),
+        estados: ESTADOS.map(e => { const act = this.colorEstado(e).solido; return { label: e, border: det.estado === e ? "1px solid " + act : "1px solid #EBE0E2", bg: det.estado === e ? act : "white", color: det.estado === e ? "white" : "#857078",
+          onClick: () => {
+            this.actualizar(det.id, p => Object.assign({}, p, { estado: e }, e === "Entregado" && !p.entregaReal ? { entregaReal: HOY } : {}));
+            if (e === "Entregado" && !b.entregaReal) this.setState(st => ({ borrador: Object.assign({}, st.borrador, { entregaReal: HOY }) }));
+            this.mostrarToast("Pedido " + e.toLowerCase());
+          } }; }),
+        hayLineas: det.lineas.length > 0, sinLineas: det.lineas.length === 0,
+        lineas: det.lineas.map(l => {
+          const et = this.colorEtapa(l.estado);
+          const d = this.dias(l.fechaEstado, HOY);
+          const largo = l.estado === "Secado" && d >= umbralSecado;
+          return {
+            producto: (this.producto(l.idProducto) || { nombre: "Producto eliminado" }).nombre,
+            materialesHref: "Materiales.dc.html?producto=" + l.idProducto,
+            materialesTitle: "Ver los materiales de " + (this.producto(l.idProducto) || { nombre: "este producto" }).nombre,
+            hayDescripcion: !!l.descripcion, descripcion: l.descripcion,
+            cantidad: l.cantidad, subtotalTexto: this.fmt(l.precio * l.cantidad), unitarioTexto: this.fmt(l.precio),
+            estado: l.estado, etapaBg: et.bg, etapaColor: et.color, etapaBorde: et.borde,
+            mostrarDias: mostrarDias && l.estado !== "Terminado",
+            diasTexto: (d === 0 ? "desde hoy" : d === 1 ? "desde ayer" : "hace " + d + " días") + (largo ? " · revisar" : ""),
+            diasColor: largo ? "#C0442F" : "#B08791",
+            onEstado: e => { const v = e.target.value; this.actualizar(det.id, p => Object.assign({}, p, { lineas: p.lineas.map(x => x.id === l.id ? Object.assign({}, x, { estado: v, fechaEstado: HOY }) : x) })); },
+            onQuitar: () => this.actualizar(det.id, p => Object.assign({}, p, { lineas: p.lineas.filter(x => x.id !== l.id) }))
+          };
+        }),
+        idCliente: b.idCliente, clienteBorde: s.errorAlta && !b.idCliente ? "#C0442F" : "#EBE0E2",
+        onCliente: e => this.editarBorrador({ idCliente: e.target.value }),
+        fecha: b.fecha, onFecha: e => this.editarBorrador({ fecha: e.target.value }),
+        entrega: b.entrega, onEntrega: e => this.editarBorrador({ entrega: e.target.value }),
+        entregaReal: b.entregaReal, onEntregaReal: e => this.editarBorrador({ entregaReal: e.target.value }),
+        envioOpciones: [this.segmento(b.envio === "mio", "A cargo mío", () => this.editarBorrador({ envio: "mio" })), this.segmento(b.envio === "cliente", "A cargo del cliente", () => this.editarBorrador({ envio: "cliente" }))],
+        costoEntrega: b.costoEntrega, costoDeshabilitado: false, costoBg: "#FAF7F7", costoOpacidad: 1,
+        costoAyuda: costoOn ? "Se suma al total del pedido" : "Lo paga el cliente: no suma al total", costoPlaceholder: "$",
+        onCosto: e => this.editarBorrador({ costoEntrega: e.target.value }),
+        direccion: b.direccion, onDireccion: e => this.editarBorrador({ direccion: e.target.value }),
+        datosDirty,
+        subtotalTexto: this.fmt(this.subtotal(vista)), hayCostoEntrega: this.costo(vista) > 0, costoTexto: this.fmt(this.costo(vista)),
+        hayCostoCliente: vista.envio !== "mio" && this.num(vista.costoEntrega) > 0, costoClienteTexto: this.fmt(this.num(vista.costoEntrega)),
+        totalTexto: this.fmt(this.total(vista)), cobradoTexto: this.fmt(this.cobrado(vista)),
+        cobros: det.cobros.slice().sort((a, x) => (a.fecha < x.fecha ? 1 : -1)).map(cb => ({
+          tipo: cb.tipo, detalle: this.fmtFechaLarga(cb.fecha) + " · " + cb.medio, montoTexto: this.fmt(cb.monto),
+          onQuitar: () => this.actualizar(det.id, p => Object.assign({}, p, { cobros: p.cobros.filter(x => x.id !== cb.id) }))
+        })),
+        sinCobros: det.cobros.length === 0,
+        sinCobrosAyuda: s.nuevo ? "Creá el pedido primero y después registrá la seña." : "Registrá la seña cuando la recibas.",
+        cobroOpacidad: s.nuevo ? .5 : 1, cobroTitle: s.nuevo ? "Disponible después de crear el pedido" : "Registrar cobro",
+        comprobanteOpacidad: s.nuevo ? .5 : 1, comprobanteTitle: s.nuevo ? "Disponible después de crear el pedido" : "Generar comprobante en PDF",
+        onEliminar: () => this.setState({ aBorrar: det })
+      }, this.chipSaldo(saldo)),
+
+      descartarDatos: () => this.setState({ borrador: this.datosDe(det) }),
+      guardarDatos: () => {
+        if (!b.idCliente) { this.setState({ errorAlta: "Elegí el cliente del pedido." }); return; }
+        if (!b.fecha) { this.setState({ errorAlta: "La fecha del pedido es obligatoria." }); return; }
+        this.actualizar(det.id, p => this.aplicarBorrador(p, b)); this.setState({ borrador: null }); this.mostrarToast("Cambios guardados");
+      },
+      crearPedido: () => {
+        if (!b.idCliente) { this.setState({ errorAlta: "Elegí el cliente del pedido para poder crearlo." }); return; }
+        if (!b.fecha) { this.setState({ errorAlta: "La fecha del pedido es obligatoria." }); return; }
+        if (det.lineas.length === 0) { this.setState({ errorAlta: "Agregá al menos un producto: un pedido sin productos no se puede registrar." }); return; }
+        this.actualizar(det.id, p => this.aplicarBorrador(p, b)); this.setState({ nuevo: false, borrador: null, errorAlta: "" }); this.mostrarToast("Pedido #" + det.id + " creado");
+      },
+
+      modalLinea: s.modalLinea,
+      abrirLinea: () => this.setState({ modalLinea: true, nlTocado: false, nl: { idProducto: "", cantidad: 1, precio: "", descripcion: "" } }),
+      cerrarLinea: () => this.setState({ modalLinea: false }),
+      nl: {
+        idProducto: nl.idProducto, cantidad: nl.cantidad, precio: nl.precio, descripcion: nl.descripcion,
+        productoBorde: s.nlTocado && nlErr.producto ? "#C0442F" : "#EBE0E2", errorProducto: s.nlTocado && nlErr.producto,
+        cantidadBorde: s.nlTocado && nlErr.cantidad ? "#C0442F" : "#EBE0E2", precioBorde: s.nlTocado && nlErr.precio ? "#C0442F" : "#EBE0E2",
+        onProducto: e => { const pr = this.producto(e.target.value); this.setState(st => ({ nl: Object.assign({}, st.nl, { idProducto: e.target.value, precio: pr ? String(pr.precio) : st.nl.precio }) })); },
+        onCantidad: e => this.setState(st => ({ nl: Object.assign({}, st.nl, { cantidad: e.target.value }) })),
+        onPrecio: e => this.setState(st => ({ nl: Object.assign({}, st.nl, { precio: e.target.value }) })),
+        onDescripcion: e => this.setState(st => ({ nl: Object.assign({}, st.nl, { descripcion: e.target.value }) }))
+      },
+      agregarLinea: () => {
+        if (nlErr.producto || nlErr.cantidad || nlErr.precio) { this.setState({ nlTocado: true }); return; }
+        const id = Date.now();
+        this.actualizar(det.id, p => Object.assign({}, p, { lineas: p.lineas.concat([{ id, idProducto: Number(nl.idProducto), cantidad: Number(nl.cantidad), precio: this.num(nl.precio), estado: "Pendiente", fechaEstado: HOY, descripcion: nl.descripcion.trim() }]) }));
+        this.setState({ modalLinea: false, errorAlta: "" }); this.mostrarToast("Producto agregado");
+      },
+
+      modalCobro: s.modalCobro,
+      abrirCobro: () => { if (s.nuevo) return; this.setState({ modalCobro: true, ncTocado: false, nc: { tipo: det.cobros.length ? "Pago restante" : "Seña", monto: det.cobros.length && saldo > 0 ? String(saldo) : "", fecha: HOY, medio: "Transferencia" } }); },
+      cerrarCobro: () => this.setState({ modalCobro: false }),
+      nc: {
+        monto: nc.monto, fecha: nc.fecha, montoBorde: s.ncTocado && ncErr.monto ? "#C0442F" : "#EBE0E2", errorMonto: s.ncTocado && ncErr.monto,
+        saldoAyuda: saldo > 0 ? "Saldo: " + this.fmt(saldo) : "Sin saldo pendiente",
+        tipos: TIPOS_COBRO.map(t => this.segmento(nc.tipo === t, t, () => this.setState(st => ({ nc: Object.assign({}, st.nc, { tipo: t, monto: t !== "Seña" && saldo > 0 ? String(saldo) : st.nc.monto }) })))),
+        medios: MEDIOS.map(m => this.segmento(nc.medio === m, m, () => this.setState(st => ({ nc: Object.assign({}, st.nc, { medio: m }) })))),
+        onMonto: e => this.setState(st => ({ nc: Object.assign({}, st.nc, { monto: e.target.value }) })),
+        onFecha: e => this.setState(st => ({ nc: Object.assign({}, st.nc, { fecha: e.target.value }) }))
+      },
+      registrarCobro: () => {
+        if (ncErr.monto || !nc.fecha) { this.setState({ ncTocado: true }); return; }
+        this.actualizar(det.id, p => Object.assign({}, p, { cobros: p.cobros.concat([{ id: Date.now(), tipo: nc.tipo, monto: this.num(nc.monto), fecha: nc.fecha, medio: nc.medio }]) }));
+        this.setState({ modalCobro: false }); this.mostrarToast("Cobro registrado");
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

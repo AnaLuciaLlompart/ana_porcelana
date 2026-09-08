@@ -190,6 +190,13 @@ class ProductoListaSerializer(serializers.ModelSerializer):
     cantidad_materiales = serializers.SerializerMethodField()
     cantidad_imagenes = serializers.SerializerMethodField()
 
+    # Solo los ids, no los materiales enteros: los usa la pantalla de
+    # Materiales para filtrar por "aparece en el producto", y para eso
+    # alcanza con saber cuáles están. No cuesta ninguna consulta extra,
+    # porque es la misma relación prefetcheada que ya recorre
+    # get_cantidad_materiales.
+    materiales = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+
     class Meta:
         model = Producto
         fields = [
@@ -210,6 +217,7 @@ class ProductoListaSerializer(serializers.ModelSerializer):
             'imagen_principal',
             'cantidad_materiales',
             'cantidad_imagenes',
+            'materiales',
         ]
 
     def get_imagen_principal(self, obj):

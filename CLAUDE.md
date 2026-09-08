@@ -224,7 +224,59 @@ aparece, cambia o desaparece de la tabla. Copiar al portapapeles es la
 está declarado adentro de `DetalleProducto.jsx`. Clientes es la segunda
 funcionalidad que los usa, así que van a `componentes/`.
 
+
+
 ---
+
+## Módulo Pedidos (CU40–CU47)
+
+Diseño en `disenio/Pedidos.dc.html`.
+
+**Dos modelos: `Pedido` y `ProductoDelPedido`.** El segundo se llama
+así y no "línea": el vocabulario sale de los casos de uso.
+
+**La FK de ProductoDelPedido a Pedido va CASCADE**: un producto del
+pedido no significa nada sin su pedido. **La FK a Producto va
+PROTECT**, igual que MaterialProducto.
+
+**La FK de Pedido a Cliente va PROTECT**, y `ClienteViewSet.destroy`
+pasa a contar los pedidos antes de borrar, devolviendo un 400 con
+mensaje. Eso completa lo que quedó pendiente en Clientes.
+
+**Dos fechas de entrega, no una.** `fecha_entrega_estimada` es la que
+se le comunica al cliente y puede cambiar; `fecha_entrega_real` se
+completa al pasar el pedido a Entregado. Con un solo campo se perdería
+la estimación, y con ella la única forma de saber si se entregó a
+tiempo.
+
+**El estado del pedido y el de sus productos son independientes.** El
+primero es el avance visto por el cliente (Pendiente, En producción,
+Listo, Entregado); el segundo es la etapa productiva de esas piezas
+(Pendiente, Modelado, Secado, Pintura/Barniz, Terminado).
+
+**`costo_entrega` solo se habilita cuando el envío es a cargo mío.** La
+coherencia se valida en la aplicación, no en el modelo.
+
+**No hay restricción de unicidad sobre (pedido, producto).** El mismo
+producto puede figurar en dos filas del mismo pedido si difieren en
+variante, precio o etapa productiva. `cantidad` agrupa únicamente
+unidades iguales.
+
+**El precio se congela** al registrar el producto del pedido.
+
+**Cada producto del pedido enlaza a `/materiales?producto=X`**, que ya
+está implementado en Materiales. El enlace no aparece si el producto no
+tiene materiales cargados.
+
+**Implementación por etapas: lo que depende de Cobros NO se hace
+todavía**, y no se simula. Espera a CU48–CU58: la pestaña de Cobros, el
+saldo pendiente y el chip "Debe $X" del encabezado. El comprobante en
+PDF es CU59 y también queda fuera.
+
+
+---
+
+
 
 ## Diseño visual — cerrado, no cambiar
 
@@ -284,3 +336,7 @@ supera el centenar de productos, así que traer la lista completa y
 filtrarla en el navegador es instantáneo y evita un pedido por tecla.
 Los ViewSets igual declaran `search_fields` porque es lo que hace
 andar el buscador de la interfaz navegable de DRF.
+
+**Al escribir el catálogo público**, revisar que su serializer NO
+herede de ProductoListaSerializer ni de ProductoDetalleSerializer:
+esos exponen los ids de materiales, y la composición no va al catálogo.

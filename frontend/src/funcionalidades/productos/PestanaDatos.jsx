@@ -123,7 +123,7 @@ export default function PestanaDatos({
         </div>
 
         <div style={{ flex: 1, minWidth: 220 }}>
-          <span style={estiloEtiqueta}>Dificultad *</span>
+          <span style={estiloEtiqueta}>Dificultad de elaboración *</span>
           <div style={{ display: 'flex', gap: 8 }}>
             {DIFICULTADES.map((d) => {
               const activo = borrador.dificultad === d.valor

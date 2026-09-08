@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { listarMateriales, discontinuarMaterial, reactivarMaterial } from './api'
 import ModalMaterial from './ModalMaterial'
 import ModalVerMaterial from './ModalVerMaterial'
 import ModalEliminarMaterial from './ModalEliminarMaterial'
+import ModalFiltros from './ModalFiltros'
+import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
+
+// Import que cruza de funcionalidad, con el mismo criterio de siempre: el
+// endpoint pertenece a esa app y ahí se queda. Acá hacen falta los productos
+// para el filtro "aparece en el producto".
+import { listarProductos } from '../productos/api'
+
 import BotonAccion from '../../componentes/BotonAccion'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 
@@ -654,126 +663,12 @@ function AvisoReponer({ materiales, onReponer }) {
   )
 }
 
-function Chip({ etiqueta, activo, color, fondo, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: '7px 16px',
-        borderRadius: 20,
-        cursor: 'pointer',
-        fontFamily: "'Quicksand', sans-serif",
-        fontWeight: 600,
-        fontSize: 14,
-        border: activo ? `1px solid ${color}` : '1px solid #EBE0E2',
-        background: activo ? fondo : 'white',
-        color: activo ? color : '#857078',
-      }}
-    >
-      {etiqueta}
-    </button>
-  )
-}
-
-
-function PanelFiltros({ fDisp, setFDisp, fEstado, setFEstado, cantidad }) {
-  // Agrega o quita un valor de una lista de filtros.
-  function alternar(lista, setLista, valor) {
-    setLista(
-      lista.includes(valor)
-        ? lista.filter((v) => v !== valor)
-        : [...lista, valor]
-    )
-  }
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: 40,
-        background: 'white',
-        border: '1px solid #EBE0E2',
-        borderRadius: 8,
-        padding: '18px 20px',
-        marginBottom: 16,
-      }}
-    >
-      <div>
-        <div style={estiloGrupo}>DISPONIBILIDAD</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['ALTA', 'MEDIA', 'BAJA'].map((v) => (
-            <Chip
-              key={v}
-              etiqueta={{ ALTA: 'Alta', MEDIA: 'Media', BAJA: 'Baja' }[v]}
-              activo={fDisp.includes(v)}
-              color={COLOR_DISPONIBILIDAD[v].texto}
-              fondo={COLOR_DISPONIBILIDAD[v].fondo}
-              onClick={() => alternar(fDisp, setFDisp, v)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <div style={estiloGrupo}>ESTADO</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['ACTIVO', 'DISCONTINUADO'].map((v) => (
-            <Chip
-              key={v}
-              etiqueta={{ ACTIVO: 'Activo', DISCONTINUADO: 'Discontinuado' }[v]}
-              activo={fEstado.includes(v)}
-              color={COLOR_ESTADO[v].texto}
-              fondo={COLOR_ESTADO[v].fondo}
-              onClick={() => alternar(fEstado, setFEstado, v)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ fontSize: 14, color: '#857078' }}>
-          {cantidad === 1 ? '1 material' : `${cantidad} materiales`}
-        </span>
-
-        <button
-          onClick={() => {
-            setFDisp([])
-            setFEstado([])
-          }}
-          className="btn-reponer"
-          style={{
-            padding: '6px 14px',
-            border: '1px solid #EBE0E2',
-            background: 'white',
-            color: '#8C5A66',
-            borderRadius: 5,
-            cursor: 'pointer',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
-          Limpiar
-        </button>
-      </div>
-    </div>
-  )
-}
-
-const estiloGrupo = {
-  fontFamily: "'Quicksand', sans-serif",
-  fontWeight: 600,
-  fontSize: 13,
-  letterSpacing: '.06em',
-  color: '#857078',
-  marginBottom: 10,
-}
 
 
 // Pantalla de Materiales
 
 export default function Materiales() {
+  const [parametros] = useSearchParams()
   const [materiales, setMateriales] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -784,9 +679,27 @@ export default function Materiales() {
   const [materialViendo, setMaterialViendo] = useState(null)
   const [materialEliminando, setMaterialEliminando] = useState(null)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
-  const [fDisp, setFDisp] = useState([])
-  const [fEstado, setFEstado] = useState([])
+  const [filtros, setFiltros] = useState(FILTROS_VACIOS)
+  const [productos, setProductos] = useState([])
   const [vista, setVista] = useState('grid')
+
+
+  // El link a los materiales de un producto llega como /materiales?producto=7.
+  //
+  // Se llama una sola vez, desde la carga inicial, así que no puede pisar lo
+  // que la usuaria toque después.
+  function aplicarProductoDeLaUrl(lista) {
+    const pedido = parametros.get('producto')
+    if (!pedido) return
+
+    const producto = lista.find((p) => String(p.id) === pedido)
+
+    // Un id que no existe se ignora: la pantalla abre normal.
+    if (!producto) return
+
+    setFiltros({ ...FILTROS_VACIOS, producto: producto.id })
+  }
+
 
   // Una sola carga al montar. El buscador filtra sobre estos datos, así que
   // no vuelve a pedir nada y tampoco lleva debounce.
@@ -795,6 +708,15 @@ export default function Materiales() {
       .then((res) => setMateriales(res.data))
       .catch(() => setError('No se pudieron cargar los materiales.'))
       .finally(() => setCargando(false))
+
+    // Los productos son para el filtro "aparece en el producto". Cada uno
+    // trae los ids de sus materiales, así que elegir uno no pide nada más.
+    listarProductos()
+      .then((res) => {
+        setProductos(res.data)
+        aplicarProductoDeLaUrl(res.data)
+      })
+      .catch(() => {})
   }, [])
 
 
@@ -817,22 +739,49 @@ export default function Materiales() {
   }
 
   // Derivados: no se guardan en estado porque se calculan de materiales.
-  const texto = busqueda.trim().toLowerCase()
-
-  const filtrados = materiales.filter(
-    (m) =>
-      (!texto ||
-        m.nombre.toLowerCase().includes(texto) ||
-        m.descripcion.toLowerCase().includes(texto)) &&
-      (fDisp.length === 0 || fDisp.includes(m.disponibilidad)) &&
-      (fEstado.length === 0 || fEstado.includes(m.estado))
-  )
+  const filtrados = candidatos(materiales, filtros, busqueda, productos)
 
   const activos = filtrados.filter((m) => m.estado === 'ACTIVO')
   const discontinuados = filtrados.filter((m) => m.estado === 'DISCONTINUADO')
   const porReponer = materiales.filter((m) => m.estado === 'ACTIVO' && m.disponibilidad === 'BAJA')
 
-  const cantFiltros = fDisp.length + fEstado.length
+  const cantFiltros = contarFiltros(filtros)
+
+  // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo.
+  const chips = []
+
+  filtros.disponibilidades.forEach((d) =>
+    chips.push({
+      clave: `disp-${d}`,
+      label: { ALTA: 'Alta', MEDIA: 'Media', BAJA: 'Baja' }[d],
+      onQuitar: () =>
+        setFiltros({
+          ...filtros,
+          disponibilidades: filtros.disponibilidades.filter((v) => v !== d),
+        }),
+    })
+  )
+
+  filtros.estados.forEach((e) =>
+    chips.push({
+      clave: `estado-${e}`,
+      label: e === 'ACTIVO' ? 'Activo' : 'Discontinuado',
+      onQuitar: () =>
+        setFiltros({ ...filtros, estados: filtros.estados.filter((v) => v !== e) }),
+    })
+  )
+
+  // El del producto dice cuál es: es lo que explica por qué se ven 6
+  // materiales de 17.
+  const productoFiltrado = productos.find((p) => p.id === filtros.producto)
+
+  if (productoFiltrado) {
+    chips.push({
+      clave: 'producto',
+      label: `Aparece en “${productoFiltrado.nombre}”`,
+      onQuitar: () => setFiltros({ ...filtros, producto: null }),
+    })
+  }
 
   const moduloVacio = !cargando && materiales.length === 0
 
@@ -934,7 +883,7 @@ export default function Materiales() {
         </div>
 
         <button
-          onClick={() => setFiltrosAbiertos((v) => !v)}
+          onClick={() => setFiltrosAbiertos(true)}
           style={{
             marginLeft: 'auto',
             display: 'flex',
@@ -1022,14 +971,57 @@ export default function Materiales() {
         </div>
       </div>
 
-      {filtrosAbiertos && (
-        <PanelFiltros
-          fDisp={fDisp}
-          setFDisp={setFDisp}
-          fEstado={fEstado}
-          setFEstado={setFEstado}
-          cantidad={filtrados.length}
-        />
+      {chips.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+            marginBottom: 20,
+          }}
+        >
+          {chips.map((chip) => (
+            <button
+              key={chip.clave}
+              onClick={chip.onQuitar}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '6px 12px',
+                borderRadius: 20,
+                cursor: 'pointer',
+                border: '1px solid #8C5A66',
+                background: '#F0E2E4',
+                color: '#8C5A66',
+                fontFamily: "'Quicksand', sans-serif",
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              {chip.label}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          ))}
+
+          <button
+            onClick={() => setFiltros(FILTROS_VACIOS)}
+            style={{
+              padding: '6px 12px',
+              border: 0,
+              background: 'transparent',
+              color: '#857078',
+              cursor: 'pointer',
+              fontSize: 14,
+              textDecoration: 'underline',
+            }}
+          >
+            Limpiar todo
+          </button>
+        </div>
       )}
 
       {error && (
@@ -1114,6 +1106,20 @@ export default function Materiales() {
         <ModalVerMaterial
           material={materialViendo}
           onCerrar={() => setMaterialViendo(null)}
+        />
+      )}
+
+      {filtrosAbiertos && (
+        <ModalFiltros
+          filtros={filtros}
+          materiales={materiales}
+          productos={productos}
+          busqueda={busqueda}
+          onCerrar={() => setFiltrosAbiertos(false)}
+          onAplicar={(nuevos) => {
+            setFiltros(nuevos)
+            setFiltrosAbiertos(false)
+          }}
         />
       )}
 
