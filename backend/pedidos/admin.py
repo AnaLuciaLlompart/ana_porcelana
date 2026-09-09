@@ -23,18 +23,3 @@ class PedidoAdmin(admin.ModelAdmin):
     search_fields = ('cliente__instagram', 'cliente__nombre')
 
     inlines = [ProductoDelPedidoInline]
-
-
-# ProductoDelPedido va DOS veces: como inline acá arriba y con su propio
-# ModelAdmin acá abajo. Es una diferencia con MaterialProducto e
-# ImagenProducto, que solo viven dentro de la ficha de su producto.
-# El motivo es que los productos del pedido también se miran de corrido,
-# sin importar a qué pedido pertenecen: para ver todo lo que está en
-# secado, por ejemplo. Registrarlo aparte le da su propia entrada en el
-# menú del admin, con el filtro por etapa productiva.
-
-@admin.register(ProductoDelPedido)
-class ProductoDelPedidoAdmin(admin.ModelAdmin):
-    list_display = ('pedido', 'producto', 'cantidad', 'precio', 'estado', 'fecha_cambio_estado')
-    list_filter = ('estado',)
-    search_fields = ('producto__nombre', 'pedido__cliente__instagram')

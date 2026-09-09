@@ -141,6 +141,41 @@ class ProductoViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     # -----------------------------------------------------------------
+    # Sobreescribo destroy, para explicar por qué no se puede eliminar
+    # -----------------------------------------------------------------
+
+    def destroy(self, request, *args, **kwargs):
+        """Impide eliminar un producto que figura en algún pedido.
+
+        La clave foránea de ProductoDelPedido es PROTECT, así que la base
+        rechaza el borrado igual. Pero sin este chequeo la excepción sale
+        como un 500 con el traceback, y quien está del otro lado no se
+        entera de por qué falló ni en cuántos pedidos está la pieza.
+
+        Es la misma salvaguarda que ya tenían los materiales, y por el
+        mismo motivo: eliminar el producto borraría lo que el cliente
+        encargó de los pedidos donde aparece.
+        """
+        producto = self.get_object()
+
+        # Acá sí corresponde .count(): es un solo producto y no hay
+        # ningún prefetch que respetar, así que conviene una consulta que
+        # devuelve un número antes que traerse las filas para contarlas
+        # en Python.
+        cantidad = producto.en_pedidos.count()
+
+        if cantidad > 0:
+            en_pedidos = '1 pedido' if cantidad == 1 else f'{cantidad} pedidos'
+
+            return Response(
+                {'detail': f'No se puede eliminar «{producto.nombre}» porque está '
+                           f'en {en_pedidos}. Si ya no lo hacés más, dalo de baja.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(request, *args, **kwargs)
+
+    # -----------------------------------------------------------------
     # Casos de uso además del CRUD (CU20 a CU24)
     # -----------------------------------------------------------------
 

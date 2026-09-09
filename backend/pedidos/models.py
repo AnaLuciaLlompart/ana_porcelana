@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -165,6 +167,55 @@ class Pedido(models.Model):
         # esto sale como 'Pedido #43 de @martinariosok'.
         return f'Pedido #{self.id} de {self.cliente}'
 
+    # -----------------------------------------------------------------
+    # Propiedades calculadas
+    # -----------------------------------------------------------------
+    # Las tres son plata y no se guardan en la base: se calculan cada vez
+    # que se piden, a partir de los productos del pedido. Guardar un
+    # total sería tener el mismo dato en dos lugares y arriesgarse a que
+    # queden distintos cuando se agrega o se quita una pieza.
+    #
+    # Todas recorren self.productos.all(), nunca .aggregate() ni
+    # .count(). El motivo es el mismo que en Producto: el listado trae
+    # los pedidos con prefetch_related, que guarda en memoria únicamente
+    # el resultado de .all(). Una consulta encadenada ignora lo ya
+    # traído y vuelve a la base una vez por pedido, que es justo el N+1
+    # que el prefetch venía a evitar.
+
+    @property
+    def subtotal(self):
+        """Lo que suman los productos del pedido, sin el envío."""
+        # El Decimal('0') del segundo argumento es el valor con el que
+        # sum() arranca, y es lo que hace que un pedido sin productos
+        # devuelva Decimal('0'). Sin él, sum() empezaría en el entero 0
+        # y devolvería un int cuando la lista está vacía, que después no
+        # se puede sumar con los Decimal del costo de entrega.
+        return sum(
+            (linea.subtotal for linea in self.productos.all()),
+            Decimal('0'),
+        )
+
+    @property
+    def costo_envio_a_cobrar(self):
+        """El costo de entrega que se le suma al total, o cero.
+
+        El envío solo se cobra cuando está a cargo del emprendimiento. Si
+        lo paga el cliente, el costo puede estar cargado igual —sirve
+        para saber cuánto le salió— pero no entra en el total.
+        """
+        if (
+            self.envio_a_cargo == Pedido.EnvioACargo.MIO
+            and self.costo_entrega is not None
+        ):
+            return self.costo_entrega
+
+        return Decimal('0')
+
+    @property
+    def total(self):
+        """Lo que el cliente tiene que pagar por el pedido."""
+        return self.subtotal + self.costo_envio_a_cobrar
+
 
 
 
@@ -302,3 +353,15 @@ class ProductoDelPedido(models.Model):
     # -----------------------------------------------------------------
     def __str__(self):
         return f'{self.producto} en {self.pedido}'
+
+    # -----------------------------------------------------------------
+    # Propiedades calculadas
+    # -----------------------------------------------------------------
+    @property
+    def subtotal(self):
+        """Lo que suman estas piezas: el precio congelado por la cantidad.
+
+        Decimal por entero da Decimal, así que el resultado conserva la
+        precisión exacta del precio.
+        """
+        return self.precio * self.cantidad
