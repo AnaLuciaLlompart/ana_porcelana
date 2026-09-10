@@ -18,9 +18,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
     que no existe ningún estado que deje al registro de solo lectura ni
     operaciones fuera del CRUD.
 
-    destroy() se sobrescribe cuando exista la app pedidos: hay que
-    contar los pedidos del cliente antes de borrar, porque la clave
-    foránea va con PROTECT y el error de la base saldría como un 500.
+    destroy() está sobrescrito: cuenta los pedidos del cliente antes de
+    borrar, porque la clave foránea va con PROTECT y el error de la base
+    saldría como un 500.
     """
 
     queryset = Cliente.objects.all()

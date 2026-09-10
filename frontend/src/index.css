@@ -64,3 +64,7 @@ button:not(:disabled):hover {
 .btn-usuario:hover {
   color: #8C5A66 !important;
 }
+
+.btn-eliminar:hover {
+  background: #FAEAE8 !important;
+}

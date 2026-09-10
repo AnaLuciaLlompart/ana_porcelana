@@ -76,19 +76,20 @@ class PedidoViewSet(viewsets.ModelViewSet):
         y no prefetch_related porque el cliente es una clave foránea:
         se resuelve con un JOIN en la misma consulta.
 
-        Los productos también van en las dos, aunque el listado no los
-        muestre: el total los suma.
+        Los productos van en las dos, y en las dos se llega hasta el
+        producto de cada línea: el listado suma el total y muestra los
+        nombres en la columna CONTENIDO.
 
-        La ficha además los dibuja uno por uno, y para cada línea
-        necesita el nombre de su producto y si ese producto tiene
+        La ficha necesita una relación más, porque además dibuja las
+        líneas una por una y para cada una mira si su producto tiene
         materiales cargados. El doble guión bajo de
         'productos__producto__materiales' es lo que le dice a Django que
-        siga la relación dos niveles más.
+        siga la relación un nivel más.
         """
         queryset = Pedido.objects.select_related('cliente')
 
         if self.action == 'list':
-            return queryset.prefetch_related('productos')
+            return queryset.prefetch_related('productos__producto')
 
         return queryset.prefetch_related('productos__producto__materiales')
 
@@ -128,15 +129,18 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         pedido.estado = estado
 
-        # La fecha de entrega real se completa sola al entregar, que es
-        # el momento en que se sabe. Si ya tenía una cargada NO se pisa:
-        # la usuaria pudo haberla corregido a mano porque entregó otro
-        # día. Y sacar el pedido de Entregado tampoco la borra: el campo
-        # sigue siendo editable desde el formulario.
-        if (
-            estado == Pedido.Estado.ENTREGADO
-            and pedido.fecha_entrega_real is None
-        ):
+        # La fecha de entrega real se completa sola al entregar, que es el
+        # momento en que se sabe, y se escribe SIEMPRE con la fecha de hoy,
+        # aunque el campo ya tuviera una cargada. Tocar el botón Entregado
+        # significa "lo entregué hoy", sin excepciones que haya que
+        # recordar.
+        #
+        # Corregirla a mano se sigue pudiendo: el campo es editable en el
+        # formulario. Lo que no hace es sobrevivir a un nuevo clic acá.
+        #
+        # Sacar el pedido de Entregado no borra la fecha: se corrige desde
+        # el formulario si hace falta.
+        if estado == Pedido.Estado.ENTREGADO:
             pedido.fecha_entrega_real = timezone.localdate()
             pedido.save(update_fields=['estado', 'fecha_entrega_real'])
         else:

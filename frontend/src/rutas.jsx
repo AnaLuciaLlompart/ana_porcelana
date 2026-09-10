@@ -8,6 +8,8 @@ import Categorias from './funcionalidades/categorias/Categorias'
 import Productos from './funcionalidades/productos/Productos'
 import DetalleProducto from './funcionalidades/productos/DetalleProducto'
 import Clientes from './funcionalidades/clientes/Clientes'
+import Pedidos from './funcionalidades/pedidos/Pedidos'
+import DetallePedido from './funcionalidades/pedidos/DetallePedido'
 
 
 
@@ -69,12 +71,12 @@ export default function Rutas() {
             <Route path="/materiales" element={<Materiales />} />
             <Route path="/categorias" element={<Categorias />} />
             <Route path="/productos" element={<Productos />} />
-            {/* El alta usa la misma ficha que la edición. Va ANTES que
-                /productos/:id para que "nuevo" no se lea como un id. */}
-            <Route path="/productos/nuevo" element={<DetalleProducto esAlta />} />
+            <Route path="/productos/nuevo" element={<DetalleProducto esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /productos/:id para que "nuevo" no se lea como un id. */}
             <Route path="/productos/:id" element={<DetalleProducto />} />
             <Route path="/clientes" element={<Clientes />} />
-            <Route path="/pedidos" element={<EnConstruccion />} />
+            <Route path="/pedidos" element={<Pedidos />} />
+            <Route path="/pedidos/nuevo" element={<DetallePedido esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /pedidos/:id para que "nuevo" no se lea como un id. */}
+            <Route path="/pedidos/:id" element={<DetallePedido />} />
             <Route path="/gastos" element={<EnConstruccion />} />
             <Route path="/informes" element={<EnConstruccion />} />
           </Route>

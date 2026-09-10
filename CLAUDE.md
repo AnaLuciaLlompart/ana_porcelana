@@ -219,10 +219,9 @@ otras acciones ya se confirman solas: se cierra el modal y la fila
 aparece, cambia o desaparece de la tabla. Copiar al portapapeles es la
 única acción sin efecto visible.
 
-**Dos componentes a compartir antes de escribir el frontend:**
-`BotonAccion.jsx` hoy vive en `funcionalidades/productos/` y `Toast`
-está declarado adentro de `DetalleProducto.jsx`. Clientes es la segunda
-funcionalidad que los usa, así que van a `componentes/`.
+**Dos componentes compartidos:** `BotonAccion.jsx` y `Toast` viven en
+`componentes/`. Se movieron ahí cuando Clientes pasó a ser la segunda
+funcionalidad que los usaba.
 
 
 

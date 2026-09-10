@@ -109,10 +109,10 @@ class PedidoListaSerializer(serializers.ModelSerializer):
     Trae lo justo para dibujar una fila: quién lo hizo, en qué anda, para
     cuándo es y cuánto suma.
 
-    Los productos del pedido no viajan acá, pero igual hacen falta para
-    armar la respuesta: la columna TOTAL los suma. Por eso el ViewSet los
-    trae con prefetch_related también en el listado, aunque no aparezcan
-    entre los campos.
+    Los productos del pedido no viajan enteros acá, pero igual hacen falta
+    para armar la respuesta: la columna TOTAL los suma y la columna
+    CONTENIDO muestra sus nombres. Por eso el ViewSet los trae con
+    prefetch_related también en el listado.
     """
 
     cliente_instagram = serializers.CharField(
@@ -155,6 +155,7 @@ class PedidoListaSerializer(serializers.ModelSerializer):
     )
 
     cantidad_productos = serializers.SerializerMethodField()
+    productos_nombres = serializers.SerializerMethodField()
 
     class Meta:
         model = Pedido
@@ -176,7 +177,22 @@ class PedidoListaSerializer(serializers.ModelSerializer):
             'costo_envio_a_cobrar',
             'total',
             'cantidad_productos',
+            'productos_nombres',
         ]
+        # El estado se lee pero no se escribe por acá: para cambiarlo está
+        # cambiar_estado, que además escribe la fecha de entrega real al
+        # pasar el pedido a Entregado.
+        #
+        # Sin esto la regla se podría saltear: un PUT con 'estado' adentro
+        # lo cambiaría igual y la fecha quedaría sin completar. Que el
+        # campo sea de solo lectura lo impide de raíz, en vez de confiar en
+        # que nadie lo mande.
+        #
+        # El alta no lo necesita: un pedido nace PENDIENTE por el valor por
+        # defecto del modelo.
+        extra_kwargs = {
+            'estado': {'read_only': True},
+        }
 
     def get_cantidad_productos(self, obj):
         """Cuántas filas de productos tiene el pedido."""
@@ -184,6 +200,28 @@ class PedidoListaSerializer(serializers.ModelSerializer):
         # manda un SELECT por cada pedido del listado e ignora el
         # prefetch_related.
         return len(obj.productos.all())
+
+    def get_productos_nombres(self, obj):
+        """Los nombres distintos de los productos del pedido, en orden.
+
+        La columna CONTENIDO del listado muestra el primero y un «+N» con
+        los que siguen, y ese N cuenta productos DISTINTOS, no filas: el
+        mismo producto puede figurar dos veces en un pedido si difiere en
+        variante o en precio, y ahí sigue siendo una sola pieza para el
+        que lee la tabla.
+
+        Se arma con un for y un 'not in', no con un set: el set no
+        conserva el orden, y el primero de la lista es justamente el que
+        se muestra.
+        """
+        nombres = []
+
+        # Sobre la lista ya traída por el prefetch, como todo lo demás.
+        for linea in obj.productos.all():
+            if linea.producto.nombre not in nombres:
+                nombres.append(linea.producto.nombre)
+
+        return nombres
 
 
 class PedidoDetalleSerializer(PedidoListaSerializer):
