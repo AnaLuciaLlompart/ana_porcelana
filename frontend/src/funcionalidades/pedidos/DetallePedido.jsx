@@ -1,16 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { obtenerPedido, crearPedido, modificarPedido, cambiarEstadoPedido } from './api'
+import {
+  obtenerPedido,
+  crearPedido,
+  modificarPedido,
+  cambiarEstadoPedido,
+  agregarProductoAlPedido,
+  modificarProductoDelPedido,
+  quitarProductoDelPedido,
+} from './api'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
 // endpoint pertenece a esa app y ahí se queda. Acá hace falta la lista
 // completa para el desplegable de clientes.
 import { listarClientes } from '../clientes/api'
+import { listarProductos } from '../productos/api'
 
 import Toast from '../../componentes/Toast'
 
 import PestanaDatos from './PestanaDatos'
+import PestanaProductos from './PestanaProductos'
+import ModalAgregarProducto from './ModalAgregarProducto'
+import ModalEditarProductoDelPedido from './ModalEditarProductoDelPedido'
 import ModalEliminarPedido from './ModalEliminarPedido'
 import {
   COLOR_ESTADO,
@@ -116,6 +128,9 @@ export default function DetallePedido({ esAlta = false }) {
   const [guardando, setGuardando] = useState(false)
 
   const [clientes, setClientes] = useState([])
+  const [productos, setProductos] = useState([])
+  const [modalProducto, setModalProducto] = useState(false)
+  const [productoEditando, setProductoEditando] = useState(null)
   const [modalEliminar, setModalEliminar] = useState(false)
 
   const [toast, setToast] = useState('')
@@ -133,6 +148,10 @@ export default function DetallePedido({ esAlta = false }) {
     }
 
     listarClientes().then((res) => setClientes(res.data)).catch(() => {})
+
+    // El catálogo es para el modal de agregar. Si falla, la ficha igual
+    // sirve: lo único que queda sin poder hacerse es sumar productos.
+    listarProductos().then((res) => setProductos(res.data)).catch(() => {})
   }, [id, esAlta])
 
 
@@ -182,6 +201,38 @@ export default function DetallePedido({ esAlta = false }) {
       ...actual,
       fecha_entrega_real: actualizado.fecha_entrega_real || '',
     }))
+  }
+
+
+  // Las tres operaciones sobre los productos del pedido también son
+  // inmediatas: agregar una pieza al encargo es un hecho consumado, no un
+  // campo que se está editando, así que no hay botón de guardar.
+  //
+  // Las tres devuelven el pedido completo, y por eso alcanza con la
+  // respuesta para que se acomoden de una sola vez la tabla, el subtotal
+  // del pie, el resumen de la otra pestaña y el contador del globito.
+
+  function agregarProducto(datos) {
+    setModalProducto(false)
+    accionInmediata(() => agregarProductoAlPedido(id, datos), 'Producto agregado')
+  }
+
+  function editarProducto(productoDelPedido, datos) {
+    setProductoEditando(null)
+    accionInmediata(
+      () => modificarProductoDelPedido(id, productoDelPedido.id, datos),
+      'Producto actualizado'
+    )
+  }
+
+  function cambiarEtapa(productoDelPedido, estado) {
+    // Sin aviso flotante: el selector ya muestra la etapa nueva.
+    accionInmediata(() => modificarProductoDelPedido(id, productoDelPedido.id, { estado }))
+  }
+
+  function quitarProducto(productoDelPedido) {
+    // Sin aviso flotante: la fila desaparece de la tabla.
+    accionInmediata(() => quitarProductoDelPedido(id, productoDelPedido.id))
   }
 
 
@@ -601,9 +652,34 @@ export default function DetallePedido({ esAlta = false }) {
         </div>
       )}
 
-      {/* Los productos del pedido son CU44 a CU47 y llegan en el paso 3. */}
       {tab === 'productos' && (
-        <p style={{ color: '#857078' }}>Esta pestaña todavía no está desarrollada.</p>
+        <PestanaProductos
+          productos={pedido.productos}
+          subtotal={pedido.subtotal}
+          onAgregar={() => setModalProducto(true)}
+          onEditar={(p) => setProductoEditando(p)}
+          onCambiarEtapa={cambiarEtapa}
+          onQuitar={quitarProducto}
+        />
+      )}
+
+      {modalProducto && (
+        <ModalAgregarProducto
+          // Solo los activos: una pieza dada de baja ya no se ofrece, y
+          // encargarla de nuevo sería volver a ponerla en circulación por
+          // la puerta de atrás.
+          productos={productos.filter((p) => p.estado === 'ACTIVO')}
+          onCerrar={() => setModalProducto(false)}
+          onAgregar={agregarProducto}
+        />
+      )}
+
+      {productoEditando && (
+        <ModalEditarProductoDelPedido
+          productoDelPedido={productoEditando}
+          onCerrar={() => setProductoEditando(null)}
+          onGuardar={editarProducto}
+        />
       )}
 
       {modalEliminar && (

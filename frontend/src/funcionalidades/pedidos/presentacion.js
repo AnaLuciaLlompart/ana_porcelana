@@ -46,6 +46,36 @@ export const COLOR_ESTADO = {
 }
 
 
+// Las cinco etapas productivas del producto del pedido. Son otra cosa que
+// los estados del pedido: el estado es el avance que ve el cliente, la
+// etapa es en qué anda esa pieza en el taller.
+export const ETAPAS = [
+  { valor: 'PENDIENTE', label: 'Pendiente' },
+  { valor: 'MODELADO', label: 'Modelado' },
+  { valor: 'SECADO', label: 'Secado' },
+  { valor: 'PINTURA_BARNIZ', label: 'Pintura-Barniz' },
+  { valor: 'TERMINADO', label: 'Terminado' },
+]
+
+
+// El color del selector de etapa. En el diseño solo Terminado se pinta: es
+// el que dice que la pieza ya está. Las otras cuatro quedan neutras.
+//
+// Se escriben las cinco claves aunque cuatro sean iguales, para poder leer
+// el color de cualquier etapa sin preguntar cuál es.
+export const COLOR_ETAPA = {
+  PENDIENTE: { color: '#3D3238', fondo: 'white', borde: '#EBE0E2' },
+  MODELADO: { color: '#3D3238', fondo: 'white', borde: '#EBE0E2' },
+  SECADO: { color: '#3D3238', fondo: 'white', borde: '#EBE0E2' },
+  PINTURA_BARNIZ: { color: '#3D3238', fondo: 'white', borde: '#EBE0E2' },
+  TERMINADO: { color: '#4E8C6A', fondo: '#E8F5EF', borde: '#4E8C6A' },
+}
+
+
+// A los cuántos días de secado la pieza pasa a estar marcada para revisar.
+export const DIAS_AVISO_SECADO = 3
+
+
 export const ICONO_NUEVO = 'M12 4v16m8-8H4'
 
 export const ICONO_BUSCAR = 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
@@ -65,6 +95,19 @@ export const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 
 // El mismo icono que Pedidos tiene en la barra lateral, igual que hacen
 // Materiales, Productos y Clientes en sus estados vacíos.
 export const ICONO_PEDIDOS = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'
+
+// El más del botón de agregar y la cruz del de quitar, en la pestaña de
+// productos del pedido.
+export const ICONO_MAS = 'M12 5v14m7-7H5'
+
+export const ICONO_CRUZ = 'M6 18L18 6M6 6l12 12'
+
+// El lápiz de editar, el mismo que usan Categorías, Clientes y Materiales.
+export const ICONO_EDITAR = 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+
+// El mismo icono que Materiales tiene en la barra lateral: acompaña al
+// enlace que lleva a los materiales de la pieza.
+export const ICONO_MATERIALES = 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z'
 
 
 // La fecha de hoy en ISO (aaaa-mm-dd), en hora local.
@@ -179,5 +222,30 @@ export function contenido(pedido) {
     texto: nombres[0],
     resto: nombres.length > 1 ? `+${nombres.length - 1}` : '',
     title: nombres.join(' · '),
+  }
+}
+
+
+// Hace cuánto que la pieza está en la etapa donde está, para el texto chico
+// de abajo del selector.
+//
+// Devuelve null en Terminado, que es cuando el diseño no lo muestra: la
+// pieza ya está hecha y no hay nada que vigilar.
+//
+// Una que lleva demasiado en Secado se marca en rojo: el secado tiene un
+// tiempo, y pasado ese tiempo lo que corresponde es ir a fijarse si ya está
+// para pintar.
+export function diasEnEtapa(productoDelPedido) {
+  if (productoDelPedido.estado === 'TERMINADO') return null
+
+  const cuantos = dias(productoDelPedido.fecha_cambio_estado, hoy())
+  const demorada = productoDelPedido.estado === 'SECADO' && cuantos >= DIAS_AVISO_SECADO
+
+  const texto =
+    cuantos === 0 ? 'desde hoy' : cuantos === 1 ? 'desde ayer' : `hace ${cuantos} días`
+
+  return {
+    texto: demorada ? `${texto} · revisar` : texto,
+    color: demorada ? '#C0442F' : '#B08791',
   }
 }
