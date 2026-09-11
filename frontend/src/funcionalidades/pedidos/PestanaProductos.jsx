@@ -128,18 +128,49 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
               cargado: llevaría a una pantalla filtrada sin nada que
               mostrar. En esas filas van dos botones y no tres.
 
+              Es el único de los tres que conserva su texto, porque es el
+              único que se va de la pantalla: conviene que diga adónde
+              lleva antes de tocarlo. Por eso la columna PRODUCTO cede
+              ancho, que es lo que permite que entre.
+
               Navega con navegar() y no con una etiqueta <a>, aunque en el
               diseño sea un enlace: un <a> recargaría la aplicación entera
               en vez de cambiar de pantalla. */}
           {producto.producto_tiene_materiales && (
-            <BotonAccion
+            <button
               onClick={() => navegar(`/materiales?producto=${producto.producto}`)}
-              titulo={`Ver los materiales de ${producto.producto_nombre}`}
-              color="#8C5A66"
-              hover="#F0E2E4"
-              tamanoIcono={20}
-              icono={ICONO_MATERIALES}
-            />
+              title={`Ver los materiales de ${producto.producto_nombre}`}
+              className="btn-reponer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                flexShrink: 0,
+                padding: '8px 12px',
+                border: '1px solid #EBE0E2',
+                background: 'white',
+                color: '#8C5A66',
+                borderRadius: 5,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                fontFamily: "'Quicksand', sans-serif",
+                fontWeight: 600,
+                fontSize: 13,
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                style={{ flexShrink: 0 }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_MATERIALES} />
+              </svg>
+              Ver/Editar Materiales
+            </button>
           )}
 
           <BotonAccion
@@ -245,16 +276,16 @@ export default function PestanaProductos({
           <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#F0E2E4' }}>
-                <th style={{ ...estiloTh, width: '28%', padding: '10px 20px', textAlign: 'left' }}>
+                <th style={{ ...estiloTh, width: '20%', padding: '10px 20px', textAlign: 'left' }}>
                   PRODUCTO
                 </th>
-                <th style={{ ...estiloTh, width: '10%', textAlign: 'center' }}>CANTIDAD</th>
-                <th style={{ ...estiloTh, width: '18%', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                <th style={{ ...estiloTh, width: '9%', textAlign: 'center' }}>CANTIDAD</th>
+                <th style={{ ...estiloTh, width: '15%', textAlign: 'right', whiteSpace: 'nowrap' }}>
                   PRECIO UNITARIO
                 </th>
-                <th style={{ ...estiloTh, width: '12%', textAlign: 'right' }}>SUBTOTAL</th>
+                <th style={{ ...estiloTh, width: '11%', textAlign: 'right' }}>SUBTOTAL</th>
                 <th style={{ ...estiloTh, width: '18%', textAlign: 'left' }}>ETAPA</th>
-                <th style={{ ...estiloTh, width: '14%', textAlign: 'center' }}>ACCIONES</th>
+                <th style={{ ...estiloTh, width: '27%', textAlign: 'center' }}>ACCIONES</th>
               </tr>
             </thead>
 
