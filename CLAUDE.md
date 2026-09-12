@@ -197,22 +197,22 @@ igual que `ModalMaterial`, `ModalVerMaterial` y `ModalEliminarMaterial`.
 El modal de ver reusa los mismos campos del formulario en
 `readOnly disabled`, con el placeholder cambiado a "Sin cargar".
 
-**Implementación por etapas: lo que depende de Pedidos NO se hace
-todavía**, y no se simula con ceros ni con "Sin pedidos". Espera al
-módulo de Pedidos:
+**Lo que dependía de Pedidos ya está hecho**: las columnas PEDIDOS y
+ÚLTIMO con su ordenamiento, el chip "con pedidos en curso", la línea de
+resumen bajo el título, el recuento del modal Ver y la rama bloqueada
+del modal Eliminar. La tabla ordena por ÚLTIMO descendente, como el
+prototipo.
 
-- las columnas PEDIDOS, ÚLTIMO y SALDO, y su ordenamiento
-- los dos chips de filtro (con saldo pendiente, con pedidos en curso)
-- la línea de resumen bajo el título
-- el recuento de pedidos y el chip de saldo dentro del modal Ver
-- la rama bloqueada del modal Eliminar, con candado
+**Implementación por etapas: lo que depende de Cobros NO se hace
+todavía**, y no se simula con ceros. Espera a CU48–CU51:
+
+- la columna SALDO y su ordenamiento
+- el chip de filtro "con saldo pendiente"
+- el chip de saldo dentro del modal Ver
+- el tramo "· N con saldo pendiente" de la línea de resumen
 
 Esto no es una diferencia con el prototipo como las cinco de Productos,
 que son permanentes. Es orden de construcción, y se documenta así.
-
-**Mientras tanto la tabla ordena por usuario de Instagram ascendente**,
-que es el `ordering` del modelo. Cuando exista Pedidos, el orden
-inicial vuelve a ser ÚLTIMO como dice el prototipo.
 
 **El único aviso flotante del módulo es el de copiar el usuario.** Las
 otras acciones ya se confirman solas: se cierra el modal y la fila

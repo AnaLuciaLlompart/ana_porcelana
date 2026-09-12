@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Pedido, ProductoDelPedido
+from .models import Cobro, Pedido, ProductoDelPedido
 
 
 # El inline es un formulario de un modelo hijo incrustado dentro del
@@ -10,6 +10,10 @@ from .models import Pedido, ProductoDelPedido
 
 class ProductoDelPedidoInline(admin.TabularInline):
     model = ProductoDelPedido
+
+
+class CobroInline(admin.TabularInline):
+    model = Cobro
 
 
 @admin.register(Pedido)
@@ -22,4 +26,4 @@ class PedidoAdmin(admin.ModelAdmin):
     # clave foránea.
     search_fields = ('cliente__instagram', 'cliente__nombre')
 
-    inlines = [ProductoDelPedidoInline]
+    inlines = [ProductoDelPedidoInline, CobroInline]

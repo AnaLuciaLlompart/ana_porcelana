@@ -6,6 +6,19 @@ import {
   estiloNombreCampo,
 } from './ModalCliente'
 
+// Lo que dice el recuento, con los textos del diseño.
+function textoPedidos(cliente) {
+  if (cliente.cantidad_pedidos === 0) return 'Sin pedidos registrados'
+
+  const cuantos =
+    cliente.cantidad_pedidos === 1 ? '1 pedido' : `${cliente.cantidad_pedidos} pedidos`
+
+  return cliente.pedidos_en_curso > 0
+    ? `${cuantos} · ${cliente.pedidos_en_curso} en curso`
+    : cuantos
+}
+
+
 export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
   return (
     <div
@@ -105,6 +118,22 @@ export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
               />
             </div>
           ))}
+
+          {/* El recuento va como texto y no como otro campo en solo
+              lectura: los cuatro de arriba son datos del cliente que se
+              pueden editar, y este sale de sus pedidos.
+
+              El diseño le pone al lado un chip con el saldo, que llega
+              con Cobros. */}
+          <div>
+            <label style={estiloEtiqueta}>
+              <span style={estiloNombreCampo}>PEDIDOS</span>
+            </label>
+
+            <p style={{ margin: 0, fontSize: 16, color: '#3D3238' }}>
+              {textoPedidos(cliente)}
+            </p>
+          </div>
         </div>
 
         <div

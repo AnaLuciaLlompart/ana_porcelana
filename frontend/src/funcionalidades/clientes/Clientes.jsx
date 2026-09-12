@@ -7,6 +7,11 @@ import BotonAccion from '../../componentes/BotonAccion'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
 
+// Import que cruza de funcionalidad, con el mismo criterio de siempre: la
+// pieza se queda donde nació y las demás la usan desde ahí. La columna
+// ÚLTIMO muestra la fecha con el mismo formato que la ficha del pedido.
+import { fmtFechaLarga } from '../pedidos/presentacion'
+
 
 // Iconos de las acciones por fila
 const ICONO_VER = 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
@@ -120,7 +125,9 @@ function Acciones({ cliente, onVer, onEditar, onCopiar, onEliminar }) {
 
 
 function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
-  const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
+  // Arranca por ÚLTIMO descendente, que es el orden del diseño: lo primero
+  // que se quiere ver es quién encargó hace poco.
+  const [orden, setOrden] = useState({ campo: 'ultimo', dir: 'desc' })
   const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
 
@@ -134,12 +141,9 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
     setPagina(1)
   }
 
-  // Se copia con [...] para no modificar el arreglo original. Sin columna
-  // elegida no se ordena nada: las filas quedan como las mandó el backend,
-  // que es por usuario ascendente.
+  // Se copia con [...] para no modificar el arreglo original. La tabla
+  // siempre tiene una columna elegida: arranca por ÚLTIMO.
   const ordenados = [...clientes].sort((a, b) => {
-    if (!orden.campo) return 0
-
     let cmp = 0
     if (orden.campo === 'instagram') {
       cmp = a.instagram.localeCompare(b.instagram, 'es')
@@ -147,6 +151,14 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
       // Por nombre y apellido juntos, para que dos Sofías queden ordenadas
       // entre sí por el apellido y no por el orden en que se cargaron.
       cmp = `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`, 'es')
+    } else if (orden.campo === 'pedidos') {
+      cmp = a.cantidad_pedidos - b.cantidad_pedidos
+    } else if (orden.campo === 'ultimo') {
+      // Las fechas se comparan como texto: en formato ISO eso ordena bien,
+      // porque el año va primero y todos los campos miden lo mismo. El
+      // cliente sin pedidos usa la cadena vacía, que queda antes que
+      // cualquier fecha y por eso termina al final en descendente.
+      cmp = (a.ultimo_pedido || '').localeCompare(b.ultimo_pedido || '')
     }
 
     return orden.dir === 'asc' ? cmp : -cmp
@@ -171,7 +183,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               etiqueta="@USUARIO"
               orden={orden}
               onClick={ordenarPor}
-              ancho="25%"
+              ancho="20%"
             />
             <EncabezadoOrdenable
               campo="nombre"
@@ -179,16 +191,32 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               orden={orden}
               onClick={ordenarPor}
               centrado
-              ancho="50%"
+              ancho="25%"
             />
-            <th style={{ ...estiloTh, textAlign: 'center', width: '25%' }}>ACCIONES</th>
+            <EncabezadoOrdenable
+              campo="pedidos"
+              etiqueta="PEDIDOS"
+              orden={orden}
+              onClick={ordenarPor}
+              centrado
+              ancho="13%"
+            />
+            <EncabezadoOrdenable
+              campo="ultimo"
+              etiqueta="ÚLTIMO"
+              orden={orden}
+              onClick={ordenarPor}
+              centrado
+              ancho="16%"
+            />
+            <th style={{ ...estiloTh, textAlign: 'center', width: '26%' }}>ACCIONES</th>
           </tr>
         </thead>
 
         <tbody>
           {cargando && (
             <tr>
-              <td colSpan={3} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
+              <td colSpan={5} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
                 Cargando…
               </td>
             </tr>
@@ -225,6 +253,50 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
                       {c.email}
                     </p>
                   )}
+                </td>
+
+                <td style={{ ...estiloTd, textAlign: 'center' }}>
+                  <span
+                    title={
+                      c.cantidad_pedidos === 1
+                        ? '1 pedido registrado'
+                        : `${c.cantidad_pedidos} pedidos registrados`
+                    }
+                    style={{
+                      fontFamily: "'Quicksand', sans-serif",
+                      fontWeight: 600,
+                      fontSize: 17,
+                    }}
+                  >
+                    {c.cantidad_pedidos}
+                  </span>
+
+                  {c.pedidos_en_curso > 0 && (
+                    <p
+                      style={{
+                        margin: '2px 0 0',
+                        whiteSpace: 'nowrap',
+                        fontSize: 14,
+                        color: '#8C5A66',
+                      }}
+                    >
+                      {c.pedidos_en_curso === 1
+                        ? '1 en curso'
+                        : `${c.pedidos_en_curso} en curso`}
+                    </p>
+                  )}
+                </td>
+
+                <td
+                  style={{
+                    ...estiloTd,
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    fontSize: 15,
+                    color: '#857078',
+                  }}
+                >
+                  {c.ultimo_pedido ? fmtFechaLarga(c.ultimo_pedido) : 'Sin pedidos'}
                 </td>
 
                 <td style={estiloTd}>
@@ -363,6 +435,7 @@ export default function Clientes() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [soloEnCurso, setSoloEnCurso] = useState(false)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [clienteEditando, setClienteEditando] = useState(null)
   const [clienteViendo, setClienteViendo] = useState(null)
@@ -412,11 +485,28 @@ export default function Clientes() {
   // encontraría a "sofi.delgado".
   const texto = busqueda.trim().replace(/^@/, '').toLowerCase()
 
-  const filtrados = clientes.filter(
-    (c) =>
-      !texto ||
-      `${c.instagram} ${c.nombre} ${c.apellido} ${c.email}`.toLowerCase().includes(texto)
-  )
+  const filtrados = clientes.filter((c) => {
+    if (
+      texto &&
+      !`${c.instagram} ${c.nombre} ${c.apellido} ${c.email}`.toLowerCase().includes(texto)
+    ) {
+      return false
+    }
+
+    if (soloEnCurso && c.pedidos_en_curso === 0) return false
+
+    return true
+  })
+
+  // Cuenta sobre TODOS los clientes y no sobre los filtrados: dice cómo
+  // viene el trabajo, no qué se está mirando. Es también el número del
+  // globito del chip.
+  const conPedidosEnCurso = clientes.filter((c) => c.pedidos_en_curso > 0).length
+
+  // El diseño suma acá "· N con saldo pendiente", que es de Cobros.
+  const resumen =
+    `${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}` +
+    (conPedidosEnCurso > 0 ? ` · ${conPedidosEnCurso} con pedidos en curso` : '')
 
   // Propiedades comunes de las cuatro acciones de la fila
   const acciones = {
@@ -433,7 +523,7 @@ export default function Clientes() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 24,
+          marginBottom: 6,
         }}
       >
         <h1
@@ -471,6 +561,8 @@ export default function Clientes() {
           Nuevo cliente
         </button>
       </div>
+
+      <p style={{ margin: '0 0 24px', fontSize: 15, color: '#857078' }}>{resumen}</p>
 
       {error && (
         <p style={{ color: '#C0442F', marginBottom: 16 }}>{error}</p>
@@ -510,6 +602,46 @@ export default function Clientes() {
                 }}
               />
             </div>
+
+            {/* Un solo chip y no un modal de filtros: es el único criterio
+                que tiene sentido en Clientes, que no tiene estado ni baja
+                lógica. El del saldo llega con Cobros. */}
+            <button
+              onClick={() => setSoloEnCurso((v) => !v)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                marginLeft: 'auto',
+                padding: '7px 15px',
+                borderRadius: 20,
+                cursor: 'pointer',
+                fontFamily: "'Quicksand', sans-serif",
+                fontWeight: 600,
+                fontSize: 14,
+                border: soloEnCurso ? '1px solid #8C5A66' : '1px solid #EBE0E2',
+                background: soloEnCurso ? '#F0E2E4' : 'white',
+                color: soloEnCurso ? '#8C5A66' : '#857078',
+              }}
+            >
+              Con pedidos en curso
+              <span
+                style={{
+                  minWidth: 20,
+                  height: 20,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 6px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  background: soloEnCurso ? '#8C5A66' : '#F5F0F1',
+                  color: soloEnCurso ? 'white' : '#857078',
+                }}
+              >
+                {conPedidosEnCurso}
+              </span>
+            </button>
           </div>
 
           <Tabla clientes={filtrados} cargando={cargando} {...acciones} />
@@ -546,6 +678,12 @@ export default function Clientes() {
         <ModalEliminarCliente
           cliente={clienteEliminando}
           onCerrar={() => setClienteEliminando(null)}
+          // Desde la cara bloqueada se pasa a ver la ficha del cliente,
+          // que es lo que ofrece el diseño en vez del botón de borrar.
+          onVerCliente={() => {
+            setClienteViendo(clienteEliminando)
+            setClienteEliminando(null)
+          }}
           onEliminado={() => {
             setClienteEliminando(null)
             recargar()

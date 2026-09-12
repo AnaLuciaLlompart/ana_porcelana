@@ -23,7 +23,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
     saldría como un 500.
     """
 
-    queryset = Cliente.objects.all()
+    # El prefetch es lo que hace que los tres campos calculados del
+    # serializer no disparen una consulta por cliente del listado.
+    queryset = Cliente.objects.prefetch_related('pedidos')
     serializer_class = ClienteSerializer
 
     filter_backends = [filters.SearchFilter]

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Pedido, ProductoDelPedido
+from .models import Cobro, Pedido, ProductoDelPedido
 
 # Hay DOS serializers de Pedido y no uno, por lo mismo que en Productos:
 # la tabla del listado trae muchos pedidos y no necesita el detalle de
@@ -100,6 +100,39 @@ class ProductoDelPedidoModificarSerializer(serializers.ModelSerializer):
         ]
 
 
+# COBROS -----------------------------------------
+
+
+class CobroSerializer(serializers.ModelSerializer):
+    """Un pago del pedido (CU48 a CU51).
+
+    Viaja con las etiquetas legibles al lado de los códigos, como todo
+    valor con choices del proyecto: la pantalla muestra «Seña» y
+    «Transferencia», no SENA ni TRANSFERENCIA.
+    """
+
+    tipo_display = serializers.CharField(
+        source='get_tipo_display',
+        read_only=True,
+    )
+    medio_display = serializers.CharField(
+        source='get_medio_display',
+        read_only=True,
+    )
+
+    class Meta:
+        model = Cobro
+        fields = [
+            'id',
+            'tipo',
+            'tipo_display',
+            'monto',
+            'fecha',
+            'medio',
+            'medio_display',
+        ]
+
+
 # PEDIDOS ---------------------------------------
 
 
@@ -154,6 +187,22 @@ class PedidoListaSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    # Lo que aportan los cobros. cobrado y saldo llevan max_digits=12 por
+    # lo mismo que subtotal y total: suman varias filas. El saldo puede
+    # ser NEGATIVO cuando el cliente pagó de más, y DecimalField lo
+    # admite sin más.
+    cobrado = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    saldo = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+    esta_al_dia = serializers.BooleanField(read_only=True)
+
     cantidad_productos = serializers.SerializerMethodField()
     productos_nombres = serializers.SerializerMethodField()
 
@@ -176,6 +225,9 @@ class PedidoListaSerializer(serializers.ModelSerializer):
             'subtotal',
             'costo_envio_a_cobrar',
             'total',
+            'cobrado',
+            'saldo',
+            'esta_al_dia',
             'cantidad_productos',
             'productos_nombres',
         ]
@@ -235,10 +287,12 @@ class PedidoDetalleSerializer(PedidoListaSerializer):
     """
 
     productos = ProductoDelPedidoSerializer(many=True, read_only=True)
+    cobros = CobroSerializer(many=True, read_only=True)
 
     # Meta hereda de la del listado, así que no se repite el model ni los
     # diecisiete campos: solo se suma el que falta.
     class Meta(PedidoListaSerializer.Meta):
         fields = PedidoListaSerializer.Meta.fields + [
             'productos',
+            'cobros',
         ]

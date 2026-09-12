@@ -216,6 +216,45 @@ class Pedido(models.Model):
         """Lo que el cliente tiene que pagar por el pedido."""
         return self.subtotal + self.costo_envio_a_cobrar
 
+    # -----------------------------------------------------------------
+    # Lo que aportan los cobros del pedido
+    # -----------------------------------------------------------------
+    # Mismas dos reglas que las de arriba: el Decimal('0') de semilla para
+    # que un pedido sin cobros devuelva un Decimal, y recorrer
+    # self.cobros.all() sin encadenarle consultas, para no romper el
+    # prefetch del ViewSet.
+
+    @property
+    def cobrado(self):
+        """Lo que el cliente ya pagó de este pedido."""
+        return sum(
+            (cobro.monto for cobro in self.cobros.all()),
+            Decimal('0'),
+        )
+
+    @property
+    def saldo(self):
+        """Lo que falta cobrar del pedido.
+
+        PUEDE DAR NEGATIVO, y eso no es un error: significa que el
+        cliente pagó de más, sea porque se le devolvió algo o porque
+        abonó de sobra. El diseño lo muestra con su propio chip, «A
+        favor $X», distinto de «Debe $X» y de «Al día».
+
+        Por eso no se recorta con un max(0, ...): ese cero taparía
+        información que hace falta para devolverle la diferencia.
+        """
+        return self.total - self.cobrado
+
+    @property
+    def esta_al_dia(self):
+        """Si el pedido no tiene nada pendiente de cobro.
+
+        Incluye a los que pagaron de más: el que abonó de sobra tampoco
+        debe nada. Es el mismo criterio del filtro «Al día» del diseño.
+        """
+        return self.saldo <= 0
+
 
 
 
@@ -365,3 +404,113 @@ class ProductoDelPedido(models.Model):
         precisión exacta del precio.
         """
         return self.precio * self.cantidad
+
+
+
+
+class Cobro(models.Model):
+    """Un pago que el cliente hizo de su pedido (CU48 a CU51).
+
+    Un pedido puede cobrarse de una sola vez o en partes: lo habitual es
+    una seña al encargar y el resto al entregar, y por eso los cobros son
+    varios y no un campo del pedido.
+
+    El on_delete es CASCADE, como en ProductoDelPedido: un cobro no
+    significa nada sin el pedido que lo explica, así que se va con él.
+
+    NO se valida que la suma de los cobros no pase el total del pedido.
+    Puede pasar de verdad, y el saldo negativo es la forma de verlo.
+    """
+
+    # -----------------------------------------------------------------
+    # Conjuntos de valores fijos (los ENUM del modelo lógico)
+    # -----------------------------------------------------------------
+    # Los códigos van en ASCII aunque la etiqueta lleve eñe, igual que
+    # EN_PRODUCCION se guarda sin tilde: lo que viaja a la base es el
+    # código, y la ortografía vive en la etiqueta.
+    class Tipo(models.TextChoices):
+        SENA = 'SENA', 'Seña'
+        PAGO_RESTANTE = 'PAGO_RESTANTE', 'Pago restante'
+        PAGO_COMPLETO = 'PAGO_COMPLETO', 'Pago completo'
+
+    class Medio(models.TextChoices):
+        EFECTIVO = 'EFECTIVO', 'Efectivo'
+        TRANSFERENCIA = 'TRANSFERENCIA', 'Transferencia'
+
+    # -----------------------------------------------------------------
+    # Campos
+    # -----------------------------------------------------------------
+    pedido = models.ForeignKey(
+        Pedido,
+        on_delete=models.CASCADE,
+        related_name='cobros',
+        verbose_name='pedido',
+        help_text='El pedido que se está pagando.',
+    )
+
+    tipo = models.CharField(
+        max_length=13,                    # alcanza para 'PAGO_RESTANTE'
+        choices=Tipo.choices,
+        default=Tipo.SENA,                # el primer cobro suele ser la seña
+        verbose_name='tipo',
+        help_text='Si es la seña, el pago restante o el pago completo.',
+    )
+
+    # DecimalField y no FloatField, por lo mismo que en Producto: guarda
+    # el número exacto, sin el error de redondeo de la coma flotante.
+    #
+    # El validator exige 0.01 y no 0 porque la restricción de la base
+    # pide monto MAYOR a cero. Con MinValueValidator(0) un cobro de cero
+    # pasaría la validación y lo rechazaría recién PostgreSQL: un 500 en
+    # lugar de un mensaje. Los dos tienen que frenar lo mismo, y 0.01 es
+    # el monto más chico que entra en dos decimales.
+    monto = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name='monto',
+        help_text='Cuánto pagó. Tiene que ser mayor a cero.',
+    )
+
+    fecha = models.DateField(
+        default=timezone.localdate,
+        verbose_name='fecha',
+        help_text='Cuándo lo pagó. Nace con la fecha de hoy y se puede corregir.',
+    )
+
+    medio = models.CharField(
+        max_length=13,                    # alcanza para 'TRANSFERENCIA'
+        choices=Medio.choices,
+        default=Medio.TRANSFERENCIA,
+        verbose_name='medio',
+        help_text='Cómo lo pagó.',
+    )
+
+    # -----------------------------------------------------------------
+    # Metadatos: configuración de la TABLA, no de los datos
+    # -----------------------------------------------------------------
+    class Meta:
+        # El cobro más reciente primero, como los lista el diseño. El id
+        # desempata los del mismo día, así que el orden es siempre el
+        # mismo ante los mismos datos.
+        ordering = ['-fecha', '-id']
+        verbose_name = 'cobro'
+        verbose_name_plural = 'cobros'
+
+        # Igual que en Producto y en ProductoDelPedido: el validator
+        # actúa al validar y esta restricción la impone PostgreSQL
+        # siempre, también ante un .save() desde el shell.
+        #
+        # Es __gt y no __gte: un cobro de cero no es un cobro.
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(monto__gt=0),
+                name='cobro_monto_positivo',
+            ),
+        ]
+
+    # -----------------------------------------------------------------
+    # Representación en texto
+    # -----------------------------------------------------------------
+    def __str__(self):
+        return f'{self.get_tipo_display()} de ${self.monto}'

@@ -7,6 +7,7 @@ from productos.models import Producto
 
 from .models import Pedido
 from .serializers import (
+    CobroSerializer,
     PedidoDetalleSerializer,
     PedidoListaSerializer,
     ProductoDelPedidoModificarSerializer,
@@ -78,7 +79,9 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         Los productos van en las dos, y en las dos se llega hasta el
         producto de cada línea: el listado suma el total y muestra los
-        nombres en la columna CONTENIDO.
+        nombres en la columna CONTENIDO. Los cobros también van en las
+        dos: el listado los necesita para el saldo y la ficha además
+        para mostrarlos.
 
         La ficha necesita una relación más, porque además dibuja las
         líneas una por una y para cada una mira si su producto tiene
@@ -89,9 +92,9 @@ class PedidoViewSet(viewsets.ModelViewSet):
         queryset = Pedido.objects.select_related('cliente')
 
         if self.action == 'list':
-            return queryset.prefetch_related('productos__producto')
+            return queryset.prefetch_related('productos__producto', 'cobros')
 
-        return queryset.prefetch_related('productos__producto__materiales')
+        return queryset.prefetch_related('productos__producto__materiales', 'cobros')
 
     # -----------------------------------------------------------------
     # El estado del pedido, que es parte de CU42
@@ -338,6 +341,134 @@ class PedidoViewSet(viewsets.ModelViewSet):
             )
 
         linea.delete()
+
+        pedido.refresh_from_db()
+
+        return Response(self.get_serializer(pedido).data)
+
+
+
+    # -----------------------------------------------------------------
+    # Los cobros del pedido (CU48 a CU51)
+    # -----------------------------------------------------------------
+    # Misma forma que los productos del pedido: una colección que cuelga
+    # del pedido, con las cuatro operaciones sobre la misma URL base.
+    #
+    #   GET    /api/pedidos/1/cobros/     lista        (CU49)
+    #   POST   /api/pedidos/1/cobros/     registra     (CU48)
+    #   PATCH  /api/pedidos/1/cobros/3/   lo modifica  (CU50)
+    #   DELETE /api/pedidos/1/cobros/3/   lo borra     (CU51)
+
+    def _buscar_cobro(self, pedido, cobro_id):
+        """Busca un cobro ENTRE LOS DE ESTE PEDIDO, o devuelve None.
+
+        Recorre pedido.cobros, que get_object() ya trajo con el prefetch.
+        Buscar dentro de esa lista, y no en Cobro.objects, es lo que
+        garantiza que el cobro sea de este pedido: uno ajeno
+        directamente no está en la lista. Sin eso, mandando un id
+        cualquiera se podrían tocar los cobros de otro pedido.
+
+        El \d+ del url_path ya garantizó que cobro_id sean dígitos, así
+        que el int() no puede fallar.
+        """
+        for cobro in pedido.cobros.all():
+            if cobro.pk == int(cobro_id):
+                return cobro
+
+        return None
+
+    @action(detail=True, methods=['get'], url_path='cobros')
+    def cobros(self, request, pk=None):
+        """CU49 - Listar los cobros de un pedido.
+
+        Vienen del más reciente al más viejo, que es el ordering del
+        modelo y el orden en que los muestra la pestaña.
+        """
+        pedido = self.get_object()
+
+        return Response(
+            CobroSerializer(pedido.cobros.all(), many=True).data
+        )
+
+    @cobros.mapping.post
+    def registrar_cobro(self, request, pk=None):
+        """CU48 - Registrar un cobro del pedido.
+
+        En el cuerpo llegan 'monto' y, opcionalmente, 'tipo', 'fecha' y
+        'medio', que tienen valor por defecto en el modelo.
+
+        NO se valida que la suma de los cobros no pase el total del
+        pedido, y es a propósito: pasa de verdad cuando un cliente paga
+        de más o cuando hay una devolución. El saldo queda negativo y la
+        pantalla lo muestra como plata a favor, que es información que
+        hace falta para devolvérsela. Lo único que se valida del monto es
+        que sea mayor a cero, y de eso se encarga el serializer.
+        """
+        pedido = self.get_object()
+
+        # Se guarda con el serializer y no con .objects.create() porque
+        # hay un número que validar: sin esto, un monto en cero lo
+        # rechaza la CheckConstraint de PostgreSQL y el frontend recibe
+        # un 500 en vez de un mensaje que se pueda mostrar.
+        serializer = CobroSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # El pedido no viene en el cuerpo: sale de la URL, y se lo
+        # pasamos acá para que nadie pueda registrarle un cobro a otro
+        # pedido mandándolo en el formulario.
+        serializer.save(pedido=pedido)
+
+        pedido.refresh_from_db()
+
+        return Response(self.get_serializer(pedido).data)
+
+    @action(detail=True, methods=['patch'],
+            url_path=r'cobros/(?P<cobro_id>\d+)')
+    def modificar_cobro(self, request, pk=None, cobro_id=None):
+        """CU50 - Modificar un cobro del pedido.
+
+        Se pueden corregir el tipo, el monto, la fecha y el medio: un
+        cobro mal anotado se arregla, no se borra y se vuelve a cargar.
+        """
+        pedido = self.get_object()
+
+        cobro = self._buscar_cobro(pedido, cobro_id)
+
+        if cobro is None:
+            return Response(
+                {'detail': 'Ese cobro no pertenece a este pedido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # partial=True: es un PATCH, así que lo que no venga en el cuerpo
+        # se deja como está. El serializer valida el monto por lo mismo
+        # que en el alta.
+        serializer = CobroSerializer(cobro, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        pedido.refresh_from_db()
+
+        return Response(self.get_serializer(pedido).data)
+
+    @modificar_cobro.mapping.delete
+    def borrar_cobro(self, request, pk=None, cobro_id=None):
+        """CU51 - Borrar un cobro del pedido.
+
+        Se usa cuando el cobro se anotó por error. El pedido queda con
+        el saldo que tenía antes de registrarlo.
+        """
+        pedido = self.get_object()
+
+        cobro = self._buscar_cobro(pedido, cobro_id)
+
+        if cobro is None:
+            return Response(
+                {'detail': 'Ese cobro no pertenece a este pedido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cobro.delete()
 
         pedido.refresh_from_db()
 
