@@ -77,3 +77,35 @@ export function modificarProductoDelPedido(id, lineaId, datos) {
 export function quitarProductoDelPedido(id, lineaId) {
   return cliente.delete(`/pedidos/${id}/productos/${lineaId}/`)
 }
+
+
+// =====================================================================
+//  COBROS DEL PEDIDO  ·  CU48 a CU51
+// =====================================================================
+// listarCobrosDelPedido  CU49 - listar
+// registrarCobro         CU48 - registrar
+// modificarCobro         CU50 - modificar
+// borrarCobro            CU51 - borrar
+//
+// El mismo criterio de ids que los productos del pedido: registrar va
+// contra el PEDIDO, porque el cobro todavía no existe, y modificar y
+// borrar van contra el COBRO.
+//
+// Al registrar alcanza con el monto: el tipo, la fecha y el medio tienen
+// valor por defecto en el modelo.
+
+export function listarCobrosDelPedido(id) {
+  return cliente.get(`/pedidos/${id}/cobros/`)
+}
+
+export function registrarCobro(id, datos) {
+  return cliente.post(`/pedidos/${id}/cobros/`, datos)
+}
+
+export function modificarCobro(id, cobroId, datos) {
+  return cliente.patch(`/pedidos/${id}/cobros/${cobroId}/`, datos)
+}
+
+export function borrarCobro(id, cobroId) {
+  return cliente.delete(`/pedidos/${id}/cobros/${cobroId}/`)
+}

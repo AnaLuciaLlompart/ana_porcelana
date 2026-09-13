@@ -9,6 +9,9 @@ import {
   agregarProductoAlPedido,
   modificarProductoDelPedido,
   quitarProductoDelPedido,
+  registrarCobro,
+  modificarCobro,
+  borrarCobro,
 } from './api'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
@@ -21,15 +24,17 @@ import Toast from '../../componentes/Toast'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
+import PestanaCobros from './PestanaCobros'
 import ModalAgregarProducto from './ModalAgregarProducto'
 import ModalEditarProductoDelPedido from './ModalEditarProductoDelPedido'
+import ModalCobro from './ModalCobro'
 import ModalEliminarPedido from './ModalEliminarPedido'
 import {
   COLOR_ESTADO,
   ESTADOS,
   ICONO_ALERTA,
   ICONO_FLECHA,
-  formatearPrecio,
+  chipSaldo,
   hoy,
 } from './presentacion'
 
@@ -84,27 +89,8 @@ function mensajeDeError(err) {
 const PESTANAS = [
   { id: 'datos', label: 'Datos y estado' },
   { id: 'productos', label: 'Productos del pedido' },
+  { id: 'cobros', label: 'Cobros' },
 ]
-
-
-// Una fila del resumen. La de "Envío (lo paga el cliente)" va apagada,
-// porque es plata que el pedido no cobra.
-function FilaResumen({ etiqueta, valor, apagada }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-      <span style={{ color: apagada ? '#B08791' : '#857078' }}>{etiqueta}</span>
-      <span
-        style={{
-          color: apagada ? '#B08791' : '#3D3238',
-          fontFamily: apagada ? 'inherit' : "'Quicksand', sans-serif",
-          fontWeight: apagada ? 400 : 600,
-        }}
-      >
-        {valor}
-      </span>
-    </div>
-  )
-}
 
 
 // La misma ficha atiende dos casos: el alta (/pedidos/nuevo) y la edición
@@ -131,6 +117,11 @@ export default function DetallePedido({ esAlta = false }) {
   const [productos, setProductos] = useState([])
   const [modalProducto, setModalProducto] = useState(false)
   const [productoEditando, setProductoEditando] = useState(null)
+
+  // null cuando está cerrado. Abierto guarda o bien el cobro que se está
+  // editando, o bien la cadena 'nuevo' para el alta: hacen falta los dos
+  // casos y null ya significa "cerrado".
+  const [modalCobro, setModalCobro] = useState(null)
   const [modalEliminar, setModalEliminar] = useState(false)
 
   const [toast, setToast] = useState('')
@@ -236,6 +227,31 @@ export default function DetallePedido({ esAlta = false }) {
   }
 
 
+  // Los cobros van por el mismo camino: el pedido se cobra o no se
+  // cobra, no es un campo que se esté editando. Las tres devuelven el
+  // pedido completo, así que el resumen, el chip del encabezado y el
+  // contador de la pestaña se acomodan solos.
+
+  function guardarCobro(cobro, datos) {
+    setModalCobro(null)
+
+    // El mismo modal registra y edita: si trae un cobro, es una
+    // corrección.
+    if (cobro) {
+      accionInmediata(() => modificarCobro(id, cobro.id, datos))
+      return
+    }
+
+    accionInmediata(() => registrarCobro(id, datos), 'Cobro registrado')
+  }
+
+  function quitarCobro(cobro) {
+    // Sin aviso flotante: la fila desaparece de la lista y el saldo se
+    // mueve solo.
+    accionInmediata(() => borrarCobro(id, cobro.id))
+  }
+
+
   // Devuelve el id del pedido si salió bien, o null si no. En un alta ese
   // id es el del pedido recién creado, y hace falta para navegar a su ficha.
   async function guardarDatos() {
@@ -328,16 +344,12 @@ export default function DetallePedido({ esAlta = false }) {
   const titulo = esAlta ? 'Nuevo pedido' : `Pedido #${pedido.id}`
 
   const colorEstado = esAlta ? null : COLOR_ESTADO[pedido.estado]
-
-  // El costo que el cliente paga por su cuenta: se anota igual, pero no
-  // entra en el total del pedido.
-  const costoDelCliente =
-    !esAlta && pedido.envio_a_cargo === 'CLIENTE' && Number(pedido.costo_entrega) > 0
-
-  const costoPropio = !esAlta && Number(pedido.costo_envio_a_cobrar) > 0
+  const chipDelSaldo = esAlta ? null : chipSaldo(pedido.saldo)
 
   // En un alta no hay nada que contar, así que la pestaña va sin globito.
-  const CUENTAS = esAlta ? {} : { productos: pedido.cantidad_productos }
+  const CUENTAS = esAlta
+    ? {}
+    : { productos: pedido.cantidad_productos, cobros: pedido.cobros.length }
 
   return (
     <div>
@@ -392,21 +404,39 @@ export default function DetallePedido({ esAlta = false }) {
           <span>{subtitulo}</span>
 
           {!esAlta && (
-            <span
-              style={{
-                whiteSpace: 'nowrap',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 14,
-                borderRadius: 20,
-                padding: '5px 12px',
-                border: `1px solid ${colorEstado.borde}`,
-                background: colorEstado.fondo,
-                color: colorEstado.color,
-              }}
-            >
-              {pedido.estado_display}
-            </span>
+            <>
+              <span
+                style={{
+                  whiteSpace: 'nowrap',
+                  fontFamily: "'Quicksand', sans-serif",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  borderRadius: 20,
+                  padding: '5px 12px',
+                  border: `1px solid ${colorEstado.borde}`,
+                  background: colorEstado.fondo,
+                  color: colorEstado.color,
+                }}
+              >
+                {pedido.estado_display}
+              </span>
+
+              <span
+                style={{
+                  whiteSpace: 'nowrap',
+                  fontFamily: "'Quicksand', sans-serif",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  borderRadius: 20,
+                  padding: '5px 12px',
+                  border: `1px solid ${chipDelSaldo.borde}`,
+                  background: chipDelSaldo.fondo,
+                  color: chipDelSaldo.color,
+                }}
+              >
+                {chipDelSaldo.texto}
+              </span>
+            </>
           )}
         </div>
       </div>
@@ -577,79 +607,16 @@ export default function DetallePedido({ esAlta = false }) {
             error={error}
           />
 
-          {/* El resumen muestra lo GUARDADO, no el borrador: los tres
-              números los calcula el backend, y recalcularlos acá sería
-              escribir por segunda vez una regla que ya está resuelta del
-              otro lado. Al guardar se actualizan solos. */}
-          {!esAlta && (
-            <div
-              style={{
-                background: 'white',
-                border: '1px solid #EBE0E2',
-                borderRadius: 8,
-                padding: 20,
-                maxWidth: 360,
-              }}
-            >
-              <h2
-                style={{
-                  margin: '0 0 14px',
-                  fontFamily: "'Quicksand', sans-serif",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  color: '#8C5A66',
-                  letterSpacing: '.06em',
-                }}
-              >
-                RESUMEN
-              </h2>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 15 }}>
-                <FilaResumen etiqueta="Productos" valor={formatearPrecio(pedido.subtotal)} />
-
-                {costoPropio && (
-                  <FilaResumen
-                    etiqueta="Envío"
-                    valor={formatearPrecio(pedido.costo_envio_a_cobrar)}
-                  />
-                )}
-
-                {costoDelCliente && (
-                  <FilaResumen
-                    etiqueta="Envío (lo paga el cliente)"
-                    valor={formatearPrecio(pedido.costo_entrega)}
-                    apagada
-                  />
-                )}
-
-                <div style={{ height: 1, background: '#EBE0E2', margin: '4px 0' }} />
-
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                    alignItems: 'baseline',
-                  }}
-                >
-                  <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 600 }}>
-                    Total
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "'Quicksand', sans-serif",
-                      fontWeight: 700,
-                      fontSize: 20,
-                      color: '#8C5A66',
-                    }}
-                  >
-                    {formatearPrecio(pedido.total)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
+      )}
+
+      {tab === 'cobros' && (
+        <PestanaCobros
+          pedido={pedido}
+          onRegistrar={() => setModalCobro('nuevo')}
+          onEditar={(cobro) => setModalCobro(cobro)}
+          onQuitar={quitarCobro}
+        />
       )}
 
       {tab === 'productos' && (
@@ -679,6 +646,19 @@ export default function DetallePedido({ esAlta = false }) {
           productoDelPedido={productoEditando}
           onCerrar={() => setProductoEditando(null)}
           onGuardar={editarProducto}
+        />
+      )}
+
+      {modalCobro && (
+        <ModalCobro
+          // 'nuevo' es el alta; cualquier otra cosa es el cobro que se
+          // está corrigiendo.
+          cobro={modalCobro === 'nuevo' ? null : modalCobro}
+          saldo={pedido.saldo}
+          total={pedido.total}
+          hayCobros={pedido.cobros.length > 0}
+          onCerrar={() => setModalCobro(null)}
+          onGuardar={guardarCobro}
         />
       )}
 

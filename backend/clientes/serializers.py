@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from pedidos.models import Pedido
@@ -17,6 +19,15 @@ class ClienteSerializer(serializers.ModelSerializer):
     pedidos_en_curso = serializers.SerializerMethodField()
     ultimo_pedido = serializers.SerializerMethodField()
 
+    # El saldo del cliente sale de los saldos de sus pedidos, que a su vez
+    # salen de sus productos y sus cobros. Por eso el prefetch del ViewSet
+    # llega dos niveles más abajo que para los tres de arriba.
+    #
+    # max_digits es 12 porque suma varios pedidos, como en el serializer de
+    # Pedido. Puede ser NEGATIVO si en algún pedido pagó de más.
+    saldo = serializers.SerializerMethodField()
+    esta_al_dia = serializers.SerializerMethodField()
+
     class Meta:
         model = Cliente
         fields = [
@@ -28,6 +39,8 @@ class ClienteSerializer(serializers.ModelSerializer):
             'cantidad_pedidos',
             'pedidos_en_curso',
             'ultimo_pedido',
+            'saldo',
+            'esta_al_dia',
         ]
 
     # -----------------------------------------------------------------
@@ -77,3 +90,24 @@ class ClienteSerializer(serializers.ModelSerializer):
             return None
 
         return pedidos[0].fecha_pedido
+
+    def get_saldo(self, obj):
+        """Cuánto le debe el cliente, sumando todos sus pedidos.
+
+        Se apoya en la propiedad saldo de Pedido en vez de rehacer la
+        cuenta: así la regla de qué es el saldo vive en un solo lugar.
+
+        Puede dar NEGATIVO si en algún pedido pagó de más.
+        """
+        return sum(
+            (pedido.saldo for pedido in obj.pedidos.all()),
+            Decimal('0'),
+        )
+
+    def get_esta_al_dia(self, obj):
+        """Si el cliente no debe nada.
+
+        Incluye al que pagó de más: tampoco debe. Es el mismo criterio
+        que usa el pedido.
+        """
+        return self.get_saldo(obj) <= 0

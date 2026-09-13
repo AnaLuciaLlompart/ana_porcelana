@@ -13,6 +13,9 @@ export const FILTROS_VACIOS = {
   // Un id, no una lista: de clientes se elige uno solo.
   cliente: null,
   estados: [],
+  // Una lista como los estados: el diseño deja marcar las dos opciones
+  // a la vez, aunque eso no devuelva nada.
+  saldo: [],
   // Los extremos del rango de total. Vacío significa "sin límite de este
   // lado", que no es lo mismo que cero: cero es un total válido.
   desde: '',
@@ -37,6 +40,17 @@ export function candidatos(pedidos, filtros, busqueda = '') {
 
     if (filtros.estados.length > 0 && !filtros.estados.includes(p.estado)) return false
 
+    // Las dos opciones del saldo son EXCLUSIONES, no una unión: cada una
+    // saca lo que no cumple. Por eso marcar las dos no devuelve nada, que
+    // es lo que hace el diseño.
+    //
+    // "Al día" incluye a los que pagaron de más: el que abonó de sobra
+    // tampoco debe nada.
+    const saldo = Number(p.saldo)
+
+    if (filtros.saldo.includes('PENDIENTE') && saldo <= 0) return false
+    if (filtros.saldo.includes('AL_DIA') && saldo > 0) return false
+
     // El total llega como TEXTO ("15500.00"): DRF serializa así los Decimal
     // para que no pierdan precisión al pasar por el número de JavaScript.
     // Hay que convertirlo para compararlo con los valores de los
@@ -57,6 +71,7 @@ export function contarFiltros(filtros) {
   return (
     (filtros.cliente !== null ? 1 : 0) +
     filtros.estados.length +
+    filtros.saldo.length +
     (filtros.desde !== '' || filtros.hasta !== '' ? 1 : 0)
   )
 }

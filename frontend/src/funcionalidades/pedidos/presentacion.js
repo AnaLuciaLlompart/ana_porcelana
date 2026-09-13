@@ -10,7 +10,12 @@
 // importa de Productos en vez de escribirse de nuevo. Es el mismo criterio
 // con el que Materiales importa listarProductos: la pieza se queda en la
 // funcionalidad donde nació y las demás la usan desde ahí.
-export { formatearPrecio } from '../productos/presentacion'
+// Se importa Y se re-exporta: el re-export solo la deja disponible para
+// quien importe este archivo, no dentro de él, y chipSaldo la necesita
+// para armar su texto.
+import { formatearPrecio } from '../productos/presentacion'
+
+export { formatearPrecio }
 
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
@@ -29,6 +34,15 @@ export const ESTADOS = [
 // Los extremos de los deslizadores del filtro por total.
 export const TOTAL_MIN = 0
 export const TOTAL_MAX = 60000
+
+
+// Las dos opciones del filtro por saldo. Viven acá porque las usan dos
+// archivos: el modal de filtros para los chips y la pantalla para la
+// etiqueta del filtro aplicado.
+export const OPCIONES_SALDO = [
+  { valor: 'PENDIENTE', label: 'Con saldo pendiente' },
+  { valor: 'AL_DIA', label: 'Al día' },
+]
 
 
 // El color de cada estado en la ficha. Es el colorEstado() del prototipo,
@@ -70,6 +84,19 @@ export const COLOR_ETAPA = {
   PINTURA_BARNIZ: { color: '#3D3238', fondo: 'white', borde: '#EBE0E2' },
   TERMINADO: { color: '#4E8C6A', fondo: '#E8F5EF', borde: '#4E8C6A' },
 }
+
+
+// Los tipos de cobro y los medios de pago, con los códigos del backend.
+export const TIPOS_COBRO = [
+  { valor: 'SENA', label: 'Seña' },
+  { valor: 'PAGO_RESTANTE', label: 'Pago restante' },
+  { valor: 'PAGO_COMPLETO', label: 'Pago completo' },
+]
+
+export const MEDIOS = [
+  { valor: 'EFECTIVO', label: 'Efectivo' },
+  { valor: 'TRANSFERENCIA', label: 'Transferencia' },
+]
 
 
 // A los cuántos días de secado la pieza pasa a estar marcada para revisar.
@@ -247,5 +274,45 @@ export function diasEnEtapa(productoDelPedido) {
   return {
     texto: demorada ? `${texto} · revisar` : texto,
     color: demorada ? '#C0442F' : '#B08791',
+  }
+}
+
+
+// Cómo se muestra el saldo de un pedido: las tres caras del diseño.
+//
+// El saldo llega como TEXTO ("15500.00"), porque DRF serializa así los
+// decimales para que no pierdan precisión. Hay que convertirlo antes de
+// compararlo con cero: sobre un texto, «"-500.00" > 0» no significa nada.
+//
+// La tercera cara es la del cliente que pagó de más. El backend manda el
+// saldo negativo sin recortarlo justamente para poder mostrarla: esa
+// plata hay que devolverla, así que no puede quedar escondida detrás de
+// un «Al día».
+export function chipSaldo(saldo) {
+  const numero = Number(saldo)
+
+  if (numero > 0) {
+    return {
+      texto: `Debe ${formatearPrecio(numero)}`,
+      color: '#C0442F',
+      fondo: '#FAEAE8',
+      borde: '#C0442F',
+    }
+  }
+
+  if (numero < 0) {
+    return {
+      texto: `A favor ${formatearPrecio(-numero)}`,
+      color: '#8A6320',
+      fondo: '#FDF3E0',
+      borde: '#D9A441',
+    }
+  }
+
+  return {
+    texto: 'Al día',
+    color: '#4E8C6A',
+    fondo: '#E8F5EF',
+    borde: '#4E8C6A',
   }
 }

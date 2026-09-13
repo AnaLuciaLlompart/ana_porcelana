@@ -12,7 +12,9 @@ import {
   ICONO_NUEVO,
   ICONO_PEDIDOS,
   ICONO_VER,
+  OPCIONES_SALDO,
   atraso,
+  chipSaldo,
   contenido,
   entregaTexto,
   entregaTitle,
@@ -44,12 +46,8 @@ const estiloTd = {
   color: '#3D3238',
 }
 
-// Las columnas del listado, con los anchos del diseño.
-//
-// La columna SALDO del prototipo no está: depende de Cobros. Los anchos que
-// quedan suman 87% en vez de 100%, y con table-layout fijo el navegador
-// reparte lo que falta entre las columnas manteniendo la proporción, así
-// que la tabla se ve con las mismas proporciones relativas del diseño.
+// Las columnas del listado, con los anchos del diseño. Con la de SALDO
+// suman exactamente 100 junto al 9% de ACCIONES.
 const COLS = [
   { campo: 'id', label: 'PEDIDO', ancho: '10%', justify: 'flex-start' },
   { campo: 'cliente', label: 'CLIENTE', ancho: '16%', justify: 'flex-start' },
@@ -57,6 +55,7 @@ const COLS = [
   { campo: 'entrega', label: 'ENTREGA', ancho: '12%', justify: 'center' },
   { campo: 'estado', label: 'ESTADO', ancho: '13%', justify: 'center' },
   { campo: 'total', label: 'TOTAL', ancho: '10%', justify: 'flex-end' },
+  { campo: 'saldo', label: 'SALDO', ancho: '13%', justify: 'center' },
 ]
 
 // Orden del flujo de trabajo, no alfabético: por código se ordenarían
@@ -208,6 +207,8 @@ function Tabla({ pedidos, cargando, onVer, onEliminar }) {
       // El total viene como texto, así que se convierte: comparándolo como
       // texto, "9000" quedaría después de "15500".
       cmp = Number(a.total) - Number(b.total)
+    } else if (orden.campo === 'saldo') {
+      cmp = Number(a.saldo) - Number(b.saldo)
     }
 
     return orden.dir === 'asc' ? cmp : -cmp
@@ -254,7 +255,7 @@ function Tabla({ pedidos, cargando, onVer, onEliminar }) {
         <tbody>
           {cargando && (
             <tr>
-              <td colSpan={7} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
+              <td colSpan={8} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
                 Cargando…
               </td>
             </tr>
@@ -263,6 +264,7 @@ function Tabla({ pedidos, cargando, onVer, onEliminar }) {
           {!cargando &&
             visibles.map((p) => {
               const items = contenido(p)
+              const chip = chipSaldo(p.saldo)
 
               return (
                 <tr key={p.id} style={{ borderTop: '1px solid #EBE0E2' }}>
@@ -374,6 +376,25 @@ function Tabla({ pedidos, cargando, onVer, onEliminar }) {
                     }}
                   >
                     {formatearPrecio(p.total)}
+                  </td>
+
+                  <td style={{ ...estiloTd, textAlign: 'center' }}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        whiteSpace: 'nowrap',
+                        fontFamily: "'Quicksand', sans-serif",
+                        fontWeight: 600,
+                        fontSize: 14,
+                        borderRadius: 20,
+                        padding: '5px 9px',
+                        border: `1px solid ${chip.borde}`,
+                        background: chip.fondo,
+                        color: chip.color,
+                      }}
+                    >
+                      {chip.texto}
+                    </span>
                   </td>
 
                   <td style={{ ...estiloTd, padding: '14px 8px' }}>
@@ -533,16 +554,16 @@ export default function Pedidos() {
 
   const activos = pedidos.filter((p) => p.estado !== 'ENTREGADO').length
   const atrasados = pedidos.filter((p) => atraso(p) > 0).length
+  const conSaldo = pedidos.filter((p) => Number(p.saldo) > 0).length
 
   // La línea de abajo del título. Cuenta sobre TODOS los pedidos y no sobre
   // los filtrados: dice cómo viene el trabajo, no qué se está mirando.
-  //
-  // El prototipo suma acá "· N con saldo pendiente", que es de Cobros.
   const resumen =
     pedidos.length === 0
       ? 'Acá vas a ver los encargos confirmados.'
       : `${activos} ${activos === 1 ? 'pedido activo' : 'pedidos activos'}` +
-        (atrasados ? ` · ${atrasados} ${atrasados === 1 ? 'atrasado' : 'atrasados'}` : '')
+        (atrasados ? ` · ${atrasados} ${atrasados === 1 ? 'atrasado' : 'atrasados'}` : '') +
+        (conSaldo ? ` · ${conSaldo} con saldo pendiente` : '')
 
   const cantFiltros = contarFiltros(filtros)
 
@@ -567,6 +588,17 @@ export default function Pedidos() {
       label: estado.label,
       onQuitar: () =>
         setFiltros({ ...filtros, estados: filtros.estados.filter((v) => v !== valor) }),
+    })
+  })
+
+  filtros.saldo.forEach((valor) => {
+    const opcion = OPCIONES_SALDO.find((o) => o.valor === valor)
+
+    chips.push({
+      clave: `saldo-${valor}`,
+      label: opcion.label,
+      onQuitar: () =>
+        setFiltros({ ...filtros, saldo: filtros.saldo.filter((v) => v !== valor) }),
     })
   })
 

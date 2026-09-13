@@ -6,6 +6,11 @@ import {
   estiloNombreCampo,
 } from './ModalCliente'
 
+// Import que cruza de funcionalidad, con el criterio de siempre: el chip
+// del saldo se pinta igual acá que en los pedidos, así que la función se
+// usa desde donde nació.
+import { chipSaldo } from '../pedidos/presentacion'
+
 // Lo que dice el recuento, con los textos del diseño.
 function textoPedidos(cliente) {
   if (cliente.cantidad_pedidos === 0) return 'Sin pedidos registrados'
@@ -20,6 +25,8 @@ function textoPedidos(cliente) {
 
 
 export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
+  const chip = chipSaldo(cliente.saldo)
+
   return (
     <div
       onClick={onCerrar}
@@ -119,12 +126,9 @@ export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
             </div>
           ))}
 
-          {/* El recuento va como texto y no como otro campo en solo
-              lectura: los cuatro de arriba son datos del cliente que se
-              pueden editar, y este sale de sus pedidos.
-
-              El diseño le pone al lado un chip con el saldo, que llega
-              con Cobros. */}
+          {/* Los dos van como texto y no como campos en solo lectura: los
+              cuatro de arriba son datos del cliente que se pueden editar,
+              y estos salen de sus pedidos. */}
           <div>
             <label style={estiloEtiqueta}>
               <span style={estiloNombreCampo}>PEDIDOS</span>
@@ -133,6 +137,29 @@ export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
             <p style={{ margin: 0, fontSize: 16, color: '#3D3238' }}>
               {textoPedidos(cliente)}
             </p>
+          </div>
+
+          <div>
+            <label style={estiloEtiqueta}>
+              <span style={estiloNombreCampo}>SALDO</span>
+            </label>
+
+            <span
+              style={{
+                display: 'inline-block',
+                whiteSpace: 'nowrap',
+                fontFamily: "'Quicksand', sans-serif",
+                fontWeight: 600,
+                fontSize: 14,
+                borderRadius: 20,
+                padding: '5px 12px',
+                border: `1px solid ${chip.borde}`,
+                background: chip.fondo,
+                color: chip.color,
+              }}
+            >
+              {chip.texto}
+            </span>
           </div>
         </div>
 

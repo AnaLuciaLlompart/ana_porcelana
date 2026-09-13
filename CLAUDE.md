@@ -197,22 +197,10 @@ igual que `ModalMaterial`, `ModalVerMaterial` y `ModalEliminarMaterial`.
 El modal de ver reusa los mismos campos del formulario en
 `readOnly disabled`, con el placeholder cambiado a "Sin cargar".
 
-**Lo que dependía de Pedidos ya está hecho**: las columnas PEDIDOS y
-ÚLTIMO con su ordenamiento, el chip "con pedidos en curso", la línea de
-resumen bajo el título, el recuento del modal Ver y la rama bloqueada
-del modal Eliminar. La tabla ordena por ÚLTIMO descendente, como el
-prototipo.
-
-**Implementación por etapas: lo que depende de Cobros NO se hace
-todavía**, y no se simula con ceros. Espera a CU48–CU51:
-
-- la columna SALDO y su ordenamiento
-- el chip de filtro "con saldo pendiente"
-- el chip de saldo dentro del modal Ver
-- el tramo "· N con saldo pendiente" de la línea de resumen
-
-Esto no es una diferencia con el prototipo como las cinco de Productos,
-que son permanentes. Es orden de construcción, y se documenta así.
+**El módulo está completo.** Las columnas PEDIDOS, ÚLTIMO y SALDO con
+su ordenamiento, los dos chips de filtro, la línea de resumen, el
+recuento y el chip de saldo del modal Ver, y la rama bloqueada del modal
+Eliminar. La tabla ordena por ÚLTIMO descendente, como el prototipo.
 
 **El único aviso flotante del módulo es el de copiar el usuario.** Las
 otras acciones ya se confirman solas: se cierra el modal y la fila
@@ -267,10 +255,22 @@ unidades iguales.
 está implementado en Materiales. El enlace no aparece si el producto no
 tiene materiales cargados.
 
-**Implementación por etapas: lo que depende de Cobros NO se hace
-todavía**, y no se simula. Espera a CU48–CU58: la pestaña de Cobros, el
-saldo pendiente y el chip "Debe $X" del encabezado. El comprobante en
-PDF es CU59 y también queda fuera.
+**Los cobros (CU48–CU51) viven en la app `pedidos`**, como los productos
+del pedido: un cobro siempre cuelga de un pedido y no tiene pantalla
+propia. De ahí salen el saldo, la columna SALDO de los dos listados y
+los chips.
+
+**No se puede cobrar más que el total del pedido**, y **una seña no
+puede dejar el pedido saldado**: el cobro que termina de pagar es el
+pago restante o el pago completo. Las dos reglas las revisa el ViewSet
+al registrar y al modificar, porque son reglas entre filas y no de una
+fila sola.
+
+El saldo todavía puede quedar negativo por otro camino: bajarle el total
+a un pedido ya cobrado, que se permite para poder corregir una carga mal
+hecha. Por eso el chip conserva su tercera cara, "A favor $X".
+
+**El comprobante en PDF es CU59 y queda fuera.**
 
 
 ---

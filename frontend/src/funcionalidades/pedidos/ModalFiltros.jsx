@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { FILTROS_VACIOS, candidatos } from './filtros'
-import { ESTADOS, TOTAL_MIN, TOTAL_MAX, formatearPrecio } from './presentacion'
+import {
+  ESTADOS,
+  OPCIONES_SALDO,
+  TOTAL_MIN,
+  TOTAL_MAX,
+  formatearPrecio,
+} from './presentacion'
 
 
 // La línea que separa un criterio del siguiente. Va en todos menos el
@@ -86,6 +92,17 @@ export default function ModalFiltros({
       estados: actual.estados.includes(valor)
         ? actual.estados.filter((v) => v !== valor)
         : actual.estados.concat(valor),
+    }))
+  }
+
+  // Lo mismo para el saldo. Las dos opciones se pueden marcar juntas,
+  // aunque entonces no quede ningún pedido: son exclusiones.
+  function alternarSaldo(valor) {
+    setBorrador((actual) => ({
+      ...actual,
+      saldo: actual.saldo.includes(valor)
+        ? actual.saldo.filter((v) => v !== valor)
+        : actual.saldo.concat(valor),
     }))
   }
 
@@ -242,6 +259,20 @@ export default function ModalFiltros({
             <p style={{ margin: '8px 0 0', fontSize: 13, color: '#B08791' }}>
               Sin elegir nada se muestran todos.
             </p>
+          </div>
+
+          <div style={separador}>
+            <p style={estiloTitulo}>SALDO</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {OPCIONES_SALDO.map((o) => (
+                <Chip
+                  key={o.valor}
+                  label={o.label}
+                  activo={borrador.saldo.includes(o.valor)}
+                  onClick={() => alternarSaldo(o.valor)}
+                />
+              ))}
+            </div>
           </div>
 
           <div style={separador}>

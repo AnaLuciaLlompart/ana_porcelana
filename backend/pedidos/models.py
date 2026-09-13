@@ -236,13 +236,14 @@ class Pedido(models.Model):
     def saldo(self):
         """Lo que falta cobrar del pedido.
 
-        PUEDE DAR NEGATIVO, y eso no es un error: significa que el
-        cliente pagó de más, sea porque se le devolvió algo o porque
-        abonó de sobra. El diseño lo muestra con su propio chip, «A
-        favor $X», distinto de «Debe $X» y de «Al día».
+        PUEDE DAR NEGATIVO, aunque cobrando no se llegue: el ViewSet
+        rechaza el cobro que se pase del total. Se llega por el otro
+        camino, bajando el total de un pedido ya cobrado, que sí se
+        permite para poder corregir una carga mal hecha.
 
         Por eso no se recorta con un max(0, ...): ese cero taparía
-        información que hace falta para devolverle la diferencia.
+        plata que hay que devolver, y la pantalla lo muestra con su
+        propio chip.
         """
         return self.total - self.cobrado
 
@@ -418,8 +419,10 @@ class Cobro(models.Model):
     El on_delete es CASCADE, como en ProductoDelPedido: un cobro no
     significa nada sin el pedido que lo explica, así que se va con él.
 
-    NO se valida que la suma de los cobros no pase el total del pedido.
-    Puede pasar de verdad, y el saldo negativo es la forma de verlo.
+    La suma de los cobros NO puede pasar el total del pedido: eso lo
+    revisa el ViewSet al registrar y al modificar, porque es una regla
+    entre filas y no de una fila sola, que es lo que sabe mirar una
+    restricción de la base.
     """
 
     # -----------------------------------------------------------------

@@ -10,7 +10,7 @@ import Toast from '../../componentes/Toast'
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: la
 // pieza se queda donde nació y las demás la usan desde ahí. La columna
 // ÚLTIMO muestra la fecha con el mismo formato que la ficha del pedido.
-import { fmtFechaLarga } from '../pedidos/presentacion'
+import { chipSaldo, fmtFechaLarga } from '../pedidos/presentacion'
 
 
 // Iconos de las acciones por fila
@@ -36,6 +36,49 @@ const estiloTd = {
   padding: 14,
   fontSize: 16,
   color: '#3D3238',
+}
+
+
+// Uno de los dos chips de filtro, con su contador al lado.
+function ChipFiltro({ label, cuenta, activo, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '7px 15px',
+        borderRadius: 20,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        fontFamily: "'Quicksand', sans-serif",
+        fontWeight: 600,
+        fontSize: 14,
+        border: activo ? '1px solid #8C5A66' : '1px solid #EBE0E2',
+        background: activo ? '#F0E2E4' : 'white',
+        color: activo ? '#8C5A66' : '#857078',
+      }}
+    >
+      {label}
+      <span
+        style={{
+          minWidth: 20,
+          height: 20,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 6px',
+          borderRadius: 10,
+          fontSize: 12,
+          background: activo ? '#8C5A66' : '#F5F0F1',
+          color: activo ? 'white' : '#857078',
+        }}
+      >
+        {cuenta}
+      </span>
+    </button>
+  )
 }
 
 
@@ -159,6 +202,8 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
       // cliente sin pedidos usa la cadena vacía, que queda antes que
       // cualquier fecha y por eso termina al final en descendente.
       cmp = (a.ultimo_pedido || '').localeCompare(b.ultimo_pedido || '')
+    } else if (orden.campo === 'saldo') {
+      cmp = Number(a.saldo) - Number(b.saldo)
     }
 
     return orden.dir === 'asc' ? cmp : -cmp
@@ -183,7 +228,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               etiqueta="@USUARIO"
               orden={orden}
               onClick={ordenarPor}
-              ancho="20%"
+              ancho="17%"
             />
             <EncabezadoOrdenable
               campo="nombre"
@@ -191,7 +236,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               orden={orden}
               onClick={ordenarPor}
               centrado
-              ancho="25%"
+              ancho="21%"
             />
             <EncabezadoOrdenable
               campo="pedidos"
@@ -199,7 +244,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               orden={orden}
               onClick={ordenarPor}
               centrado
-              ancho="13%"
+              ancho="11%"
             />
             <EncabezadoOrdenable
               campo="ultimo"
@@ -207,23 +252,34 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               orden={orden}
               onClick={ordenarPor}
               centrado
-              ancho="16%"
+              ancho="14%"
             />
-            <th style={{ ...estiloTh, textAlign: 'center', width: '26%' }}>ACCIONES</th>
+            <EncabezadoOrdenable
+              campo="saldo"
+              etiqueta="SALDO"
+              orden={orden}
+              onClick={ordenarPor}
+              centrado
+              ancho="15%"
+            />
+            <th style={{ ...estiloTh, textAlign: 'center', width: '22%' }}>ACCIONES</th>
           </tr>
         </thead>
 
         <tbody>
           {cargando && (
             <tr>
-              <td colSpan={5} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
+              <td colSpan={6} style={{ ...estiloTd, textAlign: 'center', color: '#857078' }}>
                 Cargando…
               </td>
             </tr>
           )}
 
           {!cargando &&
-            visibles.map((c) => (
+            visibles.map((c) => {
+              const chip = chipSaldo(c.saldo)
+
+              return (
               <tr key={c.id} style={{ borderTop: '1px solid #EBE0E2' }}>
                 <td style={estiloTd}>
                   <button
@@ -299,6 +355,25 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
                   {c.ultimo_pedido ? fmtFechaLarga(c.ultimo_pedido) : 'Sin pedidos'}
                 </td>
 
+                <td style={{ ...estiloTd, textAlign: 'center' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      whiteSpace: 'nowrap',
+                      fontFamily: "'Quicksand', sans-serif",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      borderRadius: 20,
+                      padding: '5px 9px',
+                      border: `1px solid ${chip.borde}`,
+                      background: chip.fondo,
+                      color: chip.color,
+                    }}
+                  >
+                    {chip.texto}
+                  </span>
+                </td>
+
                 <td style={estiloTd}>
                   <Acciones
                     cliente={c}
@@ -309,7 +384,8 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
                   />
                 </td>
               </tr>
-            ))}
+              )
+            })}
         </tbody>
       </table>
 
@@ -436,6 +512,7 @@ export default function Clientes() {
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [soloEnCurso, setSoloEnCurso] = useState(false)
+  const [soloConSaldo, setSoloConSaldo] = useState(false)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [clienteEditando, setClienteEditando] = useState(null)
   const [clienteViendo, setClienteViendo] = useState(null)
@@ -494,19 +571,21 @@ export default function Clientes() {
     }
 
     if (soloEnCurso && c.pedidos_en_curso === 0) return false
+    if (soloConSaldo && Number(c.saldo) <= 0) return false
 
     return true
   })
 
-  // Cuenta sobre TODOS los clientes y no sobre los filtrados: dice cómo
-  // viene el trabajo, no qué se está mirando. Es también el número del
-  // globito del chip.
+  // Cuentan sobre TODOS los clientes y no sobre los filtrados: dicen cómo
+  // viene el trabajo, no qué se está mirando. Son también los números de
+  // los globitos de los chips.
   const conPedidosEnCurso = clientes.filter((c) => c.pedidos_en_curso > 0).length
+  const conSaldo = clientes.filter((c) => Number(c.saldo) > 0).length
 
-  // El diseño suma acá "· N con saldo pendiente", que es de Cobros.
   const resumen =
     `${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}` +
-    (conPedidosEnCurso > 0 ? ` · ${conPedidosEnCurso} con pedidos en curso` : '')
+    (conPedidosEnCurso > 0 ? ` · ${conPedidosEnCurso} con pedidos en curso` : '') +
+    (conSaldo > 0 ? ` · ${conSaldo} con saldo pendiente` : '')
 
   // Propiedades comunes de las cuatro acciones de la fila
   const acciones = {
@@ -603,45 +682,23 @@ export default function Clientes() {
               />
             </div>
 
-            {/* Un solo chip y no un modal de filtros: es el único criterio
-                que tiene sentido en Clientes, que no tiene estado ni baja
-                lógica. El del saldo llega con Cobros. */}
-            <button
-              onClick={() => setSoloEnCurso((v) => !v)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                marginLeft: 'auto',
-                padding: '7px 15px',
-                borderRadius: 20,
-                cursor: 'pointer',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 14,
-                border: soloEnCurso ? '1px solid #8C5A66' : '1px solid #EBE0E2',
-                background: soloEnCurso ? '#F0E2E4' : 'white',
-                color: soloEnCurso ? '#8C5A66' : '#857078',
-              }}
-            >
-              Con pedidos en curso
-              <span
-                style={{
-                  minWidth: 20,
-                  height: 20,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 6px',
-                  borderRadius: 10,
-                  fontSize: 12,
-                  background: soloEnCurso ? '#8C5A66' : '#F5F0F1',
-                  color: soloEnCurso ? 'white' : '#857078',
-                }}
-              >
-                {conPedidosEnCurso}
-              </span>
-            </button>
+            {/* Dos chips y no un modal de filtros: son los únicos dos
+                criterios que tienen sentido en Clientes, que no tiene
+                estado ni baja lógica. Se pueden marcar los dos juntos. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <ChipFiltro
+                label="Con saldo pendiente"
+                cuenta={conSaldo}
+                activo={soloConSaldo}
+                onClick={() => setSoloConSaldo((v) => !v)}
+              />
+              <ChipFiltro
+                label="Con pedidos en curso"
+                cuenta={conPedidosEnCurso}
+                activo={soloEnCurso}
+                onClick={() => setSoloEnCurso((v) => !v)}
+              />
+            </div>
           </div>
 
           <Tabla clientes={filtrados} cargando={cargando} {...acciones} />

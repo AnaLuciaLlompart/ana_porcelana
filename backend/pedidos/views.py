@@ -5,7 +5,7 @@ from rest_framework.response import Response
 
 from productos.models import Producto
 
-from .models import Pedido
+from .models import Cobro, Pedido
 from .serializers import (
     CobroSerializer,
     PedidoDetalleSerializer,
@@ -15,6 +15,13 @@ from .serializers import (
 )
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
+
+
+def _plata(valor):
+    """Un importe listo para leer dentro de un mensaje de error: $12.500."""
+    # El formato de Python separa los miles con coma; acá se cambia por
+    # el punto, que es como se escribe la plata en Argentina.
+    return '$' + f'{valor:,.0f}'.replace(',', '.')
 
 
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
@@ -359,6 +366,62 @@ class PedidoViewSet(viewsets.ModelViewSet):
     #   PATCH  /api/pedidos/1/cobros/3/   lo modifica  (CU50)
     #   DELETE /api/pedidos/1/cobros/3/   lo borra     (CU51)
 
+    def _revisar_cobro(self, pedido, tipo, monto, cobro=None):
+        """Devuelve el mensaje de error si el cobro no se puede hacer, o None.
+
+        Son dos reglas.
+
+        La primera es que no se puede cobrar más que el total del
+        pedido: el saldo a favor no es un estado válido.
+
+        La segunda es que una SEÑA no puede dejar el pedido saldado. La
+        seña es un adelanto, así que por definición queda algo por
+        cobrar; el cobro que termina de pagar el pedido es el pago
+        restante o el pago completo. Sin esta regla, dos o tres señas
+        podrían sumar el total y el pedido quedaría pagado sin que
+        ningún cobro diga que fue el último.
+
+        Cuando se está MODIFICANDO un cobro hay que sacarlo de la
+        cuenta, porque su monto viejo ya está sumado en pedido.cobrado.
+        Sin eso, corregir un cobro de 10.000 a 9.000 en un pedido de
+        10.000 se rechazaría a sí mismo.
+
+        Bajar el total de un pedido ya cobrado sí se permite, así que el
+        saldo todavía puede quedar negativo por ese camino: la pantalla
+        lo sigue mostrando con su chip. Lo que estas reglas impiden es
+        llegar ahí cobrando.
+        """
+        if pedido.total <= 0:
+            return (
+                'El pedido todavía no tiene productos cargados, '
+                'así que no hay nada que cobrar.'
+            )
+
+        disponible = pedido.total - pedido.cobrado
+
+        if cobro is not None:
+            disponible += cobro.monto
+
+        if monto > disponible:
+            if disponible <= 0:
+                return 'Este pedido ya está cobrado por completo.'
+
+            return (
+                f'No se puede cobrar {_plata(monto)}: el pedido es de '
+                f'{_plata(pedido.total)} y falta cobrar {_plata(disponible)}.'
+            )
+
+        # Si el monto es exactamente lo que falta, este cobro salda el
+        # pedido, y entonces no puede ser una seña.
+        if tipo == Cobro.Tipo.SENA and monto == disponible:
+            return (
+                'Una seña no puede dejar el pedido saldado, porque es un '
+                'adelanto. Si con este cobro te termina de pagar, '
+                'registralo como «Pago restante».'
+            )
+
+        return None
+
     def _buscar_cobro(self, pedido, cobro_id):
         """Busca un cobro ENTRE LOS DE ESTE PEDIDO, o devuelve None.
 
@@ -397,12 +460,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
         En el cuerpo llegan 'monto' y, opcionalmente, 'tipo', 'fecha' y
         'medio', que tienen valor por defecto en el modelo.
 
-        NO se valida que la suma de los cobros no pase el total del
-        pedido, y es a propósito: pasa de verdad cuando un cliente paga
-        de más o cuando hay una devolución. El saldo queda negativo y la
-        pantalla lo muestra como plata a favor, que es información que
-        hace falta para devolvérsela. Lo único que se valida del monto es
-        que sea mayor a cero, y de eso se encarga el serializer.
+        Del cobro se validan tres cosas: que el monto sea mayor a cero,
+        de lo que se encarga el serializer, que no haga pasar la suma
+        del total del pedido, y que una seña no lo deje saldado. Las dos
+        últimas se revisan acá.
         """
         pedido = self.get_object()
 
@@ -412,6 +473,12 @@ class PedidoViewSet(viewsets.ModelViewSet):
         # un 500 en vez de un mensaje que se pueda mostrar.
         serializer = CobroSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        datos = serializer.validated_data
+        error = self._revisar_cobro(pedido, datos['tipo'], datos['monto'])
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
 
         # El pedido no viene en el cuerpo: sale de la URL, y se lo
         # pasamos acá para que nadie pueda registrarle un cobro a otro
@@ -445,6 +512,19 @@ class PedidoViewSet(viewsets.ModelViewSet):
         # que en el alta.
         serializer = CobroSerializer(cobro, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+
+        # Es un PATCH: lo que no venga queda como estaba.
+        datos = serializer.validated_data
+        error = self._revisar_cobro(
+            pedido,
+            datos.get('tipo', cobro.tipo),
+            datos.get('monto', cobro.monto),
+            cobro=cobro,
+        )
+
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer.save()
 
         pedido.refresh_from_db()

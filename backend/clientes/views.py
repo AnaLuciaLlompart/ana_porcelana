@@ -23,9 +23,14 @@ class ClienteViewSet(viewsets.ModelViewSet):
     saldría como un 500.
     """
 
-    # El prefetch es lo que hace que los tres campos calculados del
-    # serializer no disparen una consulta por cliente del listado.
-    queryset = Cliente.objects.prefetch_related('pedidos')
+    # El prefetch es lo que hace que los campos calculados del serializer
+    # no disparen una consulta por cliente del listado.
+    #
+    # Llega dos niveles abajo porque el saldo del cliente es la suma de
+    # los saldos de sus pedidos, y el saldo de un pedido sale de sus
+    # productos y sus cobros. Sin esto serían dos consultas por cada
+    # pedido de cada cliente.
+    queryset = Cliente.objects.prefetch_related('pedidos__productos', 'pedidos__cobros')
     serializer_class = ClienteSerializer
 
     filter_backends = [filters.SearchFilter]
