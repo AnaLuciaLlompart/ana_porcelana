@@ -72,8 +72,9 @@ afuera: `api/cliente.js`, `contexto/AuthContext.jsx`,
 `componentes/Layout.jsx`.
 
 Apps terminadas: `usuarios` (CU01–CU03), `materiales` (CU04–CU10),
-`categorias` (CU11–CU16), `productos` (CU17–CU35).
-En curso: **clientes** (CU36–CU39).
+`categorias` (CU11–CU16), `productos` (CU17–CU35), `clientes`
+(CU36–CU39) y `pedidos`, que incluye los cobros (CU40–CU51).
+La próxima es **gastos**.
 
 ---
 
@@ -236,10 +237,55 @@ completa al pasar el pedido a Entregado. Con un solo campo se perdería
 la estimación, y con ella la única forma de saber si se entregó a
 tiempo.
 
+**La fecha de entrega real no se carga a mano: la escribe el botón
+Entregado y nadie más.** La regla es que un pedido tiene fecha de entrega
+real si y solo si está Entregado. Al entrar a Entregado se escribe siempre
+con la fecha de hoy, aunque el campo ya tuviera una; al salir de Entregado
+se borra, también cuando el pedido baja solo a En producción por tener
+piezas sin terminar. Borrarla hace falta porque el campo va `read_only` en
+el serializer, así que no queda ningún otro lugar donde arreglar un
+Entregado tocado por error. Las dos direcciones viven en un solo método,
+`_guardar_estado`, por donde pasan los dos lugares que cambian el estado.
+El formulario de la ficha muestra el campo apagado y la fecha no forma
+parte del borrador, así que no puede viajar en un PUT.
+
 **El estado del pedido y el de sus productos son independientes.** El
-primero es el avance visto por el cliente (Pendiente, En producción,
+primero resume el avance del encargo completo (Pendiente, En producción,
 Listo, Entregado); el segundo es la etapa productiva de esas piezas
-(Pendiente, Modelado, Secado, Pintura/Barniz, Terminado).
+(Pendiente, Modelado, Secado, Pintura/Barniz, Terminado). Los dos son para
+la emprendedora: el cliente no ve ninguno, porque lo único a lo que accede
+sin login es el catálogo. Se tocan en un solo punto, el de acá abajo.
+
+**Un pedido no puede estar Listo ni Entregado con piezas sin terminar.**
+Es el único punto donde los dos estados de arriba se tocan: son
+independientes, pero el pedido no puede decir que está listo si en el
+taller falta pintar algo. La regla tiene dos caras, las dos en
+`PedidoViewSet`. Al cambiar el estado, `_revisar_estado` rechaza con un 400
+que dice cuántas piezas faltan; un pedido sin productos tampoco puede
+estar Listo. Al agregar, modificar o quitar un producto,
+`_bajar_si_quedo_incompleto` devuelve el pedido a En producción si con ese
+cambio dejó de estar completo. Sin la segunda cara, la primera se esquiva
+sola: se marca Listo con todo terminado y después se agrega una pieza
+nueva, que nace Pendiente. La segunda reusa la primera —le pregunta si el
+pedido podría pasar al estado que YA tiene— así que no pueden llegar a
+contradecirse. Solo baja el estado, nunca lo sube: terminar la última
+pieza no pasa el pedido a Listo, porque decidir que un encargo está para
+entregar es de la emprendedora.
+
+La bajada automática se avisa con un cartel flotante en la ficha, porque
+es un cambio que la usuaria no pidió. Es la excepción al criterio de
+Clientes, donde el aviso flotante se reserva para las acciones sin efecto
+visible: acá el efecto se ve, pero nadie lo pidió, que es el otro motivo
+para avisar.
+
+**`cambiar_estado` es la única puerta al estado del pedido.** El campo va
+`read_only` en el serializer, y el `extra_kwargs` que lo hace vive en
+`PedidoListaSerializer.Meta`, de la que hereda la del detalle, así que
+vale también para el POST y el PUT de la ficha: un `estado` en el cuerpo
+se ignora. Sin ese candado, las dos reglas del estado —esta y la fecha de
+entrega real— tendrían una puerta de atrás. El admin de Django sí lo deja
+cambiar a mano, y se acepta: es herramienta de desarrollo, no interfaz de
+usuaria.
 
 **`costo_entrega` solo se habilita cuando el envío es a cargo mío.** La
 coherencia se valida en la aplicación, no en el modelo.

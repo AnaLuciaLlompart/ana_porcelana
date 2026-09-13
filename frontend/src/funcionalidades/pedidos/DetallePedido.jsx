@@ -43,12 +43,18 @@ import {
 // porque el value de un <select> siempre lo es; se convierte al guardar.
 // Las tres fechas y el costo pueden venir en null desde el backend, y un
 // input controlado no acepta null: se traducen a cadena vacía.
+//
+// La fecha de entrega real NO está acá, aunque el formulario la muestre: la
+// escribe el botón Entregado y el serializer la tiene en solo lectura. El
+// borrador es lo que se edita y lo que viaja al guardar, así que dejarla
+// afuera es lo que garantiza que no se pueda mandar. Es la misma garantía
+// estructural que usa ProductoDelPedidoModificarSerializer no teniendo el
+// campo producto.
 function borradorDe(pedido) {
   return {
     cliente: String(pedido.cliente),
     fecha_pedido: pedido.fecha_pedido,
     fecha_entrega_estimada: pedido.fecha_entrega_estimada || '',
-    fecha_entrega_real: pedido.fecha_entrega_real || '',
     envio_a_cargo: pedido.envio_a_cargo,
     direccion_entrega: pedido.direccion_entrega,
     costo_entrega: pedido.costo_entrega === null ? '' : String(Math.round(Number(pedido.costo_entrega))),
@@ -63,7 +69,6 @@ const BORRADOR_VACIO = {
   cliente: '',
   fecha_pedido: hoy(),
   fecha_entrega_estimada: '',
-  fecha_entrega_real: '',
   envio_a_cargo: 'CLIENTE',
   direccion_entrega: '',
   costo_entrega: '',
@@ -104,6 +109,14 @@ export default function DetallePedido({ esAlta = false }) {
   // En un alta no hay nada que traer del servidor.
   const [cargando, setCargando] = useState(!esAlta)
   const [error, setError] = useState('')
+
+  // El error de los botones de estado va aparte del general, y no por
+  // capricho: en la pestaña Datos el error general se dibuja adentro del
+  // formulario, arriba de Guardar. Un rechazo del botón Listo aparecería
+  // allá abajo, lejos del botón que lo provocó y mezclado con los errores
+  // del formulario. Este se muestra pegado a los botones.
+  const [errorEstado, setErrorEstado] = useState('')
+
   const [tab, setTab] = useState('datos')
 
   // El borrador de Datos vive ACÁ y no en PestanaDatos, al revés que el
@@ -159,39 +172,58 @@ export default function DetallePedido({ esAlta = false }) {
   // El endpoint devuelve la ficha completa ya recalculada por el backend,
   // así que se usa esa respuesta en vez de volver a pedir el pedido: es un
   // viaje menos y no hay un momento con datos viejos.
-  async function accionInmediata(llamada, textoToast) {
+  //
+  // El tercer parámetro dice EN QUÉ CARTEL se muestra el error, y por
+  // defecto es el general. Se le pasa una función igual que a las otras
+  // funciones del proyecto que reciben la de la API.
+  async function accionInmediata(llamada, textoToast, avisarError = setError) {
+    // Se limpian los dos y no solo el que va a usarse: si no, al hacer una
+    // acción después de un error quedaría el cartel viejo colgado en la
+    // pantalla, hablando de algo que ya pasó.
     setError('')
+    setErrorEstado('')
+
     try {
       const res = await llamada()
       setPedido(res.data)
       if (textoToast) mostrarToast(textoToast)
       return res.data
     } catch (err) {
-      setError(mensajeDeError(err))
+      avisarError(mensajeDeError(err))
       return null
     }
+  }
+
+
+  // El backend puede devolver el pedido en En producción sin que se le haya
+  // pedido: si una operación sobre los productos dejó piezas sin terminar,
+  // el pedido no puede seguir diciendo que está Listo y baja solo.
+  //
+  // El chip del encabezado y el botón resaltado ya cambian con la respuesta,
+  // pero es un cambio que la usuaria no pidió, así que además se avisa.
+  function avisarSiBajoSolo(estadoAntes, actualizado) {
+    if (!actualizado) return
+    if (actualizado.estado === estadoAntes) return
+    if (actualizado.estado !== 'EN_PRODUCCION') return
+
+    mostrarToast('El pedido volvió a En producción: quedaron piezas sin terminar')
   }
 
 
   // El estado se cambia EN EL MOMENTO, a diferencia de los campos de la
   // pestaña Datos, que esperan al botón de Guardar. Es un hecho consumado:
   // el pedido pasó a producción, no es un dato que se está editando.
-  async function cambiarEstado(estado, label) {
-    const actualizado = await accionInmediata(
+  // La fecha de entrega real que el backend escribe al entregar —o borra al
+  // salir de Entregado— no hay que copiarla a ningún lado: el campo de la
+  // pestaña la lee del pedido, y setPedido ya lo dejó actualizado.
+  function cambiarEstado(estado, label) {
+    return accionInmediata(
       () => cambiarEstadoPedido(id, estado),
-      `Pedido ${label.toLowerCase()}`
+      `Pedido ${label.toLowerCase()}`,
+      // El rechazo se muestra en la tarjeta del estado, no en el
+      // formulario: es ahí donde está el botón que se tocó.
+      setErrorEstado
     )
-
-    if (!actualizado) return
-
-    // Al pasar a Entregado el backend escribe la fecha de entrega real con
-    // la de hoy, así que el campo de la pestaña la copia tal cual. Se pisa
-    // lo que hubiera: es lo mismo que acaba de quedar guardado, y si el
-    // formulario mostrara otra cosa estaría mintiendo.
-    setBorrador((actual) => ({
-      ...actual,
-      fecha_entrega_real: actualizado.fecha_entrega_real || '',
-    }))
   }
 
 
@@ -203,9 +235,21 @@ export default function DetallePedido({ esAlta = false }) {
   // respuesta para que se acomoden de una sola vez la tabla, el subtotal
   // del pie, el resumen de la otra pestaña y el contador del globito.
 
-  function agregarProducto(datos) {
+  // Las tres se guardan el estado que el pedido tenía ANTES de la llamada,
+  // porque es lo único con qué comparar el que vuelve para saber si el
+  // backend lo bajó solo.
+  async function agregarProducto(datos) {
     setModalProducto(false)
-    accionInmediata(() => agregarProductoAlPedido(id, datos), 'Producto agregado')
+
+    const estadoAntes = pedido.estado
+    const actualizado = await accionInmediata(
+      () => agregarProductoAlPedido(id, datos),
+      'Producto agregado'
+    )
+
+    // Si el pedido bajó, este cartel pisa el de "Producto agregado", y está
+    // bien que lo pise: es lo más importante que pasó.
+    avisarSiBajoSolo(estadoAntes, actualizado)
   }
 
   function editarProducto(productoDelPedido, datos) {
@@ -216,14 +260,27 @@ export default function DetallePedido({ esAlta = false }) {
     )
   }
 
-  function cambiarEtapa(productoDelPedido, estado) {
+  async function cambiarEtapa(productoDelPedido, estado) {
     // Sin aviso flotante: el selector ya muestra la etapa nueva.
-    accionInmediata(() => modificarProductoDelPedido(id, productoDelPedido.id, { estado }))
+    // El único cartel que puede salir es el de la vuelta a En producción,
+    // que aparece si esta etapa fue para atrás y dejó al pedido incompleto.
+    const estadoAntes = pedido.estado
+    const actualizado = await accionInmediata(
+      () => modificarProductoDelPedido(id, productoDelPedido.id, { estado })
+    )
+
+    avisarSiBajoSolo(estadoAntes, actualizado)
   }
 
-  function quitarProducto(productoDelPedido) {
+  async function quitarProducto(productoDelPedido) {
     // Sin aviso flotante: la fila desaparece de la tabla.
-    accionInmediata(() => quitarProductoDelPedido(id, productoDelPedido.id))
+    // Salvo que quitar esta pieza haya bajado el pedido, que sí se avisa.
+    const estadoAntes = pedido.estado
+    const actualizado = await accionInmediata(
+      () => quitarProductoDelPedido(id, productoDelPedido.id)
+    )
+
+    avisarSiBajoSolo(estadoAntes, actualizado)
   }
 
 
@@ -274,14 +331,15 @@ export default function DetallePedido({ esAlta = false }) {
 
     setGuardando(true)
 
-    // Las dos fechas de entrega y el costo viajan como null cuando están
-    // vacíos, no como cadena vacía: así están declarados en el modelo, y un
-    // '' haría fallar la validación del campo de fecha.
+    // La entrega estimada y el costo viajan como null cuando están vacíos,
+    // no como cadena vacía: así están declarados en el modelo, y un '' haría
+    // fallar la validación del campo de fecha.
+    //
+    // La entrega real no viaja: no está en el borrador.
     const datos = {
       cliente: Number(borrador.cliente),
       fecha_pedido: borrador.fecha_pedido,
       fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
-      fecha_entrega_real: borrador.fecha_entrega_real || null,
       envio_a_cargo: borrador.envio_a_cargo,
       direccion_entrega: borrador.direccion_entrega.trim(),
       costo_entrega: borrador.costo_entrega === '' ? null : borrador.costo_entrega,
@@ -592,11 +650,35 @@ export default function DetallePedido({ esAlta = false }) {
                   )
                 })}
               </div>
+
+              {/* Debajo de los botones y no arriba: se lee después de haber
+                  tocado el que lo provocó. Es el mismo recuadro del
+                  formulario, para que un error se vea siempre igual. */}
+              {errorEstado && (
+                <p
+                  role="alert"
+                  style={{
+                    margin: '12px 0 0',
+                    padding: '10px 12px',
+                    background: '#FAEAE8',
+                    border: '1px solid #F0C4BC',
+                    borderRadius: 6,
+                    fontSize: 14,
+                    color: '#C0442F',
+                    textWrap: 'pretty',
+                  }}
+                >
+                  {errorEstado}
+                </p>
+              )}
             </div>
           )}
 
           <PestanaDatos
             borrador={borrador}
+            // Va aparte del borrador porque no se edita. En un alta está
+            // vacía: un pedido no nace entregado.
+            fechaEntregaReal={esAlta ? '' : pedido.fecha_entrega_real || ''}
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
             esAlta={esAlta}
             clientes={clientes}

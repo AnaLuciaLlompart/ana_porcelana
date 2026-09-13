@@ -240,10 +240,30 @@ class PedidoListaSerializer(serializers.ModelSerializer):
         # campo sea de solo lectura lo impide de raíz, en vez de confiar en
         # que nadie lo mande.
         #
+        # Hay un segundo motivo, y es el que hace que este candado sea
+        # imprescindible y no una prolijidad: cambiar_estado también revisa
+        # que el pedido no pase a Listo ni a Entregado con piezas sin
+        # terminar. Si el estado se pudiera escribir por acá, esa regla
+        # tendría una puerta de atrás.
+        #
+        # Este extra_kwargs vale también para el POST y el PUT de la ficha,
+        # porque PedidoDetalleSerializer.Meta hereda de esta Meta.
+        #
         # El alta no lo necesita: un pedido nace PENDIENTE por el valor por
         # defecto del modelo.
+        #
+        # La fecha de entrega real va cerrada por lo mismo, y es la otra
+        # mitad de esa regla: la escribe únicamente cambiar_estado. Un pedido
+        # tiene fecha de entrega real si y solo si está Entregado, así que el
+        # dato sale del estado y no de lo que se escriba en el formulario.
+        # Mientras el campo era editable, se podía cargar una fecha de
+        # entrega en un pedido que no se había entregado.
+        #
+        # Se sigue leyendo, que para eso está en fields: lo único que se
+        # cierra es la escritura.
         extra_kwargs = {
             'estado': {'read_only': True},
+            'fecha_entrega_real': {'read_only': True},
         }
 
     def get_cantidad_productos(self, obj):

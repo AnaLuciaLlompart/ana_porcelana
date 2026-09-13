@@ -33,6 +33,15 @@ const estiloCampo = {
 // porque el selector de fecha del navegador ya trae su propio icono adentro.
 const estiloFecha = { ...estiloCampo, padding: '9px 13px' }
 
+// La entrega real se muestra pero no se escribe. Queda con el gris del texto
+// secundario y el cursor de siempre, para que se lea como un dato y no como
+// un campo esperando que lo completen.
+const estiloFechaApagada = {
+  ...estiloFecha,
+  color: '#857078',
+  cursor: 'default',
+}
+
 
 // Encabezado de campo con la etiqueta a la izquierda y una aclaración chica
 // a la derecha. Lo usan los campos que necesitan explicar cuándo se
@@ -47,7 +56,19 @@ function EtiquetaConNota({ texto, nota }) {
         marginBottom: 7,
       }}
     >
-      <span style={{ ...estiloEtiqueta, display: 'inline', marginBottom: 0 }}>{texto}</span>
+      {/* El nombre del campo no se parte nunca: un "ENTREGA / REAL" en dos
+          líneas se lee como si algo estuviera roto. Si el ancho no alcanza,
+          lo que baja de línea es la aclaración. */}
+      <span
+        style={{
+          ...estiloEtiqueta,
+          display: 'inline',
+          marginBottom: 0,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {texto}
+      </span>
       <span style={{ fontSize: 12, color: '#B08791' }}>{nota}</span>
     </label>
   )
@@ -56,6 +77,7 @@ function EtiquetaConNota({ texto, nota }) {
 
 export default function PestanaDatos({
   borrador,
+  fechaEntregaReal,
   onCambiar,
   esAlta,
   clientes,
@@ -104,6 +126,10 @@ export default function PestanaDatos({
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: 18,
+              // Los campos se alinean por abajo. Sin esto, el que tenga el
+              // encabezado más alto —porque la aclaración no entró en una
+              // línea— empuja su recuadro y queda desalineado del resto.
+              alignItems: 'end',
             }}
           >
             <div>
@@ -148,13 +174,24 @@ export default function PestanaDatos({
               />
             </div>
 
+            {/* El único campo del formulario que no se edita. No sale del
+                borrador como los demás, sino del pedido: la escribe el botón
+                Entregado y el serializer la tiene en solo lectura, así que no
+                hay nada que el formulario pueda mandar.
+
+                disabled y no readOnly: en un campo de fecha el readOnly
+                igual deja abrir el calendario del navegador. */}
             <div>
-              <EtiquetaConNota texto="ENTREGA REAL" nota="Se completa al entregar" />
+              {/* La aclaración va corta para que entre en una línea al lado
+                  del nombre. La explicación entera está en el title, que
+                  aparece al pasar el mouse por encima. */}
+              <EtiquetaConNota texto="ENTREGA REAL" nota="Automática" />
               <input
                 type="date"
-                value={borrador.fecha_entrega_real}
-                onChange={(e) => onCambiar({ fecha_entrega_real: e.target.value })}
-                style={estiloFecha}
+                value={fechaEntregaReal}
+                disabled
+                title="La completa el botón Entregado"
+                style={estiloFechaApagada}
               />
             </div>
           </div>
@@ -164,6 +201,9 @@ export default function PestanaDatos({
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: 18,
+              // Por lo mismo que la fila de arriba: la nota del costo de
+              // entrega es larga y cambia según quién pague el envío.
+              alignItems: 'end',
             }}
           >
             <div>

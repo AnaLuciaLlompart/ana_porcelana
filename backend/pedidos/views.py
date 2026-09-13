@@ -5,7 +5,7 @@ from rest_framework.response import Response
 
 from productos.models import Producto
 
-from .models import Cobro, Pedido
+from .models import Cobro, Pedido, ProductoDelPedido
 from .serializers import (
     CobroSerializer,
     PedidoDetalleSerializer,
@@ -22,6 +22,68 @@ def _plata(valor):
     # El formato de Python separa los miles con coma; acá se cambia por
     # el punto, que es como se escribe la plata en Argentina.
     return '$' + f'{valor:,.0f}'.replace(',', '.')
+
+
+def _revisar_estado(pedido, estado):
+    """Devuelve el mensaje de error si el pedido no puede pasar a ese estado, o None.
+
+    La regla es una sola: un pedido no puede decir que está Listo ni
+    Entregado mientras le queden piezas sin terminar. El estado del pedido
+    y la etapa productiva de sus piezas son cosas independientes, pero en
+    esta punta no pueden contradecirse: si falta pintar algo, el encargo no
+    está listo para entregar.
+
+    Pendiente y En producción no se revisan, y por eso devuelven None de
+    entrada: son los estados de un pedido que todavía se está haciendo, así
+    que las piezas sin terminar son justamente lo que se espera ahí.
+
+    Entregado se revisa además de Listo porque sin eso la regla se
+    saltearía sola: alcanzaría con ir de En producción directo a Entregado.
+
+    Un pedido sin productos tampoco puede estar Listo, por el mismo motivo
+    que no se le puede registrar un cobro: no hay nada que entregar.
+    """
+    if estado not in (Pedido.Estado.LISTO, Pedido.Estado.ENTREGADO):
+        return None
+
+    # La etiqueta legible del estado, para que el mensaje diga "Listo" y no
+    # LISTO. Es lo mismo que hace get_estado_display, pero acá el estado
+    # todavía no está guardado en el pedido.
+    etiqueta = Pedido.Estado(estado).label
+
+    # list() sobre la lista que ya trajo el prefetch, no una consulta
+    # nueva: es el mismo criterio de las propiedades del modelo. Se
+    # materializa para poder contarla y recorrerla sin volver a la base.
+    piezas = list(pedido.productos.all())
+
+    if not piezas:
+        return (
+            f'No se puede marcar el pedido como {etiqueta}: '
+            'todavía no tiene productos cargados.'
+        )
+
+    faltan = [
+        linea
+        for linea in piezas
+        if linea.estado != ProductoDelPedido.Estado.TERMINADO
+    ]
+
+    if not faltan:
+        return None
+
+    # Tres redacciones porque un solo texto con números no se lee bien en
+    # los tres casos: "1 de los 1 productos" no es castellano.
+    if len(piezas) == 1:
+        detalle = 'el producto del pedido todavía no está terminado'
+    elif len(faltan) == 1:
+        detalle = f'falta terminar 1 de los {len(piezas)} productos del pedido'
+    else:
+        detalle = (
+            f'faltan terminar {len(faltan)} de los '
+            f'{len(piezas)} productos del pedido'
+        )
+
+    return f'No se puede marcar el pedido como {etiqueta}: {detalle}.'
 
 
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
@@ -115,7 +177,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
         motivos. En la pantalla el estado se cambia solo, con efecto
         inmediato, sin pasar por el formulario ni por su botón de
         guardar. Y arrastra un efecto lateral que un PUT no tiene:
-        completar la fecha de entrega real.
+        completar la fecha de entrega real al entregar, y borrarla al
+        sacar el pedido de Entregado.
 
         El estado llega en el cuerpo, en la clave 'estado'.
         """
@@ -137,26 +200,84 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        pedido.estado = estado
+        # La regla de negocio va acá y no en el serializer, igual que las de
+        # cobro: mira varias filas a la vez —el pedido y todas sus piezas—,
+        # que es lo que un serializer de una fila no puede ver.
+        #
+        # Este es el único lugar por donde se cambia el estado, porque el
+        # campo es de solo lectura en el serializer. Por eso alcanza con
+        # revisarlo una vez.
+        error = _revisar_estado(pedido, estado)
 
-        # La fecha de entrega real se completa sola al entregar, que es el
-        # momento en que se sabe, y se escribe SIEMPRE con la fecha de hoy,
-        # aunque el campo ya tuviera una cargada. Tocar el botón Entregado
-        # significa "lo entregué hoy", sin excepciones que haya que
-        # recordar.
-        #
-        # Corregirla a mano se sigue pudiendo: el campo es editable en el
-        # formulario. Lo que no hace es sobrevivir a un nuevo clic acá.
-        #
-        # Sacar el pedido de Entregado no borra la fecha: se corrige desde
-        # el formulario si hace falta.
-        if estado == Pedido.Estado.ENTREGADO:
-            pedido.fecha_entrega_real = timezone.localdate()
-            pedido.save(update_fields=['estado', 'fecha_entrega_real'])
-        else:
-            pedido.save(update_fields=['estado'])
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        self._guardar_estado(pedido, estado)
 
         return Response(self.get_serializer(pedido).data)
+
+    def _guardar_estado(self, pedido, estado):
+        """Guarda el estado nuevo y acomoda la fecha de entrega real.
+
+        La fecha no es un dato que se cargue: sale del estado, y la regla es
+        que un pedido tiene fecha de entrega real si y solo si está
+        Entregado. Por eso se acomoda en las dos direcciones.
+
+        Al entrar a Entregado se escribe SIEMPRE con la fecha de hoy, aunque
+        el campo ya tuviera una cargada: tocar el botón significa "lo
+        entregué hoy", sin excepciones que haya que recordar.
+
+        Al salir de Entregado se borra, porque un pedido que no está
+        entregado no tiene fecha de entrega. Además es lo único que permite
+        arreglar un clic equivocado: el campo es de solo lectura en el
+        serializer, así que no hay ningún otro lugar donde corregirla.
+
+        Guardar el estado pasa por acá y no por un save() suelto para que esa
+        regla esté escrita una sola vez. Los dos lugares que cambian el
+        estado —cambiar_estado y _bajar_si_quedo_incompleto— llaman a este
+        método, así que ninguno puede dejar la fecha diciendo otra cosa.
+        """
+        pedido.estado = estado
+
+        if estado == Pedido.Estado.ENTREGADO:
+            pedido.fecha_entrega_real = timezone.localdate()
+        else:
+            pedido.fecha_entrega_real = None
+
+        pedido.save(update_fields=['estado', 'fecha_entrega_real'])
+
+    def _bajar_si_quedo_incompleto(self, pedido):
+        """Devuelve el pedido a En producción si dejó de estar completo.
+
+        Es la otra cara de la regla de arriba. Sin esto se esquivaría sola:
+        se marca el pedido como Listo con todo terminado y después se le
+        agrega una pieza nueva, que nace Pendiente.
+
+        Por eso se llama al final de las tres operaciones sobre los
+        productos del pedido, que son las tres que pueden dejar un pedido
+        Listo con algo sin terminar: la pieza nueva nace Pendiente, a una ya
+        cargada se le puede mover la etapa hacia atrás, y quitando la última
+        el pedido queda vacío.
+
+        La condición no se vuelve a escribir: se le pregunta a
+        _revisar_estado si el pedido podría pasar al estado que YA tiene. Si
+        no podría, tampoco puede quedarse en él. Así las dos caras de la
+        regla son literalmente la misma comprobación y no pueden terminar
+        diciendo cosas distintas.
+
+        Solo baja el estado, nunca lo sube. Terminar la última pieza no pasa
+        el pedido a Listo: bajarlo corrige un dato que quedó falso, pero
+        subirlo sería decidir por la emprendedora que el encargo ya está
+        para entregar, y esa es una decisión suya.
+
+        Si el pedido venía de Entregado, la fecha de entrega real se borra en
+        el mismo movimiento. No es un caso aparte: lo hace _guardar_estado,
+        que es por donde pasan los dos lugares que cambian el estado.
+        """
+        if _revisar_estado(pedido, pedido.estado) is None:
+            return
+
+        self._guardar_estado(pedido, Pedido.Estado.EN_PRODUCCION)
 
     # -----------------------------------------------------------------
     # Los productos del pedido (CU44 a CU47)
@@ -278,6 +399,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
         # recalcula el total contra la base.
         pedido.refresh_from_db()
 
+        # Después del refresh y no antes: la comprobación tiene que ver la
+        # pieza recién agregada, que nace Pendiente y puede dejar al pedido
+        # sin estar listo.
+        self._bajar_si_quedo_incompleto(pedido)
+
         return Response(self.get_serializer(pedido).data)
 
     @action(detail=True, methods=['patch'],
@@ -327,6 +453,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         pedido.refresh_from_db()
 
+        # Retroceder la etapa de una pieza —de Terminado a Secado, por
+        # ejemplo— puede dejar al pedido diciendo que está listo cuando ya
+        # no lo está.
+        self._bajar_si_quedo_incompleto(pedido)
+
         return Response(self.get_serializer(pedido).data)
 
     @modificar_producto_del_pedido.mapping.delete
@@ -350,6 +481,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
         linea.delete()
 
         pedido.refresh_from_db()
+
+        # Quitar la última pieza deja el pedido vacío, y un pedido sin nada
+        # que entregar tampoco puede estar listo.
+        self._bajar_si_quedo_incompleto(pedido)
 
         return Response(self.get_serializer(pedido).data)
 

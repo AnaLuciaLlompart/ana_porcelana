@@ -35,12 +35,13 @@ El sistema comprende **dos ámbitos diferenciados**:
 | Categorías | CU11–CU16 | Completo |
 | Productos | CU17–CU35 | Completo |
 | Clientes | CU36–CU39 | Completo |
-| Pedidos | CU40–CU47 | Pendiente |
-| Cobros y gastos | CU48–CU58 | Pendiente |
+| Pedidos | CU40–CU47 | Completo |
+| Cobros | CU48–CU51 | Completo |
+| Gastos | CU52–CU58 | Pendiente |
 | Informes | CU59–CU61 | Pendiente |
 | Catálogo público | CU62–CU70 | Pendiente |
 
-39 de los 70 casos de uso implementados, con backend y frontend
+51 de los 70 casos de uso implementados, con backend y frontend
 completos en cada módulo terminado.
 
 ---
@@ -122,6 +123,7 @@ ana_porcelana/
 │   ├── categorias/
 │   ├── productos/
 │   ├── clientes/
+│   ├── pedidos/                 pedidos, sus productos y sus cobros
 │   ├── media/                   archivos subidos (fuera de control de versiones)
 │   ├── manage.py
 │   ├── requirements.txt
@@ -139,7 +141,8 @@ ana_porcelana/
 │       │   ├── materiales/
 │       │   ├── categorias/
 │       │   ├── productos/
-│       │   └── clientes/
+│       │   ├── clientes/
+│       │   └── pedidos/
 │       ├── validadores.js       límite de tamaño (espejo del backend)
 │       ├── rutas.jsx
 │       └── main.jsx
@@ -239,6 +242,63 @@ modificaron.
 **Precio congelado** en las líneas de pedido. El importe se copia al
 registrar la línea, de modo que modificar el precio de un producto no
 altera retroactivamente pedidos ya concretados.
+
+**Dos estados independientes en un pedido.** El estado del pedido
+—pendiente, en producción, listo, entregado— resume el avance del
+encargo completo. La etapa productiva —modelado, secado, pintura y
+barniz, terminado— describe el trabajo del taller pieza por pieza. Una
+pieza puede estar terminada mientras el pedido continúa en producción
+porque otra no lo está, de modo que un único campo no podría
+representar ambas situaciones.
+
+**Un pedido no puede declararse listo con piezas sin terminar.** Es la
+única condición que vincula esos dos estados independientes: el pedido
+no alcanza los estados listo ni entregado mientras alguna de sus piezas
+siga en producción. La condición se verifica en las dos direcciones. Al
+cambiar el estado, la operación se rechaza e informa cuántas piezas
+restan. Al modificar los productos de un pedido ya declarado listo
+—incorporar uno nuevo, retroceder una etapa, retirar el último— el
+pedido regresa automáticamente a producción, porque de otro modo la
+regla se eludiría declarándolo listo y modificándolo a continuación. La
+segunda verificación reutiliza la primera: consulta si el pedido podría
+alcanzar el estado que ya tiene, de manera que ambas no pueden divergir.
+El retroceso opera en un solo sentido; que la última pieza se termine no
+declara listo el pedido, porque esa determinación corresponde a la
+emprendedora.
+
+**Dos fechas de entrega.** La estimada es la que se acuerda con el
+cliente y puede reprogramarse; la real se registra al entregar. Con un
+solo campo, cada reprogramación sustituiría la estimación anterior y se
+perdería la única forma de determinar si la entrega fue puntual.
+
+La fecha real no se carga a mano: la escribe la operación que marca el
+pedido como entregado, con la fecha del día, y se elimina si el pedido
+abandona ese estado, porque un pedido no entregado no tiene fecha de
+entrega. El campo resulta así **derivado del estado** en lugar de
+consignado por separado, y no puede afirmar una entrega que no ocurrió.
+
+**Una única vía de escritura para los campos sujetos a reglas.** El
+estado del pedido y la fecha de entrega real se declaran de solo lectura
+en el serializador, de modo que no pueden alterarse incluyéndolos en el
+cuerpo de una actualización: el estado se modifica mediante una
+operación propia, que verifica las condiciones anteriores, y la fecha la
+registra esa misma operación. Si el campo admitiera escritura directa,
+cada verificación dispondría de una vía alternativa que la eludiría. La
+restricción es, otra vez, **estructural en lugar de condicional**.
+
+**Los importes derivados se calculan y no se almacenan.** El total de
+un pedido, lo cobrado y el saldo se obtienen de sus productos y sus
+cobros cada vez que se consultan. Almacenarlos supondría mantener el
+mismo dato en dos lugares, con el riesgo de que dejen de coincidir al
+modificar una pieza o registrar un pago.
+
+**Reglas de cobro verificadas entre filas.** La suma de los cobros no
+puede superar el total del pedido, y una seña no puede dejarlo saldado:
+el cobro que completa el pago se registra como pago restante o pago
+completo. Ambas condiciones involucran al conjunto de los cobros y no a
+uno solo, de modo que se verifican en la capa de aplicación y no
+mediante una restricción de la base de datos, que evalúa cada fila de
+forma aislada.
 
 **Cantidad en texto libre** en la composición de productos. Las
 cantidades del oficio no admiten una unidad uniforme —«dos gotas»,
