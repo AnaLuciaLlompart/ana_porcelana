@@ -74,7 +74,8 @@ afuera: `api/cliente.js`, `contexto/AuthContext.jsx`,
 Apps terminadas: `usuarios` (CU01–CU03), `materiales` (CU04–CU10),
 `categorias` (CU11–CU16), `productos` (CU17–CU35), `clientes`
 (CU36–CU39) y `pedidos`, que incluye los cobros (CU40–CU51).
-La próxima es **gastos**.
+De `gastos` (CU52–CU59) está hecho el backend; **lo próximo es su
+frontend**. Después vienen los informes (CU60–CU62).
 
 ---
 
@@ -316,7 +317,124 @@ El saldo todavía puede quedar negativo por otro camino: bajarle el total
 a un pedido ya cobrado, que se permite para poder corregir una carga mal
 hecha. Por eso el chip conserva su tercera cara, "A favor $X".
 
-**El comprobante en PDF es CU59 y queda fuera.**
+**El comprobante en PDF queda fuera.**
+
+
+---
+
+
+
+## Módulo Gastos (CU52–CU59)
+
+Diseño en `disenio/Gastos.dc.html`. **Backend terminado, frontend
+pendiente.** Los informes son CU60 a CU62 y quedan fuera de este módulo.
+
+**Dos modelos en la app `gastos`: `Gasto` y `MaterialDelGasto`.** El
+segundo no lleva app ni ViewSet propio: cuelga siempre de un gasto, igual
+que ProductoDelPedido cuelga de Pedido, y se maneja con `@action`
+anidadas en `GastoViewSet` bajo `/api/gastos/<id>/materiales/`. Es la
+tabla MaterialesDelGasto del modelo lógico: la clave primaria compuesta
+(IdMaterial, IdGasto) se resuelve con la PK automática más una
+`UniqueConstraint` sobre (gasto, material), como en MaterialProducto.
+`registrar_material` chequea el duplicado en Python antes de guardar para
+devolver un 400 con mensaje y no el IntegrityError crudo.
+
+**La FK de MaterialDelGasto a Gasto va CASCADE; la FK a Material va
+PROTECT**, con `related_name='en_gastos'`. Por eso
+`MaterialViewSet.destroy` cuenta también los gastos donde figura el
+material antes de borrar, y el mensaje dice "está usado en N productos y
+figura en N gastos" según corresponda.
+
+**Gasto no tiene baja lógica**, como Pedido y Cliente: se elimina o se
+deja cargado.
+
+**Tres tipos: MATERIALES, PUBLICIDAD y OTRO.** `tipo` no tiene default en
+el modelo: el formulario lo pide siempre.
+
+**El monto se guarda en la base, y quién lo escribe depende del tipo.**
+Si el gasto es de materiales, lo escribe el backend: es la suma de los
+subtotales de sus materiales del gasto. Si es de publicidad u otro, lo
+carga la usuaria y tiene que ser mayor a cero. Un gasto de materiales
+recién creado, sin materiales, vale 0 y es válido: la pantalla deja crear
+el gasto y cargar los materiales después. Guardarlo en vez de calcularlo
+al leer es lo que deja los informes como una suma directa de la columna.
+
+**`_recalcular_monto` es la única puerta al monto de un gasto de
+materiales.** Vive en `GastoViewSet` y se llama desde cinco lugares:
+`perform_create`, `perform_update`, y las tres acciones que tocan los
+materiales del gasto (registrar, modificar, quitar). Son los primeros
+`perform_*` del proyecto: son los ganchos que DRF deja para actuar sobre
+el objeto recién guardado sin reescribir `create()` ni `update()`. El
+candado del otro lado está en `GastoSerializer.validate()`: cuando el tipo
+efectivo es MATERIALES, el monto que venga en el cuerpo se descarta, así
+un PUT no puede pisar lo calculado. Es el `read_only` condicional, con el
+mismo motivo que `estado` en PedidoListaSerializer. Cuando el tipo es
+PUBLICIDAD u OTRO, ese mismo `validate()` exige monto mayor a cero. En la
+base, la regla está escrita como `gasto_monto_positivo_salvo_materiales`:
+o el tipo es MATERIALES o el monto es mayor a cero. El admin de Django
+deja escribir el monto y cambiar el tipo a mano, y se acepta: es
+herramienta de desarrollo.
+
+**Un gasto de materiales no puede cambiar de tipo.** `update()` está
+sobrescrito para rechazarlo con 400: los materiales del gasto y el monto
+calculado dependen del tipo, y no hay forma de convertirlos en un monto
+cargado a mano sin inventarlo. Si el tipo está mal, se elimina el gasto y
+se carga de nuevo. El camino inverso sí se permite: un gasto de publicidad
+u otro puede pasar a materiales, el monto pasa a 0 y se cargan los
+materiales.
+
+**`precio_unitario` no se copia de ningún lado:** Material no tiene
+precio. Es lo que se pagó por unidad en esa compra, y el subtotal de la
+fila es cantidad por precio unitario. `cantidad` es entero con mínimo 1;
+el precio pide 0.01 como Cobro.monto, porque la restricción de la base
+pide mayor a cero y las dos capas frenan lo mismo.
+
+**Modificar un material del gasto (CU58) no cambia el material:** el
+serializer de modificación solo tiene cantidad y precio unitario, misma
+garantía estructural que ProductoDelPedidoModificarSerializer. Para anotar
+otro material se quita la fila y se agrega otra.
+
+**No se rechaza un material discontinuado al registrarlo**, igual que en
+los materiales de un producto: la pantalla no lo ofrece en el
+desplegable, así que el backend no necesita una regla para algo que no le
+mandan.
+
+**Disponibilidad Alta desde el gasto es parte de CU58 y es lo único del
+sistema que escribe sobre otro módulo.** Comprar un material es la señal
+de que volvió a haber existencias. Dos endpoints POST, en snake_case como
+todas las acciones del proyecto:
+
+```
+POST /api/gastos/<id>/materiales/<fila>/disponibilidad_alta   una fila
+POST /api/gastos/<id>/materiales/disponibilidad_alta          todas
+```
+
+Los dos pasan por `_marcar_disponibilidad_alta`, que solo cambia los
+materiales ACTIVOS con disponibilidad distinta de ALTA. Los discontinuados
+(de solo lectura, misma condición que `MaterialViewSet.update`) y los que
+ya están en Alta se ignoran: no son un error, y la lista de cambios vuelve
+vacía. La respuesta es:
+
+```
+{ "materiales_cambiados": [ { "id", "nombre", "disponibilidad_anterior",
+                              "disponibilidad_anterior_display" } ],
+  "gasto": { ...el gasto completo con sus filas ya actualizadas... } }
+```
+
+`materiales_cambiados` es lo que el frontend guarda para el Deshacer del
+aviso flotante. **Deshacer no es un endpoint:** se hace con el PATCH de
+`/api/materiales/<id>/` que ya existe, mandando la disponibilidad
+anterior.
+
+**Un solo serializer de Gasto, no dos como Pedido:** el listado necesita
+igual los materiales de cada gasto, porque la tabla muestra cuántos son y
+el buscador local busca por nombre de material. Las filas viajan con el
+nombre, el estado y la disponibilidad del material y sus `_display`, que
+es lo que la tabla del prototipo muestra.
+
+**`search_fields` incluye `materiales__material__nombre`:** el buscador
+del prototipo dice "descripción, tipo o material". El filtrado real es
+local en el navegador, como en todos los módulos.
 
 
 ---

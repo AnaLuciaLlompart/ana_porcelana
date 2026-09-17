@@ -58,26 +58,48 @@ class MaterialViewSet(viewsets.ModelViewSet): # ModelViewSet es la clase que ya 
     # -----------------------------------------------------------------
 
     def destroy(self, request, *args, **kwargs):
-        """Impide eliminar un material que algún producto está usando.
+        """Impide eliminar un material que algún producto usa o que figura en algún gasto.
 
-        La clave foránea de MaterialProducto es PROTECT, así que la base
-        rechaza el borrado igual. Pero sin este chequeo la excepción sale
-        como un 500 con el traceback, y quien está del otro lado no se
-        entera de por qué falló ni en cuántos productos está el material.
+        Las claves foráneas de MaterialProducto y de MaterialDelGasto son
+        PROTECT, así que la base rechaza el borrado igual. Pero sin este
+        chequeo la excepción sale como un 500 con el traceback, y quien
+        está del otro lado no se entera de por qué falló ni en cuántos
+        productos y gastos está el material.
         """
         material = self.get_object()
 
         # Acá sí corresponde .count(): es un solo material y no hay ningún
         # prefetch que respetar, así que conviene una consulta que devuelve
         # un número antes que traerse las filas para contarlas en Python.
-        cantidad = material.usos.count()
+        #
+        # Se cuentan las dos claves foráneas con PROTECT que apuntan a
+        # Material: los productos que lo llevan (MaterialProducto) y los
+        # gastos en los que se compró (MaterialDelGasto). Cualquiera de las
+        # dos hace que la base rechace el borrado.
+        en_productos = material.usos.count()
+        en_gastos = material.en_gastos.count()
 
-        if cantidad > 0:
-            en_productos = '1 producto' if cantidad == 1 else f'{cantidad} productos'
+        if en_productos > 0 or en_gastos > 0:
+            # El mensaje nombra solo lo que corresponde: "está usado en 2
+            # productos", "figura en 1 gasto", o las dos cosas unidas con
+            # una "y".
+            motivos = []
+
+            if en_productos > 0:
+                motivos.append(
+                    'está usado en '
+                    + ('1 producto' if en_productos == 1 else f'{en_productos} productos')
+                )
+
+            if en_gastos > 0:
+                motivos.append(
+                    'figura en '
+                    + ('1 gasto' if en_gastos == 1 else f'{en_gastos} gastos')
+                )
 
             return Response(
-                {'detail': f'No se puede eliminar «{material.nombre}» porque está '
-                           f'usado en {en_productos}. Si ya no lo conseguís o no '
+                {'detail': f'No se puede eliminar «{material.nombre}» porque '
+                           f'{" y ".join(motivos)}. Si ya no lo conseguís o no '
                            f'lo querés usar más, discontinualo.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
