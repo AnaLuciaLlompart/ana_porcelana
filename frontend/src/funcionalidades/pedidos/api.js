@@ -3,12 +3,13 @@ import cliente from '../../api/cliente'
 // Una función por endpoint del backend.
 
 // =====================================================================
-//  PEDIDO  ·  CU40 a CU43
+//  PEDIDO  ·  CU40 a CU43, y CU60
 // =====================================================================
 // listarPedidos        CU41 - buscar
 // crearPedido          CU40 - alta
 // modificarPedido      CU42 - modificar
 // eliminarPedido       CU43 - borrar
+// urlComprobante       CU60 - generar comprobante
 //
 // obtenerPedido no implementa un CU: trae la ficha completa que CU42
 // necesita para cargar el formulario de edición.
@@ -40,6 +41,21 @@ export function eliminarPedido(id) {
 
 export function cambiarEstadoPedido(id, estado) {
   return cliente.post(`/pedidos/${id}/cambiar_estado/`, { estado })
+}
+
+// Es la única función de este archivo que NO llama a cliente: en vez de
+// hacer el pedido, devuelve la dirección. El comprobante se abre en una
+// pestaña nueva con un enlace común, y a un enlace lo que se le da es una
+// dirección, no una respuesta. La sesión viaja igual, porque va en la
+// cookie y el navegador la manda solo al ser el mismo origen.
+//
+// Vive acá de todos modos para que la ruta del endpoint siga escrita en un
+// solo lugar, como las demás.
+//
+// El /api del principio va escrito a mano por ese mismo motivo: a las otras
+// funciones se lo agrega el baseURL de cliente, y esta no pasa por cliente.
+export function urlComprobante(id) {
+  return `/api/pedidos/${id}/comprobante/`
 }
 
 

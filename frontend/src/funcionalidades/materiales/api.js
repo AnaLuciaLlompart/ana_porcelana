@@ -51,3 +51,13 @@ export function discontinuarMaterial(id) {
 export function reactivarMaterial(id) {
   return cliente.post(`/materiales/${id}/reactivar/`)
 }
+
+// Cambia SOLO la disponibilidad, con un PATCH. No sirve actualizarMaterial
+// para esto: es un PUT con FormData que exige todos los campos del
+// material, y acá no se tiene ninguno más que el id.
+//
+// La usa la ficha de un gasto para deshacer el "marcar en disponibilidad
+// Alta": le devuelve a cada material la disponibilidad que tenía antes.
+export function cambiarDisponibilidad(id, disponibilidad) {
+  return cliente.patch(`/materiales/${id}/`, { disponibilidad })
+}

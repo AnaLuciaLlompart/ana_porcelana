@@ -73,9 +73,9 @@ afuera: `api/cliente.js`, `contexto/AuthContext.jsx`,
 
 Apps terminadas: `usuarios` (CU01–CU03), `materiales` (CU04–CU10),
 `categorias` (CU11–CU16), `productos` (CU17–CU35), `clientes`
-(CU36–CU39) y `pedidos`, que incluye los cobros (CU40–CU51).
-De `gastos` (CU52–CU59) está hecho el backend; **lo próximo es su
-frontend**. Después vienen los informes (CU60–CU62).
+(CU36–CU39), `pedidos`, que incluye los cobros (CU40–CU51), y `gastos`
+(CU52–CU59). La próxima es **informes** (CU60–CU62), y después el
+catálogo público (CU63–CU71). Son 71 casos de uso en total.
 
 ---
 
@@ -326,8 +326,8 @@ hecha. Por eso el chip conserva su tercera cara, "A favor $X".
 
 ## Módulo Gastos (CU52–CU59)
 
-Diseño en `disenio/Gastos.dc.html`. **Backend terminado, frontend
-pendiente.** Los informes son CU60 a CU62 y quedan fuera de este módulo.
+Diseño en `disenio/Gastos.dc.html`. **El módulo está completo**, backend
+y frontend. Los informes son CU60 a CU62 y quedan fuera de este módulo.
 
 **Dos modelos en la app `gastos`: `Gasto` y `MaterialDelGasto`.** El
 segundo no lleva app ni ViewSet propio: cuelga siempre de un gasto, igual
@@ -435,6 +435,104 @@ es lo que la tabla del prototipo muestra.
 **`search_fields` incluye `materiales__material__nombre`:** el buscador
 del prototipo dice "descripción, tipo o material". El filtrado real es
 local en el navegador, como en todos los módulos.
+
+### El frontend de Gastos
+
+En `funcionalidades/gastos/`: `Gastos.jsx` es el listado y
+`DetalleGasto.jsx` la ficha, con `esAlta` como DetallePedido. Los
+acompañan `ModalFiltros.jsx`, `ModalMaterial.jsx`,
+`ModalEliminarGasto.jsx`, `filtros.js`, `presentacion.js` y `api.js`.
+
+**El resumen del listado cuenta sobre lo FILTRADO**, al revés que Pedidos
+y Clientes. Allá el resumen dice cómo viene el trabajo; acá dice cuánto
+suma lo que se está mirando, porque filtrar por período o por tipo es
+justamente la forma de preguntar cuánto se gastó.
+
+**El tope del deslizador de monto sale de los datos.** `montoMaximo`, en
+`filtros.js`, toma el gasto más caro y lo redondea hacia arriba a mil, con
+el criterio de `rangoDePrecios` en Productos. El piso queda fijo en 0. El
+$120.000 del prototipo era de relleno: un tope fijo envejece el día que se
+carga un gasto más caro. Los filtros aplicados se muestran como en Pedidos,
+con chips que llevan cruz y "Limpiar todo".
+
+**`TIPOS` en `presentacion.js` es para ELEGIR un tipo, no para mostrarlo.**
+Dibuja las opciones del modal de filtros, la etiqueta del chip aplicado y
+los segmentos de la ficha, que tienen que existir aunque no haya ningún
+gasto de ese tipo. Donde se muestra el tipo de un gasto va `tipo_display`.
+
+**El alta crea el gasto primero: diferencia deliberada con el prototipo.**
+El prototipo deja cargar materiales antes de crear el gasto y exige al
+menos uno. Acá el gasto tiene que existir en la base antes de colgarle
+materiales: el alta hace el POST y navega a `/gastos/<id>`, igual que
+Pedidos. El "Agregá al menos un material…" del prototipo no es un error:
+queda como leyenda bajo la tabla vacía.
+
+**`setGasto` va antes de navegar en el alta, y no es prolijidad.**
+`/gastos/nuevo` y `/gastos/:id` dibujan el mismo componente, así que React
+Router no lo desmonta al pasar de una ruta a la otra: lo reutiliza con su
+estado. Sin ese `setGasto`, la ficha mostraría un instante "No se encontró
+el gasto" hasta que llegue el GET.
+
+**La ficha no tiene pestañas**, porque el prototipo no las tiene: son dos
+tarjetas apiladas y el botón de eliminar. En un gasto existente los botones
+Descartar y Guardar aparecen recién cuando hay cambios; en el alta están
+siempre Cancelar y "Crear gasto". Salir descarta sin preguntar.
+
+**El monto de un gasto de materiales no se calcula en el navegador.** Se
+muestra `gasto.monto` tal cual viene en cada respuesta, tanto en el campo
+apagado de arriba como en el pie de la tabla. El único caso con $0 escrito
+por el frontend es cuando se eligió Materiales pero el gasto todavía no se
+guardó así: no hay materiales que sumar, y es lo que el backend va a
+escribir al guardar.
+
+**El tipo se bloquea en la ficha cuando el gasto GUARDADO es de
+materiales.** Los otros dos segmentos van deshabilitados con un title que
+lo explica, para no ofrecer un cambio que el backend va a rechazar. Se mira
+el gasto guardado, no el borrador. La tabla de materiales aparece con esa
+misma condición.
+
+**`ModalMaterial` es un solo modal para agregar y editar**, distinguido
+por prop como ModalCobro; al editar, el material queda bloqueado. Pero a
+diferencia de ModalCobro llama él mismo a la API, como ModalCliente: es la
+única forma de que el error del backend se vea adentro del modal con el
+formulario todavía abierto. Al salir bien le entrega a la ficha el gasto
+actualizado. El desplegable ofrece solo los materiales activos que todavía
+no están en el gasto.
+
+**Las operaciones sobre materiales devuelven el gasto completo**, y la
+ficha lo reemplaza en estado sin volver a pedirlo. Quitar es inmediato,
+sin modal de confirmación ni aviso, igual que quitar un producto del
+pedido. Sus errores se muestran dentro de la tarjeta de materiales, no en
+el formulario: el mismo criterio que `errorEstado` en Pedidos.
+
+**El aviso con Deshacer.** Al marcar en disponibilidad Alta, si
+`materiales_cambiados` viene vacío no hay aviso. Si no, el aviso lleva la
+acción Deshacer y dura 6 segundos en vez de 2,6. La lista se guarda en un
+ref y no en estado, porque no se dibuja. Deshacer llama a
+`cambiarDisponibilidad(id, disponibilidad)`, que vive en
+`materiales/api.js` y hace un PATCH con ese solo campo, una vez por
+material, y después vuelve a pedir el gasto. `actualizarMaterial` no sirve
+para esto: es un PUT con FormData que exige todos los campos.
+
+**Los otros avisos de la ficha** son "Cambios guardados", "Material
+agregado" y "Material actualizado", de 2,6 segundos y sin acción. Crear,
+quitar y eliminar no avisan: su efecto se ve.
+
+**Dos props opcionales en los componentes compartidos.** `Toast` recibe
+`accion` y `onAccion`; sin ellas se dibuja igual. `BotonAccion` recibe
+`deshabilitado`; la opacidad se escribe solo cuando está apagado, porque
+un 1 fijo le ganaría a la regla de `index.css` que baja la opacidad al
+pasar el mouse. `EncabezadoOrdenable` sigue siendo una copia local en cada
+listado (Clientes, Pedidos, Materiales y Gastos).
+
+### Las pruebas de Gastos
+
+`backend/gastos/tests.py` tiene 60 pruebas: los ocho casos de uso por sus
+endpoints reales, las reglas del monto y del tipo, la disponibilidad Alta
+con su deshacer, el cambio en `MaterialViewSet.destroy` y las
+restricciones de la base por fuera de la API. Se corren con
+`python manage.py test gastos`, que usa una base temporal y no toca la de
+desarrollo. Es la única app con pruebas automatizadas por ahora.
 
 
 ---

@@ -1,3 +1,4 @@
+from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
@@ -5,7 +6,9 @@ from rest_framework.response import Response
 
 from productos.models import Producto
 
+from .comprobante import generar_comprobante
 from .models import Cobro, Pedido, ProductoDelPedido
+from .presentacion import plata
 from .serializers import (
     CobroSerializer,
     PedidoDetalleSerializer,
@@ -15,13 +18,6 @@ from .serializers import (
 )
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
-
-
-def _plata(valor):
-    """Un importe listo para leer dentro de un mensaje de error: $12.500."""
-    # El formato de Python separa los miles con coma; acá se cambia por
-    # el punto, que es como se escribe la plata en Argentina.
-    return '$' + f'{valor:,.0f}'.replace(',', '.')
 
 
 def _revisar_estado(pedido, estado):
@@ -99,7 +95,7 @@ def _revisar_estado(pedido, estado):
 # ficha que CU42 usa para cargar el formulario.
 
 class PedidoViewSet(viewsets.ModelViewSet):
-    """CRUD de pedidos y de los productos que los componen (CU40 a CU47).
+    """CRUD de pedidos con sus productos, cobros y comprobante (CU40 a CU51 y CU60).
 
     Hereda IsAuthenticated de la configuración global de DRF, por lo que
     todos los endpoints exigen sesión activa.
@@ -109,10 +105,12 @@ class PedidoViewSet(viewsets.ModelViewSet):
     estado que deje al registro de solo lectura. Es la misma situación
     que Cliente. Un pedido entregado se sigue pudiendo corregir.
 
-    Además del CRUD expone dos cosas:
+    Además del CRUD expone cuatro cosas:
 
     - cambiar_estado, que es parte de CU42
     - los productos del pedido, en /productos/ (CU44 a CU47)
+    - los cobros del pedido, en /cobros/ (CU48 a CU51)
+    - el comprobante de compra, en /comprobante/ (CU60)
     """
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -542,8 +540,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 return 'Este pedido ya está cobrado por completo.'
 
             return (
-                f'No se puede cobrar {_plata(monto)}: el pedido es de '
-                f'{_plata(pedido.total)} y falta cobrar {_plata(disponible)}.'
+                f'No se puede cobrar {plata(monto)}: el pedido es de '
+                f'{plata(pedido.total)} y falta cobrar {plata(disponible)}.'
             )
 
         # Si el monto es exactamente lo que falta, este cobro salda el
@@ -688,3 +686,58 @@ class PedidoViewSet(viewsets.ModelViewSet):
         pedido.refresh_from_db()
 
         return Response(self.get_serializer(pedido).data)
+
+    # -----------------------------------------------------------------
+    # El comprobante de compra (CU60)
+    # -----------------------------------------------------------------
+    # Va con GET y no con POST, a diferencia de cambiar_estado: es una
+    # lectura, no cambia nada del pedido. Es el mismo caso que las
+    # acciones 'productos' y 'cobros' de más arriba.
+    #
+    #   GET    /api/pedidos/1/comprobante/     devuelve el PDF
+
+    @action(detail=True, methods=['get'])
+    def comprobante(self, request, pk=None):
+        """CU60 - Generar comprobante de compra del pedido.
+
+        Devuelve un PDF para que la emprendedora lo abra, lo guarde y se
+        lo mande al cliente ella misma: el sistema no envía mails.
+
+        Acá solo se revisa que el pedido tenga productos y se arma la
+        respuesta. El dibujo del PDF está en comprobante.py.
+
+        Un pedido sin productos no genera comprobante, por el mismo
+        motivo por el que no se le puede registrar un cobro: todavía no
+        hay nada que comprobar.
+        """
+        # get_object() y no Pedido.objects.get(): pasa por get_queryset,
+        # que trae de una sola vez el cliente, los productos y los
+        # cobros, y además respeta los permisos del ViewSet.
+        pedido = self.get_object()
+
+        # list() sobre lo que ya trajo el prefetch, igual que en
+        # _revisar_estado: una lista vacía es falsa, así que el if entra
+        # cuando el pedido no tiene ningún producto.
+        if not list(pedido.productos.all()):
+            return Response(
+                {'detail': (
+                    'El pedido todavía no tiene productos cargados, '
+                    'así que no hay nada que poner en el comprobante.'
+                )},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # FileResponse es la respuesta de Django para mandar archivos.
+        # as_attachment=False hace que escriba la cabecera
+        # 'Content-Disposition: inline', que le pide al navegador que lo
+        # muestre en la pestaña en vez de descargarlo. El filename es el
+        # nombre que propone si la usuaria después elige guardarlo, y de
+        # su extensión .pdf sale el tipo 'application/pdf'.
+        #
+        # No es un Response de DRF porque ese convierte los datos a JSON,
+        # y acá lo que viaja ya es un archivo armado.
+        return FileResponse(
+            generar_comprobante(pedido),
+            as_attachment=False,
+            filename=f'comprobante-pedido-{pedido.id}.pdf',
+        )

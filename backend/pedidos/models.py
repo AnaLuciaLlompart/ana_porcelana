@@ -8,7 +8,7 @@ from clientes.models import Cliente
 from productos.models import Producto
 
 # =====================================================================
-# PEDIDOS  ·  CU40 a CU47
+# PEDIDOS  ·  CU40 a CU51
 # =====================================================================
 
 

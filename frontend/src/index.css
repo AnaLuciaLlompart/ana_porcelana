@@ -34,8 +34,8 @@ button:not(:disabled):hover {
   background: var(--hover) !important;
 }
 
-.btn-reponer:hover {
-  background: #F0E2E4;
+.btn-reponer:not(:disabled):hover {
+  background: #F0E2E4 !important;
 }
 
 .th-orden:hover {

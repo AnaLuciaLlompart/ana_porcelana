@@ -37,11 +37,11 @@ El sistema comprende **dos ámbitos diferenciados**:
 | Clientes | CU36–CU39 | Completo |
 | Pedidos | CU40–CU47 | Completo |
 | Cobros | CU48–CU51 | Completo |
-| Gastos | CU52–CU58 | Pendiente |
-| Informes | CU59–CU61 | Pendiente |
-| Catálogo público | CU62–CU70 | Pendiente |
+| Gastos | CU52–CU59 | Completo |
+| Informes | CU60–CU62 | Pendiente |
+| Catálogo público | CU63–CU71 | Pendiente |
 
-51 de los 70 casos de uso implementados, con backend y frontend
+59 de los 71 casos de uso implementados, con backend y frontend
 completos en cada módulo terminado.
 
 ---
@@ -124,6 +124,7 @@ ana_porcelana/
 │   ├── productos/
 │   ├── clientes/
 │   ├── pedidos/                 pedidos, sus productos y sus cobros
+│   ├── gastos/                  gastos y los materiales de cada compra
 │   ├── media/                   archivos subidos (fuera de control de versiones)
 │   ├── manage.py
 │   ├── requirements.txt
@@ -142,7 +143,8 @@ ana_porcelana/
 │       │   ├── categorias/
 │       │   ├── productos/
 │       │   ├── clientes/
-│       │   └── pedidos/
+│       │   ├── pedidos/
+│       │   └── gastos/
 │       ├── validadores.js       límite de tamaño (espejo del backend)
 │       ├── rutas.jsx
 │       └── main.jsx
@@ -203,6 +205,21 @@ npm run dev
 ```
 
 La aplicación queda disponible en `http://localhost:5173`.
+
+### 4 · Pruebas automatizadas
+
+El módulo de gastos cuenta con pruebas de sus ocho casos de uso, de las
+reglas del monto y del tipo, y de las restricciones de la base de datos.
+Se ejecutan desde `backend/`:
+
+```bash
+python manage.py test gastos
+```
+
+Django crea una base de datos temporal, ejecuta cada prueba dentro de
+una transacción que revierte al finalizar y elimina esa base al
+terminar, de modo que los datos de desarrollo no se alteran. El usuario
+de PostgreSQL debe tener permiso para crear bases de datos.
 
 ---
 
@@ -299,6 +316,43 @@ completo. Ambas condiciones involucran al conjunto de los cobros y no a
 uno solo, de modo que se verifican en la capa de aplicación y no
 mediante una restricción de la base de datos, que evalúa cada fila de
 forma aislada.
+
+**El monto de un gasto se almacena, a diferencia del total de un
+pedido.** Un gasto de publicidad o de otro tipo tiene un monto
+consignado por la emprendedora, mientras que el de una compra de
+materiales resulta de sumar los subtotales de los materiales adquiridos.
+Ambos ocupan la misma columna, de modo que los informes económicos se
+obtienen como una suma directa, sin distinguir tipos. El riesgo de
+almacenar un dato derivado —que deje de coincidir con aquello de lo que
+deriva— se cierra con una única vía de escritura: un solo método
+recalcula el monto, y lo invocan todas las operaciones capaces de
+alterarlo. El serializador descarta el monto recibido cuando el gasto es
+de materiales, de manera que una actualización no puede sustituir el
+valor calculado, y una restricción de la base de datos exige un monto
+mayor a cero en los demás tipos.
+
+**El tipo de un gasto de materiales no se modifica.** Sus materiales y
+su monto calculado dependen del tipo, y no existe forma de convertirlos
+en un monto consignado a mano sin inventarlo. La operación inversa sí se
+admite: un gasto de otro tipo puede pasar a ser de materiales, con lo
+cual su monto queda en cero hasta que se registren las compras.
+
+**El gasto se crea antes de registrar sus materiales.** El prototipo
+permitía cargar los materiales antes de crear el gasto y exigía al menos
+uno. La implementación se aparta deliberadamente de ese flujo: los
+materiales son un subrecurso del gasto y requieren que este exista. Un
+gasto de materiales recién creado tiene monto cero, y esa situación es
+válida.
+
+**Una única operación escribe sobre otro módulo.** Registrar la compra
+de un material indica que volvió a haber existencias, de modo que desde
+el gasto puede marcarse en disponibilidad alta, de a uno o en conjunto.
+La regla reside en el backend —solo se modifican los materiales activos
+que no estaban ya en ese nivel— y la respuesta informa la disponibilidad
+previa de cada material modificado. Con ese dato la interfaz ofrece
+deshacer la operación sin que exista un endpoint dedicado: restituye
+cada valor mediante la actualización parcial de materiales ya
+disponible.
 
 **Cantidad en texto libre** en la composición de productos. Las
 cantidades del oficio no admiten una unidad uniforme —«dos gotas»,

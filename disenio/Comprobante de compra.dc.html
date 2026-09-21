@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FAF7F7; font-family: 'Nunito Sans', sans-serif; color: #3D3238; }
+  * { box-sizing: border-box; }
+  a { color: #8C5A66; }
+  a:hover { color: #B08791; }
+</style>
+</helmet>
+<div style="display: flex; flex-direction: column; align-items: flex-start; gap: 48px; padding: 48px; background: #FAF7F7">
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078">Hoja A · Sin ningún cobro</p>
+    <div style="width: 794px; height: 1123px; background: #FFFFFF; border: 1px solid #EBE0E2; padding: 64px 56px; display: flex; flex-direction: column">
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 24px; border-bottom: 1px solid #EBE0E2">
+        <div>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 26px; color: #8C5A66">Ana Porcelana</p>
+          <p style="margin: 6px 0 0; font-size: 15px; color: #857078">@ana.porcelana</p>
+        </div>
+        <div style="text-align: right">
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Comprobante de compra</p>
+          <p style="margin: 8px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 22px; color: #8C5A66">Pedido #12</p>
+          <p style="margin: 6px 0 0; font-size: 14px; color: #857078">Emitido el 17 sep 2026</p>
+        </div>
+      </div>
+
+      <div style="padding: 28px 0 4px">
+        <p style="margin: 0 0 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">DATOS DEL PEDIDO</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 32px">
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">FECHA DEL PEDIDO</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">5 sep 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">ENTREGA ESTIMADA</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">24 sep 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">CLIENTE</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">Sofía Delgado</p>
+            <p style="margin: 3px 0 0; font-size: 15px; color: #857078">@sofi.delgado</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">DIRECCIÓN DE ENTREGA</p>
+            <p style="margin: 5px 0 0; font-size: 16px; line-height: 1.45; color: #3D3238; text-wrap: pretty">Av. Rivadavia 4520, piso 3 A, CABA</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 32px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PRODUCTOS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">PRODUCTO</th>
+              <th style="width: 28%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">DESCRIPCIÓN</th>
+              <th style="width: 10%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">CANT.</th>
+              <th style="width: 16%; padding: 10px 8px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">P. UNITARIO</th>
+              <th style="width: 16%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">SUBTOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Aros Luna Menguante</td>
+              <td style="padding: 14px 8px; font-size: 14px; line-height: 1.4; color: #857078; text-wrap: pretty">Lila con detalle dorado</td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">2</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$6.500</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$13.000</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Collar Hongo</td>
+              <td style="padding: 14px 8px"></td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">1</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$8.900</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$8.900</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Llavero personalizado</td>
+              <td style="padding: 14px 8px; font-size: 14px; line-height: 1.4; color: #857078; text-wrap: pretty">Con inicial M, en tonos pastel</td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">3</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$5.400</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$16.200</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; padding: 16px 12px 0">
+          <span style="font-size: 16px; color: #857078">Costo de entrega</span>
+          <span style="min-width: 108px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$3.200</span>
+        </div>
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; margin-top: 18px; padding: 18px 12px 0; border-top: 1px solid #EBE0E2">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Total del pedido</span>
+          <span style="min-width: 108px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 24px; color: #8C5A66">$41.300</span>
+        </div>
+      </div>
+
+      <div style="padding: 36px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">COBROS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">FECHA</th>
+              <th style="width: 26%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">TIPO</th>
+              <th style="width: 24%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MEDIO DE PAGO</th>
+              <th style="width: 20%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MONTO</th>
+            </tr>
+          </thead>
+        </table>
+        <div style="padding: 22px 12px; border-bottom: 1px solid #EBE0E2">
+          <p style="margin: 0; font-size: 15px; color: #857078; text-wrap: pretty">Todavía no se registró ningún cobro para este pedido.</p>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 20px; padding: 26px 12px 28px">
+        <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Saldo</span>
+        <span style="display: inline-block; padding: 9px 18px; border-radius: 20px; border: 1px solid #D9A441; background: #FDF3E0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #8A6320">Saldo pendiente $41.300</span>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 28px; border-top: 1px solid #EBE0E2">
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #857078; text-wrap: pretty">Cualquier duda sobre tu pedido, escribime a @ana.porcelana por Instagram.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078">Hoja B · Con una seña</p>
+    <div style="width: 794px; height: 1123px; background: #FFFFFF; border: 1px solid #EBE0E2; padding: 64px 56px; display: flex; flex-direction: column">
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 24px; border-bottom: 1px solid #EBE0E2">
+        <div>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 26px; color: #8C5A66">Ana Porcelana</p>
+          <p style="margin: 6px 0 0; font-size: 15px; color: #857078">@ana.porcelana</p>
+        </div>
+        <div style="text-align: right">
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Comprobante de compra</p>
+          <p style="margin: 8px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 22px; color: #8C5A66">Pedido #13</p>
+          <p style="margin: 6px 0 0; font-size: 14px; color: #857078">Emitido el 17 sep 2026</p>
+        </div>
+      </div>
+
+      <div style="padding: 28px 0 4px">
+        <p style="margin: 0 0 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">DATOS DEL PEDIDO</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 32px">
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">FECHA DEL PEDIDO</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">28 ago 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">ENTREGA ESTIMADA</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">19 sep 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">CLIENTE</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">Sofía Delgado</p>
+            <p style="margin: 3px 0 0; font-size: 15px; color: #857078">@sofi.delgado</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 32px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PRODUCTOS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">PRODUCTO</th>
+              <th style="width: 28%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">DESCRIPCIÓN</th>
+              <th style="width: 10%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">CANT.</th>
+              <th style="width: 16%; padding: 10px 8px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">P. UNITARIO</th>
+              <th style="width: 16%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">SUBTOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Aros flores</td>
+              <td style="padding: 14px 8px; font-size: 14px; line-height: 1.4; color: #857078; text-wrap: pretty">Verde agua, con centro dorado</td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">2</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$6.800</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$13.600</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Prendedor gatito</td>
+              <td style="padding: 14px 8px"></td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">4</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$4.900</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$19.600</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Collar inicial personalizado</td>
+              <td style="padding: 14px 8px; font-size: 14px; line-height: 1.4; color: #857078; text-wrap: pretty">Con inicial S en dorado</td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">1</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$7.800</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$7.800</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; margin-top: 18px; padding: 18px 12px 0; border-top: 1px solid #EBE0E2">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Total del pedido</span>
+          <span style="min-width: 108px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 24px; color: #8C5A66">$41.000</span>
+        </div>
+      </div>
+
+      <div style="padding: 36px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">COBROS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">FECHA</th>
+              <th style="width: 26%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">TIPO</th>
+              <th style="width: 24%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MEDIO DE PAGO</th>
+              <th style="width: 20%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MONTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; color: #3D3238">28 ago 2026</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Seña</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Transferencia</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$15.000</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; padding: 14px 12px 0">
+          <span style="font-size: 16px; color: #857078">Total cobrado</span>
+          <span style="min-width: 108px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$15.000</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 20px; padding: 26px 12px 28px">
+        <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Saldo</span>
+        <span style="display: inline-block; padding: 9px 18px; border-radius: 20px; border: 1px solid #D9A441; background: #FDF3E0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #8A6320">Saldo pendiente $26.000</span>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 28px; border-top: 1px solid #EBE0E2">
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #857078; text-wrap: pretty">Cualquier duda sobre tu pedido, escribime a @ana.porcelana por Instagram.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078">Hoja C · Con saldo a favor del cliente</p>
+    <div style="width: 794px; height: 1123px; background: #FFFFFF; border: 1px solid #EBE0E2; padding: 64px 56px; display: flex; flex-direction: column">
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 24px; border-bottom: 1px solid #EBE0E2">
+        <div>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 26px; color: #8C5A66">Ana Porcelana</p>
+          <p style="margin: 6px 0 0; font-size: 15px; color: #857078">@ana.porcelana</p>
+        </div>
+        <div style="text-align: right">
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Comprobante de compra</p>
+          <p style="margin: 8px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 22px; color: #8C5A66">Pedido #14</p>
+          <p style="margin: 6px 0 0; font-size: 14px; color: #857078">Emitido el 17 sep 2026</p>
+        </div>
+      </div>
+
+      <div style="padding: 28px 0 4px">
+        <p style="margin: 0 0 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">DATOS DEL PEDIDO</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 32px">
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">FECHA DEL PEDIDO</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">2 ago 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">ENTREGA ESTIMADA</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">10 sep 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">CLIENTE</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">Sofía Delgado</p>
+            <p style="margin: 3px 0 0; font-size: 15px; color: #857078">@sofi.delgado</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">DIRECCIÓN DE ENTREGA</p>
+            <p style="margin: 5px 0 0; font-size: 16px; line-height: 1.45; color: #3D3238; text-wrap: pretty">Belgrano 1130, Tigre</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 32px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PRODUCTOS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">PRODUCTO</th>
+              <th style="width: 28%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">DESCRIPCIÓN</th>
+              <th style="width: 10%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">CANT.</th>
+              <th style="width: 16%; padding: 10px 8px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">P. UNITARIO</th>
+              <th style="width: 16%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">SUBTOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Aros corazón</td>
+              <td style="padding: 14px 8px; font-size: 14px; line-height: 1.4; color: #857078; text-wrap: pretty">Rosa viejo, terminación mate</td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">2</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$5.900</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$11.800</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Llavero Stitch</td>
+              <td style="padding: 14px 8px"></td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">2</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$5.400</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$10.800</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; padding: 16px 12px 0">
+          <span style="font-size: 16px; color: #857078">Costo de entrega</span>
+          <span style="min-width: 108px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$2.500</span>
+        </div>
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; margin-top: 18px; padding: 18px 12px 0; border-top: 1px solid #EBE0E2">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Total del pedido</span>
+          <span style="min-width: 108px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 24px; color: #8C5A66">$25.100</span>
+        </div>
+      </div>
+
+      <div style="padding: 36px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">COBROS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">FECHA</th>
+              <th style="width: 26%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">TIPO</th>
+              <th style="width: 24%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MEDIO DE PAGO</th>
+              <th style="width: 20%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MONTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; color: #3D3238">2 ago 2026</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Seña</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Efectivo</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$12.000</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; color: #3D3238">29 ago 2026</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Pago restante</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Transferencia</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$18.400</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; padding: 14px 12px 0">
+          <span style="font-size: 16px; color: #857078">Total cobrado</span>
+          <span style="min-width: 108px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$30.400</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 20px; padding: 26px 12px 28px">
+        <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Saldo</span>
+        <span style="display: inline-block; padding: 9px 18px; border-radius: 20px; border: 1px solid #4E8C6A; background: #E8F5EF; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #4E8C6A">A favor $5.300</span>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 28px; border-top: 1px solid #EBE0E2">
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #857078; text-wrap: pretty">Cualquier duda sobre tu pedido, escribime a @ana.porcelana por Instagram.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #857078">Hoja D · Cobrado por completo</p>
+    <div style="width: 794px; height: 1123px; background: #FFFFFF; border: 1px solid #EBE0E2; padding: 64px 56px; display: flex; flex-direction: column">
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 24px; border-bottom: 1px solid #EBE0E2">
+        <div>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 26px; color: #8C5A66">Ana Porcelana</p>
+          <p style="margin: 6px 0 0; font-size: 15px; color: #857078">@ana.porcelana</p>
+        </div>
+        <div style="text-align: right">
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Comprobante de compra</p>
+          <p style="margin: 8px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 22px; color: #8C5A66">Pedido #15</p>
+          <p style="margin: 6px 0 0; font-size: 14px; color: #857078">Emitido el 17 sep 2026</p>
+        </div>
+      </div>
+
+      <div style="padding: 28px 0 4px">
+        <p style="margin: 0 0 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">DATOS DEL PEDIDO</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px 32px">
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">FECHA DEL PEDIDO</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">20 ago 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">ENTREGA ESTIMADA</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">12 sep 2026</p>
+          </div>
+          <div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #857078">CLIENTE</p>
+            <p style="margin: 5px 0 0; font-size: 16px; color: #3D3238">Sofía Delgado</p>
+            <p style="margin: 3px 0 0; font-size: 15px; color: #857078">@sofi.delgado</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding: 32px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PRODUCTOS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">PRODUCTO</th>
+              <th style="width: 28%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">DESCRIPCIÓN</th>
+              <th style="width: 10%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">CANT.</th>
+              <th style="width: 16%; padding: 10px 8px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">P. UNITARIO</th>
+              <th style="width: 16%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">SUBTOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Aros Luna Menguante</td>
+              <td style="padding: 14px 8px; font-size: 14px; line-height: 1.4; color: #857078; text-wrap: pretty">Blanco con dorado</td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">1</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$6.500</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$6.500</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Collar Hongo</td>
+              <td style="padding: 14px 8px; font-size: 14px; line-height: 1.4; color: #857078; text-wrap: pretty">Con cadena corta</td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">1</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$8.900</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$8.900</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; line-height: 1.35; color: #3D3238">Prendedor gatito</td>
+              <td style="padding: 14px 8px"></td>
+              <td style="padding: 14px 8px; text-align: center; font-size: 16px; color: #3D3238">2</td>
+              <td style="padding: 14px 8px; text-align: right; font-size: 16px; color: #3D3238">$4.900</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$9.800</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; margin-top: 18px; padding: 18px 12px 0; border-top: 1px solid #EBE0E2">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Total del pedido</span>
+          <span style="min-width: 108px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 24px; color: #8C5A66">$25.200</span>
+        </div>
+      </div>
+
+      <div style="padding: 36px 0 0">
+        <p style="margin: 0 0 14px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">COBROS DEL PEDIDO</p>
+        <table style="width: 100%; table-layout: fixed; border-collapse: collapse">
+          <thead>
+            <tr style="background: #F0E2E4">
+              <th style="width: 30%; padding: 10px 12px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">FECHA</th>
+              <th style="width: 26%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">TIPO</th>
+              <th style="width: 24%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MEDIO DE PAGO</th>
+              <th style="width: 20%; padding: 10px 12px; text-align: right; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #8C5A66">MONTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; color: #3D3238">20 ago 2026</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Seña</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Efectivo</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$10.000</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #EBE0E2">
+              <td style="padding: 14px 12px; font-size: 16px; color: #3D3238">11 sep 2026</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Pago restante</td>
+              <td style="padding: 14px 8px; font-size: 16px; color: #3D3238">Transferencia</td>
+              <td style="padding: 14px 12px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$15.200</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 32px; padding: 14px 12px 0">
+          <span style="font-size: 16px; color: #857078">Total cobrado</span>
+          <span style="min-width: 108px; text-align: right; font-size: 16px; font-weight: 600; color: #3D3238">$25.200</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 20px; padding: 26px 12px 28px">
+        <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Saldo</span>
+        <span style="display: inline-block; padding: 9px 18px; border-radius: 20px; border: 1px solid #4E8C6A; background: #E8F5EF; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #4E8C6A">Al día</span>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 28px; border-top: 1px solid #EBE0E2">
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #857078; text-wrap: pretty">Cualquier duda sobre tu pedido, escribime a @ana.porcelana por Instagram.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

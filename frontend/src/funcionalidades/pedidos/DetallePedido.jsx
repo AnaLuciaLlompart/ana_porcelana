@@ -6,6 +6,7 @@ import {
   crearPedido,
   modificarPedido,
   cambiarEstadoPedido,
+  urlComprobante,
   agregarProductoAlPedido,
   modificarProductoDelPedido,
   quitarProductoDelPedido,
@@ -33,6 +34,7 @@ import {
   COLOR_ESTADO,
   ESTADOS,
   ICONO_ALERTA,
+  ICONO_COMPROBANTE,
   ICONO_FLECHA,
   chipSaldo,
   hoy,
@@ -409,6 +411,43 @@ export default function DetallePedido({ esAlta = false }) {
     ? {}
     : { productos: pedido.cantidad_productos, cobros: pedido.cobros.length }
 
+  // Hay cambios si algún campo del borrador difiere de lo guardado. Es la
+  // misma comparación que hacen las fichas de Gastos y de Productos.
+  const original = esAlta ? null : borradorDe(pedido)
+
+  const hayCambios =
+    !esAlta &&
+    (borrador.cliente !== original.cliente ||
+      borrador.fecha_pedido !== original.fecha_pedido ||
+      borrador.fecha_entrega_estimada !== original.fecha_entrega_estimada ||
+      borrador.envio_a_cargo !== original.envio_a_cargo ||
+      borrador.direccion_entrega !== original.direccion_entrega ||
+      borrador.costo_entrega !== original.costo_entrega)
+
+  // Por qué el botón Comprobante está apagado, o '' si está encendido. Es un
+  // solo texto y no tres booleanos: el tooltip lo muestra tal cual y el
+  // apagado sale de preguntar si está vacío, así que no pueden decir cosas
+  // distintas.
+  //
+  // El orden importa: se muestra el primer motivo que se cumpla, y van del
+  // más de fondo al más fácil de resolver.
+  let motivoSinComprobante = ''
+
+  if (esAlta) {
+    motivoSinComprobante = 'Disponible después de crear el pedido'
+  } else if (pedido.cantidad_productos === 0) {
+    // El mismo criterio con el que el backend devuelve el 400: los dos
+    // cuentan las filas de productos del pedido.
+    motivoSinComprobante = 'Agregá productos al pedido para generar el comprobante'
+  } else if (hayCambios) {
+    // El PDF se arma con lo GUARDADO. Con el borrador a medio editar
+    // mostraría, por ejemplo, la dirección vieja mientras la pantalla
+    // muestra la nueva.
+    motivoSinComprobante = 'Guardá los cambios para generar el comprobante'
+  }
+
+  const comprobanteApagado = motivoSinComprobante !== ''
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
@@ -436,67 +475,128 @@ export default function DetallePedido({ esAlta = false }) {
         <span style={{ fontSize: 15, color: '#857078' }}>{titulo}</span>
       </div>
 
-      <div style={{ marginBottom: 22, maxWidth: 1140 }}>
-        <h1
-          style={{
-            margin: '0 0 8px',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 32,
-            color: '#3D3238',
-          }}
-        >
-          {titulo}
-        </h1>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 20,
+          flexWrap: 'wrap',
+          marginBottom: 22,
+          maxWidth: 1140,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <h1
+            style={{
+              margin: '0 0 8px',
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 32,
+              color: '#3D3238',
+            }}
+          >
+            {titulo}
+          </h1>
 
-        <div
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+              fontSize: 15,
+              color: '#857078',
+            }}
+          >
+            <span>{subtitulo}</span>
+
+            {!esAlta && (
+              <>
+                <span
+                  style={{
+                    whiteSpace: 'nowrap',
+                    fontFamily: "'Quicksand', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    borderRadius: 20,
+                    padding: '5px 12px',
+                    border: `1px solid ${colorEstado.borde}`,
+                    background: colorEstado.fondo,
+                    color: colorEstado.color,
+                  }}
+                >
+                  {pedido.estado_display}
+                </span>
+
+                <span
+                  style={{
+                    whiteSpace: 'nowrap',
+                    fontFamily: "'Quicksand', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    borderRadius: 20,
+                    padding: '5px 12px',
+                    border: `1px solid ${chipDelSaldo.borde}`,
+                    background: chipDelSaldo.fondo,
+                    color: chipDelSaldo.color,
+                  }}
+                >
+                  {chipDelSaldo.texto}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* CU60. Es un enlace y no un <button>: abre el PDF en otra pestaña,
+            y eso es justo lo que hace un <a> con target="_blank", sin una
+            línea de JavaScript. La sesión viaja sola en la cookie.
+
+            Apagado, se le saca el href. Un <a> sin href no es un enlace: no
+            navega con ningún tipo de clic ni se alcanza con Tab, así que
+            está apagado de verdad y no solo pintado de gris. No se usa
+            pointer-events: none porque haría que el elemento no reciba el
+            mouse, y sin mouse no aparece el tooltip que explica por qué
+            está apagado.
+
+            La clase del hover también se saca al apagarlo, para que no se
+            pinte de rosa algo que no se puede tocar.
+
+            rel="noopener noreferrer" es lo que se le pone a todo enlace que
+            abre otra pestaña: evita que la pestaña nueva pueda manejar a
+            esta. textDecoration va en none porque un enlace, a diferencia
+            de un botón, viene subrayado de fábrica. */}
+        <a
+          href={comprobanteApagado ? undefined : urlComprobante(id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={comprobanteApagado ? motivoSinComprobante : 'Generar comprobante en PDF'}
+          className={comprobanteApagado ? undefined : 'btn-reponer'}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
+            gap: 8,
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+            padding: '10px 18px',
+            border: '1px solid #EBE0E2',
+            background: 'white',
+            color: '#8C5A66',
+            borderRadius: 6,
+            textDecoration: 'none',
+            cursor: comprobanteApagado ? 'default' : 'pointer',
+            opacity: comprobanteApagado ? 0.5 : undefined,
+            fontFamily: "'Quicksand', sans-serif",
+            fontWeight: 600,
             fontSize: 15,
-            color: '#857078',
           }}
         >
-          <span>{subtitulo}</span>
-
-          {!esAlta && (
-            <>
-              <span
-                style={{
-                  whiteSpace: 'nowrap',
-                  fontFamily: "'Quicksand', sans-serif",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  borderRadius: 20,
-                  padding: '5px 12px',
-                  border: `1px solid ${colorEstado.borde}`,
-                  background: colorEstado.fondo,
-                  color: colorEstado.color,
-                }}
-              >
-                {pedido.estado_display}
-              </span>
-
-              <span
-                style={{
-                  whiteSpace: 'nowrap',
-                  fontFamily: "'Quicksand', sans-serif",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  borderRadius: 20,
-                  padding: '5px 12px',
-                  border: `1px solid ${chipDelSaldo.borde}`,
-                  background: chipDelSaldo.fondo,
-                  color: chipDelSaldo.color,
-                }}
-              >
-                {chipDelSaldo.texto}
-              </span>
-            </>
-          )}
-        </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_COMPROBANTE} />
+          </svg>
+          Comprobante
+        </a>
       </div>
 
       {error && !esAlta && tab !== 'datos' && (
