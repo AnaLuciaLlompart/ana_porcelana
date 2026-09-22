@@ -82,7 +82,7 @@ export default function Rutas() {
             <Route path="/gastos" element={<Gastos />} />
             <Route path="/gastos/nuevo" element={<DetalleGasto esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}
             <Route path="/gastos/:id" element={<DetalleGasto />} />
-            <Route path="/informes" element={<EnConstruccion />} />
+            <Route path="/finanzas" element={<EnConstruccion />} />
           </Route>
         </Route>
 

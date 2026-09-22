@@ -74,8 +74,10 @@ afuera: `api/cliente.js`, `contexto/AuthContext.jsx`,
 Apps terminadas: `usuarios` (CU01–CU03), `materiales` (CU04–CU10),
 `categorias` (CU11–CU16), `productos` (CU17–CU35), `clientes`
 (CU36–CU39), `pedidos`, que incluye los cobros (CU40–CU51), y `gastos`
-(CU52–CU59). La próxima es **informes** (CU60–CU62), y después el
-catálogo público (CU63–CU71). Son 71 casos de uso en total.
+(CU52–CU59). De **informes** (CU60–CU62) ya están el comprobante en PDF
+(CU60, en `pedidos`) y el backend de `finanzas` (CU61 y CU62); falta su
+frontend. Después viene el catálogo público (CU63–CU71). Son 71 casos de
+uso en total.
 
 ---
 
@@ -533,6 +535,55 @@ con su deshacer, el cambio en `MaterialViewSet.destroy` y las
 restricciones de la base por fuera de la API. Se corren con
 `python manage.py test gastos`, que usa una base temporal y no toca la de
 desarrollo. Es la única app con pruebas automatizadas por ahora.
+
+
+---
+
+
+
+## Módulo Finanzas (CU61, CU62)
+
+Diseño en `disenio/Finanzas.dc.html`. La pantalla se llama Finanzas; el
+módulo de la tesis sigue siendo Informes. **El backend está completo y
+verificado en la interfaz navegable; falta el frontend.**
+
+**App `finanzas` sin modelos propios:** solo vista, serializers y urls.
+Finanzas cruza los cobros (app `pedidos`) y los gastos (app `gastos`), así
+que no pertenece a ninguna de las dos. No tiene migraciones ni admin.
+
+**Un solo endpoint, `GET /api/finanzas/`**, con `desde` y `hasta`
+(obligatorios, AAAA-MM-DD, inclusivos los dos) y `meses` (opcional,
+cuántos meses tiene la evolución: por defecto 6, entre 1 y 24). Si falta
+una fecha, está mal escrita, `desde` es posterior a `hasta` o `meses` se
+va de rango, responde 400 con `detail`, como en Pedidos. Devuelve todo lo
+que la pantalla necesita en un pedido: `totales` (ingresos, gastos,
+resultado y las dos cantidades), `ingresos_por_medio`, `gastos_por_tipo`,
+`evolucion`, `cobros` y `gastos`. Es una función con `@api_view`, como las
+vistas de `usuarios`, porque no es un CRUD. Hereda la autenticación
+global.
+
+**Los ingresos son los cobros con fecha dentro del período**, no el total
+de los pedidos: es la plata que entró de verdad, y es lo que se puede
+comparar contra los gastos.
+
+**Las sumas y los agrupados se hacen en la base** con `aggregate()` y
+`annotate()`, y los huecos se completan en Python: los desgloses traen
+siempre los dos medios y los tres tipos, también en cero, recorriendo los
+`choices` del modelo; la evolución trae un mes por entrada, en cero si no
+tuvo movimientos, porque el GROUP BY saltea los meses vacíos. La serie
+termina en el mes de `hasta` y tiene su propia ventana de fechas, distinta
+del período: con "Este mes" el período es un mes y el gráfico muestra seis.
+Son 8 consultas por llamada, siempre las mismas.
+
+**La respuesta pasa entera por `FinanzasDelPeriodoSerializer`**, un
+`serializers.Serializer` de solo salida, el primero del proyecto que no es
+`ModelSerializer`. Es lo que hace que los importes calculados salgan como
+texto con dos decimales, igual que en el resto del proyecto: un `Decimal`
+crudo en un `Response` lo convierte DRF a float.
+
+Las dos listas vienen completas y del más nuevo al más viejo; la
+paginación y el filtrado son locales. La lista de cobros lleva
+`select_related('pedido__cliente')` porque trae el instagram y el nombre.
 
 
 ---

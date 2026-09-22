@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FAF7F7; font-family: 'Nunito Sans', sans-serif; color: #3D3238; }
+  * { box-sizing: border-box; }
+  a { color: #8C5A66; }
+  a:hover { color: #B08791; }
+  input, select, button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #EBE0E2; border-radius: 3px; }
+</style>
+</helmet>
+<div style="display: flex; height: 100vh; overflow: hidden; background: #FAF7F7">
+  <aside style="display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; background: #8C5A66; transition: width .2s; width: {{ sidebarWidth }}">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 6px 0; flex: 1">
+      <button onClick="{{ toggleSidebar }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: white">Menú</span>
+        </sc-if>
+      </button>
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin: 6px 0"></div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+        <button onClick="{{ item.onClick }}" title="{{ item.title }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; cursor: pointer; background: {{ item.bg }}; justify-content: {{ item.justify }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ item.stroke }}" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ item.icon }}"></path></svg>
+          <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: {{ item.stroke }}">{{ item.label }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div style="padding: 0 6px 16px">
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin-bottom: 6px"></div>
+      <button onClick="{{ abrirPass }}" title="Cambiar contraseña" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cambiar contraseña</span>
+        </sc-if>
+      </button>
+      <button title="Cerrar sesión" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cerrar sesión</span>
+        </sc-if>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex: 1; overflow-y: auto; padding: 32px">
+    <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #3D3238">Finanzas</h1>
+    <p style="margin: 6px 0 24px; font-size: 15px; color: #857078">{{ resumen }}</p>
+
+    <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; max-width: 1140px; margin-bottom: 24px; padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap">
+      <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+        <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PERÍODO</p>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+          <sc-for list="{{ periodos }}" as="p" hint-placeholder-count="5">
+            <button onClick="{{ p.onClick }}" style="padding: 7px 16px; border-radius: 20px; cursor: pointer; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border: {{ p.border }}; background: {{ p.bg }}; color: {{ p.color }}">{{ p.label }}</button>
+          </sc-for>
+          <sc-if value="{{ esPersonalizado }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 10px; margin-left: 6px">
+              <span style="font-size: 14px; color: #857078">Desde</span>
+              <input type="date" value="{{ desde }}" onChange="{{ onDesde }}" style="padding: 7px 11px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+              <span style="font-size: 14px; color: #857078">Hasta</span>
+              <input type="date" value="{{ hasta }}" onChange="{{ onHasta }}" style="padding: 7px 11px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: #FAF7F7; border-radius: 6px; outline: none" style-focus="border-color: #8C5A66">
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <div style="text-align: right; flex-shrink: 0; margin-left: auto">
+        <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 22px; line-height: 1.2; color: #3D3238">{{ rangoEtiqueta }}</p>
+        <p style="margin: 4px 0 0; font-size: 14px; color: #857078">{{ rangoFechas }}</p>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; max-width: 1140px; margin-bottom: 24px">
+      <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 20px 22px">
+        <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #857078">INGRESOS</p>
+        <p style="margin: 10px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 34px; line-height: 1.1; color: #3D3238">{{ ingresosTexto }}</p>
+        <p style="margin: 8px 0 0; font-size: 14px; color: #857078">{{ ingresosDetalle }}</p>
+      </div>
+      <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 20px 22px">
+        <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #857078">GASTOS</p>
+        <p style="margin: 10px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 34px; line-height: 1.1; color: #3D3238">{{ gastosTexto }}</p>
+        <p style="margin: 8px 0 0; font-size: 14px; color: #857078">{{ gastosDetalle }}</p>
+      </div>
+      <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 20px 22px">
+        <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #857078">RESULTADO</p>
+        <p style="margin: 10px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 34px; line-height: 1.1; color: {{ resultadoColor }}">{{ resultadoTexto }}</p>
+        <span style="display: inline-block; margin-top: 10px; padding: 4px 11px; border-radius: 20px; border: 1px solid {{ resultadoColor }}; background: {{ resultadoBg }}; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: {{ resultadoColor }}">{{ resultadoEtiqueta }}</span>
+      </div>
+    </div>
+
+    <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; max-width: 1140px; margin-bottom: 24px; overflow: hidden">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+        <div>
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .06em; color: #8C5A66">EVOLUCIÓN</h2>
+          <p style="margin: 3px 0 0; font-size: 13px; color: #857078">{{ evolucionSubtitulo }}</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px">
+          <div style="display: flex; align-items: center; gap: 7px">
+            <span style="width: 12px; height: 12px; border-radius: 3px; background: #4E8C6A"></span>
+            <span style="font-size: 14px; color: #857078">Ingresos</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 7px">
+            <span style="width: 12px; height: 12px; border-radius: 3px; background: #B08791"></span>
+            <span style="font-size: 14px; color: #857078">Gastos</span>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 16px; padding: 24px 20px 20px">
+        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 136px; margin-top: 96px; flex-shrink: 0; text-align: right">
+          <sc-for list="{{ ejeY }}" as="t" hint-placeholder-count="4">
+            <span style="font-size: 12px; line-height: 1; color: #B08791">{{ t }}</span>
+          </sc-for>
+        </div>
+        <div style="flex: 1; min-width: 0; position: relative">
+          <sc-if value="{{ tip.visible }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; top: 0; z-index: 5; white-space: nowrap; padding: 10px 14px; border-radius: 8px; pointer-events: none; background: {{ tip.bg }}; border: {{ tip.borde }}; box-shadow: {{ tip.sombra }}; left: {{ tip.left }}; right: {{ tip.right }}; transform: {{ tip.transform }}">
+              <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: {{ tip.colorTitulo }}">{{ tip.titulo }}</p>
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: {{ tip.colorEtiqueta }}">
+                <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ tip.swIngresos }}"></span>
+                <span>Ingresos</span>
+                <span style="margin-left: auto; padding-left: 12px; font-weight: 600; color: {{ tip.colorValor }}">{{ tip.ingresos }}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 13px; color: {{ tip.colorEtiqueta }}">
+                <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ tip.swGastos }}"></span>
+                <span>Gastos</span>
+                <span style="margin-left: auto; padding-left: 12px; font-weight: 600; color: {{ tip.colorValor }}">{{ tip.gastos }}</span>
+              </div>
+            </div>
+          </sc-if>
+          <div style="display: flex; align-items: flex-end; gap: 10px; height: 232px; padding: 96px 6px 0; border-bottom: 1px solid #EBE0E2; border-left: 1px solid #EBE0E2">
+            <sc-for list="{{ barras }}" as="m" hint-placeholder-count="6">
+              <div onMouseEnter="{{ m.onEnter }}" onMouseLeave="{{ m.onLeave }}" style="flex: 1; min-width: 0; display: flex; align-items: flex-end; justify-content: center; gap: 6px; height: 100%; border-radius: 6px 6px 0 0; background: {{ m.fondo }}">
+                <div style="width: 100%; max-width: 26px; border-radius: 4px 4px 0 0; background: #4E8C6A; height: {{ m.altoIngresos }}"></div>
+                <div style="width: 100%; max-width: 26px; border-radius: 4px 4px 0 0; background: #B08791; height: {{ m.altoGastos }}"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 10px; padding: 10px 6px 0">
+            <sc-for list="{{ barras }}" as="m" hint-placeholder-count="6">
+              <span style="flex: 1; min-width: 0; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078">{{ m.label }}</span>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 24px; max-width: 1140px; align-items: start">
+
+      <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; min-width: 0">
+        <div style="padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .06em; color: #8C5A66">INGRESOS</h2>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #EBE0E2; flex-wrap: wrap">
+          <sc-for list="{{ medios }}" as="m" hint-placeholder-count="2">
+            <div style="flex: 1; min-width: 150px; padding: 12px 14px; border: 1px solid #EBE0E2; border-radius: 6px; background: #FAF7F7">
+              <p style="margin: 0; font-size: 14px; color: #857078">{{ m.label }}</p>
+              <p style="margin: 5px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #3D3238">{{ m.montoTexto }}</p>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hayCobros }}" hint-placeholder-val="{{ true }}">
+          <div style="overflow-x: auto">
+            <table style="width: 100%; min-width: 520px; table-layout: fixed; border-collapse: collapse">
+              <thead>
+                <tr style="background: #F0E2E4">
+                  <th style="width: 22%; padding: 10px 20px; text-align: left; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">FECHA</th>
+                  <th style="width: 13%; padding: 10px 8px; text-align: left; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PEDIDO</th>
+                  <th style="width: 25%; padding: 10px 8px; text-align: left; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">CLIENTE</th>
+                  <th style="width: 22%; padding: 10px 8px; text-align: left; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">TIPO</th>
+                  <th style="width: 18%; padding: 10px 20px; text-align: right; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">MONTO</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ cobros }}" as="c" hint-placeholder-count="6">
+                  <tr style="border-top: 1px solid #EBE0E2">
+                    <td style="padding: 13px 20px; white-space: nowrap; font-size: 15px; color: #3D3238">{{ c.fechaTexto }}</td>
+                    <td style="padding: 13px 8px; white-space: nowrap; font-size: 15px">
+                      <a href="{{ c.href }}" style="font-family: 'Quicksand', sans-serif; font-weight: 600; text-decoration: none; color: #8C5A66" style-hover="text-decoration: underline">{{ c.pedido }}</a>
+                    </td>
+                    <td style="padding: 13px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; color: #3D3238">{{ c.cliente }}</td>
+                    <td style="padding: 13px 8px; font-size: 15px; color: #3D3238">{{ c.tipo }}</td>
+                    <td style="padding: 13px 20px; text-align: right; white-space: nowrap; font-weight: 600; font-size: 15px; color: #3D3238">{{ c.montoTexto }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 20px; border-top: 1px solid #EBE0E2">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="font-size: 15px; color: #857078">Filas por página</span>
+              <select value="{{ porPaginaCobros }}" onChange="{{ onPorPaginaCobros }}" style="padding: 4px 8px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: white; border-radius: 4px; outline: none; cursor: pointer">
+                <option value="10">10</option><option value="20">20</option><option value="50">50</option>
+              </select>
+            </div>
+            <span style="font-size: 15px; color: #857078">{{ rangoCobros }}</span>
+            <div style="display: flex; align-items: center; gap: 4px">
+              <button onClick="{{ prevCobros }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ prevCobrosOpacidad }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M15 19l-7-7 7-7"></path></svg>
+              </button>
+              <button onClick="{{ nextCobros }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ nextCobrosOpacidad }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M9 5l7 7-7 7"></path></svg>
+              </button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ sinCobros }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 44px 24px; text-align: center">
+            <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238">No entró plata en este período</p>
+            <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Cuando registres un cobro con fecha dentro del período, lo vas a ver acá.</p>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; min-width: 0">
+        <div style="padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .06em; color: #8C5A66">GASTOS</h2>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #EBE0E2; flex-wrap: wrap">
+          <sc-for list="{{ tiposGasto }}" as="t" hint-placeholder-count="2">
+            <div style="flex: 1; min-width: 150px; padding: 12px 14px; border: 1px solid #EBE0E2; border-radius: 6px; background: #FAF7F7">
+              <p style="margin: 0; font-size: 14px; color: #857078">{{ t.label }}</p>
+              <p style="margin: 5px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 19px; color: #3D3238">{{ t.montoTexto }}</p>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hayGastos }}" hint-placeholder-val="{{ true }}">
+          <div style="overflow-x: auto">
+            <table style="width: 100%; min-width: 520px; table-layout: fixed; border-collapse: collapse">
+              <thead>
+                <tr style="background: #F0E2E4">
+                  <th style="width: 22%; padding: 10px 20px; text-align: left; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">FECHA</th>
+                  <th style="width: 26%; padding: 10px 8px; text-align: left; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">TIPO</th>
+                  <th style="width: 34%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">DESCRIPCIÓN</th>
+                  <th style="width: 18%; padding: 10px 20px; text-align: right; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">MONTO</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ gastos }}" as="g" hint-placeholder-count="6">
+                  <tr style="border-top: 1px solid #EBE0E2">
+                    <td style="padding: 13px 20px; white-space: nowrap; font-size: 15px; color: #3D3238">{{ g.fechaTexto }}</td>
+                    <td style="padding: 13px 8px; font-size: 15px; color: #3D3238">{{ g.tipo }}</td>
+                    <td style="padding: 13px 8px; font-size: 15px; line-height: 1.35; color: #3D3238; text-wrap: pretty">{{ g.descripcion }}</td>
+                    <td style="padding: 13px 20px; text-align: right; white-space: nowrap; font-weight: 600; font-size: 15px; color: #3D3238">{{ g.montoTexto }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 12px 20px; border-top: 1px solid #EBE0E2">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="font-size: 15px; color: #857078">Filas por página</span>
+              <select value="{{ porPaginaGastos }}" onChange="{{ onPorPaginaGastos }}" style="padding: 4px 8px; border: 1px solid #EBE0E2; font-size: 15px; color: #3D3238; background: white; border-radius: 4px; outline: none; cursor: pointer">
+                <option value="10">10</option><option value="20">20</option><option value="50">50</option>
+              </select>
+            </div>
+            <span style="font-size: 15px; color: #857078">{{ rangoGastos }}</span>
+            <div style="display: flex; align-items: center; gap: 4px">
+              <button onClick="{{ prevGastos }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ prevGastosOpacidad }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M15 19l-7-7 7-7"></path></svg>
+              </button>
+              <button onClick="{{ nextGastos }}" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid #EBE0E2; background: white; border-radius: 4px; cursor: pointer; opacity: {{ nextGastosOpacidad }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" stroke-width="2"><path stroke-linecap="round" d="M9 5l7 7-7 7"></path></svg>
+              </button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ sinGastos }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 44px 24px; text-align: center">
+            <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #3D3238">No hubo gastos en este período</p>
+            <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Mirá otro período o registrá los gastos que te falten cargar.</p>
+          </div>
+        </sc-if>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<sc-if value="{{ modalPass }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 460px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Cambiar contraseña</h2>
+        <button onClick="{{ cerrarPass }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+        <sc-for list="{{ camposPass }}" as="c" hint-placeholder-count="3">
+          <div>
+            <sc-if value="{{ c.hayDivisor }}" hint-placeholder-val="{{ false }}">
+              <div style="height: 1px; background: #EBE0E2; margin: 20px 0 30px"></div>
+            </sc-if>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">{{ c.label }}</label>
+            <div style="position: relative">
+              <input type="{{ c.tipo }}" value="{{ c.valor }}" onChange="{{ c.onChange }}" style="width: 100%; padding: 10px 44px 10px 13px; border: 1px solid {{ c.borde }}; font-size: 16px; color: #3D3238; background: white; border-radius: 5px; outline: none" style-focus="border-color: #8C5A66">
+              <button onClick="{{ c.onVer }}" title="{{ c.verTitulo }}" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#857078" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="{{ c.icono }}"></path></svg>
+              </button>
+            </div>
+            <sc-if value="{{ c.hayAyuda }}" hint-placeholder-val="{{ false }}">
+              <p style="margin: 6px 0 0; font-size: 13px; color: {{ c.ayudaColor }}">{{ c.ayuda }}</p>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cerrarPass }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+        <button onClick="{{ guardarPass }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Guardar</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hayToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 24px; background: #3D3238; box-shadow: 0 10px 30px rgba(61,50,56,.3)">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: white">{{ toast }}</span>
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;periodoInicial&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Este mes&quot;,&quot;Mes anterior&quot;,&quot;Últimos 3 meses&quot;,&quot;Este año&quot;],&quot;default&quot;:&quot;Este mes&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;estiloTooltip&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Blanca&quot;,&quot;Rosa&quot;,&quot;Oscura&quot;],&quot;default&quot;:&quot;Blanca&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const NAV = [
+  { id: "inicio", label: "Inicio", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+  { id: "materiales", label: "Materiales", icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" },
+  { id: "categorias", label: "Categorías", icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" },
+  { id: "productos", label: "Productos", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { id: "clientes", label: "Clientes", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { id: "pedidos", label: "Pedidos", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
+  { id: "gastos", label: "Gastos", icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
+  { id: "informes", label: "Finanzas", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" }
+];
+const OJO_PASS = "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z";
+const OJO_PASS_OFF = "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.477 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21";
+const PASS_MIN = 8;
+
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const MESES_LARGOS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const HOY = "2026-09-17";
+
+const COBROS = [
+  { id: 1, fecha: "2026-09-16", pedido: 43, cliente: "@sofi.delgado", tipo: "Seña", medio: "Transferencia", monto: 15000 },
+  { id: 2, fecha: "2026-09-15", pedido: 41, cliente: "@juli.artesanal", tipo: "Pago restante", medio: "Transferencia", monto: 26000 },
+  { id: 3, fecha: "2026-09-14", pedido: 42, cliente: "@martinariosok", tipo: "Pago completo", medio: "Efectivo", monto: 18400 },
+  { id: 4, fecha: "2026-09-12", pedido: 40, cliente: "@lu.gimenez", tipo: "Seña", medio: "Transferencia", monto: 9500 },
+  { id: 5, fecha: "2026-09-11", pedido: 39, cliente: "@belu.romero", tipo: "Pago completo", medio: "Transferencia", monto: 32400 },
+  { id: 6, fecha: "2026-09-09", pedido: 38, cliente: "@eugegc", tipo: "Pago restante", medio: "Efectivo", monto: 12800 },
+  { id: 7, fecha: "2026-09-08", pedido: 37, cliente: "@sofi.delgado", tipo: "Seña", medio: "Transferencia", monto: 7200 },
+  { id: 8, fecha: "2026-09-05", pedido: 36, cliente: "@flor.tucuman", tipo: "Pago completo", medio: "Transferencia", monto: 21900 },
+  { id: 9, fecha: "2026-09-04", pedido: 35, cliente: "@agus.mmm", tipo: "Seña", medio: "Efectivo", monto: 6000 },
+  { id: 10, fecha: "2026-09-03", pedido: 34, cliente: "@juli.artesanal", tipo: "Pago restante", medio: "Transferencia", monto: 14500 },
+  { id: 11, fecha: "2026-09-02", pedido: 33, cliente: "@carolina.p", tipo: "Pago completo", medio: "Transferencia", monto: 28700 },
+  { id: 12, fecha: "2026-09-02", pedido: 32, cliente: "@lu.gimenez", tipo: "Seña", medio: "Efectivo", monto: 4800 },
+  { id: 13, fecha: "2026-09-01", pedido: 31, cliente: "@belu.romero", tipo: "Pago restante", medio: "Transferencia", monto: 19300 },
+  { id: 14, fecha: "2026-09-01", pedido: 30, cliente: "@eugegc", tipo: "Seña", medio: "Transferencia", monto: 11000 },
+
+  { id: 15, fecha: "2026-08-29", pedido: 29, cliente: "@sofi.delgado", tipo: "Pago completo", medio: "Transferencia", monto: 16800 },
+  { id: 16, fecha: "2026-08-24", pedido: 28, cliente: "@martinariosok", tipo: "Seña", medio: "Efectivo", monto: 8500 },
+  { id: 17, fecha: "2026-08-19", pedido: 27, cliente: "@agus.mmm", tipo: "Pago restante", medio: "Transferencia", monto: 13200 },
+  { id: 18, fecha: "2026-08-14", pedido: 26, cliente: "@flor.tucuman", tipo: "Pago completo", medio: "Transferencia", monto: 22400 },
+  { id: 19, fecha: "2026-08-08", pedido: 25, cliente: "@juli.artesanal", tipo: "Seña", medio: "Efectivo", monto: 5600 },
+  { id: 20, fecha: "2026-08-03", pedido: 24, cliente: "@carolina.p", tipo: "Pago completo", medio: "Transferencia", monto: 17500 },
+
+  { id: 21, fecha: "2026-07-27", pedido: 23, cliente: "@lu.gimenez", tipo: "Pago completo", medio: "Transferencia", monto: 24600 },
+  { id: 22, fecha: "2026-07-18", pedido: 22, cliente: "@sofi.delgado", tipo: "Seña", medio: "Efectivo", monto: 9800 },
+  { id: 23, fecha: "2026-07-11", pedido: 21, cliente: "@belu.romero", tipo: "Pago restante", medio: "Transferencia", monto: 15400 },
+  { id: 24, fecha: "2026-07-04", pedido: 20, cliente: "@eugegc", tipo: "Pago completo", medio: "Transferencia", monto: 19200 },
+
+  { id: 25, fecha: "2026-06-26", pedido: 19, cliente: "@agus.mmm", tipo: "Pago completo", medio: "Efectivo", monto: 13600 },
+  { id: 26, fecha: "2026-06-17", pedido: 18, cliente: "@martinariosok", tipo: "Seña", medio: "Transferencia", monto: 7400 },
+  { id: 27, fecha: "2026-06-09", pedido: 17, cliente: "@flor.tucuman", tipo: "Pago restante", medio: "Transferencia", monto: 21800 },
+
+  { id: 28, fecha: "2026-05-28", pedido: 16, cliente: "@carolina.p", tipo: "Pago completo", medio: "Transferencia", monto: 18900 },
+  { id: 29, fecha: "2026-05-15", pedido: 15, cliente: "@juli.artesanal", tipo: "Seña", medio: "Efectivo", monto: 6300 },
+  { id: 30, fecha: "2026-05-06", pedido: 14, cliente: "@sofi.delgado", tipo: "Pago restante", medio: "Transferencia", monto: 11700 }
+];
+
+const GASTOS = [
+  { id: 1, fecha: "2026-09-14", tipo: "Compra de materiales", descripcion: "Reposición mensual en Casa Luján", monto: 24800 },
+  { id: 2, fecha: "2026-09-10", tipo: "Publicidad", descripcion: "Instagram Ads, campaña de septiembre", monto: 15000 },
+  { id: 3, fecha: "2026-09-08", tipo: "Compra de materiales", descripcion: "Pinturas acrílicas y barniz", monto: 12600 },
+  { id: 4, fecha: "2026-09-05", tipo: "Compra de materiales", descripcion: "Packaging: cajas, moños y tarjetas", monto: 9400 },
+  { id: 5, fecha: "2026-09-03", tipo: "Compra de materiales", descripcion: "Argollas y mosquetones dorados", monto: 6700 },
+  { id: 6, fecha: "2026-09-01", tipo: "Publicidad", descripcion: "Canje con cuenta de souvenirs", monto: 4500 },
+
+  { id: 7, fecha: "2026-08-27", tipo: "Compra de materiales", descripcion: "Compra grande de porcelana fría", monto: 24200 },
+  { id: 8, fecha: "2026-08-22", tipo: "Compra de materiales", descripcion: "Repuesto de pinturas y pinceles", monto: 18600 },
+  { id: 9, fecha: "2026-08-16", tipo: "Compra de materiales", descripcion: "Alambre de cobre e imanes", monto: 14900 },
+  { id: 10, fecha: "2026-08-12", tipo: "Publicidad", descripcion: "Instagram Ads, Día del Niño", monto: 12000 },
+  { id: 11, fecha: "2026-08-07", tipo: "Compra de materiales", descripcion: "Moldes y cortantes nuevos", monto: 21300 },
+  { id: 12, fecha: "2026-08-02", tipo: "Compra de materiales", descripcion: "Hilo encerado y cadenas", monto: 8800 },
+
+  { id: 13, fecha: "2026-07-24", tipo: "Compra de materiales", descripcion: "Arcilla y barniz brillante", monto: 16400 },
+  { id: 14, fecha: "2026-07-15", tipo: "Publicidad", descripcion: "Instagram Ads, prueba de dos semanas", monto: 10000 },
+  { id: 15, fecha: "2026-07-06", tipo: "Compra de materiales", descripcion: "Pinturas en tonos pastel", monto: 7900 },
+
+  { id: 16, fecha: "2026-06-21", tipo: "Compra de materiales", descripcion: "Reposición de arcilla blanca", monto: 13200 },
+  { id: 17, fecha: "2026-06-12", tipo: "Publicidad", descripcion: "Instagram Ads, campaña de invierno", monto: 8000 },
+
+  { id: 18, fecha: "2026-05-19", tipo: "Compra de materiales", descripcion: "Packaging y etiquetas", monto: 9600 },
+  { id: 19, fecha: "2026-05-08", tipo: "Compra de materiales", descripcion: "Barniz mate y esponjas", monto: 5400 }
+];
+
+const PERIODOS = ["Este mes", "Mes anterior", "Últimos 3 meses", "Este año", "Personalizado"];
+
+class Component extends DCLogic {
+  state = {
+    sidebarExpanded: false, activo: "informes",
+    periodo: null, desde: "2026-02-01", hasta: "2026-02-28",
+    pageCobros: 1, porPaginaCobros: 10,
+    pageGastos: 1, porPaginaGastos: 10,
+    mesHover: null, toast: ""
+  };
+
+  fmt(n) { return "$" + Math.round(n).toLocaleString("es-AR"); }
+  fmtCorto(n) { return n >= 1000 ? "$" + Math.round(n / 1000) + "k" : "$" + Math.round(n); }
+  fmtFecha(iso) { const p = iso.split("-"); return Number(p[2]) + " " + MESES[Number(p[1]) - 1] + " " + p[0]; }
+  mesAnio(iso) { return iso.slice(0, 7); }
+  mostrarToast(t) { this.setState({ toast: t }); clearTimeout(this._toast); this._toast = setTimeout(() => this.setState({ toast: "" }), 2600); }
+
+  periodoActual() { return this.state.periodo || this.props.periodoInicial || "Este mes"; }
+
+  rango() {
+    const s = Object.assign({}, this.state, { periodo: this.periodoActual() });
+    const anio = Number(HOY.slice(0, 4));
+    const mes = Number(HOY.slice(5, 7));
+    const ult = (a, m) => new Date(a, m, 0).getDate();
+    const pad = n => String(n).padStart(2, "0");
+    if (s.periodo === "Este mes") return { desde: anio + "-" + pad(mes) + "-01", hasta: anio + "-" + pad(mes) + "-" + ult(anio, mes), etiqueta: MESES_LARGOS[mes - 1] + " " + anio };
+    if (s.periodo === "Mes anterior") {
+      const a = mes === 1 ? anio - 1 : anio, m = mes === 1 ? 12 : mes - 1;
+      return { desde: a + "-" + pad(m) + "-01", hasta: a + "-" + pad(m) + "-" + ult(a, m), etiqueta: MESES_LARGOS[m - 1] + " " + a };
+    }
+    if (s.periodo === "Últimos 3 meses") {
+      const d = new Date(anio, mes - 3, 1);
+      return { desde: d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-01", hasta: anio + "-" + pad(mes) + "-" + ult(anio, mes), etiqueta: "Últimos 3 meses" };
+    }
+    if (s.periodo === "Este año") return { desde: anio + "-01-01", hasta: anio + "-12-31", etiqueta: "Año " + anio };
+    return { desde: s.desde, hasta: s.hasta, etiqueta: s.desde && s.hasta ? this.fmtFecha(s.desde) + " – " + this.fmtFecha(s.hasta) : "Período personalizado" };
+  }
+
+  valsPass() {
+    const s = this.state;
+    const errActual = !(s.passActual || "").trim();
+    const errNueva = (s.passNueva || "").length < PASS_MIN;
+    const errRepetir = s.passRepetir !== s.passNueva || !s.passRepetir;
+    const campo = (id, label, valor, ver, err, ayuda, ayudaError, divisor) => ({
+      label, valor: valor || "", tipo: ver ? "text" : "password", hayDivisor: !!divisor,
+      borde: s.passTocado && err ? "#C0442F" : "#EBE0E2",
+      icono: ver ? OJO_PASS_OFF : OJO_PASS, verTitulo: ver ? "Ocultar" : "Mostrar",
+      hayAyuda: !!(s.passTocado && err ? ayudaError : ayuda),
+      ayuda: s.passTocado && err ? ayudaError : ayuda,
+      ayudaColor: s.passTocado && err ? "#C0442F" : "#B08791",
+      onChange: e => this.setState({ [id]: e.target.value }),
+      onVer: () => this.setState(st => ({ [id + "Ver"]: !st[id + "Ver"] }))
+    });
+    return {
+      modalPass: !!s.modalPass,
+      abrirPass: () => this.setState({ modalPass: true, passActual: "", passNueva: "", passRepetir: "", passActualVer: false, passNuevaVer: false, passRepetirVer: false, passTocado: false }),
+      cerrarPass: () => this.setState({ modalPass: false }),
+      camposPass: [
+        campo("passActual", "CONTRASEÑA ACTUAL", s.passActual, s.passActualVer, errActual, "", "Ingresá tu contraseña actual."),
+        campo("passNueva", "CONTRASEÑA NUEVA", s.passNueva, s.passNuevaVer, errNueva, "Mínimo " + PASS_MIN + " caracteres", "La contraseña nueva necesita al menos " + PASS_MIN + " caracteres.", true),
+        campo("passRepetir", "REPETIR CONTRASEÑA NUEVA", s.passRepetir, s.passRepetirVer, errRepetir, "", "Las dos contraseñas no coinciden.")
+      ],
+      guardarPass: () => {
+        if (errActual || errNueva || errRepetir) { this.setState({ passTocado: true }); return; }
+        this.setState({ modalPass: false });
+        this.mostrarToast("Contraseña actualizada");
+      }
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const exp = s.sidebarExpanded;
+    const r = this.rango();
+    const dentro = f => (!r.desde || f >= r.desde) && (!r.hasta || f <= r.hasta);
+
+    const cobros = COBROS.filter(c => dentro(c.fecha)).sort((a, b) => a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.id - a.id);
+    const gastos = GASTOS.filter(g => dentro(g.fecha)).sort((a, b) => a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : b.id - a.id);
+    const totalIngresos = cobros.reduce((a, c) => a + c.monto, 0);
+    const totalGastos = gastos.reduce((a, g) => a + g.monto, 0);
+    const resultado = totalIngresos - totalGastos;
+    const positivo = resultado >= 0;
+
+    const porMedio = m => cobros.filter(c => c.medio === m).reduce((a, c) => a + c.monto, 0);
+    const porTipo = t => gastos.filter(g => g.tipo === t).reduce((a, g) => a + g.monto, 0);
+
+    // meses del gráfico, según el período elegido
+    const per = this.periodoActual();
+    const claveDe = iso => iso.slice(0, 7);
+    const mesesEntre = (a, b) => { const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number); return (by - ay) * 12 + (bm - am) + 1; };
+    let finClave, cantidad;
+    if (per === "Este año") { finClave = HOY.slice(0, 4) + "-12"; cantidad = 12; }
+    else if (per === "Últimos 3 meses") { finClave = HOY.slice(0, 7); cantidad = 3; }
+    else if (per === "Personalizado" && r.desde && r.hasta && r.desde <= r.hasta) { finClave = claveDe(r.hasta); cantidad = Math.max(3, mesesEntre(claveDe(r.desde), finClave)); }
+    else { finClave = HOY.slice(0, 7); cantidad = 6; }
+    const [finA, finM] = finClave.split("-").map(Number);
+    const meses = [];
+    for (let i = cantidad - 1; i >= 0; i--) {
+      const d = new Date(finA, finM - 1 - i, 1);
+      const clave = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+      meses.push({
+        clave, label: MESES[d.getMonth()] + (d.getFullYear() !== finA ? " " + String(d.getFullYear()).slice(2) : ""),
+        ingresos: COBROS.filter(c => this.mesAnio(c.fecha) === clave).reduce((a, c) => a + c.monto, 0),
+        gastos: GASTOS.filter(g => this.mesAnio(g.fecha) === clave).reduce((a, g) => a + g.monto, 0)
+      });
+    }
+    const tope = Math.max(10000, ...meses.map(m => Math.max(m.ingresos, m.gastos)));
+    const escala = Math.ceil(tope / 25000) * 25000;
+
+    const pagCobros = Math.max(1, Math.ceil(cobros.length / s.porPaginaCobros));
+    const pCobros = Math.min(s.pageCobros, pagCobros);
+    const iniCobros = (pCobros - 1) * s.porPaginaCobros;
+    const pagGastos = Math.max(1, Math.ceil(gastos.length / s.porPaginaGastos));
+    const pGastos = Math.min(s.pageGastos, pagGastos);
+    const iniGastos = (pGastos - 1) * s.porPaginaGastos;
+
+    return Object.assign(this.valsPass(), {
+      sidebarWidth: exp ? "200px" : "56px", sidebarExpanded: exp, contentJustify: exp ? "flex-start" : "center",
+      toggleSidebar: () => this.setState({ sidebarExpanded: !exp }),
+      navItems: NAV.map(n => ({ label: n.label, title: n.label, icon: n.icon, onClick: () => this.setState({ activo: n.id }), justify: exp ? "flex-start" : "center",
+        bg: s.activo === n.id ? "rgba(255,255,255,.18)" : "transparent", stroke: s.activo === n.id ? "white" : "rgba(255,255,255,.75)" })),
+      hayToast: !!s.toast, toast: s.toast,
+
+      resumen: r.etiqueta + " · " + cobros.length + (cobros.length === 1 ? " cobro" : " cobros") + " · " + gastos.length + (gastos.length === 1 ? " gasto" : " gastos"),
+      periodos: PERIODOS.map(p => {
+        const act = this.periodoActual() === p;
+        return {
+          label: p, border: act ? "1px solid #8C5A66" : "1px solid #EBE0E2", bg: act ? "#8C5A66" : "white", color: act ? "white" : "#857078",
+          onClick: () => this.setState({ periodo: p, pageCobros: 1, pageGastos: 1 })
+        };
+      }),
+      esPersonalizado: this.periodoActual() === "Personalizado",
+      rangoEtiqueta: r.etiqueta,
+      rangoFechas: r.desde && r.hasta ? this.fmtFecha(r.desde) + " – " + this.fmtFecha(r.hasta) : "Elegí las dos fechas",
+      desde: s.desde, hasta: s.hasta,
+      onDesde: e => this.setState({ desde: e.target.value, pageCobros: 1, pageGastos: 1 }),
+      onHasta: e => this.setState({ hasta: e.target.value, pageCobros: 1, pageGastos: 1 }),
+
+      ingresosTexto: this.fmt(totalIngresos),
+      ingresosDetalle: cobros.length === 0 ? "Sin cobros en el período" : cobros.length === 1 ? "1 cobro registrado" : cobros.length + " cobros registrados",
+      gastosTexto: this.fmt(totalGastos),
+      gastosDetalle: gastos.length === 0 ? "Sin gastos en el período" : gastos.length === 1 ? "1 gasto registrado" : gastos.length + " gastos registrados",
+      resultadoTexto: (resultado < 0 ? "−" : "") + this.fmt(Math.abs(resultado)),
+      resultadoColor: totalIngresos === 0 && totalGastos === 0 ? "#857078" : positivo ? "#4E8C6A" : "#C0442F",
+      resultadoBg: totalIngresos === 0 && totalGastos === 0 ? "#FAF7F7" : positivo ? "#E8F5EF" : "#FAEAE8",
+      resultadoEtiqueta: totalIngresos === 0 && totalGastos === 0 ? "Sin movimientos" : positivo ? "Entró más de lo que salió" : "Salió más de lo que entró",
+
+      tip: (() => {
+    const idx = meses.findIndex(m => m.clave === s.mesHover);
+    if (idx < 0) return { visible: false, left: "0", right: "auto", transform: "none", titulo: "", ingresos: "", gastos: "" };
+    const m = meses[idx], n = meses.length;
+    const [a, mm] = m.clave.split("-").map(Number);
+    const centro = ((idx + 0.5) / n) * 100;
+    const pos = idx === 0 ? { left: centro + "%", right: "auto", transform: "translateX(-20%)" }
+      : idx === n - 1 ? { left: centro + "%", right: "auto", transform: "translateX(-80%)" }
+      : { left: centro + "%", right: "auto", transform: "translateX(-50%)" };
+    const est = this.props.estiloTooltip ?? "Blanca";
+    const tema = est === "Oscura"
+      ? { bg: "#3D3238", borde: "0", sombra: "0 8px 24px rgba(61,50,56,.22)", colorTitulo: "white", colorEtiqueta: "rgba(255,255,255,.85)", colorValor: "white", swIngresos: "#8FD3AE", swGastos: "#D8B5BD" }
+      : est === "Rosa"
+      ? { bg: "#F0E2E4", borde: "1px solid #DCC9CD", sombra: "none", colorTitulo: "#3D3238", colorEtiqueta: "#857078", colorValor: "#3D3238", swIngresos: "#4E8C6A", swGastos: "#B08791" }
+      : { bg: "#FFFFFF", borde: "1px solid #EBE0E2", sombra: "0 4px 14px rgba(61,50,56,.08)", colorTitulo: "#3D3238", colorEtiqueta: "#857078", colorValor: "#3D3238", swIngresos: "#4E8C6A", swGastos: "#B08791" };
+    return Object.assign({ visible: true, titulo: MESES_LARGOS[mm - 1] + " " + a, ingresos: this.fmt(m.ingresos), gastos: this.fmt(m.gastos) }, tema, pos);
+  })(),
+      evolucionSubtitulo: (() => {
+        const ini = meses[0], fin = meses[meses.length - 1];
+        const [ia, im] = ini.clave.split("-").map(Number), [fa, fm] = fin.clave.split("-").map(Number);
+        const nom = (m, a) => MESES_LARGOS[m - 1] + (a !== fa ? " " + a : "");
+        return nom(im, ia) + " – " + MESES_LARGOS[fm - 1] + " " + fa + " · " + meses.length + " meses, ingresos contra gastos";
+      })(),
+      ejeY: [this.fmtCorto(escala), this.fmtCorto(escala * 0.66), this.fmtCorto(escala * 0.33), "$0"],
+      barras: meses.map(m => {
+        const [a, mm] = m.clave.split("-").map(Number);
+        const activo = s.mesHover === m.clave;
+        return {
+          label: m.label, activo, fondo: activo ? "#FAF7F7" : "transparent",
+          altoIngresos: Math.max(3, Math.round((m.ingresos / escala) * 100)) + "%",
+          altoGastos: Math.max(3, Math.round((m.gastos / escala) * 100)) + "%",
+          tituloMes: MESES_LARGOS[mm - 1] + " " + a,
+          ingresosTexto: this.fmt(m.ingresos), gastosTexto: this.fmt(m.gastos),
+          onEnter: () => this.setState({ mesHover: m.clave }),
+          onLeave: () => this.setState({ mesHover: null })
+        };
+      }),
+
+      medios: ["Efectivo", "Transferencia"].map(m => ({ label: m, montoTexto: this.fmt(porMedio(m)) })),
+      tiposGasto: ["Compra de materiales", "Publicidad"].map(t => ({ label: t, montoTexto: this.fmt(porTipo(t)) })),
+
+      hayCobros: cobros.length > 0, sinCobros: cobros.length === 0,
+      cobros: cobros.slice(iniCobros, iniCobros + s.porPaginaCobros).map(c => ({
+        fechaTexto: this.fmtFecha(c.fecha), pedido: "#" + c.pedido, href: "Pedidos.dc.html?pedido=" + c.pedido,
+        cliente: c.cliente, tipo: c.tipo, montoTexto: this.fmt(c.monto)
+      })),
+      porPaginaCobros: String(s.porPaginaCobros),
+      onPorPaginaCobros: e => this.setState({ porPaginaCobros: Number(e.target.value), pageCobros: 1 }),
+      rangoCobros: cobros.length === 0 ? "0 de 0" : (iniCobros + 1) + "–" + Math.min(iniCobros + s.porPaginaCobros, cobros.length) + " de " + cobros.length,
+      prevCobros: () => this.setState(st => ({ pageCobros: Math.max(1, st.pageCobros - 1) })),
+      nextCobros: () => this.setState(st => ({ pageCobros: Math.min(pagCobros, st.pageCobros + 1) })),
+      prevCobrosOpacidad: pCobros === 1 ? .4 : 1, nextCobrosOpacidad: pCobros === pagCobros ? .4 : 1,
+
+      hayGastos: gastos.length > 0, sinGastos: gastos.length === 0,
+      gastos: gastos.slice(iniGastos, iniGastos + s.porPaginaGastos).map(g => ({
+        fechaTexto: this.fmtFecha(g.fecha), tipo: g.tipo, descripcion: g.descripcion, montoTexto: this.fmt(g.monto)
+      })),
+      porPaginaGastos: String(s.porPaginaGastos),
+      onPorPaginaGastos: e => this.setState({ porPaginaGastos: Number(e.target.value), pageGastos: 1 }),
+      rangoGastos: gastos.length === 0 ? "0 de 0" : (iniGastos + 1) + "–" + Math.min(iniGastos + s.porPaginaGastos, gastos.length) + " de " + gastos.length,
+      prevGastos: () => this.setState(st => ({ pageGastos: Math.max(1, st.pageGastos - 1) })),
+      nextGastos: () => this.setState(st => ({ pageGastos: Math.min(pagGastos, st.pageGastos + 1) })),
+      prevGastosOpacidad: pGastos === 1 ? .4 : 1, nextGastosOpacidad: pGastos === pagGastos ? .4 : 1
+    });
+  }
+}
+</script>
+</body>
+</html>
