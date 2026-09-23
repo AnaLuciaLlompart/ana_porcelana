@@ -18,7 +18,7 @@ import { formatearPrecio } from '../productos/presentacion'
 export { formatearPrecio }
 
 
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+export const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
 
 // Los cuatro estados del pedido. Viven acá y no en el modal de filtros

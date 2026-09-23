@@ -12,6 +12,7 @@ import Pedidos from './funcionalidades/pedidos/Pedidos'
 import DetallePedido from './funcionalidades/pedidos/DetallePedido'
 import Gastos from './funcionalidades/gastos/Gastos'
 import DetalleGasto from './funcionalidades/gastos/DetalleGasto'
+import Finanzas from './funcionalidades/finanzas/Finanzas'
 
 
 
@@ -49,14 +50,6 @@ function Inicio() {
   )
 }
 
-function EnConstruccion() {
-  return (
-    <p style={{ fontSize: 16, color: '#857078' }}>
-      Esta sección todavía no está desarrollada.
-    </p>
-  )
-}
-
 export default function Rutas() {
   return (
     <BrowserRouter>
@@ -82,7 +75,7 @@ export default function Rutas() {
             <Route path="/gastos" element={<Gastos />} />
             <Route path="/gastos/nuevo" element={<DetalleGasto esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}
             <Route path="/gastos/:id" element={<DetalleGasto />} />
-            <Route path="/finanzas" element={<EnConstruccion />} />
+            <Route path="/finanzas" element={<Finanzas />} />
           </Route>
         </Route>
 
