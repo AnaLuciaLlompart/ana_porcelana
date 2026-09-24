@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #FAF7F7; font-family: 'Nunito Sans', sans-serif; color: #3D3238; }
+  * { box-sizing: border-box; }
+  a { color: #8C5A66; }
+  a:hover { color: #B08791; }
+  input, select, button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #EBE0E2; border-radius: 3px; }
+</style>
+</helmet>
+<div style="display: flex; height: 100vh; overflow: hidden; background: #FAF7F7">
+  <aside style="display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; background: #8C5A66; transition: width .2s; width: {{ sidebarWidth }}">
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 6px 0; flex: 1">
+      <button onClick="{{ toggleSidebar }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="flex-shrink: 0"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: white">Menú</span>
+        </sc-if>
+      </button>
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin: 6px 0"></div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+        <button onClick="{{ item.onClick }}" title="{{ item.title }}" style="display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; cursor: pointer; background: {{ item.bg }}; justify-content: {{ item.justify }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ item.stroke }}" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="{{ item.icon }}"></path></svg>
+          <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+            <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: {{ item.stroke }}">{{ item.label }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </div>
+    <div style="padding: 0 6px 16px">
+      <div style="height: 1px; background: rgba(255,255,255,.15); margin-bottom: 6px"></div>
+      <button onClick="{{ abrirPass }}" title="Cambiar contraseña" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cambiar contraseña</span>
+        </sc-if>
+      </button>
+      <button title="Cerrar sesión" style="display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 10px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; justify-content: {{ contentJustify }}" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.8" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        <sc-if value="{{ sidebarExpanded }}" hint-placeholder-val="{{ false }}">
+          <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; color: rgba(255,255,255,.8)">Cerrar sesión</span>
+        </sc-if>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex: 1; overflow-y: auto; padding: 32px">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; max-width: 1140px; margin-bottom: 28px">
+      <div>
+        <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 40px; color: #8C5A66">Ana Porcelana</h1>
+        <p style="margin: 6px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 20px; color: #857078">{{ fechaHoy }}</p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+        <a href="Gastos.dc.html?nuevo=1" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; text-decoration: none; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+          Registrar gasto
+        </a>
+        <a href="Productos.dc.html?nuevo=1" style="display: flex; align-items: center; gap: 8px; padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; text-decoration: none; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+          Nuevo producto
+        </a>
+        <a href="Pedidos.dc.html?nuevo=1" style="display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: 1px solid #8C5A66; background: #8C5A66; color: white; border-radius: 6px; text-decoration: none; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .9; color: white">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+          Nuevo pedido
+        </a>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; max-width: 1140px; margin-bottom: 24px">
+      <sc-for list="{{ tarjetas }}" as="t" hint-placeholder-count="4">
+        <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; padding: 20px 22px; display: flex; flex-direction: column; gap: 10px">
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #857078">{{ t.label }}</p>
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 34px; line-height: 1.1; color: {{ t.color }}">{{ t.valor }}</p>
+          <a href="{{ t.href }}" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; text-decoration: none; color: #8C5A66" style-hover="text-decoration: underline">
+            {{ t.enlace }}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+          </a>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden; max-width: 1140px; margin-bottom: 24px">
+      <div style="padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .06em; color: #8C5A66">EN PRODUCCIÓN</h2>
+      </div>
+      <sc-if value="{{ hayTaller }}" hint-placeholder-val="{{ true }}">
+        <div style="overflow-x: auto">
+          <table style="width: 100%; min-width: 720px; table-layout: fixed; border-collapse: collapse">
+            <thead>
+              <tr style="background: #F0E2E4">
+                <th style="width: 34%; padding: 10px 20px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PRODUCTO</th>
+                <th style="width: 10%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">CANT.</th>
+                <th style="width: 12%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PEDIDO</th>
+                <th style="width: 26%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">ETAPA</th>
+                <th style="width: 18%; padding: 10px 20px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">DESDE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ taller }}" as="l" hint-placeholder-count="6">
+                <tr style="border-top: 1px solid #EBE0E2">
+                  <td style="padding: 12px 20px">
+                    <p style="margin: 0; font-size: 15px; line-height: 1.3; color: #3D3238">{{ l.producto }}</p>
+                    <sc-if value="{{ l.hayDescripcion }}" hint-placeholder-val="{{ false }}">
+                      <p style="margin: 2px 0 0; font-size: 13px; color: #857078">{{ l.descripcion }}</p>
+                    </sc-if>
+                  </td>
+                  <td style="padding: 12px 8px; text-align: center; font-size: 15px; color: #3D3238">{{ l.cantidad }}</td>
+                  <td style="padding: 12px 8px; white-space: nowrap">
+                    <a href="{{ l.href }}" style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; text-decoration: none; color: #3D3238" style-hover="color: #8C5A66; text-decoration: underline">{{ l.pedido }}</a>
+                  </td>
+                  <td style="padding: 9px 8px">
+                    <select value="{{ l.etapa }}" onChange="{{ l.onEtapa }}" style="width: 100%; max-width: 190px; padding: 8px 10px; border-radius: 6px; cursor: pointer; outline: none; font-size: 14px; border: 1px solid {{ l.borde }}; background: {{ l.bg }}; color: {{ l.color }}">
+                      <sc-for list="{{ etapas }}" as="op" hint-placeholder-count="5">
+                        <option value="{{ op }}">{{ op }}</option>
+                      </sc-for>
+                    </select>
+                  </td>
+                  <td style="padding: 12px 20px; white-space: nowrap; font-size: 14px; color: #857078">{{ l.desde }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+      <sc-if value="{{ sinTaller }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 44px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px">
+          <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">No tenés nada en el taller</p>
+          <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Cuando cargues productos en un pedido, los vas a ver acá con su etapa.</p>
+        </div>
+      </sc-if>
+      <div style="padding: 12px 20px; border-top: 1px solid #EBE0E2">
+        <a href="Pedidos.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; text-decoration: none; color: #8C5A66" style-hover="text-decoration: underline">
+          Ver todos los pedidos
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+        </a>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; max-width: 1140px; align-items: flex-start">
+
+      <div style="flex: 2 1 600px; min-width: 0; background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+        <div style="padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .06em; color: #8C5A66">PRÓXIMAS ENTREGAS</h2>
+        </div>
+        <sc-if value="{{ hayEntregas }}" hint-placeholder-val="{{ true }}">
+          <div style="overflow-x: auto">
+          <table style="width: 100%; min-width: 640px; table-layout: fixed; border-collapse: collapse">
+            <thead>
+              <tr style="background: #F0E2E4">
+                <th style="width: 14%; padding: 10px 20px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">PEDIDO</th>
+                <th style="width: 26%; padding: 10px 8px; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">CLIENTE</th>
+                <th style="width: 20%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">ENTREGA</th>
+                <th style="width: 18%; padding: 10px 8px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">ESTADO</th>
+                <th style="width: 22%; padding: 10px 20px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #8C5A66">SALDO</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ entregas }}" as="p" hint-placeholder-count="8">
+                <tr style="border-top: 1px solid #EBE0E2">
+                  <td style="padding: 13px 20px; white-space: nowrap">
+                    <a href="{{ p.href }}" style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; text-decoration: none; color: #3D3238" style-hover="color: #8C5A66; text-decoration: underline">{{ p.numero }}</a>
+                  </td>
+                  <td style="padding: 13px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; color: #3D3238">{{ p.cliente }}</td>
+                  <td title="{{ p.entregaTitle }}" style="padding: 13px 8px; text-align: center; white-space: nowrap; font-size: 15px; color: #3D3238">{{ p.entregaTexto }}</td>
+                  <td style="padding: 13px 8px; text-align: center; white-space: nowrap">
+                    <p style="margin: 0; font-size: 15px; line-height: 1.3; color: #3D3238">{{ p.estado }}</p>
+                    <sc-if value="{{ p.cobrar }}" hint-placeholder-val="{{ false }}">
+                      <p style="margin: 3px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; color: #8A6320">Cobrar al entregar</p>
+                    </sc-if>
+                  </td>
+                  <td style="padding: 13px 20px; text-align: center">
+                    <span style="display: inline-block; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; border-radius: 20px; padding: 5px 10px; border: 1px solid {{ p.saldoColor }}; background: {{ p.saldoBg }}; color: {{ p.saldoColor }}">{{ p.saldoTexto }}</span>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          </div>
+        </sc-if>
+        <sc-if value="{{ sinEntregas }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 48px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px">
+            <div style="width: 52px; height: 52px; border-radius: 14px; background: #E8F5EF; display: flex; align-items: center; justify-content: center; margin-bottom: 4px">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4E8C6A" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Estás al día</p>
+            <p style="margin: 0; max-width: 380px; font-size: 14px; color: #857078; text-wrap: pretty">No tenés entregas pendientes. Cuando registres un pedido nuevo, lo vas a ver acá.</p>
+          </div>
+        </sc-if>
+        <div style="padding: 12px 20px; border-top: 1px solid #EBE0E2">
+          <a href="Pedidos.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; text-decoration: none; color: #8C5A66" style-hover="text-decoration: underline">
+            Ver todos los pedidos
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+          </a>
+        </div>
+      </div>
+
+      <div style="flex: 1 1 300px; min-width: 0; background: white; border: 1px solid #EBE0E2; border-radius: 8px; overflow: hidden">
+        <div style="padding: 16px 20px; border-bottom: 1px solid #EBE0E2">
+          <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .06em; color: #8C5A66">MATERIALES POR REPONER</h2>
+        </div>
+        <sc-if value="{{ hayMateriales }}" hint-placeholder-val="{{ true }}">
+          <sc-for list="{{ materiales }}" as="m" hint-placeholder-count="5">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 20px; border-bottom: 1px solid #EBE0E2">
+              <span style="min-width: 0; font-size: 15px; line-height: 1.35; color: #3D3238; text-wrap: pretty">{{ m.nombre }}</span>
+              <span style="flex-shrink: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border-radius: 20px; padding: 4px 12px; border: 1px solid #C0442F; background: #FAEAE8; color: #C0442F">Baja</span>
+            </div>
+          </sc-for>
+        </sc-if>
+        <sc-if value="{{ sinMateriales }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 48px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; border-bottom: 1px solid #EBE0E2">
+            <div style="width: 52px; height: 52px; border-radius: 14px; background: #E8F5EF; display: flex; align-items: center; justify-content: center; margin-bottom: 4px">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4E8C6A" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #3D3238">Tenés todo lo que necesitás</p>
+            <p style="margin: 0; font-size: 14px; color: #857078; text-wrap: pretty">Ningún material está en disponibilidad baja.</p>
+          </div>
+        </sc-if>
+        <div style="padding: 12px 20px">
+          <a href="Materiales.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; text-decoration: none; color: #8C5A66" style-hover="text-decoration: underline">
+            Ver todos los materiales
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<sc-if value="{{ modalPass }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; background: rgba(61,50,56,.5); padding: 24px">
+    <div style="width: 100%; max-width: 460px; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(61,50,56,.25)">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #8C5A66">
+        <h2 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 18px; color: white">Cambiar contraseña</h2>
+        <button onClick="{{ cerrarPass }}" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.2)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px">
+        <sc-for list="{{ camposPass }}" as="c" hint-placeholder-count="3">
+          <div>
+            <sc-if value="{{ c.hayDivisor }}" hint-placeholder-val="{{ false }}">
+              <div style="height: 1px; background: #EBE0E2; margin: 20px 0 30px"></div>
+            </sc-if>
+            <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: #857078; margin-bottom: 7px; letter-spacing: .06em">{{ c.label }}</label>
+            <div style="position: relative">
+              <input type="{{ c.tipo }}" value="{{ c.valor }}" onChange="{{ c.onChange }}" style="width: 100%; padding: 10px 44px 10px 13px; border: 1px solid {{ c.borde }}; font-size: 16px; color: #3D3238; background: white; border-radius: 5px; outline: none" style-focus="border-color: #8C5A66">
+              <button onClick="{{ c.onVer }}" title="{{ c.verTitulo }}" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 5px; cursor: pointer" style-hover="background: #F0E2E4">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#857078" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="{{ c.icono }}"></path></svg>
+              </button>
+            </div>
+            <sc-if value="{{ c.hayAyuda }}" hint-placeholder-val="{{ false }}">
+              <p style="margin: 6px 0 0; font-size: 13px; color: {{ c.ayudaColor }}">{{ c.ayuda }}</p>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #EBE0E2">
+        <button onClick="{{ cerrarPass }}" style="padding: 10px 18px; border: 1px solid #EBE0E2; background: white; color: #8C5A66; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #F0E2E4">Cancelar</button>
+        <button onClick="{{ guardarPass }}" style="padding: 10px 18px; border: 0; background: #8C5A66; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="opacity: .9">Guardar</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hayToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 9px; padding: 11px 20px; border-radius: 24px; background: #3D3238; box-shadow: 0 10px 30px rgba(61,50,56,.3)">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: white">{{ toast }}</span>
+    <sc-if value="{{ hayDeshacer }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ deshacerToast }}" style="margin-left: 6px; padding: 3px 10px; border: 0; border-radius: 12px; background: rgba(255,255,255,.15); color: white; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: rgba(255,255,255,.28)">Deshacer</button>
+    </sc-if>
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;dia&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Cargado&quot;,&quot;Tranquilo&quot;],&quot;default&quot;:&quot;Cargado&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const NAV = [
+  { id: "inicio", label: "Inicio", href: "Inicio.dc.html", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
+  { id: "materiales", label: "Materiales", href: "Materiales.dc.html", icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.860.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" },
+  { id: "categorias", label: "Categorías", href: "Categorias.dc.html", icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" },
+  { id: "productos", label: "Productos", href: "Productos.dc.html", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { id: "clientes", label: "Clientes", href: "Clientes.dc.html", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { id: "pedidos", label: "Pedidos", href: "Pedidos.dc.html", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" },
+  { id: "gastos", label: "Gastos", href: "Gastos.dc.html", icon: "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" },
+  { id: "finanzas", label: "Finanzas", href: "Finanzas.dc.html", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" }
+];
+const OJO_PASS = "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z";
+const OJO_PASS_OFF = "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.477 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21";
+const PASS_MIN = 8;
+
+const HOY = "2026-09-22";
+const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const MAX_ENTREGAS = 8, MAX_MATERIALES = 6, MAX_TALLER = 8;
+const ETAPAS = ["Pendiente", "Modelado", "Secado", "Pintura-Barniz", "Terminado"];
+
+const DATOS = {
+  Cargado: {
+    pedidos: [
+      { id: 38, cliente: "@flor.tucuman", entrega: "2026-09-18", estado: "En producción", saldo: 8000 },
+      { id: 41, cliente: "@juli.artesanal", entrega: "2026-09-21", estado: "Listo", saldo: 0 },
+      { id: 44, cliente: "@martinariosok", entrega: "2026-09-22", estado: "Listo", saldo: 6000 },
+      { id: 43, cliente: "@sofi.delgado", entrega: "2026-09-23", estado: "En producción", saldo: 12500 },
+      { id: 45, cliente: "@lu.gimenez", entrega: "2026-09-25", estado: "Pendiente", saldo: 18000 },
+      { id: 46, cliente: "@belu.romero", entrega: "2026-09-27", estado: "En producción", saldo: 9400 },
+      { id: 47, cliente: "@eugegc", entrega: "2026-10-02", estado: "Pendiente", saldo: 22000 },
+      { id: 48, cliente: "@agus.mmm", entrega: "2026-10-06", estado: "Pendiente", saldo: 0 },
+      { id: 49, cliente: "@carolina.p", entrega: "", estado: "Pendiente", saldo: 15000 }
+    ],
+    taller: [
+      { id: 1, pedido: 38, producto: "Collar Hongo", descripcion: "Rojo con lunares blancos", cantidad: 2, etapa: "Pintura-Barniz", fecha: "2026-09-19" },
+      { id: 2, pedido: 43, producto: "Aros Girasol", descripcion: "", cantidad: 2, etapa: "Pintura-Barniz", fecha: "2026-09-21" },
+      { id: 3, pedido: 43, producto: "Llavero Stitch", descripcion: "Con nombre Tomi", cantidad: 1, etapa: "Secado", fecha: "2026-09-17" },
+      { id: 4, pedido: 46, producto: "Aros Luna Menguante", descripcion: "Lila", cantidad: 3, etapa: "Secado", fecha: "2026-09-20" },
+      { id: 5, pedido: 46, producto: "Aros Luna Menguante", descripcion: "Verde agua, con dorado", cantidad: 1, etapa: "Modelado", fecha: "2026-09-22" },
+      { id: 6, pedido: 45, producto: "Prendedor gatito", descripcion: "", cantidad: 4, etapa: "Modelado", fecha: "2026-09-21" },
+      { id: 7, pedido: 47, producto: "Llavero personalizado", descripcion: "Iniciales E y G", cantidad: 6, etapa: "Pendiente", fecha: "2026-09-15" },
+      { id: 8, pedido: 48, producto: "Collar Luna", descripcion: "", cantidad: 1, etapa: "Pendiente", fecha: "2026-09-18" }
+    ],
+    materiales: ["Acrílico EQ 210 - Blanco titanio", "Porcelana fría 500g", "Barniz acabado brillante", "Alambre de cobre 0,4 mm", "Argollas para aros doradas"]
+  },
+  Tranquilo: { pedidos: [], taller: [], materiales: [] }
+};
+
+class Component extends DCLogic {
+  state = { sidebarExpanded: false, toast: "", cambios: {} };
+
+  fmt(n) { return "$" + Math.round(n).toLocaleString("es-AR"); }
+  dias(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+  fmtLarga(iso) { const d = new Date(iso + "T12:00:00"); return d.getDate() + " de " + MESES[d.getMonth()] + " de " + d.getFullYear(); }
+  mostrarToast(t, deshacer) { this.setState({ toast: t, toastDeshacer: deshacer || null }); clearTimeout(this._toast); this._toast = setTimeout(() => this.setState({ toast: "", toastDeshacer: null }), deshacer ? 5000 : 2600); }
+
+  valsPass() {
+    const s = this.state;
+    const errActual = !(s.passActual || "").trim();
+    const errNueva = (s.passNueva || "").length < PASS_MIN;
+    const errRepetir = s.passRepetir !== s.passNueva || !s.passRepetir;
+    const campo = (id, label, valor, ver, err, ayuda, ayudaError, divisor) => ({
+      label, valor: valor || "", tipo: ver ? "text" : "password", hayDivisor: !!divisor,
+      borde: s.passTocado && err ? "#C0442F" : "#EBE0E2",
+      icono: ver ? OJO_PASS_OFF : OJO_PASS, verTitulo: ver ? "Ocultar" : "Mostrar",
+      hayAyuda: !!(s.passTocado && err ? ayudaError : ayuda),
+      ayuda: s.passTocado && err ? ayudaError : ayuda,
+      ayudaColor: s.passTocado && err ? "#C0442F" : "#B08791",
+      onChange: e => this.setState({ [id]: e.target.value }),
+      onVer: () => this.setState(st => ({ [id + "Ver"]: !st[id + "Ver"] }))
+    });
+    return {
+      modalPass: !!s.modalPass,
+      abrirPass: () => this.setState({ modalPass: true, passActual: "", passNueva: "", passRepetir: "", passActualVer: false, passNuevaVer: false, passRepetirVer: false, passTocado: false }),
+      cerrarPass: () => this.setState({ modalPass: false }),
+      camposPass: [
+        campo("passActual", "CONTRASEÑA ACTUAL", s.passActual, s.passActualVer, errActual, "", "Ingresá tu contraseña actual."),
+        campo("passNueva", "CONTRASEÑA NUEVA", s.passNueva, s.passNuevaVer, errNueva, "Mínimo " + PASS_MIN + " caracteres", "La contraseña nueva necesita al menos " + PASS_MIN + " caracteres.", true),
+        campo("passRepetir", "REPETIR CONTRASEÑA NUEVA", s.passRepetir, s.passRepetirVer, errRepetir, "", "Las dos contraseñas no coinciden.")
+      ],
+      guardarPass: () => {
+        if (errActual || errNueva || errRepetir) { this.setState({ passTocado: true }); return; }
+        this.setState({ modalPass: false });
+        this.mostrarToast("Contraseña actualizada");
+      }
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const exp = s.sidebarExpanded;
+    const datos = DATOS[this.props.dia ?? "Cargado"] || DATOS.Cargado;
+
+    const hoy = new Date(HOY + "T12:00:00");
+    const finSemana = new Date(hoy); finSemana.setDate(hoy.getDate() + ((7 - hoy.getDay()) % 7));
+    const finSemanaIso = finSemana.toISOString().slice(0, 10);
+
+    const pedidos = datos.pedidos.slice().sort((a, b) => (a.entrega || "9999") < (b.entrega || "9999") ? -1 : 1);
+    const atrasados = pedidos.filter(p => p.entrega && p.entrega < HOY).length;
+    const semana = pedidos.filter(p => p.entrega && p.entrega >= HOY && p.entrega <= finSemanaIso).length;
+    const deuda = pedidos.reduce((a, p) => a + Math.max(0, p.saldo), 0);
+    const mats = datos.materiales;
+    const ORDEN = { "Pintura-Barniz": 0, "Secado": 1, "Modelado": 2, "Pendiente": 3, "Terminado": 4 };
+    const taller = (datos.taller || []).map(l => Object.assign({}, l, s.cambios[l.id] || {})).filter(l => l.etapa !== "Terminado")
+      .sort((a, b) => ORDEN[a.etapa] - ORDEN[b.etapa] || (a.fecha < b.fecha ? -1 : 1));
+
+    const partes = [];
+    if (atrasados) partes.push(atrasados === 1 ? "1 pedido atrasado" : atrasados + " pedidos atrasados");
+    if (semana) partes.push(semana === 1 ? "1 entrega esta semana" : semana + " entregas esta semana");
+    if (mats.length) partes.push(mats.length === 1 ? "1 material por reponer" : mats.length + " materiales por reponer");
+    const resumen = partes.length
+      ? "Tenés " + (partes.length > 1 ? partes.slice(0, -1).join(", ") + " y " + partes[partes.length - 1] : partes[0]) + "."
+      : "Estás al día: nada atrasado ni por reponer.";
+
+    return Object.assign(this.valsPass(), {
+      sidebarWidth: exp ? "200px" : "56px", sidebarExpanded: exp, contentJustify: exp ? "flex-start" : "center",
+      toggleSidebar: () => this.setState({ sidebarExpanded: !exp }),
+      navItems: NAV.map(n => ({ label: n.label, title: n.label, icon: n.icon, justify: exp ? "flex-start" : "center",
+        onClick: () => { if (n.id !== "inicio") window.location.href = n.href; },
+        bg: n.id === "inicio" ? "rgba(255,255,255,.18)" : "transparent", stroke: n.id === "inicio" ? "white" : "rgba(255,255,255,.75)" })),
+      hayToast: !!s.toast, toast: s.toast, hayDeshacer: !!s.toastDeshacer,
+      deshacerToast: () => { const fn = s.toastDeshacer; clearTimeout(this._toast); this.setState({ toast: "", toastDeshacer: null }); if (fn) fn(); },
+
+      fechaHoy: DIAS[hoy.getDay()] + " " + hoy.getDate() + " de " + MESES[hoy.getMonth()],
+      resumen,
+
+      tarjetas: [
+        { label: "PEDIDOS ATRASADOS", valor: String(atrasados), color: atrasados ? "#C0442F" : "#3D3238", enlace: "Ver atrasados", href: "Pedidos.dc.html?filtro=atrasados" },
+        { label: "ENTREGAS ESTA SEMANA", valor: String(semana), color: "#3D3238", enlace: "Ver entregas", href: "Pedidos.dc.html?filtro=semana" },
+        { label: "MATERIALES POR REPONER", valor: String(mats.length), color: "#3D3238", enlace: "Ver materiales", href: "Materiales.dc.html" },
+        { label: "TE DEBEN", valor: this.fmt(deuda), color: "#3D3238", enlace: "Ver pedidos con saldo", href: "Pedidos.dc.html?filtro=saldo" }
+      ],
+
+      hayEntregas: pedidos.length > 0, sinEntregas: pedidos.length === 0,
+      entregas: pedidos.slice(0, MAX_ENTREGAS).map(p => {
+        const d = p.entrega ? this.dias(HOY, p.entrega) : null;
+        const texto = d === null ? "Sin fecha" : d < 0 ? (d === -1 ? "Atrasado 1 día" : "Atrasado " + (-d) + " días") : d === 0 ? "Hoy" : d === 1 ? "Mañana" : "En " + d + " días";
+        return {
+          numero: "#" + p.id, href: "Pedidos.dc.html?pedido=" + p.id, cliente: p.cliente,
+          entregaTexto: texto, entregaTitle: p.entrega ? "Entrega estimada: " + this.fmtLarga(p.entrega) : "Sin fecha de entrega",
+          estado: p.estado, cobrar: p.estado === "Listo" && p.saldo > 0,
+          saldoTexto: p.saldo > 0 ? "Debe " + this.fmt(p.saldo) : "Al día",
+          saldoColor: p.saldo > 0 ? "#C0442F" : "#4E8C6A", saldoBg: p.saldo > 0 ? "#FAEAE8" : "#E8F5EF"
+        };
+      }),
+
+      etapas: ETAPAS,
+      hayTaller: taller.length > 0, sinTaller: taller.length === 0,
+      taller: taller.slice(0, MAX_TALLER).map(l => {
+        const d = this.dias(l.fecha, HOY);
+        const fin = l.etapa === "Terminado";
+        return {
+          producto: l.producto, hayDescripcion: !!l.descripcion, descripcion: l.descripcion, cantidad: l.cantidad,
+          pedido: "#" + l.pedido, href: "Pedidos.dc.html?pedido=" + l.pedido,
+          etapa: l.etapa, bg: fin ? "#E8F5EF" : "white", color: fin ? "#4E8C6A" : "#3D3238", borde: fin ? "#4E8C6A" : "#EBE0E2",
+          desde: d === 0 ? "Hoy" : d === 1 ? "Ayer" : "Hace " + d + " días",
+          onEtapa: e => {
+            const v = e.target.value;
+            const previo = s.cambios[l.id];
+            this.setState(st => ({ cambios: Object.assign({}, st.cambios, { [l.id]: { etapa: v, fecha: HOY } }) }));
+            this.mostrarToast(v === "Terminado" ? l.producto + " terminado" : l.producto + " pasó a " + v,
+              v === "Terminado" ? () => this.setState(st => { const c = Object.assign({}, st.cambios); if (previo) c[l.id] = previo; else delete c[l.id]; return { cambios: c }; }) : null);
+          }
+        };
+      }),
+
+      hayMateriales: mats.length > 0, sinMateriales: mats.length === 0,
+      materiales: mats.slice(0, MAX_MATERIALES).map(n => ({ nombre: n }))
+    });
+  }
+}
+</script>
+</body>
+</html>

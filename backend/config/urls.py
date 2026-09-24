@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/pedidos/', include('pedidos.urls')),
     path('api/gastos/', include('gastos.urls')),
     path('api/finanzas/', include('finanzas.urls')),
+    path('api/inicio/', include('inicio.urls')),
 ]
 
 if settings.DEBUG:

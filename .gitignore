@@ -6,4 +6,5 @@ db.sqlite3
 backend/media/
 node_modules/
 frontend/.env
+CLAUDE.md
 
