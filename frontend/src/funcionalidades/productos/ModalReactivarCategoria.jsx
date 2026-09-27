@@ -35,6 +35,7 @@ export default function ModalReactivarCategoria({
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -48,6 +49,7 @@ export default function ModalReactivarCategoria({
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

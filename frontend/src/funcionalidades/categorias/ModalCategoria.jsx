@@ -75,6 +75,7 @@ export default function ModalCategoria({ categoria, tipoInicial, onCerrar, onGua
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -88,6 +89,7 @@ export default function ModalCategoria({ categoria, tipoInicial, onCerrar, onGua
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

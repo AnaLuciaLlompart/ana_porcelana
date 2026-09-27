@@ -32,6 +32,7 @@ export default function ModalEliminarPedido({ pedido, onCerrar, onEliminado }) {
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -45,6 +46,7 @@ export default function ModalEliminarPedido({ pedido, onCerrar, onEliminado }) {
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

@@ -509,6 +509,7 @@ export default function DetalleProducto({ esAlta = false }) {
       )}
 
       <div
+        className="fila-pestanas"
         style={{
           display: 'flex',
           alignItems: 'center',

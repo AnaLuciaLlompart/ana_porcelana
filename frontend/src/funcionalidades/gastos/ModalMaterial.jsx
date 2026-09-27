@@ -110,6 +110,7 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -123,6 +124,7 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

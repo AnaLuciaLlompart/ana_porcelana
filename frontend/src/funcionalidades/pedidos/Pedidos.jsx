@@ -46,16 +46,18 @@ const estiloTd = {
   color: '#3D3238',
 }
 
-// Las columnas del listado, con los anchos del diseño. Con la de SALDO
-// suman exactamente 100 junto al 9% de ACCIONES.
+// Las columnas del listado, con los anchos del diseño salvo CONTENIDO y
+// SALDO, que se movieron tres puntos para que el chip de saldo más largo
+// entre en su columna. Con la de SALDO suman exactamente 100 junto al 9%
+// de ACCIONES.
 const COLS = [
   { campo: 'id', label: 'PEDIDO', ancho: '10%', justify: 'flex-start' },
   { campo: 'cliente', label: 'CLIENTE', ancho: '16%', justify: 'flex-start' },
-  { campo: 'contenido', label: 'CONTENIDO', ancho: '17%', justify: 'flex-start' },
+  { campo: 'contenido', label: 'CONTENIDO', ancho: '14%', justify: 'flex-start' },
   { campo: 'entrega', label: 'ENTREGA', ancho: '12%', justify: 'center' },
   { campo: 'estado', label: 'ESTADO', ancho: '13%', justify: 'center' },
   { campo: 'total', label: 'TOTAL', ancho: '10%', justify: 'flex-end' },
-  { campo: 'saldo', label: 'SALDO', ancho: '13%', justify: 'center' },
+  { campo: 'saldo', label: 'SALDO', ancho: '16%', justify: 'center' },
 ]
 
 // Orden del flujo de trabajo, no alfabético: por código se ordenarían
@@ -622,6 +624,7 @@ export default function Pedidos() {
   return (
     <div>
       <div
+        className="encabezado-pantalla"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -674,6 +677,7 @@ export default function Pedidos() {
       {!moduloVacio && (
         <>
           <div
+            className="barra-herramientas"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -682,7 +686,7 @@ export default function Pedidos() {
               flexWrap: 'wrap',
             }}
           >
-            <div style={{ position: 'relative', width: 420 }}>
+            <div className="buscador" style={{ position: 'relative', width: 420 }}>
               <svg
                 width="16"
                 height="16"
@@ -713,6 +717,7 @@ export default function Pedidos() {
             </div>
 
             <button
+              className="boton-filtros"
               onClick={() => setFiltrosAbiertos(true)}
               style={{
                 marginLeft: 'auto',

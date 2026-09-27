@@ -385,6 +385,7 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa }) {
                 </td>
 
                 <td
+                  className="celda-desde"
                   style={{
                     padding: '12px 20px',
                     whiteSpace: 'nowrap',
@@ -421,7 +422,7 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', minWidth: 640, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+      <table className="tabla-entregas" style={{ width: '100%', minWidth: 640, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ background: '#F0E2E4' }}>
             <th style={{ ...estiloTh, width: '14%', padding: '10px 20px' }}>PEDIDO</th>

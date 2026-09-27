@@ -68,3 +68,210 @@ button:not(:disabled):hover {
 .btn-eliminar:hover {
   background: #FAEAE8 !important;
 }
+
+/* Pantalla chica: la barra lateral deja de ocupar lugar y pasa a ser un panel
+   fijo que se desliza desde la izquierda por encima del contenido. El 768
+   tiene que ser el mismo que PANTALLA_CHICA en componentes/Layout.jsx. El
+   !important va solo en las propiedades que Layout.jsx ya escribe en línea
+   (transition en el aside y padding en el main); las demás no tienen nada
+   que pisar. */
+@media (max-width: 768px) {
+  .barra-lateral {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 91;
+    transform: translateX(-100%);
+    transition: transform .2s !important;
+  }
+
+  .barra-lateral.abierta {
+    transform: translateX(0);
+  }
+
+  .contenido {
+    padding: 16px !important;
+  }
+}
+
+/* Pantalla chica, listados: el encabezado se apila en columna y el botón de
+   alta ocupa todo el ancho; en la barra de herramientas el buscador toma la
+   fila entera y lo que sigue (Filtros, pestañas, chips) baja a la siguiente.
+   h1 y button van por descendencia porque la clase está en el contenedor y
+   cada encabezado tiene uno solo de cada uno. El !important va solo en
+   align-items, font-size y width, que ya están en línea y cambian. */
+@media (max-width: 768px) {
+  .encabezado-pantalla {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+
+  .encabezado-pantalla h1 {
+    font-size: 26px !important;
+  }
+
+  .encabezado-pantalla button {
+    justify-content: center;
+  }
+
+  .barra-herramientas {
+    flex-wrap: wrap;
+  }
+
+  .buscador {
+    width: 100% !important;
+  }
+
+  .boton-filtros {
+    flex: 1;
+  }
+
+  /* Fichas: la fila de pestañas se desliza de lado en vez de desbordar la
+     pantalla, y cada pestaña conserva su ancho. El padding horizontal baja
+     de 18 a 12 para que entre una pestaña más; el vertical no cambia. */
+  .fila-pestanas {
+    overflow-x: auto;
+  }
+
+  .fila-pestanas > button {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* Pantalla chica, modales: el fondo oscuro deja 8px de aire en vez de 24,
+   así la caja ocupa casi todo el ancho; la caja puede llegar al 96% del
+   alto en vez del 90%; y los campos que en escritorio van de a dos se
+   apilan en una columna. El maxWidth no se pisa: a 390px la caja mide 374,
+   menos que cualquier maxWidth. */
+@media (max-width: 768px) {
+  .modal-fondo {
+    padding: 8px !important;
+  }
+
+  .modal-caja {
+    max-height: 96vh !important;
+  }
+
+  .campos-dos-columnas {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Pantalla chica, Finanzas y la pestaña Cobros: las dos grillas de dos
+   columnas pasan a una. La fila Desde / Hasta se parte, pierde el margen
+   que la separaba del último chip (en su propio renglón solo la corre) y
+   cada input pide el renglón entero, así cada etiqueta queda arriba de su
+   fecha en vez de que "Hasta" quede separado de la suya. */
+@media (max-width: 768px) {
+  .paneles-finanzas {
+    grid-template-columns: 1fr !important;
+  }
+
+  .fila-fechas {
+    flex-wrap: wrap;
+    margin-left: 0 !important;
+  }
+
+  .fila-fechas > input {
+    flex: 1 1 100%;
+  }
+
+  .cobros-dos-columnas {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Pantalla chica, los casos puntuales que quedaban. Los dos botones de la
+   cabecera de materiales del gasto bajan a un renglón propio, uno debajo
+   del otro y a todo el ancho. En la sección de bajas de Productos, la fila
+   de un producto queda en dos renglones (miniatura, nombre y chip arriba;
+   Ver y Reactivar abajo): el bloque del nombre pide como base el renglón
+   menos 170px (miniatura, dos gaps y el chip), así Ver ya no entra arriba.
+   La fila de una categoría queda en tres, porque su chip y su Reactivar no
+   entran juntos: desplegable, chip, Reactivar a todo el ancho. Los chips
+   de Clientes se parten y pierden el margen automático que los mandaba a
+   la derecha. El aviso flotante pasa a medir lo que mide su texto, hasta
+   16px de cada borde; sigue centrado por left 50% más translateX. El pie
+   de los modales de filtros se apila: contador arriba, los dos botones
+   abajo por mitades. Los !important van solo donde hay estilo en línea:
+   la base dentro de flex: 1, el margin-left auto y el align-items center. */
+@media (max-width: 768px) {
+  .acciones-materiales {
+    flex-wrap: wrap;
+    flex-basis: 100%;
+  }
+
+  .acciones-materiales > button {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  .fila-producto-baja {
+    flex-wrap: wrap;
+  }
+
+  .fila-producto-baja > div:nth-child(2) {
+    flex-basis: calc(100% - 170px) !important;
+  }
+
+  .fila-categoria-baja {
+    flex-wrap: wrap;
+  }
+
+  .fila-categoria-baja > button:first-child {
+    flex-basis: 100% !important;
+  }
+
+  .fila-categoria-baja > button:last-child {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  .chips-filtro {
+    flex-wrap: wrap;
+    margin-left: 0 !important;
+  }
+
+  .toast {
+    width: max-content;
+    max-width: calc(100vw - 32px);
+  }
+
+  .pie-filtros {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .pie-filtros > div > button {
+    flex: 1;
+  }
+}
+
+/* Pantalla chica, lo que salió de probar en un celular y una tablet. En
+   Inicio, la tabla de entregas sube su mínimo a 720 para que el chip de
+   SALDO más largo entre en su celda: un chip centrado que no entra no se
+   reparte a los dos lados, arranca en el borde izquierdo y se pasa por el
+   derecho. En la tabla de producción, el "hace N días · revisar" de DESDE
+   puede partirse en dos líneas en vez de salirse de la tabla. En Registrar
+   cobro, las tres opciones de TIPO arrancan midiendo su texto en vez de
+   repartirse en tercios, así "Pago completo" no se corta; MEDIO no cambia.
+   Los !important pisan el minWidth, el whiteSpace y la base de flex: 1,
+   que están en línea. */
+@media (max-width: 768px) {
+  .tabla-entregas {
+    min-width: 720px !important;
+  }
+
+  .celda-desde {
+    white-space: normal !important;
+  }
+
+  .tipo-cobro > div > button {
+    flex-basis: auto !important;
+  }
+}

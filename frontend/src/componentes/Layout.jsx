@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexto/AuthContext'
 
@@ -16,6 +16,12 @@ const NAV = [
 
 const ICONO_SALIR = 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'
 const ICONO_CUENTA = 'M5.121 17.804A13 13 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z'
+const ICONO_MENU = 'M4 6h16M4 12h16M4 18h16'
+
+// Tiene que ser el mismo 768 que la media query de index.css: React decide
+// qué dibujar según este valor y CSS cómo se ve, y los dos tienen que
+// cambiar en el mismo ancho.
+const PANTALLA_CHICA = '(max-width: 768px)'
 
 function Item({ icon, label, activo, expandida, onClick, title }) {
   const color = activo ? 'white' : 'rgba(255,255,255,.75)'
@@ -58,11 +64,54 @@ function Item({ icon, label, activo, expandida, onClick, title }) {
   )
 }
 
+// Dice si la pantalla es chica (768px o menos) y se actualiza sola cuando
+// la ventana cruza ese ancho. Empieza con use porque React y su linter
+// reconocen los hooks por ese prefijo, igual que useAuth.
+function usePantallaChica() {
+  const [chica, setChica] = useState(() => window.matchMedia(PANTALLA_CHICA).matches)
+
+  useEffect(() => {
+    const consulta = window.matchMedia(PANTALLA_CHICA)
+    const actualizar = (evento) => setChica(evento.matches)
+    consulta.addEventListener('change', actualizar)
+    return () => consulta.removeEventListener('change', actualizar)
+  }, [])
+
+  return chica
+}
+
 export default function Layout() {
+  const pantallaChica = usePantallaChica()
   const [expandida, setExpandida] = useState(true)
+  const [menuAbierto, setMenuAbierto] = useState(false)
   const navegar = useNavigate()
   const ubicacion = useLocation()
   const { salir } = useAuth()
+
+  // En pantalla chica la barra se dibuja siempre expandida: lo que la muestra
+  // u oculta es el deslizamiento, no el ancho. En escritorio manda el botón
+  // Menú, como siempre.
+  const conNombres = pantallaChica || expandida
+
+  // El panel solo existe en pantalla chica. Si la ventana pasa a escritorio
+  // con el menú abierto, menuAbierto queda en true pero no se ve nada, y al
+  // volver a pantalla chica el panel reaparece como se lo dejó.
+  const panelAbierto = pantallaChica && menuAbierto
+
+  // Escape cierra el panel. Se escucha solo mientras está abierto.
+  useEffect(() => {
+    if (!panelAbierto) return
+    function alTeclear(evento) {
+      if (evento.key === 'Escape') setMenuAbierto(false)
+    }
+    document.addEventListener('keydown', alTeclear)
+    return () => document.removeEventListener('keydown', alTeclear)
+  }, [panelAbierto])
+
+  function irA(ruta) {
+    navegar(ruta)
+    setMenuAbierto(false)
+  }
 
   async function manejarSalir() {
     await salir()
@@ -70,25 +119,25 @@ export default function Layout() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#FAF7F7' }}>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: '#FAF7F7' }}>
 
-      <aside style={{
+      <aside className={panelAbierto ? 'barra-lateral abierta' : 'barra-lateral'} style={{
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
         overflow: 'hidden',
         background: '#8C5A66',
         transition: 'width .2s',
-        width: expandida ? 210 : 58,
+        width: conNombres ? 210 : 58,
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 6px 0', flex: 1 }}>
 
           <Item
-            icon="M4 6h16M4 12h16M4 18h16"
+            icon={ICONO_MENU}
             label="Menú"
             activo={false}
-            expandida={expandida}
-            onClick={() => setExpandida((v) => !v)}
+            expandida={conNombres}
+            onClick={() => (pantallaChica ? setMenuAbierto(false) : setExpandida((v) => !v))}
             title="Menú"
           />
 
@@ -100,9 +149,9 @@ export default function Layout() {
               icon={item.icon}
               label={item.label}
               title={item.label}
-              expandida={expandida}
+              expandida={conNombres}
               activo={ubicacion.pathname === item.ruta}
-              onClick={() => navegar(item.ruta)}
+              onClick={() => irA(item.ruta)}
             />
           ))}
         </div>
@@ -115,26 +164,66 @@ export default function Layout() {
             icon={ICONO_CUENTA}
             label="Mi cuenta"
             title="Mi cuenta"
-            expandida={expandida}
+            expandida={conNombres}
             activo={ubicacion.pathname === '/mi-cuenta'}
-            onClick={() => navegar('/mi-cuenta')}
+            onClick={() => irA('/mi-cuenta')}
           />
           <Item
             icon={ICONO_SALIR}
             label="Cerrar sesión"
             title="Cerrar sesión"
             activo={false}
-            expandida={expandida}
+            expandida={conNombres}
             onClick={manejarSalir}
           />
         </div>
       </aside>
 
+      {/* Fondo oscuro detrás del panel en pantalla chica, con los mismos
+          valores que el de los modales. Tocarlo cierra el menú. */}
+      {panelAbierto && (
+        <div
+          onClick={() => setMenuAbierto(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(61,50,56,.5)', zIndex: 90 }}
+        />
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        {/* Franja superior de pantalla chica: solo existe cuando la barra
+            lateral no se ve. El ☰ abre el panel. */}
+        {pantallaChica && (
+          <header style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            height: 48, flexShrink: 0, padding: '0 8px', background: '#8C5A66',
+          }}>
+            <button
+              onClick={() => setMenuAbierto(true)}
+              title="Menú"
+              className="nav-item"
+              style={{
+                width: 36, height: 36, padding: 0, border: 0, borderRadius: 6,
+                background: 'transparent', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8">
+                <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_MENU} />
+              </svg>
+            </button>
+            {/* En Inicio no se repite el nombre: el título de esa pantalla ya
+                dice Ana Porcelana. */}
+            {ubicacion.pathname !== '/' && (
+              <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 600, fontSize: 17, color: 'white' }}>
+                Ana Porcelana
+              </span>
+            )}
+          </header>
+        )}
+
         {/* scrollbarGutter reserva el espacio de la barra de scroll aunque
             no haga falta, así el ancho del contenido no cambia cuando una
             pantalla crece y la barra aparece. */}
-        <main style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: 32 }}>
+        <main className="contenido" style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', padding: 32 }}>
           <Outlet />
         </main>
       </div>

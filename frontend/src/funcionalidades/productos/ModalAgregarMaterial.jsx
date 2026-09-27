@@ -19,6 +19,7 @@ export default function ModalAgregarMaterial({ materiales, onCerrar, onElegir })
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -32,6 +33,7 @@ export default function ModalAgregarMaterial({ materiales, onCerrar, onElegir })
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

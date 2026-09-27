@@ -35,6 +35,7 @@ export default function ModalEliminarGasto({ gasto, onCerrar, onEliminado }) {
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -48,6 +49,7 @@ export default function ModalEliminarGasto({ gasto, onCerrar, onEliminado }) {
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

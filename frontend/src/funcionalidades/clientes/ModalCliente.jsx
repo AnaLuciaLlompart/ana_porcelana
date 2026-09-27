@@ -156,6 +156,7 @@ export default function ModalCliente({ cliente, onCerrar, onGuardado }) {
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -169,6 +170,7 @@ export default function ModalCliente({ cliente, onCerrar, onGuardado }) {
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

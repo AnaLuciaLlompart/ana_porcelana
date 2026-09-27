@@ -503,6 +503,7 @@ export default function Gastos() {
   return (
     <div>
       <div
+        className="encabezado-pantalla"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -555,6 +556,7 @@ export default function Gastos() {
       {!moduloVacio && (
         <>
           <div
+            className="barra-herramientas"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -563,7 +565,7 @@ export default function Gastos() {
               flexWrap: 'wrap',
             }}
           >
-            <div style={{ position: 'relative', width: 420 }}>
+            <div className="buscador" style={{ position: 'relative', width: 420 }}>
               <svg
                 width="16"
                 height="16"
@@ -594,6 +596,7 @@ export default function Gastos() {
             </div>
 
             <button
+              className="boton-filtros"
               onClick={() => setFiltrosAbiertos(true)}
               style={{
                 marginLeft: 'auto',

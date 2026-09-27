@@ -8,6 +8,7 @@ const ICONO_TILDE = 'M5 13l4 4L19 7'
 export default function Toast({ texto, accion, onAccion }) {
   return (
     <div
+      className="toast"
       style={{
         position: 'fixed',
         bottom: 26,

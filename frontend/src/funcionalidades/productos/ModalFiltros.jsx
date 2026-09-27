@@ -106,6 +106,7 @@ export default function ModalFiltros({
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -119,6 +120,7 @@ export default function ModalFiltros({
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',
@@ -351,6 +353,7 @@ export default function ModalFiltros({
         </div>
 
         <div
+          className="pie-filtros"
           style={{
             display: 'flex',
             alignItems: 'center',

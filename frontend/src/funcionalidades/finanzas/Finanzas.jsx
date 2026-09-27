@@ -819,7 +819,7 @@ export default function Finanzas() {
             })}
 
             {esPersonalizado && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 6 }}>
+              <div className="fila-fechas" style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 6 }}>
                 <span style={{ fontSize: 14, color: '#857078' }}>Desde</span>
                 <input
                   type="date"
@@ -912,6 +912,7 @@ export default function Finanzas() {
               página 1. Es la forma que React documenta para reiniciar el
               estado de un componente. */}
           <div
+            className="paneles-finanzas"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',

@@ -521,6 +521,7 @@ export default function Productos() {
   return (
     <div>
       <div
+        className="encabezado-pantalla"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -580,6 +581,7 @@ export default function Productos() {
       {!cargando && productos.length > 0 && (
         <>
           <div
+            className="barra-herramientas"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -588,7 +590,7 @@ export default function Productos() {
               flexWrap: 'wrap',
             }}
           >
-            <div style={{ position: 'relative', width: 420 }}>
+            <div className="buscador" style={{ position: 'relative', width: 420 }}>
               <svg
                 width="16"
                 height="16"
@@ -619,6 +621,7 @@ export default function Productos() {
             </div>
 
             <button
+              className="boton-filtros"
               onClick={() => setFiltrosAbierto(true)}
               style={{
                 marginLeft: 'auto',
@@ -837,8 +840,8 @@ export default function Productos() {
           )}
 
           {vista === 'lista' && (
-            <div style={{ background: 'white', border: '1px solid #EBE0E2', borderRadius: 8, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <div style={{ background: 'white', border: '1px solid #EBE0E2', borderRadius: 8, overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#F0E2E4' }}>
                     {COLUMNAS.map((col) => (

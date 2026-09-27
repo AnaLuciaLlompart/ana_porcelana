@@ -343,10 +343,10 @@ function Tabla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinu
         background: 'white',
         border: '1px solid #EBE0E2',
         borderRadius: 8,
-        overflow: 'hidden',
+        overflowX: 'auto',
       }}
     >
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
         <thead style={{ background: '#F0E2E4' }}>
           <tr>
             <EncabezadoOrdenable campo="nombre" etiqueta="MATERIAL" orden={orden} onClick={ordenarPor} />
@@ -797,6 +797,7 @@ export default function Materiales() {
   return (
     <div>
       <div
+        className="encabezado-pantalla"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -851,8 +852,8 @@ export default function Materiales() {
 
       {!moduloVacio && (
         <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div style={{ position: 'relative', width: 420 }}>
+      <div className="barra-herramientas" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div className="buscador" style={{ position: 'relative', width: 420 }}>
           <svg
             width="16"
             height="16"
@@ -883,6 +884,7 @@ export default function Materiales() {
         </div>
 
         <button
+          className="boton-filtros"
           onClick={() => setFiltrosAbiertos(true)}
           style={{
             marginLeft: 'auto',

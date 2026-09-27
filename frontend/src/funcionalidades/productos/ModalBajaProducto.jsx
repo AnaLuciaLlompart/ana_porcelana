@@ -20,6 +20,7 @@ export default function ModalBajaProducto({ producto, onCerrar, onConfirmado }) 
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -33,6 +34,7 @@ export default function ModalBajaProducto({ producto, onCerrar, onConfirmado }) 
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

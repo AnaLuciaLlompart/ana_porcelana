@@ -41,6 +41,7 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
 
   return (
     <div
+      className="cobros-dos-columnas"
       style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr) 300px',

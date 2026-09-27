@@ -375,6 +375,7 @@ export default function Categorias() {
   return (
     <div>
       <div
+        className="encabezado-pantalla"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -427,6 +428,7 @@ export default function Categorias() {
       </p>
 
       <div
+        className="barra-herramientas"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -435,7 +437,7 @@ export default function Categorias() {
           flexWrap: 'wrap',
         }}
       >
-        <div style={{ position: 'relative', width: 420 }}>
+        <div className="buscador" style={{ position: 'relative', width: 420 }}>
           <svg
             width="16"
             height="16"

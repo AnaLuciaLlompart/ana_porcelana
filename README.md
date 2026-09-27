@@ -38,10 +38,10 @@ El sistema comprende **dos ámbitos diferenciados**:
 | Pedidos | CU40–CU47 | Completo |
 | Cobros | CU48–CU51 | Completo |
 | Gastos | CU52–CU59 | Completo |
-| Informes | CU60–CU62 | Pendiente |
+| Informes | CU60–CU62 | Completo |
 | Catálogo público | CU63–CU71 | Pendiente |
 
-59 de los 71 casos de uso implementados, con backend y frontend
+62 de los 71 casos de uso implementados, con backend y frontend
 completos en cada módulo terminado.
 
 ---
@@ -125,6 +125,8 @@ ana_porcelana/
 │   ├── clientes/
 │   ├── pedidos/                 pedidos, sus productos y sus cobros
 │   ├── gastos/                  gastos y los materiales de cada compra
+│   ├── finanzas/                informes económicos; sin modelos propios
+│   ├── inicio/                  datos de la pantalla de inicio; sin modelos propios
 │   ├── media/                   archivos subidos (fuera de control de versiones)
 │   ├── manage.py
 │   ├── requirements.txt
@@ -144,8 +146,11 @@ ana_porcelana/
 │       │   ├── productos/
 │       │   ├── clientes/
 │       │   ├── pedidos/
-│       │   └── gastos/
+│       │   ├── gastos/
+│       │   ├── finanzas/        informes económicos
+│       │   └── inicio/          pantalla de inicio
 │       ├── validadores.js       límite de tamaño (espejo del backend)
+│       ├── index.css            hovers y reglas de pantalla chica
 │       ├── rutas.jsx
 │       └── main.jsx
 │
@@ -205,21 +210,6 @@ npm run dev
 ```
 
 La aplicación queda disponible en `http://localhost:5173`.
-
-### 4 · Pruebas automatizadas
-
-El módulo de gastos cuenta con pruebas de sus ocho casos de uso, de las
-reglas del monto y del tipo, y de las restricciones de la base de datos.
-Se ejecutan desde `backend/`:
-
-```bash
-python manage.py test gastos
-```
-
-Django crea una base de datos temporal, ejecuta cada prueba dentro de
-una transacción que revierte al finalizar y elimina esa base al
-terminar, de modo que los datos de desarrollo no se alteran. El usuario
-de PostgreSQL debe tener permiso para crear bases de datos.
 
 ---
 
@@ -395,6 +385,16 @@ escritura pueda eludirla, y en el serializador, porque la validación de
 unicidad se ejecuta antes que la lógica propia y de otro modo el
 conflicto se manifestaría como un error de base de datos en lugar de un
 mensaje comprensible.
+
+**Interfaz de gestión adaptada a pantalla chica.** Los estilos de la
+interfaz son objetos en línea de React; para pantallas de hasta 768px,
+cada elemento que cambia lleva una clase y una única media query
+sobrescribe solo las propiedades que varían, con `!important` porque
+los estilos en línea tienen la máxima especificidad. En pantalla chica
+la barra lateral se convierte en un panel deslizable que se abre desde
+una franja superior, y las tablas se desplazan horizontalmente dentro
+de su contenedor. El comportamiento se verificó en la emulación de
+Chrome de un teléfono y de una tableta en ambas orientaciones.
 
 ---
 

@@ -115,6 +115,7 @@ export default function SeccionBajas({
               {deBaja.map((producto) => (
                 <div
                   key={producto.id}
+                  className="fila-producto-baja"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -254,6 +255,7 @@ export default function SeccionBajas({
                 return (
                   <div key={grupo.categoria.id} style={{ borderBottom: '1px solid #EBE0E2' }}>
                     <div
+                      className="fila-categoria-baja"
                       style={{
                         display: 'flex',
                         alignItems: 'center',

@@ -273,37 +273,39 @@ export default function PestanaProductos({
           No es un descuido de implementación: es un agregado pedido. */}
       {productos.length > 0 && (
         <>
-          <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#F0E2E4' }}>
-                <th style={{ ...estiloTh, width: '20%', padding: '10px 20px', textAlign: 'left' }}>
-                  PRODUCTO
-                </th>
-                <th style={{ ...estiloTh, width: '9%', textAlign: 'center' }}>CANTIDAD</th>
-                <th style={{ ...estiloTh, width: '15%', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  PRECIO UNITARIO
-                </th>
-                <th style={{ ...estiloTh, width: '11%', textAlign: 'right' }}>SUBTOTAL</th>
-                <th style={{ ...estiloTh, width: '18%', textAlign: 'left' }}>ETAPA</th>
-                <th style={{ ...estiloTh, width: '27%', textAlign: 'center' }}>ACCIONES</th>
-              </tr>
-            </thead>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#F0E2E4' }}>
+                  <th style={{ ...estiloTh, width: '20%', padding: '10px 20px', textAlign: 'left' }}>
+                    PRODUCTO
+                  </th>
+                  <th style={{ ...estiloTh, width: '9%', textAlign: 'center' }}>CANTIDAD</th>
+                  <th style={{ ...estiloTh, width: '15%', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    PRECIO UNITARIO
+                  </th>
+                  <th style={{ ...estiloTh, width: '11%', textAlign: 'right' }}>SUBTOTAL</th>
+                  <th style={{ ...estiloTh, width: '18%', textAlign: 'left' }}>ETAPA</th>
+                  <th style={{ ...estiloTh, width: '27%', textAlign: 'center' }}>ACCIONES</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {productos.map((p) => (
-                // La key es el id del PRODUCTO DEL PEDIDO, no el del
-                // producto: el mismo producto puede estar dos veces en el
-                // mismo pedido y ahí los ids se repetirían.
-                <Fila
-                  key={p.id}
-                  producto={p}
-                  onEditar={onEditar}
-                  onCambiarEtapa={onCambiarEtapa}
-                  onQuitar={onQuitar}
-                />
-              ))}
-            </tbody>
-          </table>
+              <tbody>
+                {productos.map((p) => (
+                  // La key es el id del PRODUCTO DEL PEDIDO, no el del
+                  // producto: el mismo producto puede estar dos veces en el
+                  // mismo pedido y ahí los ids se repetirían.
+                  <Fila
+                    key={p.id}
+                    producto={p}
+                    onEditar={onEditar}
+                    onCambiarEtapa={onCambiarEtapa}
+                    onQuitar={onQuitar}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <div
             style={{

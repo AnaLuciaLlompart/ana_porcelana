@@ -20,6 +20,7 @@ export default function ModalEliminarCategoria({ categoria, onCerrar, onEliminad
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -33,6 +34,7 @@ export default function ModalEliminarCategoria({ categoria, onCerrar, onEliminad
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

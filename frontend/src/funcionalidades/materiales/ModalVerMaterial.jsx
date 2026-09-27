@@ -29,6 +29,7 @@ const estiloCampo = {
 export default function ModalVerMaterial({ material, onCerrar }) {
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -42,6 +43,7 @@ export default function ModalVerMaterial({ material, onCerrar }) {
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',

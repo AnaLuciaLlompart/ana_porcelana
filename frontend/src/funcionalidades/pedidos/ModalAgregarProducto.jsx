@@ -69,6 +69,7 @@ export default function ModalAgregarProducto({ productos, onCerrar, onAgregar })
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -82,6 +83,7 @@ export default function ModalAgregarProducto({ productos, onCerrar, onAgregar })
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',
@@ -171,7 +173,7 @@ export default function ModalAgregarProducto({ productos, onCerrar, onAgregar })
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="campos-dos-columnas" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
               <label htmlFor="cantidad" style={estiloEtiqueta}>
                 CANTIDAD *

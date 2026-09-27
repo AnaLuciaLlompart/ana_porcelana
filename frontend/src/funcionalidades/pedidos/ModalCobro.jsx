@@ -148,6 +148,7 @@ export default function ModalCobro({ cobro, saldo, total, hayCobros, onCerrar, o
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -161,6 +162,7 @@ export default function ModalCobro({ cobro, saldo, total, hayCobros, onCerrar, o
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',
@@ -225,12 +227,12 @@ export default function ModalCobro({ cobro, saldo, total, hayCobros, onCerrar, o
             overflowY: 'auto',
           }}
         >
-          <div>
+          <div className="tipo-cobro">
             <span style={estiloEtiqueta}>TIPO</span>
             <Segmentado opciones={TIPOS_COBRO} valor={tipo} onElegir={elegirTipo} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="campos-dos-columnas" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
               <label
                 htmlFor="monto"

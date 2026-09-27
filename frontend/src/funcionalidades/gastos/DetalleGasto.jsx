@@ -494,7 +494,7 @@ function MaterialesDelGasto({
       >
         <h2 style={estiloTituloTarjeta}>MATERIALES DEL GASTO</h2>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div className="acciones-materiales" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <button
             onClick={onAltaTodos}
             disabled={!hayPorMarcar}

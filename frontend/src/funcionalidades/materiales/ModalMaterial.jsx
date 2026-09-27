@@ -103,6 +103,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
 
   return (
     <div
+      className="modal-fondo"
       onClick={onCerrar}
       style={{
         position: 'fixed',
@@ -116,6 +117,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
       }}
     >
       <div
+        className="modal-caja"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',
