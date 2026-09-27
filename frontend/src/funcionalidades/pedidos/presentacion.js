@@ -179,6 +179,13 @@ function dias(desde, hasta) {
 }
 
 
+// Las tres funciones que comparan contra hoy —atraso, entregaTexto y
+// diasEnEtapa— reciben un último parámetro opcional, hoyIso, con la fecha
+// de hoy en ISO. Si no viene, usan hoy(), el reloj del navegador, que es
+// como las llama Pedidos. Inicio les pasa el hoy que devuelve el servidor,
+// para que los días que muestra se cuenten con el mismo día con el que el
+// backend contó los atrasados.
+
 // Cuántos días de atraso lleva el pedido, o 0 si no está atrasado.
 //
 // Un pedido entregado nunca está atrasado, aunque se haya entregado tarde:
@@ -187,32 +194,32 @@ function dias(desde, hasta) {
 // Las fechas se comparan como texto y no como Date. En formato ISO eso
 // funciona, porque el año va primero y todos los campos tienen el mismo
 // largo: '2026-09-08' es menor que '2026-09-09'.
-export function atraso(pedido) {
+export function atraso(pedido, hoyIso = hoy()) {
   const estimada = pedido.fecha_entrega_estimada
 
   if (!estimada) return 0
   if (pedido.estado === 'ENTREGADO') return 0
-  if (estimada >= hoy()) return 0
+  if (estimada >= hoyIso) return 0
 
-  return dias(estimada, hoy())
+  return dias(estimada, hoyIso)
 }
 
 
 // Lo que dice la columna ENTREGA.
-export function entregaTexto(pedido) {
+export function entregaTexto(pedido, hoyIso = hoy()) {
   if (pedido.estado === 'ENTREGADO') {
     return pedido.fecha_entrega_real ? fmtFechaNum(pedido.fecha_entrega_real) : 'Sin fecha'
   }
 
   if (!pedido.fecha_entrega_estimada) return 'Sin fecha'
 
-  const atrasado = atraso(pedido)
+  const atrasado = atraso(pedido, hoyIso)
 
   if (atrasado > 0) {
     return atrasado === 1 ? 'Atrasado 1 día' : `Atrasado ${atrasado} días`
   }
 
-  const faltan = dias(hoy(), pedido.fecha_entrega_estimada)
+  const faltan = dias(hoyIso, pedido.fecha_entrega_estimada)
 
   if (faltan === 0) return 'Hoy'
   if (faltan === 1) return 'Mañana'
@@ -266,10 +273,10 @@ export function contenido(pedido) {
 // Una que lleva demasiado en Secado se marca en rojo: el secado tiene un
 // tiempo, y pasado ese tiempo lo que corresponde es ir a fijarse si ya está
 // para pintar.
-export function diasEnEtapa(productoDelPedido) {
+export function diasEnEtapa(productoDelPedido, hoyIso = hoy()) {
   if (productoDelPedido.estado === 'TERMINADO') return null
 
-  const cuantos = dias(productoDelPedido.fecha_cambio_estado, hoy())
+  const cuantos = dias(productoDelPedido.fecha_cambio_estado, hoyIso)
   const demorada = productoDelPedido.estado === 'SECADO' && cuantos >= DIAS_AVISO_SECADO
 
   const texto =

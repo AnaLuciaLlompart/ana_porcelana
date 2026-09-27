@@ -13,6 +13,7 @@ import DetallePedido from './funcionalidades/pedidos/DetallePedido'
 import Gastos from './funcionalidades/gastos/Gastos'
 import DetalleGasto from './funcionalidades/gastos/DetalleGasto'
 import Finanzas from './funcionalidades/finanzas/Finanzas'
+import Inicio from './funcionalidades/inicio/Inicio'
 
 
 
@@ -32,22 +33,6 @@ function Publico() {
   if (usuario) return <Navigate to="/" replace />
 
   return <Outlet />
-}
-
-function Inicio() {
-  const { usuario } = useAuth()
-
-  return (
-    <h1 style={{
-      margin: 0,
-      fontFamily: "'Quicksand', sans-serif",
-      fontWeight: 600,
-      fontSize: 32,
-      color: '#3D3238',
-    }}>
-      Hola, {usuario.nombre}
-    </h1>
-  )
 }
 
 export default function Rutas() {
