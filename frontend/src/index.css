@@ -22,6 +22,10 @@ input:focus {
   border-color: #8C5A66 !important;
 }
 
+.selector-campo:focus {
+  border-color: #8C5A66 !important;
+}
+
 button:not(:disabled):hover {
   opacity: 0.9;
 }
@@ -57,7 +61,7 @@ button:not(:disabled):hover {
   background: #E8F5EF !important;
 }
 
-.fila-material:hover {
+.selector-opcion:hover:not(:disabled) {
   background: #FAF7F7 !important;
 }
 
@@ -273,5 +277,27 @@ button:not(:disabled):hover {
 
   .tipo-cobro > div > button {
     flex-basis: auto !important;
+  }
+}
+
+/* Pantalla grande, de 1440px para arriba. Las fichas y las pantallas que
+   miden ANCHO_MAXIMO (1140, en constantes.js) se estiran a 1400; en la
+   ficha de pedido la fila ENVÍO / COSTO deja de repartirse en mitades, para
+   que el costo no sea un campo de 700px; y la pestaña Datos de Producto se
+   parte en dos columnas, el formulario y el panel con la imagen, que
+   DetalleProducto dibuja solo en este ancho. Los !important pisan el
+   maxWidth y el gridTemplateColumns que están en línea; la grilla del
+   producto no tiene columnas en línea y va sin él. */
+@media (min-width: 1440px) {
+  .ancho-pantalla {
+    max-width: 1400px !important;
+  }
+
+  .envio-y-costo {
+    grid-template-columns: 2fr 1fr !important;
+  }
+
+  .datos-producto {
+    grid-template-columns: 2fr 1fr;
   }
 }

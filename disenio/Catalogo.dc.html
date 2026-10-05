@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&amp;family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #F7F9FA; font-family: 'Nunito Sans', sans-serif; color: #323A3D; }
+  * { box-sizing: border-box; }
+  a { color: #5A7A8C; }
+  a:hover { color: #87A0B0; }
+  input, select, button, textarea { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #E0E8EB; border-radius: 3px; }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: #F7F9FA">
+
+  <div style="background: #5A7A8C; text-align: center; padding: 8px 16px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; color: white; text-wrap: pretty">Piezas hechas a mano en porcelana fría · Entregas en Tucumán · Consultas por Instagram</div>
+
+  <header style="background: white; border-bottom: 1px solid #E0E8EB; position: sticky; top: 0; z-index: 50">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 64px; padding: 0 12px">
+      <sc-if value="{{ esCelular }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ abrirMenu }}" title="Menú" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: #E2EAF0">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+      </sc-if>
+      <sc-if value="{{ esEscritorio }}" hint-placeholder-val="{{ false }}">
+        <a href="https://instagram.com/ana_porcelana" target="_blank" style="display: flex; align-items: center; gap: 6px; text-decoration: none; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #5A7A8C"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"></circle></svg> @ana_porcelana</a>
+      </sc-if>
+      <button onClick="{{ irInicio }}" style="border: 0; background: transparent; cursor: pointer; padding: 0; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: {{ logoSize }}; letter-spacing: .02em; color: #5A7A8C">Ana Porcelana</button>
+      <button onClick="{{ irSeleccion }}" title="Mi selección" style="position: relative; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px; white-space: nowrap; border: 0; background: transparent; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #5A7A8C" style-hover="background: #E2EAF0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+        <span>Mi selección</span>
+        <sc-if value="{{ haySeleccion }}" hint-placeholder-val="{{ false }}">
+          <span style="min-width: 20px; height: 20px; padding: 0 6px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #5A7A8C; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 12px; color: white">{{ cantSeleccion }}</span>
+        </sc-if>
+      </button>
+    </div>
+    <sc-if value="{{ esEscritorio }}" hint-placeholder-val="{{ false }}">
+      <nav style="border-top: 1px solid #E0E8EB; position: relative">
+        <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 0 12px">
+          <sc-for list="{{ navTop }}" as="n" hint-placeholder-count="5">
+            <button onClick="{{ n.onClick }}" style="display: flex; align-items: center; gap: 6px; height: 46px; padding: 0 16px; border: 0; border-bottom: 2px solid {{ n.linea }}; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: {{ n.color }}" style-hover="color: #5A7A8C">
+              {{ n.label }}
+              <sc-if value="{{ n.hayDrop }}" hint-placeholder-val="{{ false }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="transition: transform .15s; transform: {{ n.rot }}"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+              </sc-if>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ dropAbierto }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ cerrarDrop }}" style="position: fixed; inset: 0; z-index: 40"></div>
+          <div style="position: absolute; left: 50%; top: 100%; transform: translateX(-50%); z-index: 45; display: grid; grid-template-columns: repeat(3, minmax(160px, auto)); gap: 28px; padding: 22px 28px; background: white; border: 1px solid #E0E8EB; border-top: 0; border-radius: 0 0 10px 10px; box-shadow: 0 12px 30px rgba(50,58,61,.08)">
+            <div>
+              <button onClick="{{ verTodos }}" style="display: block; padding: 6px 0; border: 0; background: transparent; cursor: pointer; text-align: left; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 14px; color: #5A7A8C" style-hover="text-decoration: underline">Ver todos los productos</button>
+            </div>
+            <div>
+              <p style="margin: 0 0 8px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #708085">TIPO DE ACCESORIO</p>
+              <sc-for list="{{ dropTipos }}" as="c" hint-placeholder-count="4">
+                <button onClick="{{ c.onClick }}" style="display: block; padding: 5px 0; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 15px; color: #323A3D" style-hover="color: #5A7A8C">{{ c.label }}</button>
+              </sc-for>
+            </div>
+            <div>
+              <p style="margin: 0 0 8px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: #708085">TEMÁTICA</p>
+              <sc-for list="{{ dropTemas }}" as="c" hint-placeholder-count="5">
+                <button onClick="{{ c.onClick }}" style="display: block; padding: 5px 0; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 15px; color: #323A3D" style-hover="color: #5A7A8C">{{ c.label }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </nav>
+    </sc-if>
+  </header>
+
+  <main style="flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: {{ mainPadding }}">
+    <div>
+
+      <sc-if value="{{ enCatalogo }}" hint-placeholder-val="{{ true }}">
+        <section data-screen-label="Catálogo">
+          <div style="padding: {{ portadaPad }}; text-align: center">
+            <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: {{ portadaTitulo }}; line-height: 1.15; color: #5A7A8C; text-wrap: pretty">Accesorios en porcelana fría, hechos a mano con ❤</h1>
+            <p style="margin: 10px 0 0; font-size: 16px; color: #708085; text-wrap: pretty">{{ resumenCatalogo }}</p>
+          </div>
+
+          <sc-if value="{{ esCelular }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px">
+              <span style="font-size: 14px; color: #708085">{{ filtrosResumen }}</span>
+              <button onClick="{{ abrirFiltros }}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px solid #5A7A8C; background: white; color: #5A7A8C; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #E2EAF0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                {{ filtrosLabel }}
+              </button>
+            </div>
+          </sc-if>
+
+          <div style="display: grid; grid-template-columns: {{ catalogoCols }}; gap: 28px; align-items: start">
+          <sc-if value="{{ esEscritorio }}" hint-placeholder-val="{{ false }}">
+            <aside style="position: sticky; top: 126px; padding: 20px; background: white; border: 1px solid #E0E8EB; border-radius: 8px">
+            <div style="display: flex; flex-direction: column; gap: 22px">
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">TIPO DE ACCESORIO</p>
+                <sc-for list="{{ chipsTipo }}" as="c" hint-placeholder-count="4">
+                  <label style="display: flex; align-items: center; gap: 10px; min-height: 36px; cursor: pointer; font-size: 15px; color: #323A3D">
+                    <span style="width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 5px; border: 1px solid {{ c.borde }}; background: {{ c.bg }}">
+                      <sc-if value="{{ c.activo }}" hint-placeholder-val="{{ false }}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                      </sc-if>
+                    </span>
+                    <input type="checkbox" checked="{{ c.activo }}" onChange="{{ c.onClick }}" style="display: none">
+                    <span style="flex: 1">{{ c.label }}</span>
+                    <span style="font-size: 13px; color: #87A0B0">{{ c.cant }}</span>
+                  </label>
+                </sc-for>
+              </div>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">TEMÁTICA</p>
+                <sc-for list="{{ chipsTema }}" as="c" hint-placeholder-count="5">
+                  <label style="display: flex; align-items: center; gap: 10px; min-height: 36px; cursor: pointer; font-size: 15px; color: #323A3D">
+                    <span style="width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 5px; border: 1px solid {{ c.borde }}; background: {{ c.bg }}">
+                      <sc-if value="{{ c.activo }}" hint-placeholder-val="{{ false }}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                      </sc-if>
+                    </span>
+                    <input type="checkbox" checked="{{ c.activo }}" onChange="{{ c.onClick }}" style="display: none">
+                    <span style="flex: 1">{{ c.label }}</span>
+                    <span style="font-size: 13px; color: #87A0B0">{{ c.cant }}</span>
+                  </label>
+                </sc-for>
+              </div>
+              <sc-if value="{{ hayFiltros }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ limpiarFiltros }}" style="align-self: flex-start; padding: 0; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #5A7A8C" style-hover="text-decoration: underline">Quitar filtros</button>
+              </sc-if>
+            </div>
+            </aside>
+          </sc-if>
+          <div style="min-width: 0">
+          <sc-if value="{{ hayProductos }}" hint-placeholder-val="{{ true }}">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px">
+              <sc-for list="{{ productos }}" as="p" hint-placeholder-count="8">
+                <button onClick="{{ p.onAbrir }}" style="display: flex; flex-direction: column; text-align: left; padding: 0; border: 1px solid #E0E8EB; background: white; border-radius: 8px; overflow: hidden; cursor: pointer" style-hover="border-color: #87A0B0">
+                  <div style="aspect-ratio: 1; width: 100%; display: flex; align-items: center; justify-content: center; background: {{ p.tinte }}">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#87A0B0" stroke-width="1.4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+                  </div>
+                  <div style="padding: 10px 12px 12px; width: 100%">
+                    <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; line-height: 1.3; color: #323A3D; text-wrap: pretty">{{ p.nombre }}</p>
+                    <p style="margin: 4px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 15px; color: #5A7A8C">{{ p.precioTexto }}</p>
+                    <span style="display: inline-block; margin-top: 6px; padding: 3px 9px; border-radius: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; border: 1px solid {{ p.difColor }}; background: {{ p.difBg }}; color: {{ p.difColor }}">{{ p.dificultadTexto }}</span>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sinProductos }}" hint-placeholder-val="{{ false }}">
+            <div style="background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 44px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px">
+              <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #323A3D">No hay piezas en esta categoría</p>
+              <p style="margin: 0; font-size: 15px; color: #708085; text-wrap: pretty">Probá con otra combinación o mirá todo el catálogo.</p>
+              <button onClick="{{ limpiarFiltros }}" style="margin-top: 8px; padding: 10px 18px; border: 1px solid #5A7A8C; background: white; color: #5A7A8C; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #E2EAF0">Ver todas las piezas</button>
+            </div>
+          </sc-if>
+          </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ enDetalle }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Detalle de pieza">
+          <button onClick="{{ irCatalogo }}" style="display: inline-flex; align-items: center; gap: 5px; margin-bottom: 16px; padding: 0; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #5A7A8C" style-hover="text-decoration: underline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+            Volver al catálogo
+          </button>
+          <div style="display: grid; grid-template-columns: {{ detalleCols }}; gap: 28px; align-items: start">
+            <div>
+              <div style="aspect-ratio: 1; width: 100%; display: flex; align-items: center; justify-content: center; border: 1px solid #E0E8EB; border-radius: 8px; background: {{ det.tinte }}">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#87A0B0" stroke-width="1.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 10px">
+                <sc-for list="{{ det.fotos }}" as="f" hint-placeholder-count="3">
+                  <button onClick="{{ f.onClick }}" style="width: 64px; height: 64px; flex-shrink: 0; border-radius: 6px; cursor: pointer; background: {{ f.tinte }}; border: 2px solid {{ f.borde }}"></button>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px">
+              <div>
+                <h1 style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; line-height: 1.15; color: #323A3D; text-wrap: pretty">{{ det.nombre }}</h1>
+                <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 8px">
+                  <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 24px; color: #5A7A8C">{{ det.precioTexto }}</p>
+                  <span style="display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 20px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; border: 1px solid {{ det.difColor }}; background: {{ det.difBg }}; color: {{ det.difColor }}">{{ det.dificultadTexto }}</span>
+                </div>
+              </div>
+              <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">{{ det.descripcion }}</p>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <sc-for list="{{ det.chips }}" as="c" hint-placeholder-count="2">
+                  <button onClick="{{ c.onClick }}" style="padding: 6px 12px; border-radius: 20px; border: 1px solid #E0E8EB; background: #E2EAF0; color: #5A7A8C; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px" style-hover="border-color: #87A0B0">{{ c.label }}</button>
+                </sc-for>
+              </div>
+              <div style="height: 1px; background: #E0E8EB"></div>
+              <button onClick="{{ det.onAgregar }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 12px 20px; border: 0; background: #5A7A8C; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .92">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path stroke-linecap="round" d="M12 4v16m8-8H4"></path></svg>
+                Agregar a mi selección
+              </button>
+              <sc-if value="{{ det.yaEsta }}" hint-placeholder-val="{{ false }}">
+                <p style="margin: -4px 0 0; text-align: center; font-size: 14px; color: #708085">{{ det.yaEstaTexto }}</p>
+              </sc-if>
+              <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #708085; text-wrap: pretty">Cada pieza se hace a mano, por eso puede variar un poquito respecto de la foto. El precio es orientativo: te lo confirmo por mensaje.</p>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ enSeleccion }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Mi selección">
+          <h1 style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #5A7A8C">Mi selección</h1>
+          <p style="margin: 0 0 22px; font-size: 15px; color: #708085">{{ resumenSeleccion }}</p>
+          <sc-if value="{{ haySeleccion }}" hint-placeholder-val="{{ true }}">
+            <div style="display: grid; grid-template-columns: {{ seleccionCols }}; gap: 24px; align-items: start">
+              <div style="background: white; border: 1px solid #E0E8EB; border-radius: 8px; overflow: hidden">
+                <sc-for list="{{ seleccion }}" as="s" hint-placeholder-count="3">
+                  <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-bottom: 1px solid #E0E8EB">
+                    <button onClick="{{ s.onAbrir }}" style="width: 56px; height: 56px; flex-shrink: 0; border: 0; border-radius: 6px; cursor: pointer; background: {{ s.tinte }}"></button>
+                    <div style="flex: 1 1 140px; min-width: 0">
+                      <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; line-height: 1.3; color: #323A3D; text-wrap: pretty">{{ s.nombre }}</p>
+                      <p style="margin: 3px 0 0; font-size: 14px; color: #708085">{{ s.precioTexto }}</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0; margin-left: auto; border: 1px solid #E0E8EB; border-radius: 6px">
+                      <button onClick="{{ s.onMenos }}" title="Una menos" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer; border-radius: 5px" style-hover="background: #E2EAF0">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="2.3"><path stroke-linecap="round" d="M5 12h14"></path></svg>
+                      </button>
+                      <span style="min-width: 22px; text-align: center; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #323A3D">{{ s.cantidad }}</span>
+                      <button onClick="{{ s.onMas }}" title="Una más" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer; border-radius: 5px" style-hover="background: #E2EAF0">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="2.3"><path stroke-linecap="round" d="M12 5v14m7-7H5"></path></svg>
+                      </button>
+                    </div>
+                    <button onClick="{{ s.onQuitar }}" title="Quitar" style="width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: #FAEAE8">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0442F" stroke-width="1.9"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </sc-for>
+                <div style="padding: 16px">
+                  <label style="display: block; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085; margin-bottom: 7px">ACLARACIONES</label>
+                  <textarea value="{{ aclaraciones }}" onChange="{{ onAclaraciones }}" rows="3" placeholder="Colores, fechas, lo que quieras contarme" style="width: 100%; padding: 10px 13px; border: 1px solid #E0E8EB; font-size: 16px; line-height: 1.5; color: #323A3D; background: white; border-radius: 6px; outline: none; resize: vertical" style-focus="border-color: #5A7A8C"></textarea>
+                </div>
+              </div>
+              <div style="background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #323A3D">Total orientativo</span>
+                  <span style="font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 24px; color: #5A7A8C">{{ totalTexto }}</span>
+                </div>
+                <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #708085; text-wrap: pretty">El precio final lo confirma Ana por mensaje, según los detalles que acuerden.</p>
+                <button onClick="{{ irMensaje }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; padding: 12px 20px; border: 0; background: #5A7A8C; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .92">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"></circle></svg>
+                  Consultar por Instagram
+                </button>
+                <button onClick="{{ irCatalogo }}" style="padding: 10px 18px; border: 1px solid #E0E8EB; background: white; color: #5A7A8C; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px" style-hover="background: #E2EAF0">Seguir mirando</button>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sinSeleccion }}" hint-placeholder-val="{{ false }}">
+            <div style="background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 48px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px">
+              <div style="width: 56px; height: 56px; border-radius: 14px; background: #E2EAF0; display: flex; align-items: center; justify-content: center">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+              </div>
+              <p style="margin: 4px 0 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #323A3D">Todavía no elegiste ninguna pieza</p>
+              <p style="margin: 0; max-width: 340px; font-size: 15px; color: #708085; text-wrap: pretty">Recorré el catálogo y agregá lo que te guste. Después armamos el mensaje juntas.</p>
+              <button onClick="{{ irCatalogo }}" style="margin-top: 8px; padding: 11px 20px; border: 0; background: #5A7A8C; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .92">Ver el catálogo</button>
+            </div>
+          </sc-if>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ enMensaje }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Mensaje listo">
+          <button onClick="{{ volverDeMensaje }}" style="display: inline-flex; align-items: center; gap: 5px; margin-bottom: 16px; padding: 0; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: #5A7A8C" style-hover="text-decoration: underline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+            Volver
+          </button>
+          <h1 style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #5A7A8C">Tu mensaje está listo</h1>
+          <p style="margin: 0 0 22px; font-size: 15px; color: #708085; text-wrap: pretty">Copialo y pegalo en el chat de Instagram con @ana_porcelana.</p>
+          <div style="max-width: 640px; display: flex; flex-direction: column; gap: 16px">
+            <div style="background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px">
+              <p style="margin: 0 0 12px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">VISTA PREVIA</p>
+              <pre style="margin: 0; white-space: pre-wrap; font-family: 'Nunito Sans', sans-serif; font-size: 15px; line-height: 1.6; color: #323A3D">{{ mensajeTexto }}</pre>
+            </div>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap">
+              <button onClick="{{ copiarMensaje }}" style="flex: 1; min-width: 200px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 18px; border: 1px solid #5A7A8C; background: white; color: #5A7A8C; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="background: #E2EAF0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                {{ copiarLabel }}
+              </button>
+              <a href="https://instagram.com/ana_porcelana" target="_blank" style="flex: 1; min-width: 200px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 18px; border: 0; background: #5A7A8C; color: white; border-radius: 6px; text-decoration: none; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .92; color: white">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"></circle></svg>
+                Abrir Instagram
+              </a>
+            </div>
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #708085; text-wrap: pretty">Instagram no permite pegar el mensaje automáticamente: por eso el paso de copiar. El botón te lleva a mi perfil; desde ahí tocá "Enviar mensaje" y pegalo.</p>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ enComoPedir }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Cómo hacer un pedido">
+          <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">SOBRE ANA PORCELANA</p>
+          <h1 style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #5A7A8C">Cómo hacer un pedido</h1>
+          <p style="margin: 0 0 24px; max-width: 560px; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">Soy Ana y hago cada pieza a mano, en porcelana fría. Acá no hay carrito ni pago: armás tu selección y me la mandás por mensaje, y seguimos charlando por ahí.</p>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; max-width: 1000px">
+            <sc-for list="{{ pasos }}" as="p" hint-placeholder-count="4">
+              <div style="background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+                <span style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: #E2EAF0; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 16px; color: #5A7A8C">{{ p.n }}</span>
+                <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">{{ p.titulo }}</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #708085; text-wrap: pretty">{{ p.texto }}</p>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top: 24px; max-width: 1000px; padding: 20px 22px; background: white; border: 1px solid #E0E8EB; border-radius: 8px">
+            <p style="margin: 0; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">¿Tenés una idea que no está en el catálogo?</p>
+            <p style="margin: 6px 0 0; font-size: 15px; line-height: 1.55; color: #708085; text-wrap: pretty">También hago piezas personalizadas: una temática que te guste, un regalo con iniciales, un color especial. Escribime por Instagram con tu idea y, si tenés, una referencia (por ejemplo, de Pinterest). Te paso un presupuesto antes de empezar.</p>
+          </div>
+          <button onClick="{{ irCatalogo }}" style="margin-top: 24px; padding: 11px 20px; border: 0; background: #5A7A8C; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .92">Ver el catálogo</button>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ enTips }}" hint-placeholder-val="{{ false }}">
+        <section data-screen-label="Tips">
+          <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">SOBRE ANA PORCELANA</p>
+          <h1 style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 32px; color: #5A7A8C">Tips para tus piezas</h1>
+          <p style="margin: 0 0 24px; font-size: 15px; color: #708085; text-wrap: pretty">Para que te duren mucho tiempo como el primer día.</p>
+          <div style="display: flex; flex-direction: column; gap: 14px; max-width: 1000px">
+            <div style="display: flex; gap: 16px; background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #E2EAF0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"></path></svg>
+              </span>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">Cuidado con el agua</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">La porcelana fría NO es resistente al agua. Aunque los productos cuentan con una capa protectora de barniz, el agua puede dañar los materiales. En caso de que el producto se haya salpicado con agua, se debe secar suavemente con papel.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 16px; background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #E2EAF0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              </span>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">Los aritos son de fantasía</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">Los ganchos y las argollas de los aros son de fantasía, no de plata ni de acero quirúrgico. Si tenés la piel sensible, tenelo en cuenta y evitá usarlos por muchas horas seguidas.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 16px; background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #E2EAF0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path></svg>
+              </span>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">Aleja del calor extremo</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">Evita altas temperaturas o fuentes de calor directo que puedan alterar la dureza y consistencia del material.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 16px; background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #E2EAF0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+              </span>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">Limpieza suave</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">Si se ensucian o acumulan polvo, Límpialos únicamente con un paño seco o apenas húmedo (sin jabones abrasivos ni químicos), y sécalos de inmediato.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 16px; background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #E2EAF0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+              </span>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">Almacenamiento seguro</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">Guárdalos en un lugar fresco y seco, preferiblemente separados en una caja o bolsita para evitar golpes, aplastamientos o rayones accidentales.</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 16px; background: white; border: 1px solid #E0E8EB; border-radius: 8px; padding: 20px">
+              <span style="width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #E2EAF0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"></path></svg>
+              </span>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px; color: #323A3D">Trátalos con delicadeza</p>
+                <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #323A3D; text-wrap: pretty">Al ser piezas artesanales y finas, evita doblarlas, apretarlas o dejarlas caer.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <footer style="margin-top: 48px; background: white; border-top: 1px solid #E0E8EB">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 36px 16px 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 28px">
+      <div>
+        <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 18px; color: #5A7A8C">Ana Porcelana</p>
+        <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #708085; text-wrap: pretty">Accesorios artesanales en porcelana fría, hechos a mano en Tucumán, Argentina.</p>
+      </div>
+      <div>
+        <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">PRODUCTOS</p>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <sc-for list="{{ dropTipos }}" as="c" hint-placeholder-count="4">
+            <button onClick="{{ c.onClick }}" style="padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 14px; color: #323A3D" style-hover="color: #5A7A8C">{{ c.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">AYUDA</p>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <button onClick="{{ irComoPedir }}" style="padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 14px; color: #323A3D" style-hover="color: #5A7A8C">Cómo hacer un pedido</button>
+          <button onClick="{{ irTips }}" style="padding: 0; border: 0; background: transparent; cursor: pointer; text-align: left; font-size: 14px; color: #323A3D" style-hover="color: #5A7A8C">Tips para tus piezas</button>
+        </div>
+      </div>
+      <div>
+        <p style="margin: 0 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">CONTACTO</p>
+        <a href="https://instagram.com/ana_porcelana" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #5A7A8C"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"></circle></svg> @ana_porcelana</a>
+      </div>
+    </div>
+    <div style="border-top: 1px solid #E0E8EB">
+      <p style="max-width: 1200px; margin: 0 auto; padding: 14px 16px; font-size: 13px; color: #708085">© 2026 Ana Porcelana. Los precios son orientativos y se confirman por mensaje.</p>
+    </div>
+  </footer>
+</div>
+
+<sc-if value="{{ menuAbierto }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ cerrarMenu }}" style="position: fixed; inset: 0; z-index: 60; background: rgba(50,58,61,.5)"></div>
+  <div style="position: fixed; top: 0; left: 0; bottom: 0; z-index: 61; width: 290px; max-width: 85vw; display: flex; flex-direction: column; background: #5A7A8C; box-shadow: 0 0 40px rgba(50,58,61,.3)">
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 56px; padding: 0 8px 0 16px; border-bottom: 1px solid rgba(255,255,255,.15)">
+      <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: white">Ana Porcelana</span>
+      <button onClick="{{ cerrarMenu }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: rgba(255,255,255,.12)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 10px 8px">
+      <sc-for list="{{ navCompleto }}" as="n" hint-placeholder-count="8">
+        <sc-if value="{{ n.esTitulo }}" hint-placeholder-val="{{ false }}">
+          <p style="margin: 10px 0 4px; padding: 0 10px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: .06em; color: rgba(255,255,255,.55); padding-left: {{ n.sangria }}">{{ n.label }}</p>
+        </sc-if>
+        <sc-if value="{{ n.esItem }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ n.onClick }}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border-radius: 6px; border: 0; cursor: pointer; text-align: left; background: {{ n.bg }}; padding-left: {{ n.sangria }}" style-hover="background: rgba(255,255,255,.14)">
+            <span style="flex: 1; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; line-height: 1.3; color: {{ n.color }}">{{ n.label }}</span>
+            <sc-if value="{{ n.hayBadge }}" hint-placeholder-val="{{ false }}">
+              <span style="min-width: 22px; height: 22px; padding: 0 7px; display: flex; align-items: center; justify-content: center; border-radius: 11px; background: white; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 12px; color: #5A7A8C">{{ n.badge }}</span>
+            </sc-if>
+            <sc-if value="{{ n.hayChevron }}" hint-placeholder-val="{{ false }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="2" style="transition: transform .15s; transform: {{ n.rot }}"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+            </sc-if>
+          </button>
+        </sc-if>
+      </sc-for>
+    </div>
+    <div style="padding: 8px 8px 16px; border-top: 1px solid rgba(255,255,255,.15)">
+      <a href="https://instagram.com/ana_porcelana" target="_blank" style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 10px; border-radius: 6px; text-decoration: none" style-hover="background: rgba(255,255,255,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1" fill="rgba(255,255,255,.85)" stroke="none"></circle></svg>
+        <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: rgba(255,255,255,.85)">@ana_porcelana</span>
+      </a>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ filtrosAbierto }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ cerrarFiltros }}" style="position: fixed; inset: 0; z-index: 60; background: rgba(50,58,61,.5)"></div>
+  <div style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; max-height: 85vh; display: flex; flex-direction: column; background: white; border-radius: 14px 14px 0 0; box-shadow: 0 -10px 40px rgba(50,58,61,.2)">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 8px 14px 20px; border-bottom: 1px solid #E0E8EB">
+      <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 17px; color: #323A3D">Filtrar</span>
+      <button onClick="{{ cerrarFiltros }}" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: 6px; cursor: pointer" style-hover="background: #E2EAF0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#323A3D" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <div style="flex: 1; overflow-y: auto; padding: 18px 20px">
+            <div style="display: flex; flex-direction: column; gap: 22px">
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">TIPO DE ACCESORIO</p>
+                <sc-for list="{{ chipsTipo }}" as="c" hint-placeholder-count="4">
+                  <label style="display: flex; align-items: center; gap: 10px; min-height: 36px; cursor: pointer; font-size: 15px; color: #323A3D">
+                    <span style="width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 5px; border: 1px solid {{ c.borde }}; background: {{ c.bg }}">
+                      <sc-if value="{{ c.activo }}" hint-placeholder-val="{{ false }}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                      </sc-if>
+                    </span>
+                    <input type="checkbox" checked="{{ c.activo }}" onChange="{{ c.onClick }}" style="display: none">
+                    <span style="flex: 1">{{ c.label }}</span>
+                    <span style="font-size: 13px; color: #87A0B0">{{ c.cant }}</span>
+                  </label>
+                </sc-for>
+              </div>
+              <div>
+                <p style="margin: 0 0 6px; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 13px; letter-spacing: .06em; color: #708085">TEMÁTICA</p>
+                <sc-for list="{{ chipsTema }}" as="c" hint-placeholder-count="5">
+                  <label style="display: flex; align-items: center; gap: 10px; min-height: 36px; cursor: pointer; font-size: 15px; color: #323A3D">
+                    <span style="width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 5px; border: 1px solid {{ c.borde }}; background: {{ c.bg }}">
+                      <sc-if value="{{ c.activo }}" hint-placeholder-val="{{ false }}">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                      </sc-if>
+                    </span>
+                    <input type="checkbox" checked="{{ c.activo }}" onChange="{{ c.onClick }}" style="display: none">
+                    <span style="flex: 1">{{ c.label }}</span>
+                    <span style="font-size: 13px; color: #87A0B0">{{ c.cant }}</span>
+                  </label>
+                </sc-for>
+              </div>
+              <sc-if value="{{ hayFiltros }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ limpiarFiltros }}" style="align-self: flex-start; padding: 0; border: 0; background: transparent; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px; color: #5A7A8C" style-hover="text-decoration: underline">Quitar filtros</button>
+              </sc-if>
+            </div>
+    </div>
+    <div style="padding: 14px 20px 20px; border-top: 1px solid #E0E8EB">
+      <button onClick="{{ cerrarFiltros }}" style="width: 100%; min-height: 48px; border: 0; background: #5A7A8C; color: white; border-radius: 6px; cursor: pointer; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 16px" style-hover="opacity: .92">{{ verResultados }}</button>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hayToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 70; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); padding: 11px 18px; border-radius: 24px; background: #323A3D; box-shadow: 0 10px 30px rgba(50,58,61,.3)">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8FD3AE" stroke-width="2.2" style="flex-shrink: 0"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+    <span style="font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 15px; color: white; white-space: nowrap">{{ toast }}</span>
+    <sc-if value="{{ toastVerSeleccion }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ irSeleccion }}" style="margin-left: 4px; padding: 4px 10px; border: 0; border-radius: 12px; background: rgba(255,255,255,.15); color: white; cursor: pointer; white-space: nowrap; font-family: 'Quicksand', sans-serif; font-weight: 600; font-size: 14px" style-hover="background: rgba(255,255,255,.28)">Ver</button>
+    </sc-if>
+  </div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;vista&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;celular&quot;,&quot;escritorio&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const TIPOS = ["Aros", "Dijes", "Llaveros", "Alhajeros"];
+const TEMAS = ["Harry Potter", "Friends", "Anime", "Animales", "Botánico"];
+const TINTES = ["#E2EAF0", "#E8EEF2", "#DDE6EC", "#E5ECEF"];
+const PRODUCTOS = [
+  { id: 1, nombre: "Aros hoja", precio: 6500, dificultad: "Media", tipo: "Aros", tema: "Botánico", descripcion: "Hojas pequeñas modeladas una por una, con las nervaduras marcadas a mano. Van con gancho de acero quirúrgico." },
+  { id: 2, nombre: "Alhajero de Harry Potter", precio: 6000, dificultad: "Alta", tipo: "Alhajeros", tema: "Harry Potter", descripcion: "Cajita redonda con la tapa decorada con los anteojos y la cicatriz. Ideal para guardar aros y anillos." },
+  { id: 3, nombre: "Llavero gato", precio: 3500, dificultad: "Baja", tipo: "Llaveros", tema: "Animales", descripcion: "Gatito sentado, con la colita enroscada. Podés elegir el color del pelaje." },
+  { id: 4, nombre: "Dije luna", precio: 9000, dificultad: "Alta", tipo: "Dijes", tema: "Botánico", descripcion: "Luna creciente con flores diminutas. Viene con cadena de acero de 45 cm." },
+  { id: 5, nombre: "Aros snitch dorada", precio: 7000, dificultad: "Media", tipo: "Aros", tema: "Harry Potter", descripcion: "La pelotita dorada con sus alitas, en miniatura. Pintadas con acrílico metalizado." },
+  { id: 6, nombre: "Llavero Central Perk", precio: 4000, dificultad: "Baja", tipo: "Llaveros", tema: "Friends", descripcion: "La taza del café más famoso de la tele, con su logo pintado a mano." },
+  { id: 7, nombre: "Aros Totoro", precio: 6800, dificultad: "Media", tipo: "Aros", tema: "Anime", descripcion: "Totoro con su hojita en la cabeza. Livianos, para usar todo el día." },
+  { id: 8, nombre: "Dije pokébola", precio: 5500, dificultad: "Baja", tipo: "Dijes", tema: "Anime", descripcion: "Pokébola de 2 cm, con la línea negra y el botón en relieve. Con cadena incluida." },
+  { id: 9, nombre: "Alhajero hongo", precio: 6500, dificultad: "Alta", tipo: "Alhajeros", tema: "Botánico", descripcion: "Hongo rojo con lunares, la tapa es el sombrero. Guarda dos o tres pares de aros." },
+  { id: 10, nombre: "Aros gatito", precio: 6000, dificultad: "Media", tipo: "Aros", tema: "Animales", descripcion: "Caritas de gato con bigotes pintados. Podés pedirlos con los colores de tu gato." },
+  { id: 11, nombre: "Llavero varita", precio: 3800, dificultad: "Baja", tipo: "Llaveros", tema: "Harry Potter", descripcion: "Varita de saúco en miniatura, con textura de madera." },
+  { id: 12, nombre: "Dije sillón naranja", precio: 8500, dificultad: "Alta", tipo: "Dijes", tema: "Friends", descripcion: "El sillón del Central Perk, en su naranja característico. Con cadena de acero." }
+];
+const ICONOS = {
+  inicio: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+  como: "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  productos: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+  tips: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
+  seleccion: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+};
+const PASOS = [
+  { n: "1", titulo: "Mirá el catálogo", texto: "Recorré las piezas por tipo o por temática. Cada una tiene sus fotos, su descripción y su precio orientativo." },
+  { n: "2", titulo: "Armá tu selección", texto: "Desde cada pieza tocá \"Agregar a mi selección\". En Mi selección (el corazón de arriba) vas a ver todo lo elegido: ajustá cantidades con − y +, quitá lo que no quieras y anotá las aclaraciones: colores, fechas, detalles." },
+  { n: "3", titulo: "Generá el mensaje", texto: "Con un botón armás el texto con todo lo que elegiste. Lo copiás y listo." },
+  { n: "4", titulo: "Mandámelo por DM", texto: "Pegalo en el chat de @ana_porcelana. Ahí confirmamos precio, fecha y forma de entrega." }
+];
+
+class Component extends DCLogic {
+  state = {
+    pantalla: "catalogo", productoId: null, fotoIdx: 0,
+    filtroTipo: [], filtroTema: [], catsAbierto: false, sobreAbierto: false, productosAbierto: true,
+    seleccion: {}, aclaraciones: "",
+    pf: { idea: "", fecha: "", referencia: "", fotos: [] }, pfTocado: false,
+    mensajeTexto: "", mensajeOrigen: "seleccion", copiado: false,
+    menuAbierto: false, dropAbierto: false, filtrosAbierto: false, sidebarExpanded: true, toast: "", toastVer: false,
+    ancho: typeof window !== "undefined" ? window.innerWidth : 390
+  };
+
+  componentDidMount() {
+    this._onResize = () => this.setState({ ancho: window.innerWidth });
+    window.addEventListener("resize", this._onResize);
+  }
+  componentWillUnmount() { window.removeEventListener("resize", this._onResize); }
+
+  fmt(n) { return "$" + Math.round(n).toLocaleString("es-AR"); }
+  colorDif(d) { return d === "Alta" ? { color: "#C0442F", bg: "#FAEAE8" } : d === "Media" ? { color: "#8A6320", bg: "#FDF3E0" } : { color: "#4E8C6A", bg: "#E8F5EF" }; }
+  fmtFecha(iso) { if (!iso) return ""; const [a, m, d] = iso.split("-"); return Number(d) + "/" + Number(m) + "/" + a; }
+  tinte(p, i) { return TINTES[(p.id + (i || 0)) % TINTES.length]; }
+  producto(id) { return PRODUCTOS.find(p => p.id === id); }
+  ir(pantalla, extra) { this.setState(Object.assign({ pantalla, menuAbierto: false, dropAbierto: false, copiado: false }, extra || {})); window.scrollTo(0, 0); }
+  mostrarToast(t, ver) { this.setState({ toast: t, toastVer: !!ver }); clearTimeout(this._toast); this._toast = setTimeout(() => this.setState({ toast: "", toastVer: false }), 2800); }
+
+  itemsSeleccion() {
+    return Object.keys(this.state.seleccion).map(id => ({ p: this.producto(Number(id)), cantidad: this.state.seleccion[id] })).filter(x => x.p && x.cantidad > 0);
+  }
+  totalSeleccion() { return this.itemsSeleccion().reduce((a, x) => a + x.p.precio * x.cantidad, 0); }
+  cambiarCantidad(id, delta) {
+    this.setState(s => { const sel = Object.assign({}, s.seleccion); const n = (sel[id] || 0) + delta; if (n <= 0) delete sel[id]; else sel[id] = n; return { seleccion: sel }; });
+  }
+  textoSeleccion() {
+    const items = this.itemsSeleccion();
+    const lineas = items.map(x => "• " + x.cantidad + " × " + x.p.nombre + " — " + this.fmt(x.p.precio * x.cantidad));
+    let t = "Hola Ana! Te consulto por estas piezas del catálogo:\n\n" + lineas.join("\n");
+    if (this.state.aclaraciones.trim()) t += "\n\nAclaraciones: " + this.state.aclaraciones.trim();
+    t += "\n\nTotal orientativo: " + this.fmt(this.totalSeleccion()) + "\n\nGracias!";
+    return t;
+  }
+  textoPersonalizada() {
+    const f = this.state.pf;
+    let t = "Hola Ana! Quiero consultarte por una pieza personalizada.\n\nIdea: " + f.idea.trim();
+    if (f.fecha) t += "\nPara cuándo: " + this.fmtFecha(f.fecha);
+    if (f.referencia.trim()) t += "\nReferencias: " + f.referencia.trim();
+    if (f.fotos.length) t += "\nTe adjunto " + (f.fotos.length === 1 ? "1 foto" : f.fotos.length + " fotos") + " de referencia.";
+    return t + "\n\nGracias!";
+  }
+
+  nav() {
+    const s = this.state;
+    const act = (cond) => cond ? "rgba(255,255,255,.18)" : "transparent";
+    const col = (cond) => cond ? "white" : "rgba(255,255,255,.85)";
+    const cant = this.itemsSeleccion().reduce((a, x) => a + x.cantidad, 0);
+    const item = (label, cond, onClick, extra) => Object.assign({ esItem: true, esTitulo: false, label, bg: act(cond), color: col(cond), sangria: "10px", onClick, hayBadge: false, hayChevron: false, rot: "rotate(0deg)" }, extra || {});
+    const titulo = label => ({ esTitulo: true, esItem: false, label, sangria: "10px" });
+    const rot = abierto => abierto ? "rotate(180deg)" : "rotate(0deg)";
+    const lista = [
+    ];
+    lista.push(item("Productos", false, () => this.setState({ productosAbierto: !s.productosAbierto }), { hayChevron: true, rot: rot(s.productosAbierto) }));
+    if (s.productosAbierto) {
+      lista.push(item("Ver todos los productos", s.pantalla === "catalogo" && !s.filtroTipo.length && !s.filtroTema.length, () => this.ir("catalogo", { filtroTipo: [], filtroTema: [] }), { sangria: "22px" }));
+      lista.push(item("Categorías", false, () => this.setState({ catsAbierto: !s.catsAbierto }), { sangria: "22px", hayChevron: true, rot: rot(s.catsAbierto) }));
+      if (s.catsAbierto) {
+        lista.push({ esTitulo: true, esItem: false, label: "TIPO DE ACCESORIO", sangria: "34px" });
+        TIPOS.forEach(t => lista.push(item(t, s.pantalla === "catalogo" && s.filtroTipo.includes(t), () => this.ir("catalogo", { filtroTipo: [t] }), { sangria: "34px" })));
+        lista.push({ esTitulo: true, esItem: false, label: "TEMÁTICA", sangria: "34px" });
+        TEMAS.forEach(t => lista.push(item(t, s.pantalla === "catalogo" && s.filtroTema.includes(t), () => this.ir("catalogo", { filtroTema: [t] }), { sangria: "34px" })));
+      }
+    }
+    lista.push(item("Cómo hacer un pedido", s.pantalla === "comoPedir", () => this.ir("comoPedir")));
+    lista.push(item("Tips para tus piezas", s.pantalla === "tips", () => this.ir("tips")));
+    lista.push(item("Mi selección", s.pantalla === "seleccion", () => this.ir("seleccion"), { hayBadge: cant > 0, badge: String(cant) }));
+    const compacto = [
+      { label: "Sobre Ana Porcelana", icon: ICONOS.como, bg: act(s.pantalla === "comoPedir" || s.pantalla === "tips"), color: col(s.pantalla === "comoPedir" || s.pantalla === "tips"), onClick: () => this.ir("comoPedir"), hayBadge: false },
+      { label: "Productos", icon: ICONOS.productos, bg: act(s.pantalla === "catalogo" || s.pantalla === "detalle"), color: col(s.pantalla === "catalogo"), onClick: () => this.ir("catalogo"), hayBadge: false },
+      { label: "Mi selección", icon: ICONOS.seleccion, bg: act(s.pantalla === "seleccion"), color: col(s.pantalla === "seleccion"), onClick: () => this.ir("seleccion"), hayBadge: cant > 0, badge: String(cant) }
+    ];
+    return { navCompleto: lista, navCompacto: compacto, cant };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const vista = this.props.vista ?? "auto";
+    const esEscritorio = vista === "escritorio" || (vista === "auto" && s.ancho >= 900);
+    const { navCompleto, navCompacto, cant } = this.nav();
+    const items = this.itemsSeleccion();
+
+    const filtrados = PRODUCTOS.filter(p => (!s.filtroTipo.length || s.filtroTipo.includes(p.tipo)) && (!s.filtroTema.length || s.filtroTema.includes(p.tema)));
+    const toggle = (clave, t) => this.setState(st => ({ [clave]: st[clave].includes(t) ? st[clave].filter(x => x !== t) : st[clave].concat([t]) }));
+    const chip = (label, activo, onClick, cant) => ({ label, activo, onClick, cant: String(cant), borde: activo ? "#5A7A8C" : "#E0E8EB", bg: activo ? "#5A7A8C" : "white" });
+    const nFiltros = s.filtroTipo.length + s.filtroTema.length;
+
+    const det = s.productoId ? this.producto(s.productoId) : PRODUCTOS[0];
+    const enSel = s.seleccion[det.id] || 0;
+
+    const pfErr = s.pf.idea.trim().length < 3;
+
+    return Object.assign({
+      esCelular: !esEscritorio, esEscritorio, rootDir: esEscritorio ? "row" : "column",
+      mainPadding: esEscritorio ? "28px 24px 0" : "16px 16px 0",
+      heroRatio: esEscritorio ? "21 / 8" : "auto", heroPad: esEscritorio ? "48px 56px" : "36px 22px", heroTitulo: esEscritorio ? "42px" : "32px",
+      irTips: () => this.ir("tips"),
+      dropAbierto: s.dropAbierto, cerrarDrop: () => this.setState({ dropAbierto: false }),
+      verTodos: () => this.ir("catalogo", { filtroTipo: [], filtroTema: [] }),
+      dropTipos: TIPOS.map(t => ({ label: t, onClick: () => this.ir("catalogo", { filtroTipo: [t], filtroTema: [] }) })),
+      dropTemas: TEMAS.map(t => ({ label: t, onClick: () => this.ir("catalogo", { filtroTema: [t], filtroTipo: [] }) })),
+      navTop: [
+        { label: "Productos", activo: s.pantalla === "catalogo" || s.pantalla === "detalle", hayDrop: true, rot: s.dropAbierto ? "rotate(180deg)" : "rotate(0deg)", onClick: () => this.setState({ dropAbierto: !s.dropAbierto }) },
+        { label: "Cómo hacer un pedido", activo: s.pantalla === "comoPedir", onClick: () => this.ir("comoPedir") },
+        { label: "Tips para tus piezas", activo: s.pantalla === "tips", onClick: () => this.ir("tips") }
+      ].map(n => Object.assign(n, { hayDrop: !!n.hayDrop, rot: n.rot || "rotate(0deg)", linea: n.activo ? "#5A7A8C" : "transparent", color: n.activo ? "#5A7A8C" : "#323A3D" })),
+      destaquesInicio: [
+        { titulo: "Ver el catálogo", texto: "Aros, dijes, llaveros y alhajeros por tipo o temática.", icon: ICONOS.productos, onClick: () => this.ir("catalogo") },
+        { titulo: "Pieza personalizada", texto: "¿Tenés una idea? Contámela y la hacemos realidad.", icon: ICONOS.tips, onClick: () => this.ir("personalizada", { pfTocado: false }) },
+        { titulo: "Cómo hacer un pedido", texto: "Sin carrito ni pago: armás tu selección y me escribís.", icon: ICONOS.como, onClick: () => this.ir("comoPedir") }
+      ],
+      detalleCols: esEscritorio ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)",
+      seleccionCols: s.ancho >= 1100 || vista === "escritorio" && s.ancho >= 1000 ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)",
+      sidebarExpanded: s.sidebarExpanded, sidebarColapsada: !s.sidebarExpanded, sidebarWidth: s.sidebarExpanded ? "232px" : "56px",
+      contentJustify: s.sidebarExpanded ? "flex-start" : "center",
+      toggleSidebar: () => this.setState({ sidebarExpanded: !s.sidebarExpanded }),
+      navCompleto, navCompacto,
+      menuAbierto: s.menuAbierto, abrirMenu: () => this.setState({ menuAbierto: true }), cerrarMenu: () => this.setState({ menuAbierto: false }),
+      haySeleccion: items.length > 0, sinSeleccion: items.length === 0, cantSeleccion: String(cant),
+      hayToast: !!s.toast, toast: s.toast, toastVerSeleccion: s.toastVer,
+
+      irInicio: () => this.ir("catalogo", { filtroTipo: [], filtroTema: [] }),
+      logoSize: esEscritorio ? "22px" : "18px",
+      portadaPad: esEscritorio ? "20px 0 32px" : "8px 0 24px", portadaTitulo: esEscritorio ? "36px" : "28px", irComoPedir: () => this.ir("comoPedir"),
+      enInicio: s.pantalla === "inicio", inicioCols: esEscritorio ? "minmax(0, 1.1fr) minmax(0, 1fr)" : "minmax(0, 1fr)",
+      tiposInicio: TIPOS.map(t => { const n = PRODUCTOS.filter(p => p.tipo === t).length; return { label: t, cant: n + (n === 1 ? " pieza" : " piezas"), onClick: () => this.ir("catalogo", { filtroTipo: [t], filtroTema: [] }) }; }),
+      destacados: [1, 2, 3, 4].map(id => this.producto(id)).map(p => ({ nombre: p.nombre, precioTexto: this.fmt(p.precio), tinte: this.tinte(p), onAbrir: () => this.ir("detalle", { productoId: p.id, fotoIdx: 0 }) })),
+      irCatalogo: () => this.ir("catalogo"), irSeleccion: () => this.ir("seleccion"), irPersonalizada: () => this.ir("personalizada", { pfTocado: false }),
+      enCatalogo: s.pantalla === "catalogo", enDetalle: s.pantalla === "detalle", enSeleccion: s.pantalla === "seleccion",
+      enMensaje: s.pantalla === "mensaje", enPersonalizada: s.pantalla === "personalizada", enComoPedir: s.pantalla === "comoPedir", enTips: s.pantalla === "tips",
+
+      resumenCatalogo: "Elegí lo que te guste, armá tu selección y mandámela por Instagram.",
+      chipsTipo: TIPOS.map(t => chip(t, s.filtroTipo.includes(t), () => toggle("filtroTipo", t), PRODUCTOS.filter(p => p.tipo === t).length)),
+      chipsTema: TEMAS.map(t => chip(t, s.filtroTema.includes(t), () => toggle("filtroTema", t), PRODUCTOS.filter(p => p.tema === t).length)),
+      hayFiltros: nFiltros > 0, catalogoCols: esEscritorio ? "240px minmax(0, 1fr)" : "minmax(0, 1fr)",
+      filtrosAbierto: s.filtrosAbierto, abrirFiltros: () => this.setState({ filtrosAbierto: true }), cerrarFiltros: () => this.setState({ filtrosAbierto: false }),
+      filtrosLabel: nFiltros ? "Filtrar (" + nFiltros + ")" : "Filtrar",
+      filtrosResumen: filtrados.length + (filtrados.length === 1 ? " pieza" : " piezas"),
+      verResultados: filtrados.length === 0 ? "Sin resultados" : "Ver " + filtrados.length + (filtrados.length === 1 ? " pieza" : " piezas"),
+      limpiarFiltros: () => this.setState({ filtroTipo: [], filtroTema: [] }),
+      hayProductos: filtrados.length > 0, sinProductos: filtrados.length === 0,
+      productos: filtrados.map(p => ({ nombre: p.nombre, precioTexto: this.fmt(p.precio), dificultadTexto: "Dificultad " + p.dificultad.toLowerCase(), difColor: this.colorDif(p.dificultad).color, difBg: this.colorDif(p.dificultad).bg, tinte: this.tinte(p), onAbrir: () => this.ir("detalle", { productoId: p.id, fotoIdx: 0 }) })),
+
+      det: {
+        nombre: det.nombre, precioTexto: this.fmt(det.precio), descripcion: det.descripcion, tinte: this.tinte(det, s.fotoIdx),
+        dificultadTexto: "Dificultad " + det.dificultad.toLowerCase(), difColor: this.colorDif(det.dificultad).color, difBg: this.colorDif(det.dificultad).bg,
+        fotos: [0, 1, 2].map(i => ({ tinte: this.tinte(det, i), borde: s.fotoIdx === i ? "#5A7A8C" : "transparent", onClick: () => this.setState({ fotoIdx: i }) })),
+        chips: [{ label: det.tipo, onClick: () => this.ir("catalogo", { filtroTipo: [det.tipo], filtroTema: [] }) }, { label: det.tema, onClick: () => this.ir("catalogo", { filtroTema: [det.tema], filtroTipo: [] }) }],
+        yaEsta: enSel > 0, yaEstaTexto: enSel === 1 ? "Ya tenés 1 en tu selección" : "Ya tenés " + enSel + " en tu selección",
+        onAgregar: () => { this.cambiarCantidad(det.id, 1); this.mostrarToast(det.nombre + " agregado a tu selección", true); }
+      },
+
+      resumenSeleccion: items.length === 0 ? "Acá vas a ver las piezas que elijas." : cant + (cant === 1 ? " pieza" : " piezas") + " elegidas. Ajustá cantidades y contame lo que necesites.",
+      seleccion: items.map(x => ({
+        nombre: x.p.nombre, precioTexto: this.fmt(x.p.precio), cantidad: x.cantidad, tinte: this.tinte(x.p),
+        onAbrir: () => this.ir("detalle", { productoId: x.p.id, fotoIdx: 0 }),
+        onMenos: () => this.cambiarCantidad(x.p.id, -1), onMas: () => this.cambiarCantidad(x.p.id, 1),
+        onQuitar: () => this.cambiarCantidad(x.p.id, -x.cantidad)
+      })),
+      aclaraciones: s.aclaraciones, onAclaraciones: e => this.setState({ aclaraciones: e.target.value }),
+      totalTexto: this.fmt(this.totalSeleccion()),
+      irMensaje: () => this.ir("mensaje", { mensajeTexto: this.textoSeleccion(), mensajeOrigen: "seleccion" }),
+
+      mensajeTexto: s.mensajeTexto, copiarLabel: s.copiado ? "Copiado" : "Copiar mensaje",
+      copiarMensaje: () => { const done = () => { this.setState({ copiado: true }); this.mostrarToast("Mensaje copiado"); }; if (navigator.clipboard) navigator.clipboard.writeText(s.mensajeTexto).then(done, done); else done(); },
+      volverDeMensaje: () => this.ir("seleccion"),
+
+      pf: {
+        idea: s.pf.idea, fecha: s.pf.fecha, referencia: s.pf.referencia,
+        fotos: s.pf.fotos.map((f, i) => ({ fondo: "url(" + f.url + ")", onQuitar: () => this.setState(st => ({ pf: Object.assign({}, st.pf, { fotos: st.pf.fotos.filter((_, j) => j !== i) }) })) })),
+        fotosAyuda: s.pf.fotos.length ? s.pf.fotos.length + (s.pf.fotos.length === 1 ? " foto lista" : " fotos listas") + " para mandar por Instagram junto con el mensaje." : "Las fotos las adjuntás vos en el chat de Instagram: acá las dejás listas para no olvidarte.",
+        onFotos: e => {
+          const archivos = Array.from(e.target.files || []).slice(0, 5 - s.pf.fotos.length);
+          const nuevas = archivos.map(a => ({ nombre: a.name, url: URL.createObjectURL(a) }));
+          this.setState(st => ({ pf: Object.assign({}, st.pf, { fotos: st.pf.fotos.concat(nuevas) }) }));
+          e.target.value = "";
+        },
+        ideaBorde: s.pfTocado && pfErr ? "#C0442F" : "#E0E8EB", errorIdea: s.pfTocado && pfErr,
+        onIdea: e => this.setState({ pf: Object.assign({}, s.pf, { idea: e.target.value }) }),
+        onFecha: e => this.setState({ pf: Object.assign({}, s.pf, { fecha: e.target.value }) }),
+        onReferencia: e => this.setState({ pf: Object.assign({}, s.pf, { referencia: e.target.value }) }),
+        onGenerar: () => { if (pfErr) { this.setState({ pfTocado: true }); return; } this.ir("mensaje", { mensajeTexto: this.textoPersonalizada(), mensajeOrigen: "personalizada" }); }
+      },
+      pasos: PASOS
+    });
+  }
+}
+</script>
+</body>
+</html>

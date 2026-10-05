@@ -23,6 +23,7 @@ import {
 // las listas completas para elegir qué agregarle al producto.
 import { listarCategorias } from '../categorias/api'
 import { listarMateriales } from '../materiales/api'
+import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
 
@@ -34,6 +35,7 @@ import ModalAgregarMaterial from './ModalAgregarMaterial'
 import ModalBajaProducto from './ModalBajaProducto'
 import {
   COLOR_DIFICULTAD,
+  ICONO_IMAGEN,
   estadoCatalogoFicha,
   formatearPrecio,
   motivoFuera,
@@ -97,6 +99,29 @@ function mensajeDeError(err) {
 
 
 
+// Tiene que ser el mismo 1440 que la media query grande de index.css, por
+// lo mismo que PANTALLA_CHICA en Layout.jsx: React decide si el panel del
+// resumen existe y CSS reparte las dos columnas, y los dos tienen que
+// cambiar en el mismo ancho.
+const PANTALLA_GRANDE = '(min-width: 1440px)'
+
+// Dice si la pantalla es grande (1440px o más) y se actualiza sola cuando
+// la ventana cruza ese ancho. Es usePantallaChica de Layout.jsx con la otra
+// consulta; queda acá porque este es su único consumidor.
+function usePantallaGrande() {
+  const [grande, setGrande] = useState(() => window.matchMedia(PANTALLA_GRANDE).matches)
+
+  useEffect(() => {
+    const consulta = window.matchMedia(PANTALLA_GRANDE)
+    const actualizar = (evento) => setGrande(evento.matches)
+    consulta.addEventListener('change', actualizar)
+    return () => consulta.removeEventListener('change', actualizar)
+  }, [])
+
+  return grande
+}
+
+
 function Chip({ texto, color, fondo }) {
   return (
     <span
@@ -113,6 +138,97 @@ function Chip({ texto, color, fondo }) {
     >
       {texto}
     </span>
+  )
+}
+
+
+// El panel de la derecha en pantalla grande: la imagen principal y, debajo,
+// el mismo resumen de la cabecera más las categorías. Solo se dibuja en la
+// pestaña Datos de un producto que existe, y solo de 1440px para arriba: en
+// los otros anchos la cabecera ya dice lo mismo, y un panel escondido con
+// CSS igual descargaría la imagen en el celular.
+function ResumenDelProducto({ producto, activo, dificultad, catalogo }) {
+  // La principal es la primera de tipo RESULTADO, como en PestanaImagenes.
+  const principal = producto.imagenes.find((i) => i.tipo === 'RESULTADO')
+
+  return (
+    <div style={{ background: 'white', border: '1px solid #EBE0E2', borderRadius: 8, overflow: 'hidden' }}>
+      {principal ? (
+        <img
+          src={principal.imagen}
+          alt={producto.nombre}
+          style={{ display: 'block', width: '100%', aspectRatio: '1', objectFit: 'cover' }}
+        />
+      ) : (
+        <div
+          style={{
+            aspectRatio: '1',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            background: '#FAF7F7',
+            borderBottom: '1px solid #EBE0E2',
+            fontSize: 14,
+            color: '#B08791',
+          }}
+        >
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#B08791" strokeWidth="1.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_IMAGEN} />
+          </svg>
+          Sin imagen
+        </div>
+      )}
+
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 700, fontSize: 22, color: '#8C5A66' }}>
+          {formatearPrecio(producto.precio_actual)}
+        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Chip texto={textoDificultad(producto)} color={dificultad.color} fondo={dificultad.fondo} />
+          <Chip
+            texto={producto.estado_display}
+            color={activo ? '#4E8C6A' : '#C0442F'}
+            fondo={activo ? '#E8F5EF' : '#FAEAE8'}
+          />
+          <Chip texto={catalogo.texto} color={catalogo.color} fondo={catalogo.fondo} />
+        </div>
+
+        <div>
+          <p
+            style={{
+              margin: '0 0 8px',
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 13,
+              color: '#857078',
+              letterSpacing: '.06em',
+            }}
+          >
+            CATEGORÍAS
+          </p>
+
+          {producto.categorias.length === 0 ? (
+            <span style={{ fontSize: 14, color: '#857078' }}>Sin categorías</span>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {/* Rosa las de tipo y amarillo las temáticas: los mismos colores
+                  que usa PestanaCategorias. */}
+              {producto.categorias.map((c) => (
+                <Chip
+                  key={c.id}
+                  texto={c.nombre}
+                  color={c.tipo === 'TEMATICA' ? '#D9A441' : '#8C5A66'}
+                  fondo={c.tipo === 'TEMATICA' ? '#FDF3E0' : '#F0E2E4'}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -150,6 +266,7 @@ export default function DetalleProducto({ esAlta = false }) {
   const [errorImagen, setErrorImagen] = useState(null)
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
+  const pantallaGrande = usePantallaGrande()
 
   useEffect(() => {
     if (!esAlta) {
@@ -319,14 +436,14 @@ export default function DetalleProducto({ esAlta = false }) {
   // del producto nuevo, que ya es una edición con las cuatro pestañas.
   async function guardarFormulario() {
     const nuevoId = await guardarDatos()
-    if (esAlta && nuevoId) navegar(`/productos/${nuevoId}`)
+    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/productos/${nuevoId}`)
   }
 
 
   // Salir descarta lo escrito sin preguntar. El aviso mientras se está en la
   // ficha es el chip del breadcrumb.
   function volver() {
-    navegar('/productos')
+    navegar(`${BASE_GESTION}/productos`)
   }
 
   // Todo lo que sigue describe un producto que existe, así que en un alta
@@ -404,6 +521,7 @@ export default function DetalleProducto({ esAlta = false }) {
       </div>
 
       <div
+        className="ancho-pantalla"
         style={{
           display: 'flex',
           alignItems: 'flex-start',
@@ -411,7 +529,7 @@ export default function DetalleProducto({ esAlta = false }) {
           gap: 20,
           marginBottom: 22,
           flexWrap: 'wrap',
-          maxWidth: 720,
+          maxWidth: ANCHO_MAXIMO,
         }}
       >
         <div style={{ minWidth: 0 }}>
@@ -579,30 +697,48 @@ export default function DetalleProducto({ esAlta = false }) {
       )}
 
 
+      {/* El contenedor es una grilla de una columna que en pantalla grande
+          pasa a dos (formulario y panel del resumen) por la clase
+          datos-producto. En un alta no hay panel, así que tampoco va la
+          clase: dejaría una columna vacía. */}
       {tab === 'datos' && (
-        <PestanaDatos
-          borrador={borrador}
-          onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-          esAlta={esAlta}
-          // En el alta el tilde sale del borrador y no llama a nada; en la
-          // edición sale del producto y dispara CU23 o CU24 al instante.
-          esPersonalizado={esAlta ? borrador.es_personalizado : producto.es_personalizado}
-          onTogglePersonalizado={() => {
-            if (esAlta) {
-              setBorrador({ ...borrador, es_personalizado: !borrador.es_personalizado })
-              return
-            }
-            // Sin aviso flotante: la casilla y el chip de la ficha ya
-            // muestran el cambio.
-            return producto.es_personalizado
-              ? accionInmediata(() => publicarProducto(id))
-              : accionInmediata(() => quitarProductoDelCatalogo(id))
-          }}
-          onGuardar={guardarFormulario}
-          onCancelar={volver}
-          guardando={guardando}
-          error={error}
-        />
+        <div
+          className={esAlta ? 'ancho-pantalla' : 'ancho-pantalla datos-producto'}
+          style={{ display: 'grid', gap: 24, alignItems: 'start', maxWidth: ANCHO_MAXIMO }}
+        >
+          <PestanaDatos
+            borrador={borrador}
+            onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
+            esAlta={esAlta}
+            // En el alta el tilde sale del borrador y no llama a nada; en la
+            // edición sale del producto y dispara CU23 o CU24 al instante.
+            esPersonalizado={esAlta ? borrador.es_personalizado : producto.es_personalizado}
+            onTogglePersonalizado={() => {
+              if (esAlta) {
+                setBorrador({ ...borrador, es_personalizado: !borrador.es_personalizado })
+                return
+              }
+              // Sin aviso flotante: la casilla y el chip de la ficha ya
+              // muestran el cambio.
+              return producto.es_personalizado
+                ? accionInmediata(() => publicarProducto(id))
+                : accionInmediata(() => quitarProductoDelCatalogo(id))
+            }}
+            onGuardar={guardarFormulario}
+            onCancelar={volver}
+            guardando={guardando}
+            error={error}
+          />
+
+          {pantallaGrande && !esAlta && (
+            <ResumenDelProducto
+              producto={producto}
+              activo={activo}
+              dificultad={dificultad}
+              catalogo={catalogo}
+            />
+          )}
+        </div>
       )}
 
       {tab === 'materiales' && (
@@ -720,7 +856,7 @@ export default function DetalleProducto({ esAlta = false }) {
           onCerrar={() => setModalBaja(false)}
           // Al darlo de baja se vuelve al listado, como en el prototipo: el
           // producto queda de solo lectura y no tiene sentido quedarse acá.
-          onConfirmado={() => navegar('/productos')}
+          onConfirmado={() => navegar(`${BASE_GESTION}/productos`)}
         />
       )}
 

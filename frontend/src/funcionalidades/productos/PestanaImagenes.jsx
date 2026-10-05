@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { validarTamanoArchivo } from '../../validadores'
+import { ANCHO_MAXIMO } from '../../constantes'
 
 const ICONO_CRUZ = 'M6 18L18 6M6 6l12 12'
 const ICONO_MAS = 'M12 5v14m7-7H5'
@@ -300,7 +301,7 @@ export default function PestanaImagenes({
   const principalId = principal ? principal.id : null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 26, maxWidth: 860 }}>
+    <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 26, maxWidth: ANCHO_MAXIMO }}>
       {GRUPOS.map((grupo) => (
         <Grupo
           key={grupo.tipo}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ANCHO_MAXIMO } from '../../constantes'
 
 const ICONO_MATERIAL = 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z'
 const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
@@ -128,11 +129,12 @@ export default function PestanaMateriales({
 }) {
   return (
     <div
+      className="ancho-pantalla"
       style={{
         background: 'white',
         border: '1px solid #EBE0E2',
         borderRadius: 8,
-        maxWidth: 720,
+        maxWidth: ANCHO_MAXIMO,
         overflow: 'hidden',
       }}
     >

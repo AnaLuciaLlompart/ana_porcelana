@@ -3,7 +3,6 @@ import { eliminarCliente } from './api'
 
 
 const ICONO_CANDADO = 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
-const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
 
 
 export default function ModalEliminarCliente({ cliente, onCerrar, onEliminado, onVerCliente }) {
@@ -67,30 +66,53 @@ export default function ModalEliminarCliente({ cliente, onCerrar, onEliminado, o
           style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
             gap: 10,
             padding: '16px 24px',
-            background: bloqueado ? '#8C5A66' : '#C0442F',
+            background: '#8C5A66',
           }}
         >
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d={bloqueado ? ICONO_CANDADO : ICONO_ALERTA}
-            />
-          </svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* El candado va solo en la cara bloqueada: dice "no se puede",
+                que no es lo mismo que "estás por borrar". Es la única cabecera
+                de eliminar que lleva un ícono, y está bien que se note. */}
+            {bloqueado && (
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_CANDADO} />
+              </svg>
+            )}
 
-          <h2
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: "'Quicksand', sans-serif",
+                fontWeight: 600,
+                fontSize: 19,
+                color: 'white',
+              }}
+            >
+              {bloqueado ? 'No se puede eliminar' : 'Eliminar cliente'}
+            </h2>
+          </div>
+
+          <button
+            onClick={onCerrar}
             style={{
-              margin: 0,
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 19,
-              color: 'white',
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: 0,
+              background: 'transparent',
+              borderRadius: 5,
+              cursor: 'pointer',
             }}
           >
-            {bloqueado ? 'No se puede eliminar' : 'Eliminar cliente'}
-          </h2>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div style={{ padding: '22px 24px' }}>

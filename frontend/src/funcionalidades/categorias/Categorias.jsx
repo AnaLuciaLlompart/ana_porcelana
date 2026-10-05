@@ -5,6 +5,7 @@ import ModalCategoria from './ModalCategoria'
 import ModalBajaCategoria from './ModalBajaCategoria'
 import ModalEliminarCategoria from './ModalEliminarCategoria'
 import BotonAccion from '../../componentes/BotonAccion'
+import { BASE_GESTION } from '../../constantes'
 
 
 const COLOR_ESTADO = {
@@ -369,7 +370,7 @@ export default function Categorias() {
     onEliminar: (c) => setCategoriaEliminando(c),
     // La categoría viaja por la URL y no por el estado de navegación, para
     // que el link se pueda compartir y sobreviva a recargar la página.
-    onVerProductos: (c) => navegar(`/productos?categoria=${c.id}`),
+    onVerProductos: (c) => navegar(`${BASE_GESTION}/productos?categoria=${c.id}`),
   }
 
   return (

@@ -9,6 +9,7 @@ import {
   marcarDisponibilidadAlta,
   marcarTodosDisponibilidadAlta,
 } from './api'
+import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 // Imports que cruzan de funcionalidad, con el mismo criterio de siempre: el
 // endpoint pertenece a esa app y ahí se queda. listarMateriales es para el
@@ -802,7 +803,7 @@ export default function DetalleGasto({ esAlta = false }) {
 
         // El alta termina en la ficha del gasto nuevo, que ya es una
         // edición: si es de materiales, ahí aparece la tabla para cargarlos.
-        navegar(`/gastos/${res.data.id}`)
+        navegar(`${BASE_GESTION}/gastos/${res.data.id}`)
         return
       }
 
@@ -926,7 +927,7 @@ export default function DetalleGasto({ esAlta = false }) {
 
   // Salir descarta lo escrito sin preguntar, igual que en las otras fichas.
   function volver() {
-    navegar('/gastos')
+    navegar(`${BASE_GESTION}/gastos`)
   }
 
   // Descartar repone el formulario desde el gasto guardado.
@@ -1016,7 +1017,7 @@ export default function DetalleGasto({ esAlta = false }) {
         <span style={{ fontSize: 15, color: '#857078' }}>{titulo}</span>
       </div>
 
-      <div style={{ marginBottom: 22, maxWidth: 1140 }}>
+      <div className="ancho-pantalla" style={{ marginBottom: 22, maxWidth: ANCHO_MAXIMO }}>
         <h1
           style={{
             margin: '0 0 8px',
@@ -1032,7 +1033,7 @@ export default function DetalleGasto({ esAlta = false }) {
         <p style={{ margin: 0, fontSize: 15, color: '#857078', textWrap: 'pretty' }}>{subtitulo}</p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1140 }}>
+      <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
         <DatosDelGasto
           borrador={borrador}
           onCambiar={(cambio) => {
@@ -1130,7 +1131,7 @@ export default function DetalleGasto({ esAlta = false }) {
           onCerrar={() => setModalEliminar(false)}
           // Al borrarlo se vuelve al listado: la ficha quedaría mostrando
           // algo que ya no existe.
-          onEliminado={() => navegar('/gastos')}
+          onEliminado={() => navegar(`${BASE_GESTION}/gastos`)}
         />
       )}
 

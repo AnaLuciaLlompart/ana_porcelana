@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { eliminarGasto } from './api'
-import { ICONO_ALERTA, formatearPrecio } from './presentacion'
+import { formatearPrecio } from './presentacion'
 
 
 export default function ModalEliminarGasto({ gasto, onCerrar, onEliminado }) {
@@ -66,15 +66,11 @@ export default function ModalEliminarGasto({ gasto, onCerrar, onEliminado }) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
+            justifyContent: 'space-between',
             padding: '16px 24px',
-            background: '#C0442F',
+            background: '#8C5A66',
           }}
         >
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_ALERTA} />
-          </svg>
-
           <h2
             style={{
               margin: 0,
@@ -86,6 +82,25 @@ export default function ModalEliminarGasto({ gasto, onCerrar, onEliminado }) {
           >
             Eliminar gasto
           </h2>
+
+          <button
+            onClick={onCerrar}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: 0,
+              background: 'transparent',
+              borderRadius: 5,
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div style={{ padding: '22px 24px' }}>

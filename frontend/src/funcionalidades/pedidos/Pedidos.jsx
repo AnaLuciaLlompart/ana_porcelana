@@ -28,6 +28,7 @@ import { listarClientes } from '../clientes/api'
 
 import BotonAccion from '../../componentes/BotonAccion'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
+import { BASE_GESTION } from '../../constantes'
 
 
 const estiloTh = {
@@ -544,11 +545,11 @@ export default function Pedidos() {
   }
 
   function nuevoPedido() {
-    navegar('/pedidos/nuevo')
+    navegar(`${BASE_GESTION}/pedidos/nuevo`)
   }
 
   function verPedido(pedido) {
-    navegar(`/pedidos/${pedido.id}`)
+    navegar(`${BASE_GESTION}/pedidos/${pedido.id}`)
   }
 
   // Derivados: no se guardan en estado porque se calculan de pedidos.

@@ -1,4 +1,5 @@
 import { ICONO_TIPO, ICONO_TEMA } from './presentacion'
+import { ANCHO_MAXIMO } from '../../constantes'
 
 const ICONO_CRUZ = 'M6 18L18 6M6 6l12 12'
 const ICONO_MAS = 'M12 5v14m7-7H5'
@@ -12,11 +13,12 @@ const GRUPOS = [
 export default function PestanaCategorias({ asignadas, disponibles, onAsignar, onQuitar }) {
   return (
     <div
+      className="ancho-pantalla"
       style={{
         background: 'white',
         border: '1px solid #EBE0E2',
         borderRadius: 8,
-        maxWidth: 720,
+        maxWidth: ANCHO_MAXIMO,
         overflow: 'hidden',
       }}
     >

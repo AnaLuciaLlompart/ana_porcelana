@@ -292,7 +292,7 @@ export default function ModalFiltros({
                           setBorrador((actual) => ({ ...actual, producto: p.id }))
                           setBuscaProducto('')
                         }}
-                        className="fila-material"
+                        className="selector-opcion"
                         style={{
                           display: 'block',
                           width: '100%',

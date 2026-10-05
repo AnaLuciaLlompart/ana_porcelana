@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 
 import BotonAccion from '../../componentes/BotonAccion'
+import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 import {
   COLOR_ETAPA,
   ETAPAS,
@@ -138,7 +139,7 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
               en vez de cambiar de pantalla. */}
           {producto.producto_tiene_materiales && (
             <button
-              onClick={() => navegar(`/materiales?producto=${producto.producto}`)}
+              onClick={() => navegar(`${BASE_GESTION}/materiales?producto=${producto.producto}`)}
               title={`Ver los materiales de ${producto.producto_nombre}`}
               className="btn-reponer"
               style={{
@@ -207,12 +208,13 @@ export default function PestanaProductos({
 }) {
   return (
     <div
+      className="ancho-pantalla"
       style={{
         background: 'white',
         border: '1px solid #EBE0E2',
         borderRadius: 8,
         overflow: 'hidden',
-        maxWidth: 1140,
+        maxWidth: ANCHO_MAXIMO,
       }}
     >
       <div

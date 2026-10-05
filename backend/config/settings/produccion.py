@@ -44,3 +44,12 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # El proxy inverso termina el HTTPS; esta cabecera le informa a Django
 # que la conexión original era cifrada.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
+# La interfaz navegable de DRF es una herramienta de desarrollo. En
+# producción la API responde solo JSON, también si se la abre desde un
+# navegador. Se le agrega la clave al diccionario que viene de base.py,
+# así el resto de la configuración de DRF queda igual.
+REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
+    'rest_framework.renderers.JSONRenderer',
+]

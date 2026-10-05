@@ -10,6 +10,40 @@ from materiales.models import Material
 # =====================================================================
 
 
+class ProductoManager(models.Manager):
+    """El manager de Producto: lo que queda en Producto.objects.
+
+    Hace todo lo que hace el manager de siempre y le suma una consulta
+    con nombre propio. No cambia ninguna de las que ya existían.
+    """
+
+    def visibles_en_catalogo(self):
+        """Los productos que se muestran hoy en el catálogo público.
+
+        Es la misma regla que la propiedad visible_en_catalogo de
+        Producto, escrita para que la resuelva la base en una sola
+        consulta en vez de traer todos los productos y recorrerlos en
+        Python. Las dos tienen que decir lo mismo: si cambia una, cambia
+        la otra.
+
+        El exclude sobre una relación de muchos a muchos saca al producto
+        con que UNA de sus categorías esté de baja, aunque las demás
+        estén activas. Un producto sin categorías no tiene ninguna de
+        baja, así que el exclude no lo toca y depende solo de su estado.
+
+        La usan los endpoints del catálogo público (CU63, CU65).
+        """
+        # Producto se define más abajo en este archivo, pero para cuando
+        # alguien llama a este método el archivo ya se cargó entero.
+        return (
+            self.filter(
+                estado=Producto.Estado.ACTIVO,
+                es_personalizado=False,
+            )
+            .exclude(categorias__estado=Categoria.Estado.BAJA)
+        )
+
+
 class Producto(models.Model):
     """Pieza que el emprendimiento produce y ofrece (CU17 a CU35).
 
@@ -108,6 +142,11 @@ class Producto(models.Model):
         verbose_name='materiales',
         help_text='Los materiales que lleva la pieza, con su cantidad.',
     )
+
+    # Producto.objects sigue haciendo todo lo de siempre y además tiene
+    # visibles_en_catalogo(). No genera migración: Django solo escribe
+    # un manager en las migraciones si lleva use_in_migrations = True.
+    objects = ProductoManager()
 
     class Meta:
         ordering = ['nombre']

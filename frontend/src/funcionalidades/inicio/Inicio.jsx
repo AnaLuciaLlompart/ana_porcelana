@@ -25,10 +25,10 @@ import { formatearPrecio } from '../productos/presentacion'
 import { MESES_LARGOS } from '../finanzas/periodos'
 
 import Toast from '../../componentes/Toast'
+import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 
 // El ancho de las tarjetas, del prototipo.
-const ANCHO_MAXIMO = 1140
 
 const QUICKSAND = "'Quicksand', sans-serif"
 
@@ -234,9 +234,9 @@ function Tarjeta({ titulo, valor, color, enlace, onClick }) {
 
 // La caja de cada uno de los tres paneles, con su título. Igual que en
 // Finanzas, más un estilo extra para el ancho que le toca a cada uno.
-function Panel({ titulo, estilo, children }) {
+function Panel({ titulo, estilo, className, children }) {
   return (
-    <div style={{ ...estiloTarjeta, overflow: 'hidden', minWidth: 0, ...estilo }}>
+    <div className={className} style={{ ...estiloTarjeta, overflow: 'hidden', minWidth: 0, ...estilo }}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #EBE0E2' }}>
         <h2 style={estiloTituloSeccion}>{titulo}</h2>
       </div>
@@ -657,7 +657,7 @@ export default function Inicio() {
   }
 
   function verPedido(id) {
-    navegar(`/pedidos/${id}`)
+    navegar(`${BASE_GESTION}/pedidos/${id}`)
   }
 
   // La línea de abajo del título: la fecha de hoy según el servidor, o
@@ -669,6 +669,7 @@ export default function Inicio() {
       {/* El encabezado se ve siempre, también cargando: el título y los
           accesos rápidos no dependen de la respuesta. */}
       <div
+        className="ancho-pantalla"
         style={{
           display: 'flex',
           alignItems: 'flex-start',
@@ -691,9 +692,9 @@ export default function Inicio() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <AccesoRapido texto="Registrar gasto" onClick={() => navegar('/gastos/nuevo')} />
-          <AccesoRapido texto="Nuevo producto" onClick={() => navegar('/productos/nuevo')} />
-          <AccesoRapido texto="Nuevo pedido" onClick={() => navegar('/pedidos/nuevo')} principal />
+          <AccesoRapido texto="Registrar gasto" onClick={() => navegar(`${BASE_GESTION}/gastos/nuevo`)} />
+          <AccesoRapido texto="Nuevo producto" onClick={() => navegar(`${BASE_GESTION}/productos/nuevo`)} />
+          <AccesoRapido texto="Nuevo pedido" onClick={() => navegar(`${BASE_GESTION}/pedidos/nuevo`)} principal />
         </div>
       </div>
 
@@ -702,6 +703,7 @@ export default function Inicio() {
       {datos && (
         <>
           <div
+            className="ancho-pantalla"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -718,29 +720,29 @@ export default function Inicio() {
               valor={datos.totales.pedidos_atrasados}
               color={datos.totales.pedidos_atrasados > 0 ? '#C0442F' : '#3D3238'}
               enlace="Ver atrasados"
-              onClick={() => navegar('/pedidos')}
+              onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
             />
             <Tarjeta
               titulo="ENTREGAS PRÓXIMOS 7 DÍAS"
               valor={datos.totales.entregas_proximas}
               enlace="Ver entregas"
-              onClick={() => navegar('/pedidos')}
+              onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
             />
             <Tarjeta
               titulo="MATERIALES POR REPONER"
               valor={datos.totales.materiales_por_reponer}
               enlace="Ver materiales"
-              onClick={() => navegar('/materiales')}
+              onClick={() => navegar(`${BASE_GESTION}/materiales`)}
             />
             <Tarjeta
               titulo="TE DEBEN"
               valor={formatearPrecio(datos.totales.deuda)}
               enlace="Ver pedidos con saldo"
-              onClick={() => navegar('/pedidos')}
+              onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
             />
           </div>
 
-          <Panel titulo="EN PRODUCCIÓN" estilo={{ maxWidth: ANCHO_MAXIMO, marginBottom: 24 }}>
+          <Panel titulo="EN PRODUCCIÓN" className="ancho-pantalla" estilo={{ maxWidth: ANCHO_MAXIMO, marginBottom: 24 }}>
             <TablaEnProduccion
               productos={datos.en_produccion.productos}
               hoy={datos.hoy}
@@ -754,11 +756,11 @@ export default function Inicio() {
                 datos.en_produccion.productos.length,
                 'productos sin terminar'
               )}
-              onClick={() => navegar('/pedidos')}
+              onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
             />
           </Panel>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, maxWidth: ANCHO_MAXIMO, alignItems: 'flex-start' }}>
+          <div className="ancho-pantalla" style={{ display: 'flex', flexWrap: 'wrap', gap: 24, maxWidth: ANCHO_MAXIMO, alignItems: 'flex-start' }}>
             <Panel titulo="PRÓXIMAS ENTREGAS" estilo={{ flex: '2 1 600px' }}>
               <TablaEntregas
                 pedidos={datos.proximas_entregas.pedidos}
@@ -772,7 +774,7 @@ export default function Inicio() {
                   datos.proximas_entregas.pedidos.length,
                   'sin entregar'
                 )}
-                onClick={() => navegar('/pedidos')}
+                onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
               />
             </Panel>
 
@@ -785,7 +787,7 @@ export default function Inicio() {
                   datos.materiales_por_reponer.materiales.length,
                   'por reponer'
                 )}
-                onClick={() => navegar('/materiales')}
+                onClick={() => navegar(`${BASE_GESTION}/materiales`)}
                 conBorde={false}
               />
             </Panel>

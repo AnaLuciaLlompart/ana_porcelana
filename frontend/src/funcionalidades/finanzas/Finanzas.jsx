@@ -20,10 +20,10 @@ import { formatearPrecio } from '../productos/presentacion'
 import { fmtFechaLarga } from '../pedidos/presentacion'
 
 import Paginacion, { paginar } from '../../componentes/Paginacion'
+import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 
 // El ancho de las tarjetas, del prototipo.
-const ANCHO_MAXIMO = 1140
 
 // Los dos colores del gráfico: el verde de los ingresos y el rosa de los
 // gastos. Son los mismos de la leyenda, las barras y el tooltip.
@@ -244,7 +244,7 @@ function Evolucion({ evolucion }) {
   const corrimiento = indice === 0 ? '-20%' : indice === cantidad - 1 ? '-80%' : '-50%'
 
   return (
-    <div style={{ ...estiloTarjeta, maxWidth: ANCHO_MAXIMO, marginBottom: 24, overflow: 'hidden' }}>
+    <div className="ancho-pantalla" style={{ ...estiloTarjeta, maxWidth: ANCHO_MAXIMO, marginBottom: 24, overflow: 'hidden' }}>
       <div
         style={{
           display: 'flex',
@@ -725,7 +725,7 @@ export default function Finanzas() {
   }, [periodo, desde, hasta])
 
   function verPedido(id) {
-    navegar(`/pedidos/${id}`)
+    navegar(`${BASE_GESTION}/pedidos/${id}`)
   }
 
   // Se vuelve a calcular acá, fuera del efecto, para la etiqueta y las
@@ -777,6 +777,7 @@ export default function Finanzas() {
       {/* La tarjeta del período: los cinco chips, las dos fechas del
           personalizado y, a la derecha, qué se está mirando. */}
       <div
+        className="ancho-pantalla"
         style={{
           ...estiloTarjeta,
           maxWidth: ANCHO_MAXIMO,
@@ -879,6 +880,7 @@ export default function Finanzas() {
       {datos && (
         <>
           <div
+            className="ancho-pantalla"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
@@ -912,7 +914,7 @@ export default function Finanzas() {
               página 1. Es la forma que React documenta para reiniciar el
               estado de un componente. */}
           <div
-            className="paneles-finanzas"
+            className="paneles-finanzas ancho-pantalla"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',

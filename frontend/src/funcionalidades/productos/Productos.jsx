@@ -33,6 +33,7 @@ import {
   textoDificultad,
   accionesDe,
 } from './presentacion'
+import { BASE_GESTION } from '../../constantes'
 
 
 // Para ordenar por dificultad hay que decir el orden a mano: alfabéticamente
@@ -513,7 +514,7 @@ export default function Productos() {
 
 
   const acciones = {
-    onVer: (p) => navegar(`/productos/${p.id}`),
+    onVer: (p) => navegar(`${BASE_GESTION}/productos/${p.id}`),
     onDarDeBaja: (p) => setProductoDandoBaja(p),
     onEliminar: (p) => setProductoEliminando(p),
   }
@@ -542,7 +543,7 @@ export default function Productos() {
         </h1>
 
         <button
-          onClick={() => navegar('/productos/nuevo')}
+          onClick={() => navegar(`${BASE_GESTION}/productos/nuevo`)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -575,7 +576,7 @@ export default function Productos() {
 
 
       {!cargando && productos.length === 0 && (
-        <EstadoVacio onNuevo={() => navegar('/productos/nuevo')} />
+        <EstadoVacio onNuevo={() => navegar(`${BASE_GESTION}/productos/nuevo`)} />
       )}
 
       {!cargando && productos.length > 0 && (

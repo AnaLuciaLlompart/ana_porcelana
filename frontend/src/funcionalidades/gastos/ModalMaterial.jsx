@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { modificarMaterialDelGasto, registrarMaterialDelGasto } from './api'
 import { formatearPrecio, mensajeDeError } from './presentacion'
+import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
 const estiloEtiqueta = {
@@ -198,35 +199,36 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
                 estar discontinuado o no figurar entre los disponibles, así
                 que no se lo busca en la lista. El nombre y la etiqueta del
                 estado vienen en la fila. */}
-            <select
+            <SelectorBuscable
               id="material"
-              value={material}
-              onChange={(e) => setMaterial(e.target.value)}
-              disabled={editando}
-              style={{
+              opciones={
+                editando
+                  ? [
+                      {
+                        valor: String(fila.material),
+                        etiqueta:
+                          fila.material_nombre +
+                          (fila.material_estado === 'DISCONTINUADO'
+                            ? ` (${fila.material_estado_display.toLowerCase()})`
+                            : ''),
+                      },
+                    ]
+                  : materiales.map((m) => ({
+                      valor: String(m.id),
+                      etiqueta: m.nombre,
+                      detalle: m.disponibilidad_display,
+                    }))
+              }
+              valor={material}
+              onElegir={setMaterial}
+              deshabilitado={editando}
+              placeholder="Elegí un material..."
+              placeholderBusqueda="Buscar material..."
+              estiloCampo={{
                 ...estiloCampo(tocado && sinMaterial),
                 background: editando ? FONDO_APAGADO : 'white',
-                cursor: editando ? 'default' : 'pointer',
               }}
-            >
-              {editando ? (
-                <option value={fila.material}>
-                  {fila.material_nombre}
-                  {fila.material_estado === 'DISCONTINUADO'
-                    ? ` (${fila.material_estado_display.toLowerCase()})`
-                    : ''}
-                </option>
-              ) : (
-                <>
-                  <option value="">Elegí un material...</option>
-                  {materiales.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nombre}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
+            />
 
             {tocado && sinMaterial && (
               <p style={{ margin: '6px 0 0', fontSize: 13, color: '#C0442F' }}>

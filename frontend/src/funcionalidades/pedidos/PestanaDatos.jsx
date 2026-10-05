@@ -1,4 +1,5 @@
 import { ICONO_BORRAR } from './presentacion'
+import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
 const ENVIOS = [
@@ -95,6 +96,14 @@ export default function PestanaDatos({
       ? 'Se suma al total del pedido'
       : 'Lo paga el cliente: no suma al total'
 
+  // Las opciones del selector de cliente: el @usuario como línea principal y
+  // el nombre debajo. El id va como texto, igual que lo guardaba el <select>.
+  const opcionesClientes = clientes.map((c) => ({
+    valor: String(c.id),
+    etiqueta: `@${c.instagram}`,
+    detalle: `${c.nombre} ${c.apellido}`.trim(),
+  }))
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div
@@ -136,19 +145,15 @@ export default function PestanaDatos({
               <label htmlFor="cliente" style={estiloEtiqueta}>
                 CLIENTE *
               </label>
-              <select
+              <SelectorBuscable
                 id="cliente"
-                value={borrador.cliente}
-                onChange={(e) => onCambiar({ cliente: e.target.value })}
-                style={estiloCampo}
-              >
-                <option value="">Elegí un cliente...</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    @{c.instagram} · {c.nombre}
-                  </option>
-                ))}
-              </select>
+                opciones={opcionesClientes}
+                valor={borrador.cliente}
+                onElegir={(valor) => onCambiar({ cliente: valor })}
+                placeholder="Elegí un cliente..."
+                placeholderBusqueda="Buscar por @usuario o nombre..."
+                estiloCampo={estiloCampo}
+              />
             </div>
 
             <div>
@@ -197,6 +202,7 @@ export default function PestanaDatos({
           </div>
 
           <div
+            className="envio-y-costo"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',

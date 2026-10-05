@@ -1,4 +1,5 @@
 import { COLOR_DIFICULTAD } from './presentacion'
+import { ANCHO_MAXIMO } from '../../constantes'
 
 
 const DIFICULTADES = [
@@ -65,50 +66,43 @@ export default function PestanaDatos({
 }) {
   return (
     <div
+      className="ancho-pantalla"
       style={{
         background: 'white',
         border: '1px solid #EBE0E2',
         borderRadius: 8,
         padding: 24,
-        maxWidth: 720,
+        maxWidth: ANCHO_MAXIMO,
         display: 'flex',
         flexDirection: 'column',
         gap: 20,
       }}
     >
-      <div>
-        <label htmlFor="nombre" style={estiloEtiqueta}>
-          Nombre del producto *
-        </label>
-        <input
-          id="nombre"
-          value={borrador.nombre}
-          onChange={(e) => onCambiar({ nombre: e.target.value })}
-          maxLength={80}
-          style={estiloCampo}
-        />
-      </div>
-
-      <div>
-        <EtiquetaConNota
-          texto="Descripción para el catálogo (opcional)"
-          nota="La lee el cliente"
-        />
-        <textarea
-          value={borrador.descripcion}
-          onChange={(e) => onCambiar({ descripcion: e.target.value })}
-          maxLength={500}
-          rows={3}
-          placeholder="Cómo se ve la pieza, de qué tamaño es, en qué colores…"
-          style={{ ...estiloCampo, lineHeight: 1.55, resize: 'vertical' }}
-        />
-        <div style={{ marginTop: 5, fontSize: 12, color: '#B08791', textAlign: 'right' }}>
-          {borrador.descripcion.length} / 500
+      {/* Nombre, precio y dificultad en una fila, con la misma grilla que la
+          ficha del pedido: entran de a tres cuando hay lugar y bajan solas a
+          dos y a una cuando no. */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 20,
+          alignItems: 'end',
+        }}
+      >
+        <div>
+          <label htmlFor="nombre" style={estiloEtiqueta}>
+            Nombre del producto *
+          </label>
+          <input
+            id="nombre"
+            value={borrador.nombre}
+            onChange={(e) => onCambiar({ nombre: e.target.value })}
+            maxLength={80}
+            style={estiloCampo}
+          />
         </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: 200 }}>
+        <div>
           <label htmlFor="precio" style={estiloEtiqueta}>
             Precio actual *
           </label>
@@ -122,7 +116,7 @@ export default function PestanaDatos({
           />
         </div>
 
-        <div style={{ flex: 1, minWidth: 220 }}>
+        <div>
           <span style={estiloEtiqueta}>Dificultad de elaboración *</span>
           <div style={{ display: 'flex', gap: 8 }}>
             {DIFICULTADES.map((d) => {
@@ -195,6 +189,24 @@ export default function PestanaDatos({
           </span>
         </span>
       </label>
+
+      <div>
+        <EtiquetaConNota
+          texto="Descripción para el catálogo (opcional)"
+          nota="La lee el cliente"
+        />
+        <textarea
+          value={borrador.descripcion}
+          onChange={(e) => onCambiar({ descripcion: e.target.value })}
+          maxLength={500}
+          rows={3}
+          placeholder="Cómo se ve la pieza, de qué tamaño es, en qué colores…"
+          style={{ ...estiloCampo, lineHeight: 1.55, resize: 'vertical' }}
+        />
+        <div style={{ marginTop: 5, fontSize: 12, color: '#B08791', textAlign: 'right' }}>
+          {borrador.descripcion.length} / 500
+        </div>
+      </div>
 
       <div>
         <EtiquetaConNota

@@ -18,6 +18,7 @@ import {
 
 import BotonAccion from '../../componentes/BotonAccion'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
+import { BASE_GESTION } from '../../constantes'
 
 
 const estiloTh = {
@@ -428,11 +429,11 @@ export default function Gastos() {
 
   // El alta y la ficha comparten pantalla, como en Pedidos.
   function nuevoGasto() {
-    navegar('/gastos/nuevo')
+    navegar(`${BASE_GESTION}/gastos/nuevo`)
   }
 
   function verGasto(gasto) {
-    navegar(`/gastos/${gasto.id}`)
+    navegar(`${BASE_GESTION}/gastos/${gasto.id}`)
   }
 
   // Derivados: no se guardan en estado porque se calculan de gastos.

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatearPrecio } from './presentacion'
+import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
 const estiloEtiqueta = {
@@ -152,19 +153,19 @@ export default function ModalAgregarProducto({ productos, onCerrar, onAgregar })
             <label htmlFor="producto" style={estiloEtiqueta}>
               PRODUCTO *
             </label>
-            <select
+            <SelectorBuscable
               id="producto"
-              value={producto}
-              onChange={(e) => elegirProducto(e.target.value)}
-              style={{ ...estiloCampo(tocado && faltaProducto), cursor: 'pointer' }}
-            >
-              <option value="">Elegí un producto...</option>
-              {productos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre} · {formatearPrecio(p.precio_actual)}
-                </option>
-              ))}
-            </select>
+              opciones={productos.map((p) => ({
+                valor: String(p.id),
+                etiqueta: p.nombre,
+                detalle: formatearPrecio(p.precio_actual),
+              }))}
+              valor={producto}
+              onElegir={elegirProducto}
+              placeholder="Elegí un producto..."
+              placeholderBusqueda="Buscar producto..."
+              estiloCampo={estiloCampo(tocado && faltaProducto)}
+            />
 
             {tocado && faltaProducto && (
               <p style={{ margin: '6px 0 0', fontSize: 13, color: '#C0442F' }}>

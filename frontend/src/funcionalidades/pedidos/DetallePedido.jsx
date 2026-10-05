@@ -20,6 +20,7 @@ import {
 // completa para el desplegable de clientes.
 import { listarClientes } from '../clientes/api'
 import { listarProductos } from '../productos/api'
+import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
 
@@ -380,14 +381,14 @@ export default function DetallePedido({ esAlta = false }) {
   // del pedido nuevo, que ya es una edición con las dos pestañas.
   async function guardarFormulario() {
     const nuevoId = await guardarDatos()
-    if (esAlta && nuevoId) navegar(`/pedidos/${nuevoId}`)
+    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/pedidos/${nuevoId}`)
   }
 
 
   // Salir descarta lo escrito sin preguntar, igual que en la ficha de
   // Producto.
   function volver() {
-    navegar('/pedidos')
+    navegar(`${BASE_GESTION}/pedidos`)
   }
 
 
@@ -476,6 +477,7 @@ export default function DetallePedido({ esAlta = false }) {
       </div>
 
       <div
+        className="ancho-pantalla"
         style={{
           display: 'flex',
           alignItems: 'flex-start',
@@ -483,7 +485,7 @@ export default function DetallePedido({ esAlta = false }) {
           gap: 20,
           flexWrap: 'wrap',
           marginBottom: 22,
-          maxWidth: 1140,
+          maxWidth: ANCHO_MAXIMO,
         }}
       >
         <div style={{ minWidth: 0 }}>
@@ -601,13 +603,14 @@ export default function DetallePedido({ esAlta = false }) {
 
       {error && !esAlta && tab !== 'datos' && (
         <div
+          className="ancho-pantalla"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 12,
             padding: '12px 18px',
             marginBottom: 20,
-            maxWidth: 1140,
+            maxWidth: ANCHO_MAXIMO,
             background: '#FAEAE8',
             border: '1px solid #f0b8b0',
             borderRadius: 6,
@@ -629,14 +632,14 @@ export default function DetallePedido({ esAlta = false }) {
       )}
 
       <div
-        className="fila-pestanas"
+        className="fila-pestanas ancho-pantalla"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 4,
           marginBottom: 20,
           borderBottom: '1px solid #EBE0E2',
-          maxWidth: 1140,
+          maxWidth: ANCHO_MAXIMO,
         }}
       >
         {PESTANAS.map((p) => {
@@ -700,7 +703,7 @@ export default function DetallePedido({ esAlta = false }) {
       )}
 
       {tab === 'datos' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1140 }}>
+        <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
           {/* El estado no existe hasta que el pedido existe. */}
           {!esAlta && (
             <div
@@ -851,7 +854,7 @@ export default function DetallePedido({ esAlta = false }) {
           onCerrar={() => setModalEliminar(false)}
           // Al borrarlo se vuelve al listado: la ficha quedaría mostrando
           // algo que ya no existe.
-          onEliminado={() => navegar('/pedidos')}
+          onEliminado={() => navegar(`${BASE_GESTION}/pedidos`)}
         />
       )}
 

@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'gastos',
     'finanzas',
     'inicio',
+    'catalogo',
 ]
 
 
@@ -148,6 +149,7 @@ REST_FRAMEWORK = {
         'anon': '30/minute', #anonimos: clientes para el catalogo
         'user': '200/minute', #usuarios: para el modulo de gestion
         'login': '5/minute', #5 intentos de login por minuto
+        'catalogo': '60/minute', # el catálogo público: lo comparten las tres vistas de la app catalogo, por IP
     },
 }
 

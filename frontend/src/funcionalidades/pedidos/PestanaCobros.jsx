@@ -1,4 +1,5 @@
 import BotonAccion from '../../componentes/BotonAccion'
+import { ANCHO_MAXIMO } from '../../constantes'
 import {
   ICONO_CRUZ,
   ICONO_EDITAR,
@@ -41,13 +42,13 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
 
   return (
     <div
-      className="cobros-dos-columnas"
+      className="cobros-dos-columnas ancho-pantalla"
       style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr) 300px',
         gap: 24,
         alignItems: 'start',
-        maxWidth: 1140,
+        maxWidth: ANCHO_MAXIMO,
       }}
     >
       <div

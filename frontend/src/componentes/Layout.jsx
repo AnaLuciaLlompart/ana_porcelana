@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexto/AuthContext'
+import { BASE_GESTION } from '../constantes'
 
 // Iconos del menú, tomados del diseño (estilo Heroicons outline)
 const NAV = [
-  { id: 'inicio', label: 'Inicio', ruta: '/', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { id: 'materiales', label: 'Materiales', ruta: '/materiales', icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
-  { id: 'categorias', label: 'Categorías', ruta: '/categorias', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-  { id: 'productos', label: 'Productos', ruta: '/productos', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-  { id: 'clientes', label: 'Clientes', ruta: '/clientes', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-  { id: 'pedidos', label: 'Pedidos', ruta: '/pedidos', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
-  { id: 'gastos', label: 'Gastos', ruta: '/gastos', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
-  { id: 'finanzas', label: 'Finanzas', ruta: '/finanzas', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+  { id: 'inicio', label: 'Inicio', ruta: BASE_GESTION, icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { id: 'materiales', label: 'Materiales', ruta: `${BASE_GESTION}/materiales`, icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
+  { id: 'categorias', label: 'Categorías', ruta: `${BASE_GESTION}/categorias`, icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
+  { id: 'productos', label: 'Productos', ruta: `${BASE_GESTION}/productos`, icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+  { id: 'clientes', label: 'Clientes', ruta: `${BASE_GESTION}/clientes`, icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+  { id: 'pedidos', label: 'Pedidos', ruta: `${BASE_GESTION}/pedidos`, icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
+  { id: 'gastos', label: 'Gastos', ruta: `${BASE_GESTION}/gastos`, icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
+  { id: 'finanzas', label: 'Finanzas', ruta: `${BASE_GESTION}/finanzas`, icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
 ]
 
 const ICONO_SALIR = 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'
@@ -88,6 +89,14 @@ export default function Layout() {
   const ubicacion = useLocation()
   const { salir } = useAuth()
 
+  // La ruta actual sin la barra final, si la trae. React Router muestra la
+  // misma pantalla con o sin ella, pero no corrige la dirección: si alguien
+  // escribe a mano la de Inicio con una barra al final, pathname llega así
+  // y no sería igual a BASE_GESTION.
+  const rutaActual = ubicacion.pathname.endsWith('/')
+    ? ubicacion.pathname.slice(0, -1)
+    : ubicacion.pathname
+
   // En pantalla chica la barra se dibuja siempre expandida: lo que la muestra
   // u oculta es el deslizamiento, no el ancho. En escritorio manda el botón
   // Menú, como siempre.
@@ -115,7 +124,7 @@ export default function Layout() {
 
   async function manejarSalir() {
     await salir()
-    navegar('/login')
+    navegar(`${BASE_GESTION}/login`)
   }
 
   return (
@@ -150,7 +159,7 @@ export default function Layout() {
               label={item.label}
               title={item.label}
               expandida={conNombres}
-              activo={ubicacion.pathname === item.ruta}
+              activo={rutaActual === item.ruta}
               onClick={() => irA(item.ruta)}
             />
           ))}
@@ -165,8 +174,8 @@ export default function Layout() {
             label="Mi cuenta"
             title="Mi cuenta"
             expandida={conNombres}
-            activo={ubicacion.pathname === '/mi-cuenta'}
-            onClick={() => irA('/mi-cuenta')}
+            activo={rutaActual === `${BASE_GESTION}/mi-cuenta`}
+            onClick={() => irA(`${BASE_GESTION}/mi-cuenta`)}
           />
           <Item
             icon={ICONO_SALIR}
@@ -212,7 +221,7 @@ export default function Layout() {
             </button>
             {/* En Inicio no se repite el nombre: el título de esa pantalla ya
                 dice Ana Porcelana. */}
-            {ubicacion.pathname !== '/' && (
+            {rutaActual !== BASE_GESTION && (
               <span style={{ fontFamily: "'Quicksand', sans-serif", fontWeight: 600, fontSize: 17, color: 'white' }}>
                 Ana Porcelana
               </span>
