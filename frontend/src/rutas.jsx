@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { useAuth } from './contexto/AuthContext'
+import { AuthProvider, useAuth } from './contexto/AuthContext'
 import { BASE_GESTION } from './constantes'
 import Layout from './componentes/Layout'
+import LayoutPublico from './componentes/LayoutPublico'
 import Login from './funcionalidades/auth/Login'
 import MiCuenta from './funcionalidades/auth/MiCuenta'
 import Materiales from './funcionalidades/materiales/Materiales'
@@ -15,6 +16,13 @@ import Gastos from './funcionalidades/gastos/Gastos'
 import DetalleGasto from './funcionalidades/gastos/DetalleGasto'
 import Finanzas from './funcionalidades/finanzas/Finanzas'
 import Inicio from './funcionalidades/inicio/Inicio'
+import Catalogo from './funcionalidades/catalogo/Catalogo'
+import DetalleCatalogo from './funcionalidades/catalogo/DetalleCatalogo'
+import MiSeleccion from './funcionalidades/catalogo/MiSeleccion'
+import Mensaje from './funcionalidades/catalogo/Mensaje'
+import ComoHacerUnPedido from './funcionalidades/catalogo/ComoHacerUnPedido'
+import Tips from './funcionalidades/catalogo/Tips'
+import PaginaNoEncontrada from './funcionalidades/catalogo/PaginaNoEncontrada'
 
 
 
@@ -41,16 +49,27 @@ export default function Rutas() {
     <BrowserRouter>
       <Routes>
 
-        {/* Provisoria: mientras el catálogo público no exista, la raíz del
-            sitio lleva a la gestión. La etapa C reemplaza esta línea por
-            las rutas del catálogo. */}
-        <Route path="/" element={<Navigate to={BASE_GESTION} replace />} />
+        {/* El catálogo público, sin sesión (CU63 a CU70). LayoutPublico no
+            lleva path: envuelve a todas. El asterisco atrapa cualquier
+            dirección que no sea de nadie, también las de gestión escritas
+            sin el prefijo. */}
+        <Route element={<LayoutPublico />}>
+          <Route path="/" element={<Catalogo />} />
+          <Route path="/productos/:id" element={<DetalleCatalogo />} />
+          <Route path="/seleccion" element={<MiSeleccion />} />
+          <Route path="/mensaje" element={<Mensaje />} />
+          <Route path="/como-hacer-un-pedido" element={<ComoHacerUnPedido />} />
+          <Route path="/tips" element={<Tips />} />
+          <Route path="*" element={<PaginaNoEncontrada />} />
+        </Route>
 
         {/* Toda la gestión cuelga de esta ruta. El prefijo se escribe acá
             una sola vez y las de adentro son relativas a él: sin barra
             adelante, y con index para la que coincide con el prefijo solo.
-            No lleva element, así que dibuja directamente a sus hijas. */}
-        <Route path={BASE_GESTION}>
+            AuthProvider envuelve solo esta rama: es la única que necesita
+            saber quién tiene la sesión, y así el catálogo no la consulta.
+            El Outlet de adentro es donde se dibujan las rutas hijas. */}
+        <Route path={BASE_GESTION} element={<AuthProvider><Outlet /></AuthProvider>}>
 
           <Route element={<Publico />}>
             <Route path="login" element={<Login />} />

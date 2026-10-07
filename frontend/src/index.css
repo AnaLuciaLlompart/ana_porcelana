@@ -301,3 +301,103 @@ button:not(:disabled):hover {
     grid-template-columns: 2fr 1fr;
   }
 }
+
+/* Catálogo público. Todas sus clases empiezan con catalogo- y ninguna de
+   las de la gestión se usa allá, ni al revés. Primero los hovers: fondo
+   celeste suave para los botones sin fondo o con borde; borde más oscuro
+   para la tarjeta de un producto y los chips de categoría del detalle;
+   subrayado para lo que se lee como un enlace de texto; color celeste para
+   la barra y su desplegable; un velo blanco para los renglones del panel
+   de celular; y el enlace a Instagram del encabezado. Los !important pisan
+   el background, el border, el color y el text-decoration que esos
+   elementos ya llevan en línea. */
+.catalogo-suave:hover {
+  background: #E2EAF0 !important;
+}
+
+.catalogo-tarjeta:hover {
+  border-color: #87A0B0 !important;
+}
+
+.catalogo-subrayado:hover {
+  text-decoration: underline !important;
+}
+
+.catalogo-item:hover {
+  color: #5A7A8C !important;
+}
+
+.catalogo-item-panel:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+}
+
+.catalogo-instagram:hover {
+  color: #87A0B0 !important;
+}
+
+/* Catálogo público, de 900px para arriba. El catálogo se diseñó primero
+   para celular: los estilos en línea son esa versión, y acá va solo lo que
+   cambia de medida en escritorio. El 900 tiene que ser el mismo que
+   ESCRITORIO_CATALOGO en constantes.js, que es con el que React decide qué
+   se dibuja. El contenido gana aire a los costados; el logo y el título de
+   la portada crecen (el h1 va por descendencia: la portada tiene uno
+   solo); el listado se parte en la columna de los filtros y la grilla; y
+   el detalle pone la galería y los datos lado a lado. Los !important pisan
+   el padding, el font-size y el grid-template-columns que están en línea. */
+@media (min-width: 900px) {
+  .catalogo-contenido {
+    padding: 28px 24px 0 !important;
+  }
+
+  .catalogo-logo {
+    font-size: 22px !important;
+  }
+
+  .catalogo-portada {
+    padding: 20px 0 32px !important;
+  }
+
+  .catalogo-portada h1 {
+    font-size: 36px !important;
+  }
+
+  .catalogo-columnas {
+    grid-template-columns: 240px minmax(0, 1fr) !important;
+  }
+
+  .catalogo-detalle {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+}
+
+/* Catálogo público, la selección y el mensaje. Los enlaces con fondo
+   celeste ("Consultar por Instagram", "Abrir Instagram", "Ver el
+   catálogo") son <a> y no toman el hover global de los botones, así que
+   llevan el .92 del diseño; sin !important porque no hay opacidad en
+   línea. Quitar se tiñe de rojo claro; el textarea de aclaraciones toma el
+   borde celeste al enfocarlo (la regla global de foco de arriba es solo
+   para input); y el "Ver" del aviso flotante aclara su fondo. */
+.catalogo-relleno:hover {
+  opacity: 0.92;
+}
+
+.catalogo-quitar:hover {
+  background: #FAEAE8 !important;
+}
+
+.catalogo-campo:focus {
+  border-color: #5A7A8C !important;
+}
+
+.catalogo-accion-aviso:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+}
+
+/* Catálogo público, de 900px para arriba: en /seleccion la lista y el
+   resumen van lado a lado, con el resumen de 320px. El diseño parte en
+   1100, pero el catálogo tiene un solo corte, el de ESCRITORIO_CATALOGO. */
+@media (min-width: 900px) {
+  .catalogo-seleccion {
+    grid-template-columns: minmax(0, 1fr) 320px !important;
+  }
+}

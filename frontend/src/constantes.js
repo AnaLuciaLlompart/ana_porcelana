@@ -9,3 +9,18 @@ export const ANCHO_MAXIMO = 1140
 // BASE_GESTION a secas. Es el único lugar donde está escrito: rutas.jsx
 // arma las rutas con esta constante y cada navegar() la usa.
 export const BASE_GESTION = '/gestion'
+
+// El ancho desde el que el catálogo público pasa de la versión de celular
+// a la de escritorio. Tiene que ser el mismo 900 que la media query del
+// catálogo en index.css: React decide qué se dibuja (la barra con el
+// desplegable o el botón ☰, los filtros a la vista o en un panel) y CSS
+// cambia las medidas, y los dos tienen que cambiar en el mismo ancho. Es
+// un corte propio del catálogo, que sale de su diseño: los de la gestión
+// (768 y 1440) son otros.
+export const ESCRITORIO_CATALOGO = '(min-width: 900px)'
+
+// El Instagram del emprendimiento. Es el único lugar donde está escrito:
+// lo usan el encabezado, el panel de celular y la pantalla del mensaje.
+// Ojo: es con doble a al final, distinto del nombre del proyecto.
+export const INSTAGRAM_USUARIO = 'ana_porcelanaa'
+export const INSTAGRAM_URL = `https://instagram.com/${INSTAGRAM_USUARIO}`

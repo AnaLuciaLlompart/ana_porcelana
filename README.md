@@ -39,10 +39,10 @@ El sistema comprende **dos ámbitos diferenciados**:
 | Cobros | CU48–CU51 | Completo |
 | Gastos | CU52–CU59 | Completo |
 | Informes | CU60–CU62 | Completo |
-| Catálogo público | CU63–CU71 | Pendiente |
+| Catálogo público | CU63–CU70 | Completo |
 
-62 de los 71 casos de uso implementados, con backend y frontend
-completos en cada módulo terminado.
+70 de 70 casos de uso implementados, con backend y frontend completos
+en todos los módulos.
 
 ---
 
@@ -80,6 +80,15 @@ funciona sin modificación en ambos entornos.
 El mismo criterio rige para los archivos: las direcciones de las
 imágenes se exponen como rutas relativas —`/media/...`— y nunca con
 host y puerto.
+
+El catálogo público y el módulo de gestión son una sola aplicación de
+React servida desde el mismo origen: el catálogo responde en la raíz
+del sitio (`/`) y la gestión bajo `/gestion`. Que el catálogo pueda
+consultarse sin iniciar sesión no lo decide el servidor web ni el proxy,
+sino las vistas de la aplicación `catalogo` del backend, que declaran
+`AllowAny` de forma explícita; el resto de la API conserva la denegación
+por defecto. El proxy se limita a reenviar `/api` y `/media`, sin
+distinguir quién pregunta.
 
 ### Stack
 
@@ -127,6 +136,7 @@ ana_porcelana/
 │   ├── gastos/                  gastos y los materiales de cada compra
 │   ├── finanzas/                informes económicos; sin modelos propios
 │   ├── inicio/                  datos de la pantalla de inicio; sin modelos propios
+│   ├── catalogo/                catálogo público: tres endpoints de lectura sin sesión; sin modelos propios
 │   ├── media/                   archivos subidos (fuera de control de versiones)
 │   ├── manage.py
 │   ├── requirements.txt
@@ -139,6 +149,8 @@ ana_porcelana/
 │       ├── api/cliente.js       cliente HTTP compartido
 │       ├── contexto/            estado de sesión compartido
 │       ├── componentes/         navegación y elementos compartidos
+│       │   ├── LayoutPublico.jsx  encabezado, navegación y pie del catálogo público
+│       │   └── PiePublico.jsx     el pie del catálogo público
 │       ├── funcionalidades/
 │       │   ├── auth/
 │       │   ├── materiales/
@@ -148,7 +160,8 @@ ana_porcelana/
 │       │   ├── pedidos/
 │       │   ├── gastos/
 │       │   ├── finanzas/        informes económicos
-│       │   └── inicio/          pantalla de inicio
+│       │   ├── inicio/          pantalla de inicio
+│       │   └── catalogo/        catálogo público: listado, detalle, selección y mensaje de consulta
 │       ├── validadores.js       límite de tamaño (espejo del backend)
 │       ├── index.css            hovers y reglas de pantalla chica
 │       ├── rutas.jsx
@@ -245,6 +258,17 @@ sus categorías está dada de baja. La regla se evalúa al consultar, de
 modo que dar de baja una categoría retira sus productos del catálogo y
 reactivarla los restituye exactamente como estaban, porque nunca se
 modificaron.
+
+**Consulta de productos sin cuenta.** El catálogo público no tiene
+carrito, pago ni registro de usuarios, porque el emprendimiento cierra
+sus ventas por mensaje privado de Instagram y una compra en línea no
+replicaría ese trato. Lo que ofrece es ordenar el contacto inicial: la
+visitante arma una selección de productos con cantidades y
+aclaraciones, que vive únicamente en su navegador —en `localStorage`,
+sin enviarse al servidor—, y el sistema la convierte en un texto que
+ella copia y pega en el chat del emprendimiento. La API pública expone
+solo lectura y nunca recibe datos de la visitante; lo único que
+persiste es lo que ella misma elige guardar en su dispositivo.
 
 **Precio congelado** en las líneas de pedido. El importe se copia al
 registrar la línea, de modo que modificar el precio de un producto no
@@ -447,6 +471,29 @@ para producción.
 
 **Aprovisionar el certificado HTTPS**, que corresponde a la
 infraestructura de despliegue y no a la aplicación.
+
+**Hacer que el límite de peticiones cuente por visitante.** Los
+endpoints del catálogo admiten 60 peticiones por minuto por dirección
+IP. Detrás de nginx, Django ve la dirección del proxy y no la del
+visitante, de modo que el límite se repartiría entre todos. nginx debe
+enviar la cabecera `X-Forwarded-For` y la configuración de DRF debe
+declarar cuántos proxies hay delante (`NUM_PROXIES`) para leerla.
+
+**Servir las rutas de React.** El frontend es una aplicación de una
+sola página: cualquier ruta que no corresponda a un archivo
+—`/gestion/pedidos`, `/productos/14`— debe responder con `index.html`
+(`try_files` en nginx), o recargar la página en esas direcciones
+produciría un 404.
+
+**Servir `/media/` sin listado de directorio y con `nosniff`.** Las
+imágenes las entrega nginx directamente desde el volumen de medios. Debe
+hacerlo sin `autoindex`, para que la carpeta no pueda recorrerse, y con
+la cabecera `X-Content-Type-Options: nosniff`, para que el navegador no
+interprete un archivo subido como otra cosa que una imagen.
+
+**Declarar los dominios permitidos.** `ALLOWED_HOSTS` se lee del
+archivo `.env`, como ya contempla `produccion.py`; en el servidor debe
+contener el dominio real del sitio.
 
 La configuración de producción ya contempla la desactivación del modo
 de depuración, la restricción de cookies al transporte cifrado, la
