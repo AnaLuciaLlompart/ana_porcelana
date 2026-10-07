@@ -3,7 +3,16 @@ import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom
 import CajaMensaje from './CajaMensaje'
 import FiltrosCatalogo from './FiltrosCatalogo'
 import TarjetaCatalogo from './TarjetaCatalogo'
-import { alternarFiltro, escribirFiltros, filtrarProductos, leerFiltros } from './filtros'
+import {
+  alternarFiltro,
+  escribirFiltros,
+  escribirOrden,
+  filtrarProductos,
+  leerFiltros,
+  leerOrden,
+  ORDENES,
+  ordenarProductos,
+} from './filtros'
 import { ICONO_CERRAR, ICONO_FILTROS, QUICKSAND, textoPiezas } from './presentacion'
 
 // El listado del catálogo público: CU63 (visualizar el catálogo) y CU64
@@ -23,7 +32,8 @@ export default function Catalogo() {
   // las listas, y no se guardan en estado. La dirección es la única que
   // sabe qué filtros hay.
   const idsElegidos = leerFiltros(parametros, grupos)
-  const filtrados = filtrarProductos(productos, grupos, idsElegidos)
+  const orden = leerOrden(parametros)
+  const filtrados = ordenarProductos(filtrarProductos(productos, grupos, idsElegidos), orden)
 
   // El panel de filtros solo existe en celular. Si la ventana pasa a
   // escritorio con el panel abierto, filtrosAbierto queda en true pero no
@@ -43,12 +53,26 @@ export default function Catalogo() {
   // replace: true para que tildar tres filtros no deje tres pasos en el
   // historial. Así el "atrás" del navegador sale del catálogo en vez de
   // ir destildando de a uno.
+  //
+  // setParametros reemplaza todos los parámetros de la dirección, así que
+  // cada escritura lleva los filtros Y el orden: si no, tildar una
+  // categoría borraría el orden elegido, y al revés.
   function alternar(id) {
-    setParametros(escribirFiltros(alternarFiltro(idsElegidos, id)), { replace: true })
+    setParametros(
+      { ...escribirFiltros(alternarFiltro(idsElegidos, id)), ...escribirOrden(orden) },
+      { replace: true }
+    )
   }
 
   function quitarFiltros() {
-    setParametros(escribirFiltros([]), { replace: true })
+    setParametros({ ...escribirFiltros([]), ...escribirOrden(orden) }, { replace: true })
+  }
+
+  function cambiarOrden(evento) {
+    setParametros(
+      { ...escribirFiltros(idsElegidos), ...escribirOrden(evento.target.value) },
+      { replace: true }
+    )
   }
 
   return (
@@ -68,49 +92,6 @@ export default function Catalogo() {
           Accesorios en porcelana fría, hechos a mano con ❤
         </h1>
       </div>
-
-      {/* Solo en celular: cuántas piezas se están viendo y el botón que
-          abre el panel de filtros. */}
-      {!esEscritorio && productos.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
-          <span style={{ fontSize: 14, color: '#708085' }}>{textoPiezas(filtrados.length)}</span>
-
-          {grupos.length > 0 && (
-            <button
-              onClick={() => setFiltrosAbierto(true)}
-              className="catalogo-suave"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                minHeight: 44,
-                padding: '0 16px',
-                border: '1px solid #5A7A8C',
-                background: 'white',
-                color: '#5A7A8C',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontFamily: QUICKSAND,
-                fontWeight: 600,
-                fontSize: 15,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FILTROS} />
-              </svg>
-              {idsElegidos.length > 0 ? `Filtrar (${idsElegidos.length})` : 'Filtrar'}
-            </button>
-          )}
-        </div>
-      )}
 
       {/* En celular es una sola columna. La clase la parte en dos de 900px
           para arriba, y por eso va solo cuando hay filtros que poner en la
@@ -143,6 +124,73 @@ export default function Catalogo() {
         )}
 
         <div style={{ minWidth: 0 }}>
+          {/* Cuántas piezas se están viendo, el orden y, solo en celular, el
+              botón que abre el panel de filtros. Si no entra todo en una
+              fila, la cantidad baja a su renglón y el grupo de la derecha
+              sigue a la derecha. */}
+          {productos.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <span style={{ fontSize: 14, color: '#708085' }}>{textoPiezas(filtrados.length)}</span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+                {esEscritorio && <span style={{ fontSize: 14, color: '#708085' }}>Ordenar por</span>}
+
+                <select
+                  value={orden}
+                  onChange={cambiarOrden}
+                  aria-label="Ordenar por"
+                  className="catalogo-campo"
+                  style={{
+                    minHeight: 38,
+                    padding: '0 10px',
+                    border: '1px solid #E0E8EB',
+                    background: 'white',
+                    color: '#323A3D',
+                    borderRadius: 6,
+                    outline: 'none',
+                    cursor: 'pointer',
+                    fontFamily: QUICKSAND,
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  {ORDENES.map((o) => (
+                    <option key={o.valor} value={o.valor}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+
+                {!esEscritorio && grupos.length > 0 && (
+                  <button
+                    onClick={() => setFiltrosAbierto(true)}
+                    className="catalogo-suave"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      minHeight: 38,
+                      padding: '0 12px',
+                      border: '1px solid #5A7A8C',
+                      background: 'white',
+                      color: '#5A7A8C',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      fontFamily: QUICKSAND,
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FILTROS} />
+                    </svg>
+                    {idsElegidos.length > 0 ? `Filtrar (${idsElegidos.length})` : 'Filtrar'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {productos.length === 0 && (
             <CajaMensaje titulo="Todavía no hay productos en el catálogo." />
           )}

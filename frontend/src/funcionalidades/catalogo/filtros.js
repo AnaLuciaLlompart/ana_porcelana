@@ -96,3 +96,50 @@ export function filtrarProductos(productos, grupos, idsElegidos) {
     })
   })
 }
+
+
+// El orden de los productos del listado (CU63). Como los filtros, vive en
+// la dirección: ?orden=precio-desc. Si falta o trae otra cosa, vale el de
+// por defecto, que no se escribe para que la dirección quede limpia.
+//
+// El orden se aplica SIEMPRE acá, también el de por defecto, aunque el
+// backend ya mande los productos por nombre: PostgreSQL ordena con la
+// intercalación de la base y localeCompare con la del español, y pueden
+// diferir en tildes o mayúsculas. Con una sola autoridad, A–Z y Z–A son
+// espejo exacto.
+export const ORDENES = [
+  { valor: 'nombre-asc', label: 'Nombre A–Z' },
+  { valor: 'nombre-desc', label: 'Nombre Z–A' },
+  { valor: 'precio-asc', label: 'Menor precio' },
+  { valor: 'precio-desc', label: 'Mayor precio' },
+]
+
+export const ORDEN_POR_DEFECTO = 'nombre-asc'
+
+
+// LEE el orden de la dirección. Solo acepta uno de ORDENES.
+export function leerOrden(parametros) {
+  const enLaUrl = parametros.get('orden')
+  return ORDENES.some((orden) => orden.valor === enLaUrl) ? enLaUrl : ORDEN_POR_DEFECTO
+}
+
+
+// ESCRIBE el orden: el de por defecto no va a la dirección.
+export function escribirOrden(orden) {
+  return orden === ORDEN_POR_DEFECTO ? {} : { orden }
+}
+
+
+// Devuelve una copia ordenada: sort() ordena en el lugar y la lista que
+// llega no es nuestra. El precio viaja como texto ("1500.00"), por eso
+// Number(): como texto, "900.00" iría después de "1500.00". Dos productos
+// con el mismo precio quedan como venían, que es por nombre.
+export function ordenarProductos(productos, orden) {
+  const [campo, direccion] = orden.split('-')
+  const signo = direccion === 'asc' ? 1 : -1
+
+  return productos.slice().sort((x, y) => {
+    if (campo === 'precio') return (Number(x.precio_actual) - Number(y.precio_actual)) * signo
+    return x.nombre.localeCompare(y.nombre, 'es') * signo
+  })
+}

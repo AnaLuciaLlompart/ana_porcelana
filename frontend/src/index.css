@@ -374,9 +374,10 @@ button:not(:disabled):hover {
    celeste ("Consultar por Instagram", "Abrir Instagram", "Ver el
    catálogo") son <a> y no toman el hover global de los botones, así que
    llevan el .92 del diseño; sin !important porque no hay opacidad en
-   línea. Quitar se tiñe de rojo claro; el textarea de aclaraciones toma el
-   borde celeste al enfocarlo (la regla global de foco de arriba es solo
-   para input); y el "Ver" del aviso flotante aclara su fondo. */
+   línea. Quitar se tiñe de rojo claro; el textarea de aclaraciones y el
+   desplegable de orden del listado toman el borde celeste al enfocarlos
+   (la regla global de foco de arriba es solo para input); y el "Ver" del
+   aviso flotante aclara su fondo. */
 .catalogo-relleno:hover {
   opacity: 0.92;
 }
