@@ -29,6 +29,22 @@ const estiloCampo = {
   fontFamily: 'inherit',
 }
 
+// El mensaje del backend, venga como venga: 'detail' para los errores de la
+// vista, o el primer mensaje de campo de los del serializer (el archivo que
+// no es una imagen, el nombre demasiado largo). Es la misma función que
+// tiene DetalleProducto.
+function mensajeDeError(err) {
+  const datos = err.response?.data
+  if (!datos) return 'No se pudo guardar el material.'
+  if (datos.detail) return datos.detail
+
+  const primerCampo = Object.values(datos)[0]
+  if (Array.isArray(primerCampo) && primerCampo.length > 0) return primerCampo[0]
+
+  return 'No se pudo guardar el material.'
+}
+
+
 export default function ModalMaterial({ material, onCerrar, onGuardado }) {
   // Si llega un material, el modal está en modo edición.
   const editando = Boolean(material)
@@ -95,7 +111,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
       }
       onGuardado()
     } catch (err) {
-      setError(err.response?.data?.detail || 'No se pudo guardar el material.')
+      setError(mensajeDeError(err))
     } finally {
       setEnviando(false)
     }

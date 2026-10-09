@@ -132,6 +132,14 @@ class GastoViewSet(viewsets.ModelViewSet):
         """
         gasto = self.get_object()
 
+        # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
+        # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
+        if not isinstance(request.data, dict):
+            return Response(
+                {'detail': 'El cuerpo tiene que ser un objeto JSON.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         tipo_nuevo = request.data.get('tipo')
 
         if (
@@ -228,6 +236,14 @@ class GastoViewSet(viewsets.ModelViewSet):
             return Response(
                 {'detail': 'Solo un gasto de materiales lleva materiales del '
                            f'gasto. Este es de {gasto.get_tipo_display()}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
+        # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
+        if not isinstance(request.data, dict):
+            return Response(
+                {'detail': 'El cuerpo tiene que ser un objeto JSON.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

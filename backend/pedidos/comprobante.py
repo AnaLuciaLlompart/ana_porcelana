@@ -164,7 +164,7 @@ PIE = _estilo('pie', 14, NORMAL, TEXTO_SECUNDARIO, interlineado=1.5)
 MESES = ('ene', 'feb', 'mar', 'abr', 'may', 'jun',
          'jul', 'ago', 'sep', 'oct', 'nov', 'dic')
 
-INSTAGRAM = '@ana.porcelana'
+INSTAGRAM = '@ana_porcelanaa'
 
 PIE_CONTACTO = (
     f'Cualquier duda sobre tu pedido, escribime a {INSTAGRAM} por Instagram.'

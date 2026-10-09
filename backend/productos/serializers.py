@@ -220,6 +220,14 @@ class ProductoListaSerializer(serializers.ModelSerializer):
             'materiales',
         ]
 
+        # El estado no se escribe por acá: lo cambian las acciones de baja
+        # y reactivación, que son las que tienen la regla. Un PUT que lo
+        # traiga (el formulario lo manda) se ignora, y un alta nace Activo
+        # por el default del modelo.
+        extra_kwargs = {
+            'estado': {'read_only': True},
+        }
+
     def get_imagen_principal(self, obj):
         """Solo la ruta de la foto principal, o null si no tiene ninguna."""
         # El primer 'imagen' es la fila de ImagenProducto; el segundo,

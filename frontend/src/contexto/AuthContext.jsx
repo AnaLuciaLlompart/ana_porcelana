@@ -20,7 +20,12 @@ export function AuthProvider({ children }) {
   }
 
   async function salir() {
-    await api.cerrarSesion()
+    try {
+      await api.cerrarSesion()
+    } catch {
+      // Si el servidor ya no reconoce la sesión o no responde, no hay nada
+      // que cerrar allá: igual se sale del lado del navegador.
+    }
     setUsuario(null)
   }
 

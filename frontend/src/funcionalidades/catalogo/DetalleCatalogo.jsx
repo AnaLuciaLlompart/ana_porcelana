@@ -34,6 +34,22 @@ export default function DetalleCatalogo() {
   // sobreviva a salir de la pantalla.
   const [fotoIdx, setFotoIdx] = useState(0)
 
+  // Si se pasa de una pieza a otra sin salir de la pantalla (solo pasa
+  // escribiendo la dirección a mano: ningún enlace del catálogo lo hace),
+  // lo de la pieza anterior no vale: se vuelve al estado inicial antes de
+  // pedir la nueva. Se compara el id con el ya cargado en el dibujo mismo,
+  // que es como React pide reiniciar estado cuando cambia una prop, y no
+  // dentro de un efecto.
+  const [idCargado, setIdCargado] = useState(id)
+  if (idCargado !== id) {
+    setIdCargado(id)
+    setProducto(null)
+    setCargando(true)
+    setError('')
+    setNoExiste(false)
+    setFotoIdx(0)
+  }
+
   useEffect(() => {
     obtenerProductoDelCatalogo(id)
       .then((res) => setProducto(res.data))

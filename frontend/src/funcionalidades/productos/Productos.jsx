@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listarProductos, reactivarProducto } from './api'
 import BotonAccion from '../../componentes/BotonAccion'
+import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import TarjetaProducto from './TarjetaProducto'
 import SeccionBajas from './SeccionBajas'
@@ -48,6 +49,8 @@ const ORDENES = [
   { valor: 'precio:desc', label: 'Precio: mayor primero' },
   { valor: 'dificultad:asc', label: 'Dificultad: baja primero' },
   { valor: 'dificultad:desc', label: 'Dificultad: alta primero' },
+  { valor: 'categorias:asc', label: 'Categorías: menos primero' },
+  { valor: 'categorias:desc', label: 'Categorías: más primero' },
 ]
 
 
@@ -364,7 +367,10 @@ export default function Productos() {
 
     irABajas.current = false
     seccionBajas.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [productos])
+    // Depende también de categorias: la marca la pone el callback de las
+    // categorías, y si los productos llegaron antes, este efecto ya había
+    // corrido sin verla.
+  }, [productos, categorias])
 
 
 
@@ -542,28 +548,31 @@ export default function Productos() {
           Gestión de Productos
         </h1>
 
-        <button
-          onClick={() => navegar(`${BASE_GESTION}/productos/nuevo`)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '10px 20px',
-            background: '#8C5A66',
-            color: 'white',
-            border: 0,
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 16,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" d={ICONO_NUEVO} />
-          </svg>
-          Nuevo producto
-        </button>
+        <div className="acciones-encabezado" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <EnlaceCatalogo />
+          <button
+            onClick={() => navegar(`${BASE_GESTION}/productos/nuevo`)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 20px',
+              background: '#8C5A66',
+              color: 'white',
+              border: 0,
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 16,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" d={ICONO_NUEVO} />
+            </svg>
+            Nuevo producto
+          </button>
+        </div>
       </div>
 
       <p style={{ margin: '0 0 24px', fontSize: 15, color: '#857078' }}>
@@ -1019,9 +1028,11 @@ export default function Productos() {
           categoria={categoriaReactivando}
           // Cuántos productos vuelven al catálogo con ella: sale del grupo
           // que ya armamos más arriba para el árbol de dados de baja.
+          // Solo los que vuelven de verdad: los que tienen OTRA categoría
+          // de baja siguen afuera, y los personalizados no van al catálogo.
           cantidadProductos={
-            grupos.find((g) => g.categoria.id === categoriaReactivando.id)
-              ?.productos.length ?? 0
+            (grupos.find((g) => g.categoria.id === categoriaReactivando.id)?.productos ?? [])
+              .filter((p) => p.categorias_de_baja.length === 1 && !p.es_personalizado).length
           }
           onCerrar={() => setCategoriaReactivando(null)}
           onConfirmado={() => {

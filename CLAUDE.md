@@ -915,9 +915,6 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ### Pendientes
 
-- **Favicon.** No hay ninguno (tampoco quedó el de la plantilla de Vite),
-  así que el navegador pide `/favicon.ico` y recibe 404. Es un archivo
-  en `frontend/public/` y un `<link rel="icon">` en `index.html`.
 - **Los 8 avisos de `npm run lint`**, que vienen de antes del catálogo y
   no son de él: `react-refresh/only-export-components` en
   `componentes/Paginacion.jsx` (línea 11), `contexto/AuthContext.jsx`

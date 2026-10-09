@@ -47,7 +47,9 @@ export default function ModalEditarProductoDelPedido({
   const [descripcion, setDescripcion] = useState(productoDelPedido.descripcion)
   const [tocado, setTocado] = useState(false)
 
-  const cantidadInvalida = !(Number(cantidad) >= 1)
+  // Entero y mayor o igual a 1, que es lo que exige el backend: sin el
+  // isInteger, "1.5" pasaba acá y volvía como 400 con el modal ya cerrado.
+  const cantidadInvalida = !Number.isInteger(Number(cantidad)) || Number(cantidad) < 1
   const precioInvalido = !(Number(precio) > 0)
 
   function guardar() {

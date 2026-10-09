@@ -132,6 +132,26 @@ button:not(:disabled):hover {
     flex: 1;
   }
 
+  /* Productos: el enlace al catálogo y el botón de alta bajan a un renglón
+     cada uno, a todo el ancho. Es > * y no > button porque uno es un <a>. */
+  .acciones-encabezado {
+    flex-wrap: wrap;
+  }
+
+  .acciones-encabezado > * {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  /* Inicio: los cuatro accesos rápidos van de a dos por fila, por mitades,
+     en vez de envolverse según lo que entre (2+1+1 en un celular angosto).
+     Si ni dos entran, cada uno toma su fila entera: el mínimo de un botón
+     es su texto, y el que no entra baja y crece hasta el borde. */
+  .accesos-rapidos > * {
+    flex: 1 1 calc(50% - 5px);
+    justify-content: center;
+  }
+
   /* Fichas: la fila de pestañas se desliza de lado en vez de desbordar la
      pantalla, y cada pestaña conserva su ancho. El padding horizontal baja
      de 18 a 12 para que entre una pestaña más; el vertical no cambia. */

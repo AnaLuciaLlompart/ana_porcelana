@@ -54,8 +54,19 @@ def iniciar_sesion(request):
     """
 
     # request.data es el JSON que devuelve React del login
-    username = request.data.get('username', '').strip()
+    # Un cuerpo que no sea un objeto JSON no tiene .get(), y un usuario que
+    # no sea texto no tiene .strip(): los dos casos se rechazan con 400 en
+    # vez de terminar en un 500.
+    if not isinstance(request.data, dict):
+        return Response({'detail': 'El cuerpo tiene que ser un objeto JSON.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    username = request.data.get('username', '')
     password = request.data.get('password', '')
+    if not isinstance(username, str) or not isinstance(password, str):
+        return Response({'detail': 'El usuario y la contraseña tienen que ser texto.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    username = username.strip()
     if not username or not password: # algun campo vacio
         return Response(
             {'detail': 'Debe indicar usuario y contraseña.'},
@@ -104,8 +115,17 @@ def cerrar_sesion(request):
 @csrf_protect
 def cambiar_password(request):
     """CU03 - Modificar contraseña."""
+    # Mismo chequeo que en iniciar_sesion: el cuerpo tiene que ser un
+    # objeto y las dos contraseñas, texto.
+    if not isinstance(request.data, dict):
+        return Response({'detail': 'El cuerpo tiene que ser un objeto JSON.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
     actual = request.data.get('password_actual', '')
     nueva = request.data.get('password_nueva', '')
+    if not isinstance(actual, str) or not isinstance(nueva, str):
+        return Response({'detail': 'Las contraseñas tienen que ser texto.'},
+                        status=status.HTTP_400_BAD_REQUEST)
 
     if not actual or not nueva:
         return Response(

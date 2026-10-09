@@ -182,6 +182,14 @@ class PedidoViewSet(viewsets.ModelViewSet):
         """
         pedido = self.get_object()
 
+        # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
+        # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
+        if not isinstance(request.data, dict):
+            return Response(
+                {'detail': 'El cuerpo tiene que ser un objeto JSON.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         estado = request.data.get('estado')
 
         if not estado:
@@ -351,6 +359,14 @@ class PedidoViewSet(viewsets.ModelViewSet):
         """
         pedido = self.get_object()
 
+        # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
+        # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
+        if not isinstance(request.data, dict):
+            return Response(
+                {'detail': 'El cuerpo tiene que ser un objeto JSON.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         producto_id = request.data.get('producto')
 
         if not producto_id:
@@ -372,10 +388,13 @@ class PedidoViewSet(viewsets.ModelViewSet):
         # .copy() devuelve uno que sí se puede modificar.
         datos = request.data.copy()
 
-        if not datos.get('precio'):
+        # Se completa solo lo que NO vino: None o vacío. Un 0 sí vino (una
+        # pieza regalada tiene precio 0, y una cantidad 0 la tiene que
+        # rechazar el serializer), y `not 0` lo confundiría con ausente.
+        if datos.get('precio') in (None, ''):
             datos['precio'] = producto.precio_actual
 
-        if not datos.get('cantidad'):
+        if datos.get('cantidad') in (None, ''):
             datos['cantidad'] = 1
 
         # Se guarda con el serializer y no con .objects.create() porque
@@ -524,7 +543,10 @@ class PedidoViewSet(viewsets.ModelViewSet):
         lo sigue mostrando con su chip. Lo que estas reglas impiden es
         llegar ahí cobrando.
         """
-        if pedido.total <= 0:
+        # Sobre la lista que ya trajo el prefetch, como en _revisar_estado:
+        # lo que no se puede cobrar es un pedido SIN productos, no uno cuyo
+        # total dé cero (un envío cargado sin piezas, o piezas a precio 0).
+        if not list(pedido.productos.all()):
             return (
                 'El pedido todavía no tiene productos cargados, '
                 'así que no hay nada que cobrar.'
@@ -648,15 +670,21 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         # Es un PATCH: lo que no venga queda como estaba.
         datos = serializer.validated_data
-        error = self._revisar_cobro(
-            pedido,
-            datos.get('tipo', cobro.tipo),
-            datos.get('monto', cobro.monto),
-            cobro=cobro,
-        )
 
-        if error:
-            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        # Las reglas entre filas se revisan solo si cambia el monto o el
+        # tipo: corregir la fecha o el medio no mueve el saldo. Sin esta
+        # condición, un pedido con saldo a favor (el total bajó después de
+        # cobrar) rechazaría hasta cambiarle la fecha a un cobro.
+        if 'monto' in datos or 'tipo' in datos:
+            error = self._revisar_cobro(
+                pedido,
+                datos.get('tipo', cobro.tipo),
+                datos.get('monto', cobro.monto),
+                cobro=cobro,
+            )
+
+            if error:
+                return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer.save()
 

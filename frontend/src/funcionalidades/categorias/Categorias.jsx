@@ -507,7 +507,7 @@ export default function Categorias() {
                 titulo="POR TIPO DE ACCESORIO"
                 categorias={porTipo}
                 acciones={acciones}
-                onAgregar={busqueda ? null : () => abrirNueva('TIPO')}
+                onAgregar={busqueda || tab === 'Temática' ? null : () => abrirNueva('TIPO')}
                 textoAgregar="Nuevo tipo de accesorio"
               />
 
@@ -515,7 +515,7 @@ export default function Categorias() {
                 titulo="POR TEMÁTICA"
                 categorias={porTematica}
                 acciones={acciones}
-                onAgregar={busqueda ? null : () => abrirNueva('TEMATICA')}
+                onAgregar={busqueda || tab === 'Tipo' ? null : () => abrirNueva('TEMATICA')}
                 textoAgregar="Nueva temática"
               />
             </>

@@ -29,7 +29,9 @@ export default function SeccionBajas({
   onReactivarProducto,
   onReactivarCategoria,
 }) {
-  const cantidadPorCategoria = grupos.reduce((total, g) => total + g.productos.length, 0)
+  // Productos DISTINTOS: uno con dos categorías de baja está en dos grupos
+  // y es un solo producto.
+  const cantidadPorCategoria = new Set(grupos.flatMap((g) => g.productos.map((p) => p.id))).size
 
   return (
     <section style={{ marginTop: 34 }}>

@@ -33,7 +33,6 @@ export const ESTADOS = [
 
 // Los extremos de los deslizadores del filtro por total.
 export const TOTAL_MIN = 0
-export const TOTAL_MAX = 60000
 
 
 // Las dos opciones del filtro por saldo. Viven acá porque las usan dos

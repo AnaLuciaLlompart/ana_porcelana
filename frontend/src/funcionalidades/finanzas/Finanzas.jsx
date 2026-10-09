@@ -705,7 +705,11 @@ export default function Finanzas() {
 
     obtenerFinanzas(rango)
       .then((res) => {
-        if (vigente) setRespuesta({ clave, datos: res.data })
+        if (vigente) {
+          setRespuesta({ clave, datos: res.data })
+          // Un fallo anterior de este mismo período ya no vale.
+          setFallo(null)
+        }
       })
       .catch((err) => {
         // El backend escribe sus mensajes de 400 para que se entiendan, así
@@ -716,6 +720,9 @@ export default function Finanzas() {
             clave,
             mensaje: err.response?.data?.detail || 'No se pudieron cargar los datos de finanzas.',
           })
+          // Y al revés: con un fallo nuevo, la respuesta anterior se descarta,
+          // así el error y los datos no se muestran juntos.
+          setRespuesta(null)
         }
       })
 

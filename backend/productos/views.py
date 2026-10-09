@@ -162,7 +162,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
         # ningún prefetch que respetar, así que conviene una consulta que
         # devuelve un número antes que traerse las filas para contarlas
         # en Python.
-        cantidad = producto.en_pedidos.count()
+        # Pedidos DISTINTOS: el mismo producto puede figurar dos veces en un
+        # pedido (otra variante u otro precio), y eso es un solo pedido.
+        cantidad = producto.en_pedidos.values('pedido').distinct().count()
 
         if cantidad > 0:
             en_pedidos = '1 pedido' if cantidad == 1 else f'{cantidad} pedidos'
@@ -346,7 +348,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
         try:
             categoria = Categoria.objects.get(pk=categoria_id)
-        except (Categoria.DoesNotExist, ValueError):
+        # TypeError: el id llegó como lista u objeto JSON, y Django no lo
+        # convierte a número.
+        except (Categoria.DoesNotExist, ValueError, TypeError):
             return Response(
                 {'detail': 'No existe una categoría con ese id.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -502,7 +506,9 @@ class ProductoViewSet(viewsets.ModelViewSet):
 
         try:
             material = Material.objects.get(pk=material_id)
-        except (Material.DoesNotExist, ValueError):
+        # TypeError: el id llegó como lista u objeto JSON, y Django no lo
+        # convierte a número.
+        except (Material.DoesNotExist, ValueError, TypeError):
             return Response(
                 {'detail': 'No existe un material con ese id.'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -519,11 +525,16 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        MaterialProducto.objects.create(
-            producto=producto,
-            material=material,
-            cantidad=request.data.get('cantidad') or '',
-        )
+        # Se guarda con el serializer y no con .objects.create(), para que
+        # la cantidad pase por la validación del modelo (texto de hasta 50
+        # caracteres): sin eso, una más larga la rechaza PostgreSQL y el
+        # frontend recibe un 500 en vez de un mensaje.
+        serializer = MaterialProductoSerializer(data={
+            'material': material.pk,
+            'cantidad': request.data.get('cantidad') or '',
+        })
+        serializer.is_valid(raise_exception=True)
+        serializer.save(producto=producto)
 
         producto.refresh_from_db()
 
@@ -566,8 +577,15 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        linea.cantidad = request.data.get('cantidad') or ''
-        linea.save(update_fields=['cantidad'])
+        # Igual que al asignar: por el serializer, con partial=True porque
+        # solo viaja la cantidad, así la valida el modelo y no la base.
+        serializer = MaterialProductoSerializer(
+            linea,
+            data={'cantidad': request.data.get('cantidad') or ''},
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
         producto.refresh_from_db()
 

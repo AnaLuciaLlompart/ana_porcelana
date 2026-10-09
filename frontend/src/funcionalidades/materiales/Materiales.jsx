@@ -848,7 +848,11 @@ export default function Materiales() {
         onReponer={(m) => setMaterialEditando(m)}
       />
 
-      {moduloVacio && <EstadoVacio onNuevo={() => setModalAbierto(true)} />}
+      {error && (
+        <p style={{ color: '#C0442F', marginBottom: 16 }}>{error}</p>
+      )}
+
+      {moduloVacio && !error && <EstadoVacio onNuevo={() => setModalAbierto(true)} />}
 
       {!moduloVacio && (
         <>
@@ -1024,10 +1028,6 @@ export default function Materiales() {
             Limpiar todo
           </button>
         </div>
-      )}
-
-      {error && (
-        <p style={{ color: '#C0442F', marginBottom: 16 }}>{error}</p>
       )}
 
       {vista === 'lista' ? (

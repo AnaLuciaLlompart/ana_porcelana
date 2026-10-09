@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { FILTROS_VACIOS, candidatos } from './filtros'
+import { FILTROS_VACIOS, OPCIONES_ENTREGA, PASO, candidatos, totalMaximo } from './filtros'
 import {
   ESTADOS,
   OPCIONES_SALDO,
   TOTAL_MIN,
-  TOTAL_MAX,
   formatearPrecio,
 } from './presentacion'
 
@@ -78,7 +77,11 @@ export default function ModalFiltros({
   // Vacío significa "sin límite", y en el deslizador eso se dibuja en el
   // extremo que corresponda.
   const desdeValor = borrador.desde === '' ? TOTAL_MIN : Number(borrador.desde)
-  const hastaValor = borrador.hasta === '' ? TOTAL_MAX : Number(borrador.hasta)
+  // El tope del deslizador sale de los pedidos cargados: llega hasta el
+  // más caro. Así "sin límite" se dibuja en un extremo que existe.
+  const tope = totalMaximo(pedidos)
+
+  const hastaValor = borrador.hasta === '' ? tope : Number(borrador.hasta)
 
   const rangoTexto =
     borrador.desde === '' && borrador.hasta === ''
@@ -106,6 +109,15 @@ export default function ModalFiltros({
     }))
   }
 
+  // La entrega es una sola opción o ninguna, al revés que los estados y el
+  // saldo: elegir una destilda la otra, y tocar la que ya está la saca.
+  function elegirEntrega(valor) {
+    setBorrador((actual) => ({
+      ...actual,
+      entrega: actual.entrega === valor ? null : valor,
+    }))
+  }
+
   // Los dos deslizadores se corrigen entre sí: arrastrar el de abajo por
   // encima del de arriba empujaría el rango al revés y no mostraría nada.
   //
@@ -124,7 +136,7 @@ export default function ModalFiltros({
   function moverHasta(valor) {
     setBorrador((actual) => ({
       ...actual,
-      hasta: valor >= TOTAL_MAX ? '' : String(valor),
+      hasta: valor >= tope ? '' : String(valor),
       desde:
         actual.desde !== '' && Number(actual.desde) > valor ? String(valor) : actual.desde,
     }))
@@ -264,6 +276,20 @@ export default function ModalFiltros({
           </div>
 
           <div style={separador}>
+            <p style={estiloTitulo}>ENTREGA</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {OPCIONES_ENTREGA.map((o) => (
+                <Chip
+                  key={o.valor}
+                  label={o.label}
+                  activo={borrador.entrega === o.valor}
+                  onClick={() => elegirEntrega(o.valor)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div style={separador}>
             <p style={estiloTitulo}>SALDO</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {OPCIONES_SALDO.map((o) => (
@@ -308,8 +334,8 @@ export default function ModalFiltros({
                 <input
                   type="range"
                   min={TOTAL_MIN}
-                  max={TOTAL_MAX}
-                  step={1000}
+                  max={tope}
+                  step={PASO}
                   value={desdeValor}
                   onChange={(e) => moverDesde(Number(e.target.value))}
                   style={{ flex: 1, cursor: 'pointer', accentColor: '#8C5A66' }}
@@ -323,8 +349,8 @@ export default function ModalFiltros({
                 <input
                   type="range"
                   min={TOTAL_MIN}
-                  max={TOTAL_MAX}
-                  step={1000}
+                  max={tope}
+                  step={PASO}
                   value={hastaValor}
                   onChange={(e) => moverHasta(Number(e.target.value))}
                   style={{ flex: 1, cursor: 'pointer', accentColor: '#8C5A66' }}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexto/AuthContext'
 import { BASE_GESTION } from '../constantes'
+import { FAVICON_GESTION, cambiarFavicon } from '../favicon'
 
 // Iconos del menú, tomados del diseño (estilo Heroicons outline)
 const NAV = [
@@ -106,6 +107,12 @@ export default function Layout() {
   // con el menú abierto, menuAbierto queda en true pero no se ve nada, y al
   // volver a pantalla chica el panel reaparece como se lo dejó.
   const panelAbierto = pantallaChica && menuAbierto
+
+  // El ícono de la pestaña de la gestión. Se pone al montar y nunca más:
+  // si la usuaria vuelve al catálogo, LayoutPublico pone el suyo.
+  useEffect(() => {
+    cambiarFavicon(FAVICON_GESTION)
+  }, [])
 
   // Escape cierra el panel. Se escucha solo mientras está abierto.
   useEffect(() => {

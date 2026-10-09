@@ -91,6 +91,14 @@ class ClienteSerializer(serializers.ModelSerializer):
 
         return pedidos[0].fecha_pedido
 
+    # La suma en Decimal, para que get_saldo la escriba como texto y
+    # get_esta_al_dia la compare como número.
+    def _saldo(self, obj):
+        return sum(
+            (pedido.saldo for pedido in obj.pedidos.all()),
+            Decimal('0'),
+        )
+
     def get_saldo(self, obj):
         """Cuánto le debe el cliente, sumando todos sus pedidos.
 
@@ -99,10 +107,9 @@ class ClienteSerializer(serializers.ModelSerializer):
 
         Puede dar NEGATIVO si en algún pedido pagó de más.
         """
-        return sum(
-            (pedido.saldo for pedido in obj.pedidos.all()),
-            Decimal('0'),
-        )
+        # Como texto con dos decimales, que es como DecimalField escribe los
+        # importes en todo el proyecto: un Decimal crudo, DRF lo pasa a float.
+        return f'{self._saldo(obj):.2f}'
 
     def get_esta_al_dia(self, obj):
         """Si el cliente no debe nada.
@@ -110,4 +117,4 @@ class ClienteSerializer(serializers.ModelSerializer):
         Incluye al que pagó de más: tampoco debe. Es el mismo criterio
         que usa el pedido.
         """
-        return self.get_saldo(obj) <= 0
+        return self._saldo(obj) <= 0

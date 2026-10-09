@@ -803,7 +803,9 @@ export default function DetalleGasto({ esAlta = false }) {
 
         // El alta termina en la ficha del gasto nuevo, que ya es una
         // edición: si es de materiales, ahí aparece la tabla para cargarlos.
-        navegar(`${BASE_GESTION}/gastos/${res.data.id}`)
+        // replace: el alta ya se consumió. Si quedara en el historial, Atrás
+        // volvería a /gastos/nuevo con el formulario lleno del gasto recién creado.
+        navegar(`${BASE_GESTION}/gastos/${res.data.id}`, { replace: true })
         return
       }
 

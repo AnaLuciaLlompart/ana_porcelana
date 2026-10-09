@@ -29,3 +29,11 @@ class CategoriaSerializer(serializers.ModelSerializer):
             'estado_display',
             'descripcion',
         ]
+
+        # El estado no se escribe por acá: lo cambian las acciones de baja
+        # y reactivación, que son las que tienen la regla. Un PUT que lo
+        # traiga (el formulario lo manda) se ignora, y un alta nace Activo
+        # por el default del modelo.
+        extra_kwargs = {
+            'estado': {'read_only': True},
+        }

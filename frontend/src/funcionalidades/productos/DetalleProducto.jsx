@@ -85,6 +85,16 @@ const BORRADOR_VACIO = {
 // mandan {'detail': '...'} y los errores de campo mandan
 // {'imagen': ['La imagen pesa 20.0 MB...']}. La subida de fotos usa la
 // segunda, así que hay que mirar las dos para no tragarse el mensaje.
+// El orden de una foto nueva: uno más que el mayor de su grupo, o 0 si el
+// grupo está vacío. No se usa la cantidad de fotos: después de borrar una
+// del medio, la cantidad repite un orden que ya existe, y dos fotos con el
+// mismo orden no se pueden intercambiar.
+function siguienteOrden(imagenes, tipo) {
+  const delGrupo = imagenes.filter((i) => i.tipo === tipo)
+  if (delGrupo.length === 0) return 0
+  return Math.max(...delGrupo.map((i) => i.orden)) + 1
+}
+
 function mensajeDeError(err) {
   const datos = err.response?.data
   if (!datos) return 'No se pudo completar la acción.'
@@ -391,6 +401,12 @@ export default function DetalleProducto({ esAlta = false }) {
         // El tilde de personalizado viaja acá porque en el alta todavía no
         // hay producto al que pedirle CU23 o CU24.
         const res = await crearProducto({ ...datos, es_personalizado: borrador.es_personalizado })
+        // Antes de navegar, como en Gastos: /productos/nuevo y /productos/:id
+        // dibujan este mismo componente y React Router lo reutiliza con su
+        // estado. Sin esto, la ficha mostraría "No se encontró el producto"
+        // hasta que llegue el GET del useEffect.
+        setProducto(res.data)
+        setBorrador(borradorDe(res.data))
         return res.data.id
       }
 
@@ -430,13 +446,18 @@ export default function DetalleProducto({ esAlta = false }) {
     borrador.precio !== original.precio ||
     borrador.dificultad !== original.dificultad ||
     borrador.paso_a_paso !== original.paso_a_paso ||
-    borrador.es_personalizado !== original.es_personalizado
+    // El tilde de personalizado cuenta solo en el alta: en la edición se
+    // aplica al instante (CU23 y CU24) y vive en producto, no en el borrador.
+    (esAlta && borrador.es_personalizado !== original.es_personalizado)
 
   // El botón del formulario: en un alta, además de crear, lleva a la ficha
   // del producto nuevo, que ya es una edición con las cuatro pestañas.
   async function guardarFormulario() {
     const nuevoId = await guardarDatos()
-    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/productos/${nuevoId}`)
+    // replace: el alta ya se consumió. Si quedara en el historial, Atrás
+    // volvería a /productos/nuevo con el componente reutilizado y el
+    // formulario lleno con el producto recién creado.
+    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/productos/${nuevoId}`, { replace: true })
   }
 
 
@@ -449,6 +470,7 @@ export default function DetalleProducto({ esAlta = false }) {
   // Todo lo que sigue describe un producto que existe, así que en un alta
   // no aplica y el encabezado lo omite.
   const activo = !esAlta && producto.estado === 'ACTIVO'
+  const deBaja = !esAlta && producto.estado === 'BAJA'
   const dificultad = esAlta ? null : COLOR_DIFICULTAD[producto.dificultad]
   const catalogo = esAlta ? null : estadoCatalogoFicha(producto)
   const avisoOculto = !esAlta && activo && !producto.visible_en_catalogo && motivoFuera(producto)
@@ -646,7 +668,7 @@ export default function DetalleProducto({ esAlta = false }) {
           return (
             <button
               key={p.id}
-              onClick={() => setTab(p.id)}
+              onClick={() => { setTab(p.id); setError('') }}
               disabled={deshabilitada}
               style={{
                 display: 'flex',
@@ -696,6 +718,12 @@ export default function DetalleProducto({ esAlta = false }) {
         </p>
       )}
 
+
+      {/* Un producto dado de baja es de solo lectura: el fieldset
+          deshabilitado apaga todos los controles de las cuatro pestañas
+          (campos, botones, casillas, el selector de archivo) sin tocar cada
+          uno. Reactivar queda afuera, en la cabecera, y sigue activo. */}
+      <fieldset disabled={deBaja} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
       {/* El contenedor es una grilla de una columna que en pantalla grande
           pasa a dos (formulario y panel del resumen) por la clase
@@ -784,7 +812,7 @@ export default function DetalleProducto({ esAlta = false }) {
                   // quedarían todas empatadas en el 0 que trae el modelo
                   // por defecto: entre dos con el mismo orden,
                   // intercambiarlo no cambiaría nada.
-                  orden: producto.imagenes.filter((i) => i.tipo === tipo).length,
+                  orden: siguienteOrden(producto.imagenes, tipo),
                 }),
               'Imagen subida'
             )
@@ -825,6 +853,7 @@ export default function DetalleProducto({ esAlta = false }) {
           }
         />
       )}
+      </fieldset>
 
 
       {/* Datos muestra su error adentro del formulario e Imágenes arriba

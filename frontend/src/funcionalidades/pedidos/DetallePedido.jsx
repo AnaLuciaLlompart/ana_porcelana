@@ -68,13 +68,15 @@ function borradorDe(pedido) {
 // Con qué arranca el formulario en un alta. Los dos valores que no están
 // vacíos son los mismos con los que nace un pedido en el diseño: la fecha
 // de hoy y el envío a cargo del cliente.
-const BORRADOR_VACIO = {
-  cliente: '',
-  fecha_pedido: hoy(),
-  fecha_entrega_estimada: '',
-  envio_a_cargo: 'CLIENTE',
-  direccion_entrega: '',
-  costo_entrega: '',
+function borradorVacio() {
+  return {
+    cliente: '',
+    fecha_pedido: hoy(),
+    fecha_entrega_estimada: '',
+    envio_a_cargo: 'CLIENTE',
+    direccion_entrega: '',
+    costo_entrega: '',
+  }
 }
 
 
@@ -126,7 +128,7 @@ export default function DetallePedido({ esAlta = false }) {
   // borrador del modal de filtros. El motivo es que tiene que sobrevivir al
   // cambio de pestaña: si viviera en la pestaña, pasar a Productos la
   // desmontaría y se perdería lo escrito.
-  const [borrador, setBorrador] = useState(esAlta ? BORRADOR_VACIO : null)
+  const [borrador, setBorrador] = useState(esAlta ? borradorVacio() : null)
   const [guardando, setGuardando] = useState(false)
 
   const [clientes, setClientes] = useState([])
@@ -351,6 +353,12 @@ export default function DetallePedido({ esAlta = false }) {
     try {
       if (esAlta) {
         const res = await crearPedido(datos)
+        // Antes de navegar, como en Gastos: /pedidos/nuevo y /pedidos/:id
+        // dibujan este mismo componente y React Router lo reutiliza con su
+        // estado. Sin esto, la ficha mostraría "No se encontró el pedido"
+        // hasta que llegue el GET del useEffect.
+        setPedido(res.data)
+        setBorrador(borradorDe(res.data))
         return res.data.id
       }
 
@@ -381,7 +389,9 @@ export default function DetallePedido({ esAlta = false }) {
   // del pedido nuevo, que ya es una edición con las dos pestañas.
   async function guardarFormulario() {
     const nuevoId = await guardarDatos()
-    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/pedidos/${nuevoId}`)
+    // replace: el alta ya se consumió. Si quedara en el historial, Atrás
+    // volvería a /pedidos/nuevo con el formulario lleno del pedido recién creado.
+    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/pedidos/${nuevoId}`, { replace: true })
   }
 
 

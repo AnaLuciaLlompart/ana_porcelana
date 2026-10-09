@@ -13,7 +13,7 @@ from .serializers import ResumenDeHoySerializer
 
 # Cuántos días abarca la tarjeta de entregas próximas, contando hoy: de
 # hoy a hoy + 6.
-DIAS_ENTREGAS_PROXIMAS = 7
+DIAS_ENTREGAS_PROXIMAS = 3
 
 # Hasta cuántos elementos muestra cada lista de la pantalla. El resto se
 # ve en el listado de cada módulo, adonde lleva el enlace "Ver todos".

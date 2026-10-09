@@ -62,8 +62,13 @@ class ProductoDelPedidoSerializer(serializers.ModelSerializer):
         # La fecha la maneja el ViewSet, que la actualiza cuando cambia
         # la etapa. Quien llama no la manda: si pudiera, la fecha dejaría
         # de significar "desde cuándo la pieza está en esta etapa".
+        # La etapa productiva tampoco se escribe por acá: una pieza nueva
+        # nace Pendiente, y cambiarla es CU46, con su propio serializer. Si
+        # el alta la aceptara, se podría agregar una pieza ya Terminada a un
+        # pedido Listo y esquivar la bajada automática a En producción.
         extra_kwargs = {
             'fecha_cambio_estado': {'read_only': True},
+            'estado': {'read_only': True},
         }
 
     def get_producto_tiene_materiales(self, obj):

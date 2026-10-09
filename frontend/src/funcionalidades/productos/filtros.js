@@ -28,7 +28,10 @@ export const FILTROS_VACIOS = {
 //    baja" es lo que trae también a los otros.
 function candidatosPorEstado(productos, filtros) {
   return productos.filter((p) => {
-    if (p.categorias_de_baja.length > 0) return false
+    // Con "Dados de baja" elegido, los que tienen una categoría de baja
+    // entran a la grilla: la sección de abajo se esconde con ese filtro, y
+    // si no, no se verían en ningún lado.
+    if (p.categorias_de_baja.length > 0) return filtros.estados.includes('BAJA')
 
     if (filtros.estados.length === 0) return p.estado === 'ACTIVO'
 

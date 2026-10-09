@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { ESCRITORIO_CATALOGO, INSTAGRAM_URL, INSTAGRAM_USUARIO } from '../constantes'
+import { FAVICON_CATALOGO, cambiarFavicon } from '../favicon'
 import IconoInstagram from './IconoInstagram'
 import PiePublico from './PiePublico'
 
@@ -158,6 +159,12 @@ export default function LayoutPublico() {
   // Productos abierto y Categorías cerrado.
   const [productosAbierto, setProductosAbierto] = useState(true)
   const [categoriasAbierto, setCategoriasAbierto] = useState(false)
+
+  // El ícono de la pestaña del catálogo. Se pone al montar y nunca más:
+  // si el visitante pasa a la gestión, Layout pone el suyo.
+  useEffect(() => {
+    cambiarFavicon(FAVICON_CATALOGO)
+  }, [])
 
   // El catálogo se carga UNA vez, acá, y no en cada pantalla: el listado y
   // el árbol de categorías del encabezado usan las mismas dos listas.

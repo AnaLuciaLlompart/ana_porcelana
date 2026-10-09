@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listarPedidos } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
-import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
+import { FILTROS_VACIOS, OPCIONES_ENTREGA, candidatos, contarFiltros, leerFiltrosDeLaUrl } from './filtros'
 import {
   ESTADOS,
   ICONO_BORRAR,
@@ -512,12 +512,16 @@ function EstadoVacio({ onNuevo }) {
 
 export default function Pedidos() {
   const navegar = useNavigate()
+  const [parametros] = useSearchParams()
   const [pedidos, setPedidos] = useState([])
   const [clientes, setClientes] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [busqueda, setBusqueda] = useState('')
-  const [filtros, setFiltros] = useState(FILTROS_VACIOS)
+  // Los filtros arrancan con lo que diga la URL, por los enlaces de las
+  // tarjetas de Inicio. El inicializador corre una sola vez, al montar: es
+  // la única lectura de la URL, y después manda lo que la usuaria toque.
+  const [filtros, setFiltros] = useState(() => leerFiltrosDeLaUrl(parametros))
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [pedidoEliminando, setPedidoEliminando] = useState(null)
 
@@ -593,6 +597,16 @@ export default function Pedidos() {
         setFiltros({ ...filtros, estados: filtros.estados.filter((v) => v !== valor) }),
     })
   })
+
+  if (filtros.entrega !== null) {
+    const opcion = OPCIONES_ENTREGA.find((o) => o.valor === filtros.entrega)
+
+    chips.push({
+      clave: 'entrega',
+      label: opcion.label,
+      onQuitar: () => setFiltros({ ...filtros, entrega: null }),
+    })
+  }
 
   filtros.saldo.forEach((valor) => {
     const opcion = OPCIONES_SALDO.find((o) => o.valor === valor)

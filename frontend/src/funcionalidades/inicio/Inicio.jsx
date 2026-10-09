@@ -21,10 +21,12 @@ import {
   entregaTexto,
   entregaTitle,
 } from '../pedidos/presentacion'
+import { DIAS_ENTREGAS_PROXIMAS } from '../pedidos/filtros'
 import { formatearPrecio } from '../productos/presentacion'
 import { MESES_LARGOS } from '../finanzas/periodos'
 
 import Toast from '../../componentes/Toast'
+import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 
@@ -691,7 +693,8 @@ export default function Inicio() {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div className="accesos-rapidos" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <EnlaceCatalogo />
           <AccesoRapido texto="Registrar gasto" onClick={() => navegar(`${BASE_GESTION}/gastos/nuevo`)} />
           <AccesoRapido texto="Nuevo producto" onClick={() => navegar(`${BASE_GESTION}/productos/nuevo`)} />
           <AccesoRapido texto="Nuevo pedido" onClick={() => navegar(`${BASE_GESTION}/pedidos/nuevo`)} principal />
@@ -720,13 +723,13 @@ export default function Inicio() {
               valor={datos.totales.pedidos_atrasados}
               color={datos.totales.pedidos_atrasados > 0 ? '#C0442F' : '#3D3238'}
               enlace="Ver atrasados"
-              onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
+              onClick={() => navegar(`${BASE_GESTION}/pedidos?entrega=atrasados`)}
             />
             <Tarjeta
-              titulo="ENTREGAS PRÓXIMOS 7 DÍAS"
+              titulo={`ENTREGAS PRÓXIMOS ${DIAS_ENTREGAS_PROXIMAS} DÍAS`}
               valor={datos.totales.entregas_proximas}
               enlace="Ver entregas"
-              onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
+              onClick={() => navegar(`${BASE_GESTION}/pedidos?entrega=proximos`)}
             />
             <Tarjeta
               titulo="MATERIALES POR REPONER"
@@ -738,7 +741,7 @@ export default function Inicio() {
               titulo="TE DEBEN"
               valor={formatearPrecio(datos.totales.deuda)}
               enlace="Ver pedidos con saldo"
-              onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
+              onClick={() => navegar(`${BASE_GESTION}/pedidos?saldo=pendiente`)}
             />
           </div>
 
