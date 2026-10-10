@@ -13,9 +13,10 @@ DEBUG = False
 
 # Dominios desde los que se admiten requests. Django rechaza cualquier petición dirigida a un host que no figure aca, lo que
 # protege contra ataques de cabecera Host.
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = [host for host in os.getenv('ALLOWED_HOSTS', '').split(',') if host]
 
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+CSRF_TRUSTED_ORIGINS = [origen for origen in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if origen]
+
 
 
 # Las cookies solo viajan sobre conexiones cifradas.
