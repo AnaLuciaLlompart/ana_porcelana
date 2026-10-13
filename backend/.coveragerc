@@ -1,0 +1,13 @@
+# Configuración de coverage. Se lee sola al correr `coverage run` y
+# `coverage report` desde esta carpeta.
+[run]
+# Medir todo el código de backend/, también los archivos que ninguna
+# prueba importa: sin esta línea no aparecerían en el reporte.
+source = .
+# Lo que no es código a probar.
+omit =
+    */migrations/*
+    manage.py
+    config/asgi.py
+    config/wsgi.py
+    config/settings/*

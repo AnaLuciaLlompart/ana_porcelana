@@ -42,6 +42,11 @@ Arquitectura desacoplada. El servidor de Vite hace de proxy inverso:
 reenvía `/api` y `/media` al 8000, así el navegador ve un solo origen.
 Por eso en Axios `baseURL` es `/api`, una ruta relativa.
 
+El proxy de Vite apunta a `127.0.0.1:8000` y no a `localhost:8000`: en
+esta máquina `localhost` resuelve a IPv6 (`::1`) y `runserver` escucha
+solo en IPv4, así que con `localhost` los pedidos a `/api` se quedaban
+colgados sin error.
+
 Windows 11, PowerShell en VS Code. El venv está en la raíz del
 proyecto y se activa desde `backend/` con `..\venv\Scripts\Activate.ps1`.
 
@@ -57,6 +62,13 @@ python manage.py runserver
 cd frontend
 npm run dev
 ```
+
+**Dos archivos de dependencias en `backend/`.** `requirements.txt` tiene
+lo que el sistema necesita para funcionar y es lo que se instala en el
+servidor; se edita a mano, nunca con `pip freeze`. `requirements-dev.txt`
+tiene las herramientas de revisión y prueba (`pip-audit`, y más adelante
+`coverage`), que se instalan solo en mi máquina. Es la misma separación
+que `dependencies` y `devDependencies` en `package.json`.
 
 ---
 
@@ -921,11 +933,6 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
   (34) y `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23, 31 y
   36); y `react-hooks/exhaustive-deps` en
   `funcionalidades/materiales/Materiales.jsx` (720), que es un warning.
-- **Una migración cosmética en `gastos`:** el `help_text` de
-  `Gasto.descripcion` cambió en el modelo y no en `0001_initial.py`;
-  `makemigrations --check` propone `0002_alter_gasto_descripcion`. No
-  cambia la base. Generarla y aplicarla antes de armar Docker, para que
-  `migrate` arranque limpio.
 
 
 ---
