@@ -4,6 +4,31 @@ Corren con `python manage.py test` desde `backend/`, con el venv activo.
 Una app sola: `python manage.py test <app>`. Cobertura: `coverage run
 manage.py test` y después `coverage report`.
 
+## Resumen
+
+**73 pruebas**, todas en verde, en diez apps (`usuarios` 14, `catalogo`
+10, `materiales` 9, `categorias` 4, `productos` 10, `clientes` 3,
+`pedidos` 10, `gastos` 10, `finanzas` 2, `inicio` 1).
+
+| Grupo | Pruebas |
+|---|---|
+| reglas de negocio | 33 |
+| permisos | 11 |
+| validación | 10 |
+| catálogo | 9 |
+| seguridad | 6 |
+| rendimiento | 4 |
+
+**Cobertura: 81 %** del código del backend (1.747 sentencias, 324 sin
+ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye las
+pruebas mismas, las migraciones, `manage.py`, los settings y los
+arranques asgi/wsgi (ver `.coveragerc`). Lo que más falta es el dibujo
+del PDF (`pedidos/comprobante.py`, 41 %) y las acciones de sub-recursos
+de `pedidos/views.py` y `productos/views.py` que no están en este
+listado (63 % cada uno).
+
+## Listado
+
 Grupos: permisos, seguridad, catálogo, reglas de negocio, validación,
 rendimiento.
 
@@ -21,6 +46,11 @@ rendimiento.
 | usuarios | test_post_sin_token_csrf_da_403 | Con sesión pero sin token CSRF, un POST responde 403 | Protección CSRF de SessionAuthentication | seguridad |
 | usuarios | test_cookie_de_sesion_lleva_httponly | La cookie sessionid del login lleva HttpOnly y Max-Age de 24 horas | Autenticación por sesión con cookie HttpOnly; sesión de 24 h | seguridad |
 | usuarios | test_login_bloqueado_tras_intentos_fallidos | Al quinto fallo el login responde 429 con mensaje, y la contraseña correcta tampoco entra | Bloqueo por intentos fallidos (django-axes, CU01) | seguridad |
+| usuarios | test_cerrar_sesion_deja_sin_acceso_a_la_gestion | Antes del logout la gestión responde 200; después del POST a /api/auth/logout/, 403 | Cerrar sesión (CU02) | seguridad |
+| usuarios | test_cambiar_contrasena_exige_la_actual_y_la_nueva_sirve_para_entrar | Con la actual incorrecta 400 con mensaje; con la correcta 200, la sesión sigue viva, la vieja ya no entra y la nueva sí | Modificar contraseña y update_session_auth_hash (CU03) | seguridad |
+| finanzas | test_desde_posterior_a_hasta_da_400 | GET con desde 2026-02-01 y hasta 2026-01-01 responde 400 con mensaje | Validación del período (CU61, CU62) | validación |
+| finanzas | test_los_totales_del_periodo_son_correctos | Un cobro de $4.000 y un gasto de $1.500 en marzo dan ingresos, gastos y resultado $2.500 con una fila de cada; un cobro de abril y un gasto de febrero quedan afuera | Ingresos = cobros del período; fecha__range inclusivo (CU61, CU62) | reglas de negocio |
+| inicio | test_el_resumen_cuenta_pedidos_atrasados_y_materiales_en_baja | Un pedido sin entregar con fecha vencida y un material activo en Baja se cuentan; un Entregado vencido y un discontinuado en Baja no | Resumen de Inicio: atrasados y materiales por reponer | reglas de negocio |
 | catalogo | test_metodos_distintos_de_get_dan_405 | POST, PUT, PATCH, DELETE y OPTIONS a las tres URLs del catálogo responden 405 | El catálogo es solo GET (http_method_names) | catálogo |
 | catalogo | test_el_listado_y_el_detalle_no_exponen_datos_de_gestion | Las claves del listado y del detalle son exactamente las de los serializers; sin paso a paso, materiales, estado ni es_personalizado; en imagenes solo las de resultado | Serializers propios del catálogo (CU63, CU65) | catálogo |
 | catalogo | test_no_aparece_un_producto_dado_de_baja | Un producto de baja no está en el listado y su detalle da 404 | Regla de visibilidad (CU63) | catálogo |
