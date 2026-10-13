@@ -52,3 +52,6 @@ rendimiento.
 | productos | test_la_cantidad_acepta_texto_libre | La cantidad "dos gotas" se guarda al asignar y "media plancha" al modificar | Cantidad en texto libre (CU28, CU30) | reglas de negocio |
 | productos | test_eliminar_producto_que_figura_en_un_pedido_da_400 | DELETE de un producto con ProductoDelPedido responde 400 "está en 1 pedido" y el producto sigue | Discontinuar ≠ eliminar; FK PROTECT explicada (CU22) | reglas de negocio |
 | productos | test_borrar_una_imagen_borra_el_archivo_de_media | Después del DELETE de la imagen no queda la fila ni el archivo en media | Señal post_delete de productos/apps.py (CU35) | reglas de negocio |
+| clientes | test_instagram_repetido_con_distintas_mayusculas_da_400 | POST con ' @Sofi.Delgado' cuando existe 'sofi.delgado' responde 400 "Ya tenés un cliente con ese usuario." y no crea la fila | Instagram único y normalizado en to_internal_value (CU36) | validación |
+| clientes | test_el_instagram_se_guarda_normalizado | POST con ' @Sofi.Delgado ' guarda y devuelve 'sofi.delgado' | Normalización en Model.save() y en el serializer (CU36) | validación |
+| clientes | test_eliminar_cliente_con_pedidos_da_400 | DELETE de un cliente con un pedido responde 400 con el mensaje que no ofrece baja lógica, y el cliente sigue | FK PROTECT de Pedido explicada; Cliente no tiene baja lógica (CU39) | reglas de negocio |
