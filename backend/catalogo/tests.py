@@ -110,7 +110,7 @@ class ReglaDeVisibilidad(PruebaSinSesion):
         self.assertEqual(ids(self.client.get(LISTA)), [self.visible.id])
 
     def test_reactivar_la_categoria_devuelve_al_producto(self):
-        """CU16: reactivar la categoría devuelve sus productos al catálogo tal como estaban."""
+        """CU15: reactivar la categoría devuelve sus productos al catálogo tal como estaban."""
         de_baja = Categoria.objects.create(nombre='Harry Potter',
                                            estado=Categoria.Estado.BAJA)
         escondido = crear_producto('Aros Snitch')
