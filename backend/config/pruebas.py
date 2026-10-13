@@ -1,5 +1,7 @@
 import shutil
+import struct
 import tempfile
+import zlib
 from io import BytesIO
 
 from django.contrib.auth import get_user_model
@@ -84,3 +86,47 @@ def imagen_png(nombre='foto.png', ancho=4, alto=4):
     buffer = BytesIO()
     Image.new('RGB', (ancho, alto), color=(140, 90, 102)).save(buffer, format='PNG')
     return SimpleUploadedFile(nombre, buffer.getvalue(), content_type='image/png')
+
+
+# Un PNG es la firma de 8 bytes seguida de chunks. Cada chunk es: el largo
+# de los datos (4 bytes), el tipo (4 letras), los datos y un CRC-32 del
+# tipo más los datos. Pillow verifica ese CRC chunk por chunk.
+
+FIRMA_PNG = b'\x89PNG\r\n\x1a\n'
+
+
+def _chunk_png(tipo, datos):
+    return (struct.pack('>I', len(datos)) + tipo + datos
+            + struct.pack('>I', zlib.crc32(tipo + datos)))
+
+
+def png_de_mas_de_15mb(nombre='pesada.png'):
+    """Un PNG válido de 4×4 que pesa 16 MB.
+
+    Se le agrega, antes del IEND, un chunk tEXt (un comentario) de 16 MB
+    con su CRC correcto. Pillow lo abre y lo verifica bien, así que lo
+    único que lo rechaza es validar_tamano_archivo: la prueba cubre esa
+    regla y no otra.
+    """
+    base = imagen_png().read()
+    iend = _chunk_png(b'IEND', b'')
+    comentario = _chunk_png(b'tEXt', b'Comment\x00' + b'a' * (16 * 1024 * 1024))
+    return SimpleUploadedFile(
+        nombre, base[:-len(iend)] + comentario + iend, content_type='image/png',
+    )
+
+
+def png_bomba(nombre='bomba.png'):
+    """Una bomba de descompresión: la cabecera de un PNG de 30.000 × 30.000.
+
+    Son 900 millones de píxeles declarados en el IHDR y casi nada de
+    datos. Pillow compara ese tamaño con MAX_IMAGE_PIXELS al abrir el
+    archivo, antes de decodificar nada, y por encima del doble del
+    límite lanza DecompressionBombError. ImageField atrapa cualquier
+    excepción de Pillow y la convierte en "no es una imagen".
+    """
+    ihdr = struct.pack('>IIBBBBB', 30000, 30000, 8, 2, 0, 0, 0)
+    datos = (FIRMA_PNG + _chunk_png(b'IHDR', ihdr)
+             + _chunk_png(b'IDAT', zlib.compress(b'\x00'))
+             + _chunk_png(b'IEND', b''))
+    return SimpleUploadedFile(nombre, datos, content_type='image/png')
