@@ -21,3 +21,13 @@ rendimiento.
 | usuarios | test_post_sin_token_csrf_da_403 | Con sesión pero sin token CSRF, un POST responde 403 | Protección CSRF de SessionAuthentication | seguridad |
 | usuarios | test_cookie_de_sesion_lleva_httponly | La cookie sessionid del login lleva HttpOnly y Max-Age de 24 horas | Autenticación por sesión con cookie HttpOnly; sesión de 24 h | seguridad |
 | usuarios | test_login_bloqueado_tras_intentos_fallidos | Al quinto fallo el login responde 429 con mensaje, y la contraseña correcta tampoco entra | Bloqueo por intentos fallidos (django-axes, CU01) | seguridad |
+| catalogo | test_metodos_distintos_de_get_dan_405 | POST, PUT, PATCH, DELETE y OPTIONS a las tres URLs del catálogo responden 405 | El catálogo es solo GET (http_method_names) | catálogo |
+| catalogo | test_el_listado_y_el_detalle_no_exponen_datos_de_gestion | Las claves del listado y del detalle son exactamente las de los serializers; sin paso a paso, materiales, estado ni es_personalizado; en imagenes solo las de resultado | Serializers propios del catálogo (CU63, CU65) | catálogo |
+| catalogo | test_no_aparece_un_producto_dado_de_baja | Un producto de baja no está en el listado y su detalle da 404 | Regla de visibilidad (CU63) | catálogo |
+| catalogo | test_no_aparece_un_producto_personalizado | Un producto personalizado activo no está en el listado y su detalle da 404 | Regla de visibilidad (CU63) | catálogo |
+| catalogo | test_una_categoria_de_baja_retira_al_producto_aunque_tenga_otra_activa | Con una categoría de baja y otra activa, el producto no se muestra | Regla de visibilidad: alcanza con una categoría de baja | catálogo |
+| catalogo | test_reactivar_la_categoria_devuelve_al_producto | Reactivar la categoría por la API de gestión devuelve el producto al listado y al detalle | El estado de la categoría se evalúa al consultar (CU16, CU63) | catálogo |
+| catalogo | test_un_producto_sin_categorias_depende_solo_de_su_estado | Sin categorías, el producto se muestra activo y desaparece al darlo de baja | Regla de visibilidad | catálogo |
+| catalogo | test_las_categorias_del_catalogo_son_solo_las_activas | /api/catalogo/categorias/ no incluye categorías de baja | CU64 | catálogo |
+| catalogo | test_detalle_no_visible_da_el_mismo_404_que_inexistente | El detalle de un producto de baja y el de un id inexistente devuelven el mismo status y el mismo cuerpo | El visitante no distingue un producto escondido de uno que no existe (CU65) | catálogo |
+| catalogo | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres productos, cada uno con categorías e imágenes, el listado hace 3 consultas | productos_del_catalogo(): productos, categorías e imágenes prefetcheadas | rendimiento |
