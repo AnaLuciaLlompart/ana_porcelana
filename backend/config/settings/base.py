@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -25,6 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'axes',
     'usuarios',
     'materiales',
     'categorias',
@@ -46,6 +48,18 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Va último: solo revisa, cuando la respuesta ya está armada, si el
+    # login quedó bloqueado por intentos fallidos, y en ese caso la
+    # reemplaza por la de bloqueo (respuesta_bloqueo, en usuarios/views.py).
+    'axes.middleware.AxesMiddleware',
+]
+
+# authenticate() prueba los backends en este orden. El de axes va primero:
+# si el usuario + IP están bloqueados, corta ahí y la contraseña ni se
+# compara. Si no, sigue con el backend normal de Django.
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -159,6 +173,32 @@ REST_FRAMEWORK = {
 
 # Modelo de usuario propio (recomendación oficial de Django)
 AUTH_USER_MODEL = 'usuarios.Usuario'
+
+
+
+# Bloqueo del login por intentos fallidos (django-axes). El throttle
+# 'login' de arriba frena la ráfaga (5 por minuto, en memoria); esto frena
+# el goteo: los intentos se guardan en la base y persisten.
+AXES_FAILURE_LIMIT = 5                      # al quinto fallo seguido se bloquea
+AXES_COOLOFF_TIME = timedelta(minutes=30)   # cuánto dura el bloqueo
+# Se bloquea la combinación usuario + IP: un atacante desde otra IP no
+# puede dejar afuera a la usuaria, y ella no queda afuera por intentos
+# ajenos. Bloquear solo por usuario, con una sola usuaria, sería bloquear
+# el sistema entero.
+AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
+AXES_RESET_ON_SUCCESS = True                # un login correcto borra los fallos previos
+# Respuesta cuando está bloqueado: JSON con 'detail' y 429, que es lo que
+# la pantalla de login ya sabe mostrar. La de axes por defecto es HTML.
+AXES_LOCKOUT_CALLABLE = 'usuarios.views.respuesta_bloqueo'
+
+
+
+# Sesión: dura 24 horas desde la última acción, no desde el login.
+# SESSION_SAVE_EVERY_REQUEST renueva el vencimiento en cada request
+# (cuesta un UPDATE en django_session por request). El default de Django
+# son 2 semanas fijas.
+SESSION_COOKIE_AGE = 24 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
 
 
 
