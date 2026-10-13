@@ -20,7 +20,7 @@ def url(material):
 
 
 class MaterialDiscontinuado(PruebaConSesion):
-    """Un material discontinuado queda de solo lectura (CU09)."""
+    """Un material discontinuado queda de solo lectura (CU07)."""
 
     def setUp(self):
         super().setUp()
@@ -29,7 +29,7 @@ class MaterialDiscontinuado(PruebaConSesion):
         )
 
     def test_editar_material_discontinuado_da_400(self):
-        """CU07: PUT y PATCH sobre un material discontinuado responden 400 y no cambian nada."""
+        """CU06: PUT y PATCH sobre un material discontinuado responden 400 y no cambian nada."""
         for metodo, datos in (('put', {'nombre': 'Otro'}), ('patch', {'nombre': 'Otro'})):
             with self.subTest(metodo=metodo):
                 respuesta = getattr(self.client, metodo)(url(self.material), datos)
@@ -42,14 +42,14 @@ class MaterialDiscontinuado(PruebaConSesion):
         self.assertEqual(self.material.nombre, 'Acrílico rojo')
 
     def test_discontinuar_un_material_discontinuado_da_400(self):
-        """CU09: la baja lógica no se aplica dos veces."""
+        """CU07: la baja lógica no se aplica dos veces."""
         respuesta = self.client.post(f'{url(self.material)}discontinuar/')
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(respuesta.data['detail'], 'El material ya está discontinuado.')
 
 
 class EliminarMaterialEnUso(PruebaConSesion):
-    """Discontinuar ≠ eliminar: un material referenciado no se elimina (CU10)."""
+    """Discontinuar ≠ eliminar: un material referenciado no se elimina (CU09)."""
 
     def setUp(self):
         super().setUp()
@@ -79,17 +79,17 @@ class EliminarMaterialEnUso(PruebaConSesion):
         self.assertTrue(Material.objects.filter(pk=self.material.pk).exists())
 
     def test_eliminar_material_usado_en_un_producto_da_400(self):
-        """CU10: la FK PROTECT de MaterialProducto se explica con un mensaje, no con un 500."""
+        """CU09: la FK PROTECT de MaterialProducto se explica con un mensaje, no con un 500."""
         self._usar_en_un_producto()
         self._verificar_rechazo('está usado en 1 producto')
 
     def test_eliminar_material_que_figura_en_un_gasto_da_400(self):
-        """CU10: lo mismo con la FK PROTECT de MaterialDelGasto."""
+        """CU09: lo mismo con la FK PROTECT de MaterialDelGasto."""
         self._anotar_en_un_gasto()
         self._verificar_rechazo('figura en 1 gasto')
 
     def test_eliminar_material_usado_y_en_gasto_nombra_los_dos_motivos(self):
-        """CU10: el mensaje une los dos motivos con "y"."""
+        """CU09: el mensaje une los dos motivos con "y"."""
         self._usar_en_un_producto()
         self._anotar_en_un_gasto()
         self._verificar_rechazo('está usado en 1 producto y figura en 1 gasto')
