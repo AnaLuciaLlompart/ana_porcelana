@@ -1,6 +1,8 @@
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from config.pruebas import PruebaConSesion
+from productos.models import Producto
 
 from .models import Categoria
 
@@ -37,3 +39,34 @@ class CategoriaDadaDeBaja(PruebaConSesion):
                 )
         categoria.refresh_from_db()
         self.assertEqual(categoria.nombre, 'Aros')
+
+    def test_dar_de_baja_una_categoria_dada_de_baja_da_400(self):
+        """CU14: la baja lógica no se aplica dos veces."""
+        categoria = Categoria.objects.create(nombre='Aros', estado=Categoria.Estado.BAJA)
+        respuesta = self.client.post(f'{LISTA}{categoria.id}/dar_de_baja/')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'La categoría ya está dada de baja.')
+
+
+class EliminarCategoria(PruebaConSesion):
+    """Eliminar una categoría borra solo sus asociaciones, no sus productos (CU16)."""
+
+    def test_eliminar_una_categoria_no_elimina_sus_productos(self):
+        """CU16: después del DELETE el producto sigue, sin esa categoría, y visible en el catálogo."""
+        categoria = Categoria.objects.create(nombre='Aros')
+        producto = Producto.objects.create(
+            nombre='Aros Hedwig', precio_actual='1500.00',
+            dificultad=Producto.Dificultad.MEDIA,
+        )
+        producto.categorias.add(categoria)
+
+        respuesta = self.client.delete(f'{LISTA}{categoria.id}/')
+        self.assertEqual(respuesta.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Categoria.objects.filter(pk=categoria.pk).exists())
+
+        producto.refresh_from_db()
+        self.assertEqual(producto.categorias.count(), 0)
+
+        visitante = APIClient()
+        visibles = [p['id'] for p in visitante.get('/api/catalogo/productos/').data]
+        self.assertIn(producto.id, visibles)
