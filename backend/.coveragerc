@@ -4,8 +4,11 @@
 # Medir todo el código de backend/, también los archivos que ninguna
 # prueba importa: sin esta línea no aparecerían en el reporte.
 source = .
-# Lo que no es código a probar.
+# Lo que no es código a probar. Las pruebas mismas tampoco: se
+# ejecutan al 100% por definición y solo inflarían el porcentaje.
 omit =
+    */tests.py
+    config/pruebas.py
     */migrations/*
     manage.py
     config/asgi.py

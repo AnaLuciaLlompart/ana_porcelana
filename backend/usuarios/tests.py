@@ -137,3 +137,41 @@ class SeguridadDeLaSesion(PruebaSinSesion):
 
         intento = AccessAttempt.objects.get(username=USUARIA)
         self.assertGreaterEqual(intento.failures_since_start, limite)
+
+
+class CerrarSesionYCambiarContrasena(PruebaConSesion):
+    """CU02 y CU03, con la usuaria ya adentro."""
+
+    def test_cerrar_sesion_deja_sin_acceso_a_la_gestion(self):
+        """CU02: antes del logout la gestión responde 200; después, 403."""
+        self.assertEqual(self.client.get('/api/materiales/').status_code, status.HTTP_200_OK)
+        respuesta = self.client.post('/api/auth/logout/')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.get('/api/materiales/').status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_cambiar_contrasena_exige_la_actual_y_la_nueva_sirve_para_entrar(self):
+        """CU03: con la actual incorrecta da 400; con la correcta da 200, la sesión sigue y la nueva entra."""
+        nueva = 'Porcelana-nueva-2027'
+
+        respuesta = self.client.post(
+            '/api/auth/password/', {'password_actual': 'incorrecta', 'password_nueva': nueva},
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'La contraseña actual es incorrecta.')
+
+        respuesta = self.client.post(
+            '/api/auth/password/', {'password_actual': CONTRASENA, 'password_nueva': nueva},
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        # update_session_auth_hash: la sesión que hizo el cambio sigue viva.
+        self.assertEqual(self.client.get('/api/materiales/').status_code, status.HTTP_200_OK)
+
+        otro_navegador = APIClient()
+        datos = {'username': USUARIA, 'password': CONTRASENA}
+        self.assertEqual(otro_navegador.post('/api/auth/login/', datos, format='json').status_code,
+                         status.HTTP_401_UNAUTHORIZED)
+        datos['password'] = nueva
+        self.assertEqual(otro_navegador.post('/api/auth/login/', datos, format='json').status_code,
+                         status.HTTP_200_OK)
