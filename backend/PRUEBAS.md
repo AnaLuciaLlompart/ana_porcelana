@@ -31,3 +31,12 @@ rendimiento.
 | catalogo | test_las_categorias_del_catalogo_son_solo_las_activas | /api/catalogo/categorias/ no incluye categorías de baja | CU64 | catálogo |
 | catalogo | test_detalle_no_visible_da_el_mismo_404_que_inexistente | El detalle de un producto de baja y el de un id inexistente devuelven el mismo status y el mismo cuerpo | El visitante no distingue un producto escondido de uno que no existe (CU65) | catálogo |
 | catalogo | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres productos, cada uno con categorías e imágenes, el listado hace 3 consultas | productos_del_catalogo(): productos, categorías e imágenes prefetcheadas | rendimiento |
+| materiales | test_editar_material_discontinuado_da_400 | PUT y PATCH sobre un material discontinuado responden 400 con mensaje y no cambian nada | Una entidad de baja queda de solo lectura (CU07, CU09) | reglas de negocio |
+| materiales | test_discontinuar_un_material_discontinuado_da_400 | POST discontinuar sobre uno ya discontinuado responde 400 con mensaje | Baja lógica (CU09) | reglas de negocio |
+| materiales | test_eliminar_material_usado_en_un_producto_da_400 | DELETE de un material con MaterialProducto responde 400 "está usado en 1 producto" y el material sigue | Discontinuar ≠ eliminar; FK PROTECT explicada (CU10) | reglas de negocio |
+| materiales | test_eliminar_material_que_figura_en_un_gasto_da_400 | DELETE de un material con MaterialDelGasto responde 400 "figura en 1 gasto" | FK PROTECT de MaterialDelGasto (CU10) | reglas de negocio |
+| materiales | test_eliminar_material_usado_y_en_gasto_nombra_los_dos_motivos | Con las dos referencias, el mensaje dice "está usado en 1 producto y figura en 1 gasto" | Mensaje de MaterialViewSet.destroy (CU10) | reglas de negocio |
+| materiales | test_una_imagen_valida_se_guarda | Control: un PNG real da 201 y la ruta queda bajo /media/materiales/ | ImageField (CU04) | validación |
+| materiales | test_un_archivo_que_no_es_imagen_da_400 | Un archivo con extensión .png que no es imagen responde 400 y no deja fila ni archivo | Pillow valida que sea una imagen real | validación |
+| materiales | test_una_imagen_de_mas_de_15_mb_da_400 | Un PNG válido de 16 MB responde 400 "La imagen pesa 16.0 MB y el máximo son 15 MB." | validar_tamano_archivo | validación |
+| materiales | test_una_bomba_de_descompresion_da_400 | Un PNG que declara 30.000 × 30.000 píxeles responde 400, no 500 | Pillow rechaza la bomba al abrir; ImageField la convierte en 400 | seguridad |
