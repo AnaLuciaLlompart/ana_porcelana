@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.http import JsonResponse
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -11,6 +13,22 @@ from rest_framework import status
 
 class LoginThrottle(AnonRateThrottle):
     scope = 'login'
+
+
+def respuesta_bloqueo(request, respuesta_original, credenciales):
+    """Respuesta del login cuando axes bloqueó al usuario + IP.
+
+    La llama AxesMiddleware (AXES_LOCKOUT_CALLABLE en base.py) en lugar
+    de la respuesta de la vista. Devuelve 429 con 'detail', el mismo
+    formato que el throttle y que la pantalla de login ya muestra. Los
+    minutos salen de AXES_COOLOFF_TIME para no repetir el número.
+    """
+    minutos = int(settings.AXES_COOLOFF_TIME.total_seconds() // 60)
+    return JsonResponse(
+        {'detail': f'Demasiados intentos fallidos. Esperá {minutos} minutos '
+                   'y volvé a intentar.'},
+        status=status.HTTP_429_TOO_MANY_REQUESTS,
+    )
 
 
 
@@ -75,7 +93,11 @@ def iniciar_sesion(request):
 
     # si ambos campos fueron llenados, usa authenticate()
     # authenticate toma los campos, revisa que username este en auth_users, calcula el hash y compara con django_auth. Devuelve el objeto o None
-    usuario = authenticate(request, username=username, password=password)
+    # Se le pasa request._request, el HttpRequest de Django que va adentro
+    # del request de DRF: axes marca el bloqueo sobre el objeto que recibe,
+    # y AxesMiddleware lo busca en el de Django. Con el envoltorio de DRF
+    # la marca quedaba en el envoltorio y el middleware no la veía.
+    usuario = authenticate(request._request, username=username, password=password)
 
     if usuario is None:
         return Response(
