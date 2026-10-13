@@ -63,6 +63,19 @@ class PrecioCongelado(PruebaDePedido):
         self.assertEqual(pedido['total'], '5000.00')
 
 
+class IdDeProductoInvalido(PruebaDePedido):
+    """Un id que no es un número se rechaza con 400, no con 500 (CU44)."""
+
+    def test_un_id_de_producto_que_es_lista_u_objeto_da_400(self):
+        """CU44: {"producto": [1]} y {"producto": {}} responden 400 con el mensaje de id inexistente."""
+        for cuerpo in ({'producto': [1]}, {'producto': {'id': 1}}):
+            with self.subTest(cuerpo=cuerpo):
+                respuesta = self.client.post(url(self.pedido, 'productos/'), cuerpo, format='json')
+                self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(respuesta.data['detail'], 'No existe un producto con ese id.')
+        self.assertEqual(ProductoDelPedido.objects.count(), 0)
+
+
 class CobrosDelPedido(PruebaDePedido):
     """El saldo y las dos reglas entre filas de los cobros (CU48)."""
 

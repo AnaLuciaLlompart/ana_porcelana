@@ -377,7 +377,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         try:
             producto = Producto.objects.get(pk=producto_id)
-        except (Producto.DoesNotExist, ValueError):
+        except (Producto.DoesNotExist, ValueError, TypeError):
             return Response(
                 {'detail': 'No existe un producto con ese id.'},
                 status=status.HTTP_400_BAD_REQUEST,
