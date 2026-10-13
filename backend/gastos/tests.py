@@ -108,6 +108,15 @@ class MontoDelGastoDeMateriales(GastoDeMateriales):
         self.assertEqual(respuesta.data['monto'], '0.00')
         self.assertEqual(self.monto_en_la_base(), '0.00')
 
+    def test_un_id_de_material_que_es_lista_u_objeto_da_400(self):
+        """CU56: {"material": [1]} y {"material": {}} responden 400 con el mensaje de id inexistente."""
+        for cuerpo in ({'material': [1]}, {'material': {'id': 1}}):
+            with self.subTest(cuerpo=cuerpo):
+                respuesta = self.client.post(f'{self.url}materiales/', cuerpo, format='json')
+                self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(respuesta.data['detail'], 'No existe un material con ese id.')
+        self.assertEqual(MaterialDelGasto.objects.count(), 0)
+
     def test_registrar_el_mismo_material_dos_veces_da_400(self):
         """CU56: la segunda fila del mismo material responde 400 con mensaje, no el IntegrityError."""
         porcelana = Material.objects.create(nombre='Porcelana')

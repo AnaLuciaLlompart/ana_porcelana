@@ -257,7 +257,7 @@ class GastoViewSet(viewsets.ModelViewSet):
 
         try:
             material = Material.objects.get(pk=material_id)
-        except (Material.DoesNotExist, ValueError):
+        except (Material.DoesNotExist, ValueError, TypeError):
             return Response(
                 {'detail': 'No existe un material con ese id.'},
                 status=status.HTTP_400_BAD_REQUEST,
