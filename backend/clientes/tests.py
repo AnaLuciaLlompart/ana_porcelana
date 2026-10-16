@@ -1,6 +1,6 @@
 from rest_framework import status
 
-from config.pruebas import PruebaConSesion
+from pruebas.base import PruebaConSesion
 from pedidos.models import Pedido
 
 from .models import Cliente

@@ -4,6 +4,11 @@ Corren con `python manage.py test` desde `backend/`, con el venv activo.
 Una app sola: `python manage.py test <app>`. Cobertura: `coverage run
 manage.py test` y después `coverage report`.
 
+Las pruebas viven en el `tests.py` de cada app. Lo que comparten
+(`PruebaSinSesion`, `PruebaConSesion`, los ayudantes de imágenes) está
+en `pruebas/base.py`, en esta misma app, que no es una funcionalidad
+sino la infraestructura de pruebas y las herramientas de administración.
+
 ## Resumen
 
 **73 pruebas**, todas en verde, en diez apps (`usuarios` 14, `catalogo`

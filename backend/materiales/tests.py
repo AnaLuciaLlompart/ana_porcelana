@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 
-from config.pruebas import (
+from pruebas.base import (
     PruebaConSesion, imagen_png, media_temporal, png_bomba, png_de_mas_de_15mb,
 )
 from gastos.models import Gasto, MaterialDelGasto

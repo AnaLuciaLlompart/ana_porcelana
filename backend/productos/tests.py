@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 
 from categorias.models import Categoria
 from clientes.models import Cliente
-from config.pruebas import (
+from pruebas.base import (
     USUARIA, PruebaConSesion, PruebaSinSesion, imagen_png, media_temporal,
 )
 from materiales.models import Material

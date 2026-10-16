@@ -14,8 +14,9 @@ from rest_framework.test import APITestCase
 # =====================================================================
 # BASE COMPARTIDA DE LAS PRUEBAS
 # =====================================================================
-# Lo que necesita más de una app para probarse. Vive en config por el
-# mismo motivo que validadores.py: ninguna app debería importar de otra.
+# Lo que necesita más de una app para probarse. Vive en la app pruebas,
+# que no es una funcionalidad sino la infraestructura de pruebas: así
+# ninguna app importa de otra, y los tests.py de todas importan de acá.
 
 USUARIA = 'ana'
 CONTRASENA = 'Porcelana-fria-2026'

@@ -8,7 +8,7 @@ source = .
 # ejecutan al 100% por definición y solo inflarían el porcentaje.
 omit =
     */tests.py
-    config/pruebas.py
+    pruebas/*
     */migrations/*
     manage.py
     config/asgi.py

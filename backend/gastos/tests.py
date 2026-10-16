@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import status
 
-from config.pruebas import USUARIA, PruebaConSesion, PruebaSinSesion
+from pruebas.base import USUARIA, PruebaConSesion, PruebaSinSesion
 from materiales.models import Material
 
 from .models import Gasto, MaterialDelGasto

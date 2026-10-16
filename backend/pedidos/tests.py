@@ -3,7 +3,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from clientes.models import Cliente
-from config.pruebas import USUARIA, PruebaConSesion, PruebaSinSesion
+from pruebas.base import USUARIA, PruebaConSesion, PruebaSinSesion
 from productos.models import Producto
 
 from .models import Cobro, Pedido, ProductoDelPedido

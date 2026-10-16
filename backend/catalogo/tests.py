@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from categorias.models import Categoria
-from config.pruebas import PruebaSinSesion, imagen_png, media_temporal
+from pruebas.base import PruebaSinSesion, imagen_png, media_temporal
 from productos.models import ImagenProducto, Producto
 
 LISTA = '/api/catalogo/productos/'

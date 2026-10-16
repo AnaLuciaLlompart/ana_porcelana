@@ -4,7 +4,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from clientes.models import Cliente
-from config.pruebas import PruebaConSesion
+from pruebas.base import PruebaConSesion
 from materiales.models import Material
 from pedidos.models import Pedido
 

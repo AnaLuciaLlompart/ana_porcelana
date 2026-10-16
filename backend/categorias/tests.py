@@ -1,7 +1,7 @@
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from config.pruebas import PruebaConSesion
+from pruebas.base import PruebaConSesion
 from productos.models import Producto
 
 from .models import Categoria

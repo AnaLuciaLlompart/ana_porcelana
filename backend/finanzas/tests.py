@@ -1,7 +1,7 @@
 from rest_framework import status
 
 from clientes.models import Cliente
-from config.pruebas import PruebaConSesion
+from pruebas.base import PruebaConSesion
 from gastos.models import Gasto
 from pedidos.models import Cobro, Pedido, ProductoDelPedido
 from productos.models import Producto

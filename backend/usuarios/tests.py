@@ -5,7 +5,7 @@ from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from config.pruebas import CONTRASENA, USUARIA, PruebaConSesion, PruebaSinSesion
+from pruebas.base import CONTRASENA, USUARIA, PruebaConSesion, PruebaSinSesion
 
 
 class PermisosDeLaGestion(PruebaSinSesion):

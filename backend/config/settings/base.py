@@ -37,6 +37,10 @@ INSTALLED_APPS = [
     'finanzas',
     'inicio',
     'catalogo',
+    # No es una funcionalidad: la base de los tests, PRUEBAS.md y los
+    # management commands. Instalada porque Django solo busca comandos
+    # en apps instaladas.
+    'pruebas',
 ]
 
 
