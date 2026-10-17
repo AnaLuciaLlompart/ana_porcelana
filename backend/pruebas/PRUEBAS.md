@@ -11,23 +11,23 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**73 pruebas**, todas en verde, en diez apps (`usuarios` 14, `catalogo`
+**77 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
 10, `materiales` 9, `categorias` 4, `productos` 10, `clientes` 3,
-`pedidos` 10, `gastos` 10, `finanzas` 2, `inicio` 1).
+`pedidos` 10, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 4).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 33 |
+| reglas de negocio | 36 |
 | permisos | 11 |
-| validación | 10 |
+| validación | 11 |
 | catálogo | 9 |
 | seguridad | 6 |
 | rendimiento | 4 |
 
-**Cobertura: 81 %** del código del backend (1.747 sentencias, 324 sin
-ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye las
-pruebas mismas, las migraciones, `manage.py`, los settings y los
-arranques asgi/wsgi (ver `.coveragerc`). Lo que más falta es el dibujo
+**Cobertura: 82 %** del código del backend (1.792 sentencias, 324 sin
+ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye la app
+`pruebas` entera (las pruebas y los comandos), las migraciones,
+`manage.py`, los settings y los arranques asgi/wsgi (ver `.coveragerc`). Lo que más falta es el dibujo
 del PDF (`pedidos/comprobante.py`, 41 %) y las acciones de sub-recursos
 de `pedidos/views.py` y `productos/views.py` que no están en este
 listado (63 % cada uno).
@@ -56,6 +56,10 @@ rendimiento.
 | finanzas | test_desde_posterior_a_hasta_da_400 | GET con desde 2026-02-01 y hasta 2026-01-01 responde 400 con mensaje | Validación del período (CU61, CU62) | validación |
 | finanzas | test_los_totales_del_periodo_son_correctos | Un cobro de $4.000 y un gasto de $1.500 en marzo dan ingresos, gastos y resultado $2.500 con una fila de cada; un cobro de abril y un gasto de febrero quedan afuera | Ingresos = cobros del período; fecha__range inclusivo (CU61, CU62) | reglas de negocio |
 | inicio | test_el_resumen_cuenta_pedidos_atrasados_y_materiales_en_baja | Un pedido sin entregar con fecha vencida y un material activo en Baja se cuentan; un Entregado vencido y un discontinuado en Baja no | Resumen de Inicio: atrasados y materiales por reponer | reglas de negocio |
+| pruebas | test_una_foto_grande_se_achica_a_1600_y_pesa_menos | Un JPEG de 3000×2000 subido por POST /api/materiales/ queda guardado en 1600×1067, JPEG, .jpg, y pesa menos que el subido | Achicado al subir: LADO_MAXIMO y CALIDAD_JPEG en config/imagenes.py (CU04) | reglas de negocio |
+| pruebas | test_una_imagen_chica_conserva_sus_dimensiones | Un PNG de 800×600 se guarda de 800×600 | Achicar solo si el lado mayor supera 1600 (CU04) | validación |
+| pruebas | test_la_transparencia_se_conserva_en_png | Un PNG RGBA de 2000×2000 con alfa real queda en 1600×1600, PNG, RGBA y con píxeles transparentes | usa_transparencia mira los píxeles, no el modo (CU04) | reglas de negocio |
+| pruebas | test_las_imagenes_de_producto_tambien_se_achican | Un JPEG de 2000×3000 subido por POST /api/productos/<id>/imagenes/ queda en 1067×1600, JPEG, y pesa menos | El segundo campo de imagen pasa por el mismo achicado (CU32) | reglas de negocio |
 | catalogo | test_metodos_distintos_de_get_dan_405 | POST, PUT, PATCH, DELETE y OPTIONS a las tres URLs del catálogo responden 405 | El catálogo es solo GET (http_method_names) | catálogo |
 | catalogo | test_el_listado_y_el_detalle_no_exponen_datos_de_gestion | Las claves del listado y del detalle son exactamente las de los serializers; sin paso a paso, materiales, estado ni es_personalizado; en imagenes solo las de resultado | Serializers propios del catálogo (CU63, CU65) | catálogo |
 | catalogo | test_no_aparece_un_producto_dado_de_baja | Un producto de baja no está en el listado y su detalle da 404 | Regla de visibilidad (CU63) | catálogo |

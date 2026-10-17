@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from categorias.serializers import CategoriaSerializer
+from config.imagenes import achicar_imagen
 
 from .models import ImagenProducto, MaterialProducto, Producto
 
@@ -130,6 +131,16 @@ class ImagenProductoCrearSerializer(serializers.ModelSerializer):
                 },
             },
         }
+
+    def validate_imagen(self, archivo):
+        """Reguarda la imagen achicada (config/imagenes.py).
+
+        Mismo gancho que en MaterialSerializer: corre después de que el
+        campo validó que es una imagen y que no pasa los 15 MB, y lo que
+        devuelve es lo que se guarda. Acá el archivo es obligatorio, así
+        que nunca llega None.
+        """
+        return achicar_imagen(archivo)
 
 
 

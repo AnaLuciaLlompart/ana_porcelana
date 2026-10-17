@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from config.imagenes import achicar_imagen
 from config.validadores import validar_tamano_archivo
 
 from .models import Material
@@ -84,4 +85,18 @@ class MaterialSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'estado': {'read_only': True},
         }
+
+    def validate_url_imagen(self, archivo):
+        """Reguarda la imagen achicada (config/imagenes.py).
+
+        DRF llama a validate_<campo> después de validar el campo, o sea
+        después de que Pillow confirmó que es una imagen y de que pasó
+        el validador de 15 MB. Lo que devuelve es lo que se guarda.
+        None es el formulario mandando el campo vacío para borrar la
+        imagen: no hay nada que achicar.
+        """
+        if archivo is None:
+            return archivo
+
+        return achicar_imagen(archivo)
 

@@ -4,7 +4,7 @@ import unicodedata
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -15,6 +15,7 @@ from PIL import Image
 
 from categorias.models import Categoria
 from clientes.models import Cliente
+from config.imagenes import achicar_imagen
 from gastos.models import Gasto, MaterialDelGasto
 from gastos.views import GastoViewSet
 from materiales.models import Material
@@ -307,22 +308,25 @@ class Command(BaseCommand):
         no depende de la base, así que conviven con las fotos reales.
         """
         if self.fotos_reales:
-            # Una foto real al azar. read_bytes() solo lee: la original
+            # Una foto real al azar, pasada por el mismo achicado que una
+            # subida por la API, así la base de prueba tiene lo que el
+            # sistema guarda hoy. Se abre solo para leer: la original
             # queda donde está y como está.
             origen = random.choice(self.fotos_reales)
-            datos, extension = origen.read_bytes(), origen.suffix.lower()
+            with origen.open('rb') as archivo:
+                contenido = achicar_imagen(archivo)
+            extension = PurePath(contenido.name).suffix
         else:
             color = (random.randint(60, 220), random.randint(60, 220), random.randint(60, 220))
             buffer = BytesIO()
             Image.new('RGB', (300, 300), color).save(buffer, format='PNG')
-            datos, extension = buffer.getvalue(), '.png'
+            contenido, extension = ContentFile(buffer.getvalue()), '.png'
 
         imagen = ImagenProducto(producto=producto, tipo=ImagenProducto.Tipo.RESULTADO,
                                 orden=orden)
         # save() del campo escribe el archivo por el storage (que respeta
         # upload_to='productos/') y después guarda la fila.
-        imagen.imagen.save(f'prueba-{producto.id}-{orden}{extension}',
-                           ContentFile(datos), save=True)
+        imagen.imagen.save(f'prueba-{producto.id}-{orden}{extension}', contenido, save=True)
 
     # -----------------------------------------------------------------
     # Clientes

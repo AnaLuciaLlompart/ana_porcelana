@@ -89,6 +89,19 @@ def imagen_png(nombre='foto.png', ancho=4, alto=4):
     return SimpleUploadedFile(nombre, buffer.getvalue(), content_type='image/png')
 
 
+def foto_jpeg(nombre='foto.jpg', ancho=3000, alto=2000):
+    """Un JPEG de ruido, parecido a una foto en lo que importa: pesa.
+
+    Una imagen de color liso comprime tanto que el JPEG achicado pesaría
+    MÁS que el PNG original, y una prueba de "pesa menos" fallaría por el
+    dato y no por el código. El ruido no comprime: 3000×2000 a calidad
+    92 son unos 4 MB, como una foto de celular.
+    """
+    buffer = BytesIO()
+    Image.effect_noise((ancho, alto), 40).convert('RGB').save(buffer, format='JPEG', quality=92)
+    return SimpleUploadedFile(nombre, buffer.getvalue(), content_type='image/jpeg')
+
+
 # Un PNG es la firma de 8 bytes seguida de chunks. Cada chunk es: el largo
 # de los datos (4 bytes), el tipo (4 letras), los datos y un CRC-32 del
 # tipo más los datos. Pillow verifica ese CRC chunk por chunk.
