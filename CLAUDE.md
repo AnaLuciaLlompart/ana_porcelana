@@ -78,6 +78,14 @@ Cada app de Django agrupa una funcionalidad completa (modelo, serializer,
 ViewSet, urls). El backend **no** lleva carpeta `funcionalidades`: la app
 de Django ya es esa unidad.
 
+Hay una app que **no** es una funcionalidad: `pruebas`. Es la
+infraestructura de pruebas y las herramientas de administración: la base
+compartida de los `tests.py` (`pruebas/base.py`), el listado de pruebas
+(`pruebas/PRUEBAS.md`), las pruebas que no son de una app en particular
+(`pruebas/tests.py`) y los management commands (`cargar_datos_prueba`,
+`achicar_imagenes`). No tiene modelos, vistas ni urls. `.coveragerc` la
+excluye entera.
+
 En el frontend, carpetas por funcionalidad dentro de
 `src/funcionalidades/`. Lo que usa más de una funcionalidad queda
 afuera: `api/cliente.js`, `contexto/AuthContext.jsx`,
@@ -154,6 +162,16 @@ lleva debounce, como en Categorías y Productos.
   usuaria.** Todos los módulos llevan pantalla propia en React.
 - **`ImageField`** para imágenes: guarda la ruta en la base y el
   archivo en `media/`, y Pillow valida que sea una imagen real.
+- **Las imágenes se reguardan al subir** (`config/imagenes.py`): se
+  aplica la orientación EXIF, se achican a 1600 px de lado mayor si hace
+  falta, y se guardan como JPEG 90, o PNG si usan transparencia de verdad
+  (algún píxel con alfa < 255, no el modo del archivo). Lo llaman los dos
+  serializers que reciben archivos, en `validate_<campo>`, que corre
+  después de las validaciones de imagen real y de 15 MB. El admin no pasa
+  por ahí y se acepta: es herramienta de desarrollo. Las ya guardadas se
+  pasan por `python manage.py achicar_imagenes` (`--solo-mirar` para ver
+  sin tocar; es idempotente). Salió de medir el catálogo con fotos de
+  celular de 2,3 MB: 18 MB por visita, que en Slow 4G eran 4 minutos.
 - **Gestión diseñada para escritorio y adaptada a pantalla chica al
   final**, sin rediseñar ninguna pantalla, con la técnica de la sección
   Responsive. El catálogo público sí se diseña directamente para celular.
@@ -538,13 +556,6 @@ quitar y eliminar no avisan: su efecto se ve.
 un 1 fijo le ganaría a la regla de `index.css` que baja la opacidad al
 pasar el mouse. `EncabezadoOrdenable` sigue siendo una copia local en cada
 listado (Clientes, Pedidos, Materiales y Gastos).
-
-### Las pruebas
-
-No hay pruebas automatizadas en el proyecto: `backend/gastos/tests.py`
-está vacío y los `tests.py` de las demás apps tienen solo la plantilla
-de Django. Las pruebas del sistema son manuales y quedan documentadas
-en el informe final de la tesis.
 
 
 ---
@@ -933,6 +944,77 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
   (34) y `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23, 31 y
   36); y `react-hooks/exhaustive-deps` en
   `funcionalidades/materiales/Materiales.jsx` (720), que es un warning.
+
+
+---
+
+
+
+## Pruebas
+
+**Hay 77 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
+las que no son de una app en particular (el achicado de imágenes).
+Corren con `python manage.py test` desde `backend/`; una app sola con
+`python manage.py test <app>`. El listado completo, con qué verifica
+cada una, el CU o la regla que cubre y su grupo, está en
+`pruebas/PRUEBAS.md`, que se actualiza al agregar una prueba. La
+cobertura es del 82 % (`coverage run manage.py test` y
+`coverage report`; `.coveragerc` excluye la app `pruebas`, las
+migraciones y los settings).
+
+**La base compartida vive en `pruebas/base.py`.** `PruebaSinSesion`
+limpia la caché en `setUp`, porque los throttles guardan ahí sus
+contadores y sin eso una prueba hace fallar a la siguiente con un 429 al
+azar. `PruebaConSesion` además crea la usuaria y entra con `force_login`:
+`client.login()` pasa por los backends y el de axes exige un request.
+Las de rendimiento (`assertNumQueries`) autentican con
+`force_authenticate`, que no toca la base, para contar solo las
+consultas del ViewSet: la sesión suma las suyas (leerla, leer la usuaria
+y renovarla por `SESSION_SAVE_EVERY_REQUEST`).
+
+**Las imágenes se generan en memoria** con Pillow: `imagen_png` (un PNG
+chico de un color), `foto_jpeg` (un JPEG de ruido de 4 MB, parecido a
+una foto: una imagen lisa comprime tanto que el JPEG achicado pesaría
+más y "pesa menos" fallaría por el dato), `png_de_mas_de_15mb` (válido,
+con un chunk `tEXt` de 16 MB, para que lo único que lo rechace sea
+`validar_tamano_archivo`) y `png_bomba` (una cabecera que declara 900
+millones de píxeles; Pillow la rechaza al abrir y responde 400, no 500).
+Las clases que suben archivos llevan `@media_temporal`, que apunta
+`MEDIA_ROOT` a una carpeta temporal y la borra al terminar: las pruebas
+no dejan nada en `media/`.
+
+**Convenciones:** nombres en español que dicen qué pasa y qué responde
+(`test_editar_material_discontinuado_da_400`); docstring de una o dos
+líneas con el CU según el listado oficial de la tesis; mensajes de error
+comparados contra el texto exacto; cada regla que rechaza algo va
+seguida, en la misma prueba, del caso que sí pasa. Los datos se crean
+por ORM; la operación que se prueba va por la API. CSRF se prueba con
+`APIClient(enforce_csrf_checks=True)`; el borrado de archivos por señal,
+con `captureOnCommitCallbacks(execute=True)`, porque en un `TestCase` no
+hay commit. Las pruebas manuales siguen documentadas en el informe final.
+
+**Datos de prueba para medir rendimiento.**
+`python manage.py cargar_datos_prueba --escenario 1anio|3anios
+[--fotos-reales] [--semilla N]` llena una base con los volúmenes de la
+entrevista (40 pedidos/mes, 2 productos por pedido: 500 pedidos y 150
+productos por año). Se niega a correr si el nombre de la base no termina
+en `_prueba` y pide la base vacía. Respeta las reglas del sistema
+llamando a las mismas funciones del ViewSet (`_revisar_estado`,
+`_revisar_cobro`, `_recalcular_monto`). Las imágenes que genera se
+llaman `prueba-*` en `media/productos/`: PNG de un color, o con
+`--fotos-reales` copias achicadas de las fotos reales de esa carpeta
+(las originales no se tocan). Para usarla: `ana_porcelana_prueba` existe
+en PostgreSQL; `DB_NAME=ana_porcelana_prueba` en el `.env` (y reiniciar
+`runserver`), `createsuperuser`, cargar; para empezar de nuevo,
+`flush --no-input` (borra también la usuaria) y
+`Remove-Item media\productos\prueba-*`. Al terminar,
+`DB_NAME=ana_porcelana`.
+
+**Pendiente de despliegue:** detrás del proxy inverso, axes y los
+throttles de DRF ven la IP del proxy; configurar `X-Forwarded-For`
+(`AXES_IPWARE_*` o `AXES_CLIENT_IP_CALLABLE`, y `NUM_PROXIES` en DRF)
+al armar el servidor.
 
 
 ---
