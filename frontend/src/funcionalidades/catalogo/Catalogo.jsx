@@ -212,11 +212,15 @@ export default function Catalogo() {
                 gap: 14,
               }}
             >
-              {filtrados.map((producto) => (
+              {/* La posición es sobre la lista ya filtrada y ordenada: las
+                  primeras son las que se ven al entrar, sea cual sea el
+                  filtro, y son las que cargan su foto sin esperar. */}
+              {filtrados.map((producto, indice) => (
                 <TarjetaCatalogo
                   key={producto.id}
                   producto={producto}
                   filtros={ubicacion.search}
+                  indice={indice}
                 />
               ))}
             </div>

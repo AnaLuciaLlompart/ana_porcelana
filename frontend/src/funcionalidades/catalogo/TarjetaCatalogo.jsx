@@ -16,8 +16,18 @@ import {
 // ("?categoria=3", o vacío). Viaja en el state del enlace, que no se ve en
 // la dirección, para que "Volver al catálogo" del detalle sepa a qué
 // catálogo volver.
+//
+// `indice` es la posición de la tarjeta en la grilla. Decide si la foto se
+// pide al entrar o recién cuando el visitante se acerca (loading="lazy").
 
-export default function TarjetaCatalogo({ producto, filtros }) {
+// Cuántas tarjetas cargan su foto al entrar. Son las que entran en la
+// primera pantalla de un celular (dos columnas, cuatro filas); las que
+// siguen esperan a que el visitante baje. La primera de todas va además
+// con prioridad alta: es la imagen más grande de la primera pantalla
+// (la LCP), y conviene que el navegador la pida antes que el resto.
+const PRIMERAS_SIN_LAZY = 8
+
+export default function TarjetaCatalogo({ producto, filtros, indice }) {
   const dificultad = COLOR_DIFICULTAD[producto.dificultad]
 
   return (
@@ -50,7 +60,8 @@ export default function TarjetaCatalogo({ producto, filtros }) {
           <img
             src={producto.imagen_principal}
             alt={producto.nombre}
-            loading="lazy"
+            loading={indice < PRIMERAS_SIN_LAZY ? 'eager' : 'lazy'}
+            fetchPriority={indice === 0 ? 'high' : undefined}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         ) : (

@@ -570,9 +570,21 @@ export default function LayoutPublico() {
         )}
       </header>
 
+      {/* Mientras carga el listado, el main reserva una pantalla entera:
+          así el pie nace debajo del borde inferior y, cuando llegan los
+          productos, se mueve de un lugar invisible a otro invisible, que
+          no cuenta como salto (CLS). Solo en el listado: en las páginas
+          cortas el pie tiene que seguir al final de la primera pantalla. */}
       <main
         className="catalogo-contenido"
-        style={{ flex: 1, width: '100%', maxWidth: 1200, margin: '0 auto', padding: '16px 16px 0' }}
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: 1200,
+          margin: '0 auto',
+          padding: '16px 16px 0',
+          minHeight: cargando && enCatalogo ? '100vh' : undefined,
+        }}
       >
         {cargando && (
           <p style={{ margin: 0, fontSize: 15, color: '#708085' }}>Cargando…</p>
