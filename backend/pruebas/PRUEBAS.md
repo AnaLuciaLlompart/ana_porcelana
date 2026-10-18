@@ -11,9 +11,9 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**77 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
+**78 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
 10, `materiales` 9, `categorias` 4, `productos` 10, `clientes` 3,
-`pedidos` 10, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 4).
+`pedidos` 10, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
@@ -21,7 +21,7 @@ sino la infraestructura de pruebas y las herramientas de administración.
 | permisos | 11 |
 | validación | 11 |
 | catálogo | 9 |
-| seguridad | 6 |
+| seguridad | 7 |
 | rendimiento | 4 |
 
 **Cobertura: 82 %** del código del backend (1.792 sentencias, 324 sin
@@ -60,6 +60,7 @@ rendimiento.
 | pruebas | test_una_imagen_chica_conserva_sus_dimensiones | Un PNG de 800×600 se guarda de 800×600 | Achicar solo si el lado mayor supera 1600 (CU04) | validación |
 | pruebas | test_la_transparencia_se_conserva_en_png | Un PNG RGBA de 2000×2000 con alfa real queda en 1600×1600, PNG, RGBA y con píxeles transparentes | usa_transparencia mira los píxeles, no el modo (CU04) | reglas de negocio |
 | pruebas | test_las_imagenes_de_producto_tambien_se_achican | Un JPEG de 2000×3000 subido por POST /api/productos/<id>/imagenes/ queda en 1067×1600, JPEG, y pesa menos | El segundo campo de imagen pasa por el mismo achicado (CU32) | reglas de negocio |
+| pruebas | test_ip_de_origen_toma_la_cabecera_del_proxy_o_la_de_la_conexion | Sin cabecera devuelve REMOTE_ADDR; con X-Forwarded-For devuelve su último valor, también si trae varios | La IP real detrás de nginx: config/ip.py, AXES_CLIENT_IP_CALLABLE y NUM_PROXIES en produccion.py (despliegue) | seguridad |
 | catalogo | test_metodos_distintos_de_get_dan_405 | POST, PUT, PATCH, DELETE y OPTIONS a las tres URLs del catálogo responden 405 | El catálogo es solo GET (http_method_names) | catálogo |
 | catalogo | test_el_listado_y_el_detalle_no_exponen_datos_de_gestion | Las claves del listado y del detalle son exactamente las de los serializers; sin paso a paso, materiales, estado ni es_personalizado; en imagenes solo las de resultado | Serializers propios del catálogo (CU63, CU65) | catálogo |
 | catalogo | test_no_aparece_un_producto_dado_de_baja | Un producto de baja no está en el listado y su detalle da 404 | Regla de visibilidad (CU63) | catálogo |

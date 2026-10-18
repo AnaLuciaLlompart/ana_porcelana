@@ -1,14 +1,16 @@
 from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import RequestFactory
 from PIL import Image
 from rest_framework import status
 
 from config.imagenes import LADO_MAXIMO
+from config.ip import ip_de_origen
 from materiales.models import Material
 from productos.models import ImagenProducto, Producto
 
-from .base import PruebaConSesion, foto_jpeg, imagen_png, media_temporal
+from .base import PruebaConSesion, PruebaSinSesion, foto_jpeg, imagen_png, media_temporal
 
 
 def png_con_transparencia(ancho, alto):
@@ -83,3 +85,29 @@ class AchicadoAlSubir(PruebaConSesion):
             self.assertEqual(imagen.size, (1067, LADO_MAXIMO))
             self.assertEqual(imagen.format, 'JPEG')
         self.assertLess(guardada.size, peso_original)
+
+
+class IpDeOrigen(PruebaSinSesion):
+    """Detrás de nginx, axes identifica al visitante por X-Forwarded-For
+    (config/ip.py; AXES_CLIENT_IP_CALLABLE en produccion.py)."""
+
+    def test_ip_de_origen_toma_la_cabecera_del_proxy_o_la_de_la_conexion(self):
+        """Despliegue: sin cabecera devuelve REMOTE_ADDR; con X-Forwarded-For, su último valor."""
+        fabrica = RequestFactory()
+
+        directo = fabrica.get('/api/catalogo/productos/', REMOTE_ADDR='10.0.0.5')
+        self.assertEqual(ip_de_origen(directo), '10.0.0.5')
+
+        detras_de_nginx = fabrica.get(
+            '/api/catalogo/productos/', REMOTE_ADDR='172.18.0.4',
+            HTTP_X_FORWARDED_FOR='190.1.2.3',
+        )
+        self.assertEqual(ip_de_origen(detras_de_nginx), '190.1.2.3')
+
+        # Si la cabecera trajera varios valores vale el último: es el que
+        # agregó el proxy; los anteriores pudo escribirlos el cliente.
+        con_varios = fabrica.get(
+            '/api/catalogo/productos/', REMOTE_ADDR='172.18.0.4',
+            HTTP_X_FORWARDED_FOR='1.1.1.1, 190.1.2.3',
+        )
+        self.assertEqual(ip_de_origen(con_varios), '190.1.2.3')
