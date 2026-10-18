@@ -1,0 +1,4 @@
+# Lo que NO entra en el contexto de la imagen del frontend: las
+# dependencias se instalan adentro con npm ci y dist/ se genera adentro.
+node_modules
+dist
