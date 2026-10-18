@@ -1,0 +1,11 @@
+# Lo que NO entra en la imagen del backend.
+# El .env es el de desarrollo: en el contenedor las variables llegan de
+# .env.produccion por Compose. Las fotos viven en un volumen, no en la
+# imagen. La caché y los compilados de Python se generan adentro.
+.env
+media/
+cache/
+**/__pycache__/
+**/*.pyc
+.coverage
+htmlcov/

@@ -1,0 +1,8 @@
+# Finales de línea. Git en Windows convierte a CRLF al bajar los archivos
+# (core.autocrlf=true); estos van a parar a contenedores Linux y tienen
+# que quedar con LF: un script de shell con CRLF no arranca.
+*.sh text eol=lf
+*.conf text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+.env.produccion.ejemplo text eol=lf
