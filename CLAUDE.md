@@ -952,7 +952,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 77 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 78 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -1011,10 +1011,135 @@ en PostgreSQL; `DB_NAME=ana_porcelana_prueba` en el `.env` (y reiniciar
 `Remove-Item media\productos\prueba-*`. Al terminar,
 `DB_NAME=ana_porcelana`.
 
-**Pendiente de despliegue:** detrás del proxy inverso, axes y los
-throttles de DRF ven la IP del proxy; configurar `X-Forwarded-For`
-(`AXES_IPWARE_*` o `AXES_CLIENT_IP_CALLABLE`, y `NUM_PROXIES` en DRF)
-al armar el servidor.
+
+---
+
+
+
+## Despliegue
+
+Guía de operación en `DESPLIEGUE.md` (raíz): primera vez en el servidor,
+actualizar, logs, respaldos. **Armado y verificado en la PC con Docker
+Desktop; el servidor todavía no se activó.** Servidor: Cloud Server de
+DonWeb, Ubuntu 24.04, 2 vCPU, 4 GB, anaporcelana.com.ar (con `www`).
+
+**Tres contenedores con Compose, y nada más:** `frontend` (nginx con el
+React compilado, único expuesto, 80/443), `backend` (Django + gunicorn,
+sin puerto publicado) y `db` (postgres:17). Dos volúmenes, `base` y
+`media`. Archivos: `docker-compose.yml`, `docker-compose.servidor.yml`,
+`.env.produccion.ejemplo`, `.gitattributes`, `backend/Dockerfile`,
+`backend/arrancar.sh`, `backend/.dockerignore`, `frontend/Dockerfile`,
+`frontend/.dockerignore`, `frontend/nginx/{sitio,http,https}.conf`,
+`frontend/nginx/elegir-config.sh`, `config/ip.py`.
+
+**`/admin/` no se expone:** nginx reenvía solo `/api/`. Por eso no hay
+`STATIC_ROOT`, `collectstatic` ni volumen `static`: lo único que los
+usaba era el admin, que es herramienta de desarrollo.
+
+**certbot va en el servidor, instalado con apt, no en un contenedor.**
+Modo webroot: escribe el desafío en `/var/www/certbot` y guarda los
+certificados en `/etc/letsencrypt`; las dos carpetas se montan de solo
+lectura en `frontend`. Renueva el `certbot.timer` del paquete de Ubuntu,
+y un deploy-hook en `/etc/letsencrypt/renewal-hooks/deploy/` recarga
+nginx. Los dos montajes van en `docker-compose.servidor.yml`, que en el
+servidor se copia como `docker-compose.override.yml` (Compose lo suma
+solo si existe; está en `.gitignore`): en la PC esas carpetas no existen
+y un bind mount a una ruta Linux inexistente en Windows crea carpetas
+raras. El `docker-compose.yml` base es idéntico en los dos lados y no
+usa `${}`.
+
+**nginx elige su configuración al arrancar según exista el certificado.**
+nginx no arranca si un `ssl_certificate` apunta a un archivo que no
+existe. `elegir-config.sh`, en `/docker-entrypoint.d/` (la imagen oficial
+corre esos scripts antes de nginx), copia `https.conf` si encuentra
+`/etc/letsencrypt/live/anaporcelana.com.ar/fullchain.pem` y `http.conf`
+si no. Las rutas comunes (`/api/`, `/media/`, `/assets/`, SPA) están una
+sola vez en `sitio.conf`, incluido por los dos. Así `docker compose up`
+es el mismo comando en la PC, en el servidor antes del certificado y
+después; tras emitirlo hace falta `docker compose restart frontend`. El
+dominio está escrito en `https.conf` y en `elegir-config.sh`; para
+Django, en `.env.produccion`.
+
+**`HTTPS_ACTIVO`** (variable de entorno, por defecto `si`) gobierna en
+`produccion.py` las cuatro opciones que dependen del certificado:
+`SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_SSL_REDIRECT` y
+`SECURE_HSTS_SECONDS`. Con `no` se prueba en la PC por
+`http://localhost`; si falta, quedan encendidas. `check --deploy` da 0
+avisos con `si` y exactamente W004, W008, W012 y W016 con `no`. `DEBUG`
+no es variable: `produccion.py` lo fija en False.
+
+**La IP real detrás de nginx.** nginx escribe `X-Forwarded-For` con
+`$remote_addr` (lo que él ve) y NO con `$proxy_add_x_forwarded_for`, así
+la cabecera trae un solo valor y no se puede falsificar. Del lado de
+Django, en `produccion.py`: `REST_FRAMEWORK['NUM_PROXIES'] = 1` para los
+throttles y `AXES_CLIENT_IP_CALLABLE = 'config.ip.ip_de_origen'` para
+axes (función propia de pocas líneas, en vez de sumar django-ipware;
+toma el último valor de la cabecera o `REMOTE_ADDR`). Verificado:
+`axes_list_attempts` muestra la IP del gateway de la PC (172.20.0.1), no
+la de nginx. Además `X-Forwarded-Proto $scheme` para
+`SECURE_PROXY_SSL_HEADER` y `Host $host` para `ALLOWED_HOSTS`.
+
+**Caché compartida entre workers.** Los throttles guardan contadores en
+la caché `default`; con LocMemCache cada worker de gunicorn tiene la
+suya y los límites valen por tres. `produccion.py` usa `FileBasedCache`
+en `BASE_DIR / 'cache'` (absoluta en los dos sistemas; `/tmp/...` en
+Windows cuenta como relativa y `check` avisa), git-ignorada. Verificado:
+65 pedidos al catálogo dan 60 de 200 y 5 de 429 en total, no por worker.
+axes no la necesita: guarda en la base.
+
+**`LOGGING` a consola en `produccion.py`:** con DEBUG=False, Django manda
+los errores solo a `mail_admins`, que no existe acá; sin esto un 500 no
+se vería en `docker compose logs`. `root` en WARNING: incluye los 4xx
+que Django registra y los 500.
+
+**Backend:** `python:3.11-slim` (la versión del venv), dependencias en
+una capa aparte, usuario `app` sin privilegios dueño de `/app` (y de
+`/app/media`, para que el volumen vacío copie ese dueño), `arrancar.sh`
+como CMD: `set -e`, `migrate --noinput` y `exec gunicorn` con
+`--workers 3` (2 × CPU + 1), `--forwarded-allow-ips="*"` (nginx no tiene
+IP fija en la red de Docker y nadie más llega al backend) y
+`--access-logfile -`. `migrate` va al arrancar y no en el Dockerfile
+porque al construir no hay base. psycopg2-binary se queda: la
+advertencia de psycopg2 es por conflictos de libpq con OTRAS bibliotecas
+del mismo proceso, que en un contenedor que corre solo Django no hay.
+
+**Frontend:** dos etapas, `node:24-alpine` (`npm ci`, `npm run build`)
+y `nginx:1.30-alpine`. En `sitio.conf`: `client_max_body_size 16m` (15
+MB de imagen más el sobre del multipart, así rechaza Django con su
+mensaje y nginx solo frena lo absurdo con 413); gzip de css, js, json y
+svg; `/api/` con `resolver 127.0.0.11` y `proxy_pass` por variable, para
+que un backend recreado con otra IP no deje 502; `/media/` con `alias` al
+volumen, 30 días (el storage reutiliza un nombre solo tras borrar el
+archivo), nosniff y sin autoindex; `/assets/` un año e `immutable` (Vite
+pone un hash en el nombre); `/` con `try_files $uri /index.html` y
+`no-cache`, para que cada despliegue se vea al recargar. HSTS lo manda
+Django en cada respuesta de `/api/` y el navegador lo aplica al dominio:
+nginx no lo repite, porque un `add_header` en una location anula los del
+server y habría que ponerlo en cuatro lugares.
+
+**`.env.produccion`** (git-ignorado; ejemplo en
+`.env.produccion.ejemplo`): `ENTORNO`, `SECRET_KEY`
+(`secrets.token_urlsafe(50)`: 67 caracteres sin nada que `.env` o Compose
+interpreten), `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `HTTPS_ACTIVO` y
+la base en dos ternas, `POSTGRES_*` (las lee la imagen de PostgreSQL al
+crear la base) y `DB_*` (las lee Django), que tienen que coincidir: con
+ese nombre de archivo Compose no interpola `${}` (solo lo hace desde un
+`.env` de la raíz o con `--env-file` en cada comando), así que no hay
+forma de escribirlas una vez. El healthcheck de db usa
+`pg_isready -h localhost`: por TCP, porque la primera vez la imagen
+levanta un servidor provisorio sin TCP que sin `-h` ya contestaría que
+sí.
+
+**`.gitattributes`** fija `eol=lf` en `*.sh`, `*.conf`, `Dockerfile`,
+`.dockerignore` y `.env.produccion.ejemplo`: con `core.autocrlf=true`
+saldrían con CRLF y un script con CRLF no arranca en Linux. Los dos `.sh`
+están en git con modo 100755.
+
+**Pendiente para el día del servidor:** los pasos de `DESPLIEGUE.md`.
+Desactualizados, para corregir a mano: el comentario de `wsgi.py` sobre
+runserver, el README en "ambos componentes se despliegan en un mismo
+contenedor" y la sección "Pendiente para el despliegue" (incluido el
+párrafo de psycopg2).
 
 
 ---

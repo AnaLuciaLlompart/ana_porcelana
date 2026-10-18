@@ -1,0 +1,408 @@
+# Despliegue de Ana Porcelana
+
+Cómo levantar el sistema en el servidor, actualizarlo después de un
+cambio, hacer copias de seguridad y mirar los logs. Está escrito para
+seguirlo paso a paso copiando los comandos. Todos los comandos
+`docker compose` se corren desde la carpeta del proyecto, donde está
+`docker-compose.yml`.
+
+---
+
+## Qué se levanta
+
+Tres contenedores de Docker, definidos en `docker-compose.yml`:
+
+| Contenedor | Qué es | Quién le habla |
+|---|---|---|
+| `frontend` | nginx con el React compilado. Sirve la página y las fotos, y reenvía `/api/` al backend. | Internet, en los puertos 80 (http) y 443 (https). Es el único que se ve desde afuera. |
+| `backend` | Django con gunicorn. | Solo nginx, por la red interna de Docker. |
+| `db` | PostgreSQL 17. | Solo el backend. |
+
+Y dos volúmenes, que es donde viven los datos. Los contenedores se pueden
+borrar y volver a crear; los volúmenes quedan:
+
+- `ana_porcelana_base`: la base de datos.
+- `ana_porcelana_media`: las fotos.
+
+**Lo que hay que respaldar son esos dos.**
+
+El certificado HTTPS lo maneja `certbot`, instalado en el servidor, fuera
+de Docker. Sus dos carpetas (`/etc/letsencrypt`, donde guarda los
+certificados, y `/var/www/certbot`, donde deja la prueba que Let's
+Encrypt le pide) se le prestan al contenedor `frontend` con
+`docker-compose.override.yml`, un archivo que existe solo en el servidor.
+
+Las contraseñas y el dominio no están en ningún archivo del repositorio.
+Están en `.env.produccion`, que se escribe a mano en cada máquina
+copiando `.env.produccion.ejemplo`.
+
+---
+
+## Antes de empezar: el DNS
+
+En el panel de DonWeb, el dominio `anaporcelana.com.ar` tiene que tener
+dos registros **A** apuntando a la IP del Cloud Server: uno para la raíz
+(`anaporcelana.com.ar`, a veces escrito `@`) y otro para `www`. Hasta que
+no se propaguen (de minutos a algunas horas) Let's Encrypt no puede
+emitir el certificado.
+
+Para comprobarlo desde tu PC:
+
+```powershell
+nslookup anaporcelana.com.ar
+nslookup www.anaporcelana.com.ar
+```
+
+Los dos tienen que devolver la IP del servidor.
+
+---
+
+## Primera vez en el servidor
+
+Todo esto se hace conectada al servidor por SSH, con un usuario que pueda
+usar `sudo`:
+
+```powershell
+ssh usuario@IP-DEL-SERVIDOR
+```
+
+### 1. Instalar Docker, Compose, certbot y git
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose-v2 certbot git
+sudo usermod -aG docker $USER
+```
+
+Son paquetes de Ubuntu: Docker, el complemento `docker compose`, certbot
+(el programa de Let's Encrypt) y git. La última línea te deja usar
+`docker` sin `sudo`; hace efecto cuando salís y volvés a entrar por SSH
+(`exit` y de nuevo `ssh ...`).
+
+Comprobar: `docker compose version` y `certbot --version` tienen que
+responder con un número de versión.
+
+### 2. Abrir solo los puertos que hacen falta
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+`ufw` es el firewall de Ubuntu. Quedan abiertos SSH (para poder entrar),
+80 y 443 (el sitio). PostgreSQL y gunicorn no se abren a Internet: solo
+se hablan entre contenedores.
+
+### 3. Bajar el código
+
+```bash
+cd /srv
+sudo git clone https://github.com/AnaLuciaLlompart/ana_porcelana.git
+sudo chown -R $USER:$USER ana_porcelana
+cd ana_porcelana
+```
+
+`/srv/ana_porcelana` es la carpeta del proyecto en el servidor. El resto
+de esta guía supone esa ruta; si usás otra, cambiala también en el
+deploy-hook del paso 9.
+
+### 4. Las variables de producción
+
+```bash
+cp .env.produccion.ejemplo .env.produccion
+nano .env.produccion
+```
+
+Hay que completar dos cosas; lo demás ya viene con los valores del
+servidor:
+
+- `SECRET_KEY`: una clave nueva. Se genera con
+  `python3 -c "import secrets; print(secrets.token_urlsafe(50))"` y se
+  pega después del `=`.
+- `POSTGRES_PASSWORD` y `DB_PASSWORD`: la contraseña de la base, larga y
+  la **misma** en las dos.
+
+En `nano`: Ctrl+O y Enter guarda, Ctrl+X sale.
+
+### 5. Las carpetas de certbot y el archivo del servidor
+
+```bash
+sudo mkdir -p /var/www/certbot
+cp docker-compose.servidor.yml docker-compose.override.yml
+```
+
+La carpeta es donde certbot va a dejar la prueba para Let's Encrypt. El
+archivo copiado le dice a Compose que le preste al contenedor `frontend`
+esa carpeta y la de los certificados; Compose lo lee solo, por su nombre,
+en cada comando.
+
+### 6. Levantar
+
+```bash
+docker compose up -d --build
+```
+
+La primera vez tarda varios minutos: baja las imágenes, instala las
+dependencias y compila el frontend. `-d` lo deja corriendo de fondo.
+Después:
+
+```bash
+docker compose ps
+```
+
+Los tres tienen que decir `Up`, y `db` además `(healthy)`. Al arrancar,
+el backend corre las migraciones solo.
+
+En este punto el sitio responde por http pero **todavía no funciona**: la
+configuración de producción manda todo a https, y https no existe hasta
+el paso 8. Es lo esperado.
+
+### 7. Crear la usuaria
+
+```bash
+docker compose exec backend python manage.py createsuperuser
+```
+
+Pide usuario, correo (puede quedar vacío) y contraseña. Si después vas a
+subir los datos de tu PC (ver Copias de seguridad), este usuario se
+reemplaza por el que tengas en tu base.
+
+### 8. El certificado
+
+```bash
+sudo certbot certonly --webroot -w /var/www/certbot \
+    -d anaporcelana.com.ar -d www.anaporcelana.com.ar \
+    --email TU-CORREO --agree-tos --no-eff-email
+```
+
+Qué hace: certbot deja un archivo en `/var/www/certbot`; Let's Encrypt lo
+pide por http en `anaporcelana.com.ar/.well-known/acme-challenge/...`,
+nginx (que ya está corriendo desde el paso 6) lo sirve, y con eso queda
+demostrado que el dominio es tuyo. Los certificados quedan en
+`/etc/letsencrypt/live/anaporcelana.com.ar/`. El correo es para los
+avisos de Let's Encrypt si algo falla con la renovación.
+
+nginx elige su configuración al arrancar, así que hay que reiniciarlo
+para que encuentre el certificado:
+
+```bash
+docker compose restart frontend
+docker compose logs frontend | grep -i certificado
+```
+
+Tiene que decir `Certificado encontrado: nginx atiende en https.`. Abrí
+`https://anaporcelana.com.ar`: el catálogo con el candado, y
+`https://anaporcelana.com.ar/gestion/login` para entrar.
+
+### 9. La renovación automática
+
+El certificado dura 90 días. El paquete `certbot` de Ubuntu instala un
+timer de systemd que corre `certbot renew` dos veces por día y renueva
+cuando faltan menos de 30. Comprobar que está:
+
+```bash
+systemctl list-timers certbot.timer
+```
+
+Cuando se renueva, nginx tiene que volver a leer el certificado. Eso lo
+hace un deploy-hook: un script que certbot corre solo después de renovar.
+Se crea así (es un solo comando, de la primera línea a `EOF`):
+
+```bash
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/recargar-nginx.sh > /dev/null <<'EOF'
+#!/bin/sh
+# Lo corre certbot después de renovar un certificado: nginx tiene que
+# volver a leerlo. Corre como root y desde cualquier carpeta, por eso la
+# ruta completa al proyecto.
+cd /srv/ana_porcelana && docker compose exec -T frontend nginx -s reload
+EOF
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/recargar-nginx.sh
+```
+
+Y probar la renovación en seco, sin cambiar nada:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+Tiene que terminar con `Congratulations, all simulated renewals
+succeeded`. Con eso el servidor queda completo.
+
+---
+
+## Volver a levantar después de un cambio
+
+Cuando hay código nuevo en el repositorio:
+
+```bash
+cd /srv/ana_porcelana
+git pull
+docker compose up -d --build
+```
+
+Compose vuelve a construir lo que cambió y recrea solo esos contenedores;
+el backend corre las migraciones al arrancar. El sitio se corta unos
+segundos mientras cambia. Después, `docker compose ps` y
+`docker compose logs --tail 50 backend` para ver que arrancó bien.
+
+Si lo único que cambió es `.env.produccion`, alcanza con
+`docker compose up -d` (sin `--build`).
+
+---
+
+## Ver los logs
+
+```bash
+docker compose ps                        # estado de los tres
+docker compose logs -f                   # todo, en vivo (Ctrl+C para salir)
+docker compose logs -f backend           # solo Django y gunicorn
+docker compose logs --tail 100 frontend  # las últimas 100 líneas de nginx
+```
+
+Qué hay en cada uno:
+
+- `backend`: las migraciones al arrancar, una línea por cada pedido que
+  atiende gunicorn, y los errores de Django (un 500 sale con su traza
+  completa; un 400 por un Host no permitido o un 403 por CSRF salen como
+  avisos).
+- `frontend`: una línea por cada pedido que llega a nginx, con la IP del
+  visitante, y sus errores (un `502` quiere decir que no pudo hablar con
+  el backend).
+- `db`: los mensajes de PostgreSQL.
+
+---
+
+## Copias de seguridad
+
+Los datos están en dos lugares, la base y las fotos, y se respaldan
+juntos: una base restaurada sin sus fotos muestra productos sin imagen.
+Los comandos crean los respaldos en la carpeta del proyecto, con la
+fecha en el nombre.
+
+### La base
+
+```bash
+cd /srv/ana_porcelana
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" --no-owner --no-privileges --clean --if-exists "$POSTGRES_DB"' > respaldo-base-$(date +%F).sql
+```
+
+`pg_dump` escribe la base entera como un archivo de texto con las
+órdenes para reconstruirla. Las variables entre comillas simples las lee
+el contenedor (son las de `.env.produccion`). `--clean --if-exists` hace
+que al restaurar se reemplace lo que haya.
+
+### Las fotos
+
+```bash
+docker compose cp backend:/app/media ./respaldo-media-$(date +%F)
+```
+
+Copia la carpeta `media` del volumen (con `materiales/` y `productos/`)
+a una carpeta del servidor.
+
+### Guardarlos fuera del servidor
+
+Un respaldo que vive en la misma máquina que los datos no sirve si la
+máquina se pierde. Desde tu PC, en PowerShell:
+
+```powershell
+scp usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-base-2026-10-18.sql .
+scp -r usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media-2026-10-18 .
+```
+
+(con la fecha que corresponda). Después se pueden borrar del servidor.
+
+### Restaurar
+
+Con los contenedores levantados. Primero la base:
+
+```bash
+docker compose cp respaldo-base-2026-10-18.sql db:/tmp/respaldo.sql
+docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/respaldo.sql'
+```
+
+Reemplaza todo lo que haya en la base por lo del respaldo. Después las
+fotos:
+
+```bash
+docker compose cp respaldo-media-2026-10-18/. backend:/app/media/
+docker compose exec -u root backend chown -R app:app /app/media
+```
+
+El `chown` hace falta porque `docker compose cp` deja los archivos como
+de `root`, y Django corre como el usuario `app`: sin eso podría leerlos
+pero no reemplazarlos ni borrarlos.
+
+### Subir los datos de tu PC al servidor
+
+Es una restauración, con un respaldo hecho en la PC. En PowerShell, en la
+carpeta del proyecto:
+
+```powershell
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" -U postgres --no-owner --no-privileges --clean --if-exists -f respaldo-base.sql ana_porcelana
+scp respaldo-base.sql usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/
+scp -r backend\media usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media
+```
+
+Y en el servidor, los dos pasos de Restaurar con esos nombres. El
+respaldo trae tu usuaria de desarrollo, que reemplaza a la del paso 7.
+
+---
+
+## Probar en la PC con Docker Desktop
+
+Es el mismo `docker compose up`, con `.env.produccion` armado para la PC:
+en `.env.produccion.ejemplo`, las líneas que empiezan con `PC:` dicen qué
+valor usar (`localhost`, `http://localhost`, `HTTPS_ACTIVO=no`, porque en
+la PC no hay certificado).
+
+```powershell
+Copy-Item .env.produccion.ejemplo .env.produccion
+.\venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(50))"
+# editar .env.produccion: la clave, la contraseña (dos veces) y los valores PC:
+docker compose up --build
+```
+
+Sin `-d` queda en primer plano mostrando los logs; Ctrl+C lo detiene. En
+otra terminal, `docker compose exec backend python manage.py
+createsuperuser`, y en el navegador `http://localhost`. Para comprobar la
+configuración de producción con los valores del servidor:
+
+```powershell
+docker compose exec -e HTTPS_ACTIVO=si backend python manage.py check --deploy
+```
+
+Tiene que decir `System check identified no issues`. Sin el `-e` da
+cuatro avisos, que son exactamente los de HTTPS apagado.
+
+`docker compose down` apaga y borra los contenedores pero conserva los
+volúmenes (la base y las fotos siguen al volver a levantar);
+`docker compose down -v` borra también los volúmenes.
+
+---
+
+## Si algo sale mal
+
+- **Un contenedor no queda `Up`** o se reinicia a cada rato: `docker
+  compose logs <nombre>` muestra por qué. Lo más común: una variable mal
+  escrita en `.env.produccion` (la base rechaza la contraseña) o la base
+  todavía iniciando.
+- **`502 Bad Gateway`**: nginx no pudo hablar con el backend. Pasa unos
+  segundos al arrancar, mientras corren las migraciones; si sigue,
+  `docker compose logs backend`.
+- **"No se pudo cargar el catálogo."** En el servidor antes del
+  certificado es lo esperado (paso 6). En la PC, puede ser el límite de
+  60 pedidos por minuto por IP del catálogo: esperá un minuto.
+- **certbot no emite el certificado**: el DNS todavía no apunta al
+  servidor (`nslookup`), el puerto 80 está cerrado (`sudo ufw status`),
+  falta `docker-compose.override.yml` o `/var/www/certbot` (paso 5), o
+  los contenedores no están levantados (paso 6: nginx tiene que estar
+  sirviendo el puerto 80).
+- **nginx sigue en http después de emitir el certificado**: falta el
+  `docker compose restart frontend` del paso 8.
+- **La contraseña de la usuaria se perdió**:
+  `docker compose exec backend python manage.py changepassword <usuaria>`.
+- **En la PC, el puerto 80 está ocupado**: `netstat -ano | findstr :80`
+  dice qué programa lo usa.
