@@ -1,0 +1,18 @@
+# Lo que el servidor suma a docker-compose.yml y la PC no tiene: las dos
+# carpetas de certbot, que viven en el servidor, fuera de Docker.
+#
+# En el servidor este archivo se copia como docker-compose.override.yml
+# (paso de DESPLIEGUE.md). Si ese archivo existe, Compose lo combina con
+# docker-compose.yml en cada comando sin que haya que nombrarlo; en la PC
+# no existe y Compose usa solo el base. La copia no va a git: el original
+# es este.
+services:
+  frontend:
+    volumes:
+      # Los certificados que certbot emite y renueva. Solo lectura: nginx
+      # los lee y nada los toca desde adentro del contenedor.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # La carpeta donde certbot deja el desafío de Let's Encrypt
+      # (certbot certonly --webroot -w /var/www/certbot) y nginx lo sirve
+      # en /.well-known/acme-challenge/.
+      - /var/www/certbot:/var/www/certbot:ro

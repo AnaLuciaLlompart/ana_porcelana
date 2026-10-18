@@ -1,0 +1,70 @@
+# Los tres contenedores del sistema y cómo se conectan. Se levanta con
+# `docker compose up -d --build` desde esta carpeta, en la PC y en el
+# servidor por igual; lo que el servidor tiene de más (los certificados)
+# está en docker-compose.servidor.yml.
+#
+# No hay contraseñas ni dominios acá: todo lo que cambia entre máquinas
+# está en .env.produccion (ver .env.produccion.ejemplo), que Compose les
+# pasa a los contenedores con env_file.
+
+services:
+
+  # PostgreSQL 17, la misma versión que en desarrollo. La imagen oficial
+  # crea la base y la usuaria la primera vez, con las variables POSTGRES_*
+  # de .env.produccion. Los datos viven en el volumen "base": el
+  # contenedor se puede borrar y recrear sin perderlos.
+  db:
+    image: postgres:17
+    env_file: .env.produccion
+    volumes:
+      - base:/var/lib/postgresql/data
+    # pg_isready responde cuando la base acepta conexiones. El backend
+    # espera a esto (service_healthy) antes de arrancar: si no, migrate
+    # correría contra una base que todavía está iniciando y fallaría.
+    # -h localhost pregunta por TCP, que es como se conecta el backend; la
+    # primera vez la imagen levanta un servidor provisorio sin TCP para
+    # crear la base, y sin -h ese provisorio ya contestaría que sí.
+    # $$ es un $ literal para Compose: las variables las lee el
+    # contenedor, no Compose.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Django con gunicorn (backend/Dockerfile). No publica ningún puerto:
+  # solo nginx le habla, por la red interna de Docker, con el nombre
+  # "backend". Las fotos van al volumen "media", que comparte con nginx.
+  backend:
+    build: ./backend
+    env_file: .env.produccion
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # nginx con el React compilado (frontend/Dockerfile). Es el único que
+  # se ve desde afuera: los puertos 80 y 443 de la máquina son los suyos.
+  # El 443 recién atiende cuando hay certificado (elegir-config.sh). Lee
+  # las fotos del mismo volumen que escribe el backend, de solo lectura.
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - media:/var/www/media:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# Los volúmenes: lo que sobrevive a borrar y recrear los contenedores.
+# Docker los guarda fuera de ellos, con el nombre de la carpeta como
+# prefijo (ana_porcelana_base, ana_porcelana_media). Lo que hay que
+# respaldar es esto: la base y las fotos.
+volumes:
+  base:
+  media:
