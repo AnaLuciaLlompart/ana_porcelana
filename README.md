@@ -67,9 +67,27 @@ distinto. Para evitarlo, en desarrollo el servidor de Vite actúa como
 que comienzan con `/api` o `/media`. El navegador percibe un único
 origen y nunca se dirige al puerto 8000.
 
-En producción, ambos componentes se despliegan en un mismo contenedor
-tras un servidor web que cumple la misma función. El esquema es
-equivalente; cambia únicamente quién ejecuta el reenvío.
+En producción, el sistema se despliega como tres contenedores de Docker
+coordinados por Docker Compose:
+
+```
+Internet  →  frontend              →  backend              →  db
+             nginx, puertos 80 y 443   Django + gunicorn       PostgreSQL 17
+             lee /media/               escribe /media/         volumen "base"
+                    └──── volumen "media" ────┘
+```
+
+Solo `frontend` es accesible desde Internet; nginx sirve el React
+compilado y las imágenes, y cumple la función de proxy inverso hacia
+`backend`, que se comunica con `db` por la red interna de Docker. Los
+datos persisten en dos volúmenes, uno para la base de datos y otro para
+las imágenes, que sobreviven a la destrucción y reconstrucción de los
+contenedores en cada actualización. El certificado HTTPS lo emite y
+renueva certbot (Let's Encrypt), instalado en el sistema operativo del
+servidor y no en un contenedor; nginx lo lee desde una carpeta del
+servidor montada en modo de solo lectura. El esquema del proxy es
+equivalente al de desarrollo; cambia únicamente quién ejecuta el
+reenvío.
 
 Por ese motivo, la capa que comunica el frontend con la API declara su
 dirección base como una **ruta relativa** —`/api`— en lugar de una
@@ -444,65 +462,54 @@ cualquier caso que la base de datos quede en un estado inconsistente.
 
 ---
 
-## Pendiente para el despliegue
+## Despliegue
 
-El sistema se desarrolla en un entorno local. Su puesta en producción
-requiere las siguientes tareas, ninguna de las cuales corresponde al
-código de la aplicación:
+El procedimiento operativo completo —instalación en el servidor,
+actualización, consulta de registros, copias de seguridad y
+restauración— está en [DESPLIEGUE.md](DESPLIEGUE.md). Esta sección
+resume lo que la aplicación ya contempla.
 
-**Regenerar la clave criptográfica.** La clave utilizada en desarrollo
-fue generada automáticamente por el framework y así lo indica su
-prefijo. En producción debe generarse una nueva.
+**Servidor de aplicación.** En producción Django no se sirve con
+`runserver` sino con gunicorn, que carga la aplicación a través de
+`config/wsgi.py` (`backend/arrancar.sh`).
 
-**Provisionar un volumen persistente para la carpeta de medios.** Los
-contenedores se destruyen y reconstruyen en cada actualización, y su
-contenido interno se pierde. Las imágenes que suben los usuarios deben
-residir en un directorio del servidor montado dentro del contenedor.
+**Variables de producción.** Toda la configuración que cambia entre
+máquinas —clave criptográfica, dominios permitidos, orígenes de
+confianza, credenciales de la base de datos— se lee del entorno; en el
+servidor, de un archivo `.env.produccion` que no forma parte del
+repositorio (`.env.produccion.ejemplo` documenta cada variable).
+`produccion.py` desactiva el modo de depuración, restringe las cookies al
+transporte cifrado, fuerza la redirección a HTTPS y declara la política
+de transporte estricto; `python manage.py check --deploy` no informa
+advertencias.
 
-**Definir un procedimiento de copia de seguridad completo.** Los datos
-del sistema residen en dos lugares: los registros en la base de datos y
-los archivos en la carpeta de medios. Un respaldo que contemple solo el
-primero produciría un sistema con referencias a archivos inexistentes.
+**Docker.** Las imágenes se construyen desde `backend/Dockerfile` y
+`frontend/Dockerfile`; `docker-compose.yml` levanta los tres contenedores
+y los dos volúmenes. nginx responde con `index.html` a las rutas de React
+(`try_files`), entrega `/media/` directamente desde el volumen, sin
+listado de directorio y con `nosniff`, y envía `X-Forwarded-For` con la
+dirección del visitante; DRF (`NUM_PROXIES`) y django-axes
+(`AXES_CLIENT_IP_CALLABLE`) la leen, de modo que los límites de
+peticiones y el bloqueo por intentos fallidos cuentan por visitante y no
+por proxy.
 
-**Sustituir el controlador de PostgreSQL** por su variante compilada.
-Durante el desarrollo se emplea la versión precompilada, que evita
-requerir un compilador de C; su propia documentación la desaconseja
-para producción.
+**HTTPS.** El certificado lo emite y renueva certbot, instalado en el
+sistema operativo del servidor, con el temporizador de systemd que provee
+el paquete de Ubuntu y un deploy-hook que recarga nginx. En la máquina de
+desarrollo el mismo despliegue se prueba por HTTP con la variable
+`HTTPS_ACTIVO=no`.
 
-**Aprovisionar el certificado HTTPS**, que corresponde a la
-infraestructura de despliegue y no a la aplicación.
+**Controlador de PostgreSQL.** Se conserva `psycopg2-binary`, la variante
+precompilada. Su documentación la desaconseja para producción porque
+incorpora copias propias de libpq y libssl, que pueden entrar en
+conflicto con otras bibliotecas cargadas en el mismo proceso; en un
+contenedor que ejecuta únicamente Django ese conflicto no puede
+producirse, y la variante compilada exigiría agregar un compilador de C a
+la imagen sin ningún beneficio.
 
-**Hacer que el límite de peticiones cuente por visitante.** Los
-endpoints del catálogo admiten 60 peticiones por minuto por dirección
-IP. Detrás de nginx, Django ve la dirección del proxy y no la del
-visitante, de modo que el límite se repartiría entre todos. nginx debe
-enviar la cabecera `X-Forwarded-For` y la configuración de DRF debe
-declarar cuántos proxies hay delante (`NUM_PROXIES`) para leerla.
-
-**Servir las rutas de React.** El frontend es una aplicación de una
-sola página: cualquier ruta que no corresponda a un archivo
-—`/gestion/pedidos`, `/productos/14`— debe responder con `index.html`
-(`try_files` en nginx), o recargar la página en esas direcciones
-produciría un 404.
-
-**Servir `/media/` sin listado de directorio y con `nosniff`.** Las
-imágenes las entrega nginx directamente desde el volumen de medios. Debe
-hacerlo sin `autoindex`, para que la carpeta no pueda recorrerse, y con
-la cabecera `X-Content-Type-Options: nosniff`, para que el navegador no
-interprete un archivo subido como otra cosa que una imagen.
-
-**Declarar los dominios permitidos.** `ALLOWED_HOSTS` se lee del
-archivo `.env`, como ya contempla `produccion.py`; en el servidor debe
-contener el dominio real del sitio.
-
-La configuración de producción ya contempla la desactivación del modo
-de depuración, la restricción de cookies al transporte cifrado, la
-redirección forzada a HTTPS y la política de transporte estricto.
-Puede verificarse con:
-
-```bash
-python manage.py check --deploy
-```
+**Copias de seguridad.** Los datos residen en dos lugares, la base de
+datos y la carpeta de medios, y el procedimiento de DESPLIEGUE.md los
+respalda y restaura juntos.
 
 ---
 

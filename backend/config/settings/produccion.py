@@ -28,7 +28,8 @@ CSRF_TRUSTED_ORIGINS = [origen for origen in os.getenv('CSRF_TRUSTED_ORIGINS', '
 # archivo vale igual con o sin HTTPS.
 HTTPS_ACTIVO = os.getenv('HTTPS_ACTIVO', 'si') == 'si'
 
-# Las cookies solo viajan sobre conexiones cifradas.
+# Las cookies solo viajan sobre conexiones cifradas. Depende de HTTPS_ACTIVO:
+# en el servidor (si) se exige; en la prueba local por http (no) se apaga.
 SESSION_COOKIE_SECURE = HTTPS_ACTIVO
 CSRF_COOKIE_SECURE = HTTPS_ACTIVO
 SESSION_COOKIE_HTTPONLY = True
@@ -36,12 +37,14 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 
-# Redirige a HTTPS cualquier petición que llegue por HTTP.
+# Redirige a HTTPS cualquier petición que llegue por HTTP. Depende de
+# HTTPS_ACTIVO: sin certificado no habría adónde redirigir.
 SECURE_SSL_REDIRECT = HTTPS_ACTIVO
 
 
 # Indica al navegador que use HTTPS durante un año, incluso si el
-# usuario escribe la dirección sin el protocolo.
+# usuario escribe la dirección sin el protocolo. Depende de HTTPS_ACTIVO:
+# con no, cero segundos, que es no mandar la cabecera.
 SECURE_HSTS_SECONDS = 31536000 if HTTPS_ACTIVO else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True

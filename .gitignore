@@ -11,4 +11,6 @@ node_modules/
 frontend/.env
 .env.produccion
 docker-compose.override.yml
+respaldo*.sql
+respaldo-media*/
 

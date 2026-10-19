@@ -8,7 +8,8 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
 
 #WSGI es el estándar clásico de Python para conectar una aplicación web con un servidor. Sincrónico: una petición por vez, de principio a fin.
-# no es necesario en el entorno de produccion, ya que runserver.py levanta un servidor suficientemente potente
+# En desarrollo no se usa: runserver carga la aplicacion por su cuenta. En produccion es la entrada de gunicorn
+# (backend/arrancar.sh: gunicorn config.wsgi:application), que levanta varios procesos y cada uno atiende una peticion por vez.
 
 import os
 

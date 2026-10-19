@@ -60,11 +60,15 @@ Los dos tienen que devolver la IP del servidor.
 ## Primera vez en el servidor
 
 Todo esto se hace conectada al servidor por SSH, con un usuario que pueda
-usar `sudo`:
+usar `sudo`. En los Cloud Server de DonWeb el SSH no escucha en el puerto
+22 sino en el 5807, así que hay que indicarlo:
 
 ```powershell
-ssh usuario@IP-DEL-SERVIDOR
+ssh -p 5807 usuario@IP-DEL-SERVIDOR
 ```
+
+Cada comando con `sudo` pide tu contraseña, la del usuario con el que
+entraste: el servidor no tiene `NOPASSWD` en `/etc/sudoers`.
 
 ### 1. Instalar Docker, Compose, certbot y git
 
@@ -84,16 +88,23 @@ responder con un número de versión.
 
 ### 2. Abrir solo los puertos que hacen falta
 
+Hay dos firewalls, uno detrás del otro, y los dos tienen que dejar pasar
+lo mismo. El primero es el de DonWeb, en el panel del Cloud Server: ya
+tiene abiertos 80, 443 y 5807. El segundo es `ufw`, el de Ubuntu, dentro
+del servidor:
+
 ```bash
-sudo ufw allow OpenSSH
+sudo ufw allow 5807/tcp
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-`ufw` es el firewall de Ubuntu. Quedan abiertos SSH (para poder entrar),
-80 y 443 (el sitio). PostgreSQL y gunicorn no se abren a Internet: solo
-se hablan entre contenedores.
+Quedan abiertos 5807 (SSH, para poder entrar), 80 y 443 (el sitio).
+**La regla del 5807 va antes de `enable`**: si se activa `ufw` sin ella,
+la sesión de SSH se corta y no se puede volver a entrar. PostgreSQL y
+gunicorn no se abren a Internet: solo se hablan entre contenedores.
+`sudo ufw status` muestra las reglas.
 
 ### 3. Bajar el código
 
@@ -228,7 +239,30 @@ sudo certbot renew --dry-run
 ```
 
 Tiene que terminar con `Congratulations, all simulated renewals
-succeeded`. Con eso el servidor queda completo.
+succeeded`. Con eso el HTTPS queda completo.
+
+### 10. Limpieza semanal de sesiones
+
+Cada inicio de sesión guarda una fila en la tabla `django_session`, y
+Django no borra las vencidas por su cuenta: solo deja de aceptarlas. Con
+el tiempo la tabla acumula filas que no sirven. `clearsessions` las
+borra, y cron lo corre una vez por semana:
+
+```bash
+sudo crontab -e
+```
+
+La primera vez pregunta qué editor usar: `nano` (opción 1). Al final del
+archivo, agregar esta línea y guardar:
+
+```
+0 4 * * 1 cd /srv/ana_porcelana && docker compose exec -T backend python manage.py clearsessions
+```
+
+Los cinco primeros campos son minuto, hora, día del mes, mes y día de la
+semana: los lunes a las 4:00. `-T` hace falta porque cron no tiene
+terminal. `sudo crontab -l` muestra que quedó. Con eso el servidor queda
+completo.
 
 ---
 
@@ -308,11 +342,12 @@ Un respaldo que vive en la misma máquina que los datos no sirve si la
 máquina se pierde. Desde tu PC, en PowerShell:
 
 ```powershell
-scp usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-base-2026-10-18.sql .
-scp -r usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media-2026-10-18 .
+scp -P 5807 usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-base-2026-10-18.sql .
+scp -P 5807 -r usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media-2026-10-18 .
 ```
 
-(con la fecha que corresponda). Después se pueden borrar del servidor.
+(con la fecha que corresponda). `-P` mayúscula es el puerto en `scp`, al
+revés que en `ssh`. Después se pueden borrar del servidor.
 
 ### Restaurar
 
@@ -342,11 +377,12 @@ carpeta del proyecto:
 
 ```powershell
 & "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" -U postgres --no-owner --no-privileges --clean --if-exists -f respaldo-base.sql ana_porcelana
-scp respaldo-base.sql usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/
-scp -r backend\media usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media
+scp -P 5807 respaldo-base.sql usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/
+scp -P 5807 -r backend\media usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media
 ```
 
-Y en el servidor, los dos pasos de Restaurar con esos nombres. El
+(`-P` mayúscula: el puerto, como arriba). Y en el servidor, los dos pasos
+de Restaurar con esos nombres. El
 respaldo trae tu usuaria de desarrollo, que reemplaza a la del paso 7.
 
 ---
@@ -406,3 +442,6 @@ volúmenes (la base y las fotos siguen al volver a levantar);
   `docker compose exec backend python manage.py changepassword <usuaria>`.
 - **En la PC, el puerto 80 está ocupado**: `netstat -ano | findstr :80`
   dice qué programa lo usa.
+- **No se puede entrar por SSH**: el puerto es el 5807 (`ssh -p 5807`).
+  Si se activó `ufw` sin la regla del 5807, hay que entrar por la consola
+  del panel de DonWeb y correr `sudo ufw allow 5807/tcp`.

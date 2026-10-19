@@ -1136,10 +1136,10 @@ saldrían con CRLF y un script con CRLF no arranca en Linux. Los dos `.sh`
 están en git con modo 100755.
 
 **Pendiente para el día del servidor:** los pasos de `DESPLIEGUE.md`.
-Desactualizados, para corregir a mano: el comentario de `wsgi.py` sobre
-runserver, el README en "ambos componentes se despliegan en un mismo
-contenedor" y la sección "Pendiente para el despliegue" (incluido el
-párrafo de psycopg2).
+Datos del servidor real que están ahí y no en el código: SSH en el
+puerto 5807 (`ssh -p 5807`, `scp -P 5807`), el firewall del panel de
+DonWeb con 80, 443 y 5807 (y `ufw` adentro con los mismos tres), `sudo`
+pide contraseña, y una línea de cron semanal con `clearsessions`.
 
 
 ---
