@@ -118,7 +118,9 @@ distinguir quién pregunta.
 | Django 5.2 LTS | Framework web. Aporta el ORM, las migraciones y el sistema de autenticación |
 | Django REST Framework | Capa que expone los modelos como API. Traduce a JSON y valida las peticiones entrantes |
 | PostgreSQL 17 | Base de datos relacional |
-| Pillow | Tratamiento de imágenes. Verifica que los archivos subidos sean imágenes reales |
+| Pillow | Tratamiento de imágenes. Verifica que los archivos subidos sean imágenes reales y las achica a un tamaño razonable |
+| django-axes | Bloqueo temporal tras varios intentos de login fallidos |
+| gunicorn | Servidor de aplicación para producción. Atiende las peticiones con varios procesos en paralelo |
 
 **Frontend**
 
@@ -128,6 +130,14 @@ distinguir quién pregunta.
 | Vite | Herramienta de construcción. Aporta el servidor de desarrollo y el proxy inverso |
 | React Router | Enrutamiento del lado del cliente. Determina qué pantalla corresponde a cada dirección sin recargar la página |
 | Axios | Cliente HTTP. Realiza las peticiones al backend y gestiona de forma centralizada el envío de credenciales y del token de verificación |
+
+**Despliegue**
+
+| Componente | Función |
+|---|---|
+| Docker y Docker Compose | Empaquetan el sistema en tres contenedores (frontend, backend y base de datos) para que corra igual en cualquier servidor |
+| nginx | Servidor web. Entrega la interfaz compilada y las fotos, y pasa las peticiones de /api/ al backend |
+| Let's Encrypt (certbot) | Certificado HTTPS gratuito, renovado automáticamente |
 
 ---
 
