@@ -140,9 +140,11 @@ ana_porcelana/
 │   │   ├── settings/
 │   │   │   ├── base.py          configuración común
 │   │   │   ├── desarrollo.py    depuración activa, sin HTTPS
-│   │   │   └── produccion.py    cookies cifradas y cabeceras de seguridad
+│   │   │   └── produccion.py    cookies cifradas, cabeceras de seguridad y ajustes detrás de nginx
 │   │   ├── urls.py              monta /admin/ y /api/
 │   │   ├── validadores.py       límite de tamaño de las imágenes
+│   │   ├── imagenes.py          achica las fotos al subirlas (lado máximo 1.600 px)
+│   │   ├── ip.py                IP real del visitante detrás del proxy inverso
 │   │   ├── limpieza_archivos.py señales que borran archivos del disco
 │   │   ├── wsgi.py · asgi.py    puntos de entrada para producción
 │   ├── usuarios/                modelo de usuario y autenticación
@@ -155,14 +157,33 @@ ana_porcelana/
 │   ├── finanzas/                informes económicos; sin modelos propios
 │   ├── inicio/                  datos de la pantalla de inicio; sin modelos propios
 │   ├── catalogo/                catálogo público: tres endpoints de lectura sin sesión; sin modelos propios
+│   ├── pruebas/                 pruebas automatizadas; sin modelos propios
+│   │   ├── base.py              utilidades comunes de las pruebas
+│   │   ├── tests.py             las pruebas (78)
+│   │   ├── PRUEBAS.md           qué cubre cada prueba y cómo correrlas
+│   │   └── management/commands/
+│   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
+│   │       └── achicar_imagenes.py      achica las fotos ya guardadas
 │   ├── media/                   archivos subidos (fuera de control de versiones)
 │   ├── manage.py
 │   ├── requirements.txt
+│   ├── requirements-dev.txt     dependencias solo para desarrollo y pruebas
+│   ├── .coveragerc              configuración de la cobertura de pruebas
+│   ├── Dockerfile               imagen del backend (Django + gunicorn)
+│   ├── arrancar.sh              arranque del contenedor: migraciones y gunicorn
+│   ├── .dockerignore
 │   └── .env                     (fuera de control de versiones)
 │
 ├── frontend/
 │   ├── index.html
 │   ├── vite.config.js           configuración del proxy inverso
+│   ├── Dockerfile               imagen del frontend (compila React y lo sirve con nginx)
+│   ├── .dockerignore
+│   ├── nginx/
+│   │   ├── sitio.conf           reglas comunes: archivos estáticos, /media/ y /api/
+│   │   ├── http.conf            sin certificado (solo puerto 80)
+│   │   ├── https.conf           con certificado (80 redirige a 443)
+│   │   └── elegir-config.sh     elige http o https según exista el certificado
 │   └── src/
 │       ├── api/cliente.js       cliente HTTP compartido
 │       ├── contexto/            estado de sesión compartido
@@ -186,6 +207,12 @@ ana_porcelana/
 │       └── main.jsx
 │
 ├── disenio/                     prototipos de interfaz de cada módulo
+├── evidencia/                   capturas y resultados de las pruebas
+├── docker-compose.yml           los tres contenedores: frontend, backend y db
+├── docker-compose.servidor.yml  ajustes solo para el servidor (certificado)
+├── .env.produccion.ejemplo      plantilla de variables para producción
+├── .gitattributes               fin de línea LF para scripts y configuraciones
+├── DESPLIEGUE.md                guía paso a paso para poner el sistema en el servidor
 ├── CLAUDE.md                    convenciones y decisiones cerradas
 ├── .gitignore
 └── venv/                        entorno de Python (fuera de control de versiones)
