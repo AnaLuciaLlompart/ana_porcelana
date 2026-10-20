@@ -217,7 +217,6 @@ ana_porcelana/
 │       └── main.jsx
 │
 ├── disenio/                     prototipos de interfaz de cada módulo
-├── evidencia/                   capturas y resultados de las pruebas
 ├── docker-compose.yml           los tres contenedores: frontend, backend y db
 ├── docker-compose.servidor.yml  ajustes solo para el servidor (certificado)
 ├── .env.produccion.ejemplo      plantilla de variables para producción
