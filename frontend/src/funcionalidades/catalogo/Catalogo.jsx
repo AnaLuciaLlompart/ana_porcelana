@@ -13,7 +13,7 @@ import {
   ORDENES,
   ordenarProductos,
 } from './filtros'
-import { ICONO_CERRAR, ICONO_FILTROS, QUICKSAND, textoPiezas } from './presentacion'
+import { ICONO_CERRAR, ICONO_CORAZON, ICONO_FILTROS, QUICKSAND, textoPiezas } from './presentacion'
 
 // El listado del catálogo público: CU63 (visualizar el catálogo) y CU64
 // (filtrar por categoría).
@@ -89,7 +89,27 @@ export default function Catalogo() {
             textWrap: 'pretty',
           }}
         >
-          Accesorios en porcelana fría, hechos a mano con ❤
+          {/* El corazón es un SVG y no el carácter ❤ (U+2764): Unicode lo
+              lista entre los emojis y cada sistema decide cómo dibujarlo.
+              Windows lo dibuja como texto, con el color del título; iPhone
+              y Android lo dibujan como emoji rojo. Dibujado acá sale igual
+              en todos y toma el color por currentColor. El span evita que
+              el corazón quede solo en un renglón, separado de "con". */}
+          Accesorios en porcelana fría, hechos a mano{' '}
+          <span style={{ whiteSpace: 'nowrap' }}>
+            con{' '}
+            <svg
+              width="1em"
+              height="1em"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              role="img"
+              aria-label="corazón"
+              style={{ verticalAlign: '-0.15em' }}
+            >
+              <path d={ICONO_CORAZON} />
+            </svg>
+          </span>
         </h1>
       </div>
 

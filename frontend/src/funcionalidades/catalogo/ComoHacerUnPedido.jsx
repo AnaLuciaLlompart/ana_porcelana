@@ -22,7 +22,7 @@ const PASOS = [
   {
     numero: '2',
     titulo: 'Armá tu selección',
-    texto: 'Desde cada pieza tocá "Agregar a mi selección". En Mi selección (el corazón de arriba) vas a ver todo lo elegido: ajustá cantidades con − y +, quitá lo que no quieras y anotá las aclaraciones: colores, fechas, detalles.',
+    texto: 'Desde cada pieza tocá "Agregar a mi selección". Después entrá a Mi selección, arriba a la derecha, para ajustar cantidades, quitar piezas y anotar tus aclaraciones.',
   },
   {
     numero: '3',
