@@ -206,9 +206,9 @@ export default function LayoutPublico() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [desplegableAbierto, setDesplegableAbierto] = useState(false)
 
-  // Las ramas del árbol del panel de celular. Arrancan como en el diseño:
-  // Productos abierto y Categorías cerrado.
-  const [productosAbierto, setProductosAbierto] = useState(true)
+  // Las ramas del árbol del panel de celular. Arrancan las dos cerradas:
+  // al abrir el ☰ se ven solo los renglones del primer nivel.
+  const [productosAbierto, setProductosAbierto] = useState(false)
   const [categoriasAbierto, setCategoriasAbierto] = useState(false)
 
   // El ícono de la pestaña del catálogo. Se pone al montar y nunca más:
