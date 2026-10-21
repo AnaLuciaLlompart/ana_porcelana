@@ -1,12 +1,5 @@
 import { Link } from 'react-router-dom'
-import {
-  COLOR_DIFICULTAD,
-  ICONO_CAMARA,
-  QUICKSAND,
-  formatearPrecio,
-  textoDificultad,
-  tinteDe,
-} from './presentacion'
+import { ICONO_CAMARA, QUICKSAND, formatearPrecio, tinteDe } from './presentacion'
 
 // La tarjeta de la grilla del catálogo (CU63). Toda la tarjeta es un
 // enlace al detalle del producto: es un <Link> y no un botón para que se
@@ -27,9 +20,10 @@ import {
 // (la LCP), y conviene que el navegador la pida antes que el resto.
 const PRIMERAS_SIN_LAZY = 8
 
+// La tarjeta muestra el nombre y el precio, nada más: la dificultad de
+// elaboración va solo en el detalle, porque como chip en la miniatura no
+// se entendía a qué se refería.
 export default function TarjetaCatalogo({ producto, filtros, indice }) {
-  const dificultad = COLOR_DIFICULTAD[producto.dificultad]
-
   return (
     <Link
       to={`/productos/${producto.id}`}
@@ -46,6 +40,10 @@ export default function TarjetaCatalogo({ producto, filtros, indice }) {
         overflow: 'hidden',
       }}
     >
+      {/* overflow hidden hace falta además del aspectRatio: sin él, una
+          foto vertical estira la caja a su propio alto, porque un elemento
+          no puede quedar más chico que lo que tiene adentro. Con él, todas
+          las cajas son cuadradas y la foto se recorta (object-fit cover). */}
       <div
         style={{
           aspectRatio: '1',
@@ -53,6 +51,7 @@ export default function TarjetaCatalogo({ producto, filtros, indice }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
           background: tinteDe(producto),
         }}
       >
@@ -71,7 +70,12 @@ export default function TarjetaCatalogo({ producto, filtros, indice }) {
         )}
       </div>
 
-      <div style={{ padding: '10px 12px 12px', width: '100%' }}>
+      {/* La grilla estira todas las tarjetas de una fila al alto de la más
+          alta. El precio va al pie (marginTop auto), así en la fila los
+          precios quedan alineados aunque un nombre ocupe dos renglones y
+          otro uno, y el aire que sobra queda entre el nombre y el precio,
+          no debajo del precio. */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '10px 12px 12px', width: '100%' }}>
         <p
           style={{
             margin: 0,
@@ -86,26 +90,9 @@ export default function TarjetaCatalogo({ producto, filtros, indice }) {
           {producto.nombre}
         </p>
 
-        <p style={{ margin: '4px 0 0', fontFamily: QUICKSAND, fontWeight: 700, fontSize: 15, color: '#5A7A8C' }}>
+        <p style={{ margin: 0, paddingTop: 4, marginTop: 'auto', fontFamily: QUICKSAND, fontWeight: 700, fontSize: 15, color: '#5A7A8C' }}>
           {formatearPrecio(producto.precio_actual)}
         </p>
-
-        <span
-          style={{
-            display: 'inline-block',
-            marginTop: 6,
-            padding: '3px 9px',
-            borderRadius: 20,
-            fontFamily: QUICKSAND,
-            fontWeight: 600,
-            fontSize: 12,
-            border: `1px solid ${dificultad.color}`,
-            background: dificultad.fondo,
-            color: dificultad.color,
-          }}
-        >
-          {textoDificultad(producto)}
-        </span>
       </div>
     </Link>
   )

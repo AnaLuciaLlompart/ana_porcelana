@@ -143,3 +143,42 @@ export function ordenarProductos(productos, orden) {
     return x.nombre.localeCompare(y.nombre, 'es') * signo
   })
 }
+
+
+// La búsqueda por texto del listado. Como los filtros y el orden, vive en
+// la dirección: ?busqueda=aros. Es "contiene", sin distinguir mayúsculas
+// ni acentos, en el nombre o la descripción.
+//
+// "jose" encuentra "José": NFD separa cada letra acentuada en la letra y
+// su acento, y el rango ̀-ͯ son justamente los acentos, que se
+// quitan antes de comparar en minúscula. Es sinAcentos de
+// componentes/SelectorBuscable.jsx, que no la exporta.
+function normalizar(texto) {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
+
+// LEE la búsqueda de la dirección: el texto tal cual, o vacío.
+export function leerBusqueda(parametros) {
+  return parametros.get('busqueda') ?? ''
+}
+
+
+// ESCRIBE la búsqueda: un texto en blanco no va a la dirección.
+export function escribirBusqueda(busqueda) {
+  return busqueda.trim() === '' ? {} : { busqueda }
+}
+
+
+// Los productos cuyo nombre o descripción contienen el texto. Sin texto,
+// todos.
+export function buscarProductos(productos, busqueda) {
+  const texto = normalizar(busqueda.trim())
+  if (texto === '') return productos
+
+  return productos.filter(
+    (producto) =>
+      normalizar(producto.nombre).includes(texto) ||
+      normalizar(producto.descripcion ?? '').includes(texto)
+  )
+}

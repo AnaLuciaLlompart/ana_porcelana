@@ -5,15 +5,18 @@ import FiltrosCatalogo from './FiltrosCatalogo'
 import TarjetaCatalogo from './TarjetaCatalogo'
 import {
   alternarFiltro,
+  buscarProductos,
+  escribirBusqueda,
   escribirFiltros,
   escribirOrden,
   filtrarProductos,
+  leerBusqueda,
   leerFiltros,
   leerOrden,
   ORDENES,
   ordenarProductos,
 } from './filtros'
-import { ICONO_CERRAR, ICONO_CORAZON, ICONO_FILTROS, QUICKSAND, textoPiezas } from './presentacion'
+import { ICONO_CERRAR, ICONO_CORAZON, ICONO_FILTROS, ICONO_LUPA, QUICKSAND, textoPiezas } from './presentacion'
 
 // El listado del catálogo público: CU63 (visualizar el catálogo) y CU64
 // (filtrar por categoría).
@@ -33,7 +36,12 @@ export default function Catalogo() {
   // sabe qué filtros hay.
   const idsElegidos = leerFiltros(parametros, grupos)
   const orden = leerOrden(parametros)
-  const filtrados = ordenarProductos(filtrarProductos(productos, grupos, idsElegidos), orden)
+  const busqueda = leerBusqueda(parametros)
+  const filtrados = ordenarProductos(
+    buscarProductos(filtrarProductos(productos, grupos, idsElegidos), busqueda),
+    orden
+  )
+  const hayBusqueda = busqueda.trim() !== ''
 
   // El panel de filtros solo existe en celular. Si la ventana pasa a
   // escritorio con el panel abierto, filtrosAbierto queda en true pero no
@@ -50,41 +58,89 @@ export default function Catalogo() {
     return () => document.removeEventListener('keydown', alTeclear)
   }, [panelAbierto])
 
-  // replace: true para que tildar tres filtros no deje tres pasos en el
-  // historial. Así el "atrás" del navegador sale del catálogo en vez de
-  // ir destildando de a uno.
-  //
-  // setParametros reemplaza todos los parámetros de la dirección, así que
-  // cada escritura lleva los filtros Y el orden: si no, tildar una
-  // categoría borraría el orden elegido, y al revés.
-  function alternar(id) {
+  // Todo lo que vive en la dirección se escribe junto, porque setParametros
+  // reemplaza todos los parámetros: se parte de lo que hay y se pisa solo lo
+  // que cambia. Si no, tildar una categoría borraría el orden y la búsqueda.
+  // replace: true para que tildar tres filtros o escribir seis letras no
+  // deje seis pasos en el historial: así el "atrás" del navegador sale del
+  // catálogo en vez de ir destildando de a uno.
+  function escribirDireccion(cambios) {
+    const nuevo = { ids: idsElegidos, orden, busqueda, ...cambios }
     setParametros(
-      { ...escribirFiltros(alternarFiltro(idsElegidos, id)), ...escribirOrden(orden) },
+      {
+        ...escribirFiltros(nuevo.ids),
+        ...escribirOrden(nuevo.orden),
+        ...escribirBusqueda(nuevo.busqueda),
+      },
       { replace: true }
     )
+  }
+
+  function alternar(id) {
+    escribirDireccion({ ids: alternarFiltro(idsElegidos, id) })
   }
 
   function quitarFiltros() {
-    setParametros({ ...escribirFiltros([]), ...escribirOrden(orden) }, { replace: true })
+    escribirDireccion({ ids: [] })
   }
 
   function cambiarOrden(evento) {
-    setParametros(
-      { ...escribirFiltros(idsElegidos), ...escribirOrden(evento.target.value) },
-      { replace: true }
-    )
+    escribirDireccion({ orden: evento.target.value })
   }
+
+  function cambiarBusqueda(evento) {
+    escribirDireccion({ busqueda: evento.target.value })
+  }
+
+  function limpiarBusqueda() {
+    escribirDireccion({ busqueda: '' })
+  }
+
+  // El texto "N piezas" y el desplegable de orden se dibujan en un lugar
+  // distinto según el ancho, así que se definen una vez acá y se ubican
+  // más abajo.
+  const resumen = (
+    <span style={{ fontSize: 14, color: '#708085', whiteSpace: 'nowrap' }}>{textoPiezas(filtrados.length)}</span>
+  )
+
+  const selectorDeOrden = (
+    <select
+      value={orden}
+      onChange={cambiarOrden}
+      aria-label="Ordenar por"
+      className="catalogo-campo"
+      style={{
+        minHeight: 38,
+        padding: '0 10px',
+        border: '1px solid #E0E8EB',
+        background: 'white',
+        color: '#323A3D',
+        borderRadius: 6,
+        outline: 'none',
+        cursor: 'pointer',
+        fontFamily: QUICKSAND,
+        fontWeight: 600,
+        fontSize: 14,
+      }}
+    >
+      {ORDENES.map((o) => (
+        <option key={o.valor} value={o.valor}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  )
 
   return (
     <section>
-      <div className="catalogo-portada" style={{ padding: '8px 0 24px', textAlign: 'center' }}>
+      <div className="catalogo-portada" style={{ padding: '4px 0 18px', textAlign: 'center' }}>
         <h1
           style={{
             margin: 0,
             fontFamily: QUICKSAND,
             fontWeight: 700,
-            fontSize: 28,
-            lineHeight: 1.15,
+            fontSize: 22,
+            lineHeight: 1.2,
             color: '#5A7A8C',
             textWrap: 'pretty',
           }}
@@ -144,42 +200,82 @@ export default function Catalogo() {
         )}
 
         <div style={{ minWidth: 0 }}>
-          {/* Cuántas piezas se están viendo, el orden y, solo en celular, el
-              botón que abre el panel de filtros. Si no entra todo en una
-              fila, la cantidad baja a su renglón y el grupo de la derecha
-              sigue a la derecha. */}
+          {/* Arriba de la grilla: el buscador, cuántas piezas se están
+              viendo, el orden y, solo en celular, el botón que abre el panel
+              de filtros. En celular son dos filas (buscador y Filtrar;
+              cantidad y orden); en escritorio una sola, con el buscador a la
+              izquierda y el resto a la derecha. */}
           {productos.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <span style={{ fontSize: 14, color: '#708085' }}>{textoPiezas(filtrados.length)}</span>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
-                {esEscritorio && <span style={{ fontSize: 14, color: '#708085' }}>Ordenar por</span>}
-
-                <select
-                  value={orden}
-                  onChange={cambiarOrden}
-                  aria-label="Ordenar por"
-                  className="catalogo-campo"
-                  style={{
-                    minHeight: 38,
-                    padding: '0 10px',
-                    border: '1px solid #E0E8EB',
-                    background: 'white',
-                    color: '#323A3D',
-                    borderRadius: 6,
-                    outline: 'none',
-                    cursor: 'pointer',
-                    fontFamily: QUICKSAND,
-                    fontWeight: 600,
-                    fontSize: 14,
-                  }}
-                >
-                  {ORDENES.map((o) => (
-                    <option key={o.valor} value={o.valor}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: esEscritorio ? 16 : 10,
+                  marginBottom: esEscritorio ? 16 : 10,
+                }}
+              >
+                {/* fontSize 16 es el mínimo con el que iPhone no hace zoom
+                    al enfocar un campo. catalogo-campo le gana a la regla
+                    global input:focus de index.css, que pintaría el borde
+                    rosa de la gestión. */}
+                <div style={{ position: 'relative', flex: 1, minWidth: 0, maxWidth: esEscritorio ? 360 : 'none' }}>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#708085"
+                    strokeWidth="2"
+                    style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+                  >
+                    <path strokeLinecap="round" d={ICONO_LUPA} />
+                  </svg>
+                  <input
+                    value={busqueda}
+                    onChange={cambiarBusqueda}
+                    placeholder="¿Qué estás buscando?"
+                    aria-label="Buscar"
+                    className="catalogo-campo"
+                    style={{
+                      width: '100%',
+                      minHeight: 44,
+                      padding: '8px 40px 8px 36px',
+                      border: '1px solid #E0E8EB',
+                      background: 'white',
+                      fontSize: 16,
+                      color: '#323A3D',
+                      borderRadius: 6,
+                      outline: 'none',
+                    }}
+                  />
+                  {hayBusqueda && (
+                    <button
+                      onClick={limpiarBusqueda}
+                      title="Borrar búsqueda"
+                      className="catalogo-suave"
+                      style={{
+                        position: 'absolute',
+                        right: 4,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 36,
+                        height: 36,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: 0,
+                        background: 'transparent',
+                        borderRadius: 5,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#708085" strokeWidth="2">
+                        <path strokeLinecap="round" d={ICONO_CERRAR} />
+                      </svg>
+                    </button>
+                  )}
+                </div>
 
                 {!esEscritorio && grupos.length > 0 && (
                   <button
@@ -207,15 +303,46 @@ export default function Catalogo() {
                     {idsElegidos.length > 0 ? `Filtrar (${idsElegidos.length})` : 'Filtrar'}
                   </button>
                 )}
+
+                {esEscritorio && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+                    {resumen}
+                    <span style={{ fontSize: 14, color: '#708085' }}>Ordenar por</span>
+                    {selectorDeOrden}
+                  </div>
+                )}
               </div>
-            </div>
+
+              {!esEscritorio && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  {resumen}
+                  <div style={{ marginLeft: 'auto' }}>{selectorDeOrden}</div>
+                </div>
+              )}
+            </>
           )}
 
           {productos.length === 0 && (
             <CajaMensaje titulo="Todavía no hay productos en el catálogo." />
           )}
 
-          {productos.length > 0 && filtrados.length === 0 && (
+          {/* Sin resultados por la búsqueda, la salida limpia solo la
+              búsqueda y deja los filtros; sin resultados por los filtros,
+              lleva a todo el catálogo. */}
+          {productos.length > 0 && filtrados.length === 0 && hayBusqueda && (
+            <CajaMensaje
+              titulo="No encontramos productos con ese nombre"
+              texto={
+                idsElegidos.length > 0
+                  ? 'Probá con otra palabra o quitá los filtros.'
+                  : 'Probá con otra palabra o mirá todo el catálogo.'
+              }
+              textoSalida="Limpiar búsqueda"
+              onSalida={limpiarBusqueda}
+            />
+          )}
+
+          {productos.length > 0 && filtrados.length === 0 && !hayBusqueda && (
             <CajaMensaje
               titulo="No hay piezas en esta categoría"
               texto="Probá con otra combinación o mirá todo el catálogo."

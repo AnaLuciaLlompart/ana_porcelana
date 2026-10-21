@@ -17,13 +17,15 @@ import IconoInstagram from './IconoInstagram'
 
 const QUICKSAND = "'Quicksand', sans-serif"
 
+// Los títulos de las columnas, en el celeste del precio y un poco más
+// grandes que el texto, para que se distingan de los enlaces de abajo.
 const estiloTitulo = {
   margin: '0 0 10px',
   fontFamily: QUICKSAND,
   fontWeight: 600,
-  fontSize: 13,
+  fontSize: 15,
   letterSpacing: '.06em',
-  color: '#708085',
+  color: '#5A7A8C',
 }
 
 const estiloEnlace = {

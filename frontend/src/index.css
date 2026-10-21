@@ -327,10 +327,11 @@ button:not(:disabled):hover {
    celeste suave para los botones sin fondo o con borde; borde más oscuro
    para la tarjeta de un producto y los chips de categoría del detalle;
    subrayado para lo que se lee como un enlace de texto; color celeste para
-   la barra y su desplegable; un velo blanco para los renglones del panel
-   de celular; y el enlace a Instagram del encabezado. Los !important pisan
-   el background, el border, el color y el text-decoration que esos
-   elementos ya llevan en línea. */
+   la barra y su desplegable; los renglones del panel de celular se
+   oscurecen apenas (filter no está en línea, así que va sin !important);
+   y el enlace a Instagram del encabezado. Los !important pisan el
+   background, el border, el color y el text-decoration que esos elementos
+   ya llevan en línea. */
 .catalogo-suave:hover {
   background: #E2EAF0 !important;
 }
@@ -348,7 +349,7 @@ button:not(:disabled):hover {
 }
 
 .catalogo-item-panel:hover {
-  background: rgba(255, 255, 255, 0.14) !important;
+  filter: brightness(0.97);
 }
 
 .catalogo-instagram:hover {

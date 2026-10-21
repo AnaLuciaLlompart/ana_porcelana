@@ -14,7 +14,7 @@ import {
   listarCategoriasDelCatalogo,
   listarProductosDelCatalogo,
 } from '../funcionalidades/catalogo/api'
-import { agruparCategorias, leerFiltros } from '../funcionalidades/catalogo/filtros'
+import { agruparCategorias, leerBusqueda, leerFiltros } from '../funcionalidades/catalogo/filtros'
 import {
   LARGO_MAXIMO_ACLARACIONES,
   agregar,
@@ -63,8 +63,9 @@ function useEsEscritorio() {
 
 
 // La flecha de lo que se abre y se cierra: apunta para abajo y gira cuando
-// está abierto.
-function Flecha({ lado, abierto }) {
+// está abierto. Toma el color del texto que la rodea, salvo que reciba
+// `color`: en el panel ☰ es celeste aunque el texto sea gris.
+function Flecha({ lado, abierto, color }) {
   return (
     <svg
       width={lado}
@@ -73,7 +74,7 @@ function Flecha({ lado, abierto }) {
       fill="none"
       stroke="currentColor"
       strokeWidth="2.2"
-      style={{ flexShrink: 0, transition: 'transform .15s', transform: abierto ? 'rotate(180deg)' : 'rotate(0deg)' }}
+      style={{ color, flexShrink: 0, transition: 'transform .15s', transform: abierto ? 'rotate(180deg)' : 'rotate(0deg)' }}
     >
       <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FLECHA} />
     </svg>
@@ -81,31 +82,61 @@ function Flecha({ lado, abierto }) {
 }
 
 
+// Los fondos de los tres niveles del árbol del panel de celular: cada nivel
+// un poco más oscuro que el anterior, para que la sangría se lea también
+// por el color.
+const FONDOS = ['white', '#EEF3F6', '#DCE5EC']
+
+
 // Un renglón del panel de celular. Puede ser de dos clases:
 //
-// - Con `ruta` es un enlace: lleva al catálogo o a una categoría, y se
-//   puede abrir en otra pestaña.
+// - Con `ruta` es un enlace: lleva al catálogo, a una categoría o a la
+//   selección, y se puede abrir en otra pestaña.
 // - Sin ella es un botón: abre o cierra una rama del árbol, no lleva a
 //   ningún lado. En ese caso recibe `abierto`, que dibuja la flecha.
-function ItemPanel({ texto, sangria = 10, activo = false, ruta, abierto, onClick }) {
+//
+// `nivel` (0, 1 o 2) decide el fondo, la sangría y la letra: el nivel 0 va
+// en Quicksand y los otros en Nunito Sans, salvo `destacado` ("Ver todos
+// los productos"), que va en Quicksand aunque sea de nivel 1. `sangria`
+// pisa la del nivel cuando el diseño la pide distinta (las categorías).
+// `contador` dibuja la cantidad de piezas en "Mi selección".
+function ItemPanel({
+  texto,
+  nivel = 0,
+  sangria = 16 + nivel * 12,
+  activo = false,
+  destacado = false,
+  contador = 0,
+  ruta,
+  abierto,
+  onClick,
+}) {
   const estilo = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
     width: '100%',
-    minHeight: 44,
-    padding: `0 10px 0 ${sangria}px`,
-    borderRadius: 6,
+    minHeight: 52,
+    padding: `0 16px 0 ${sangria}px`,
     border: 0,
+    borderBottom: '1px solid #E0E8EB',
+    background: FONDOS[nivel],
     cursor: 'pointer',
     textAlign: 'left',
     textDecoration: 'none',
-    color: activo ? 'white' : 'rgba(255,255,255,.85)',
-    background: activo ? 'rgba(255,255,255,.18)' : 'transparent',
+    color: activo ? '#5A7A8C' : '#323A3D',
   }
 
   const nombre = (
-    <span style={{ flex: 1, fontFamily: QUICKSAND, fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>
+    <span
+      style={{
+        flex: 1,
+        fontFamily: nivel === 0 || destacado ? QUICKSAND : "'Nunito Sans', sans-serif",
+        fontWeight: nivel === 0 || destacado ? 600 : 400,
+        fontSize: nivel === 0 ? 17 : 16,
+        lineHeight: 1.3,
+      }}
+    >
       {texto}
     </span>
   )
@@ -114,6 +145,26 @@ function ItemPanel({ texto, sangria = 10, activo = false, ruta, abierto, onClick
     return (
       <Link to={ruta} onClick={onClick} className="catalogo-item-panel" style={estilo}>
         {nombre}
+        {contador > 0 && (
+          <span
+            style={{
+              minWidth: 22,
+              height: 22,
+              padding: '0 7px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 11,
+              background: '#5A7A8C',
+              fontFamily: QUICKSAND,
+              fontWeight: 700,
+              fontSize: 12,
+              color: 'white',
+            }}
+          >
+            {contador}
+          </span>
+        )}
       </Link>
     )
   }
@@ -121,7 +172,7 @@ function ItemPanel({ texto, sangria = 10, activo = false, ruta, abierto, onClick
   return (
     <button onClick={onClick} className="catalogo-item-panel" style={estilo}>
       {nombre}
-      <Flecha lado={16} abierto={abierto} />
+      <Flecha lado={18} abierto={abierto} color="#5A7A8C" />
     </button>
   )
 }
@@ -220,9 +271,12 @@ export default function LayoutPublico() {
   const enProductos = enCatalogo || ubicacion.pathname.startsWith('/productos/')
   const enComoPedir = ubicacion.pathname === '/como-hacer-un-pedido'
   const enTips = ubicacion.pathname === '/tips'
-  // Los filtros solo significan algo en el listado. En el detalle la
-  // dirección no los lleva, y no hay que marcar ninguna categoría.
+  const enSeleccion = ubicacion.pathname === '/seleccion'
+  // Los filtros y la búsqueda solo significan algo en el listado. En el
+  // detalle la dirección no los lleva, y no hay que marcar ninguna
+  // categoría.
   const idsElegidos = enCatalogo ? leerFiltros(parametros, grupos) : []
+  const busqueda = enCatalogo ? leerBusqueda(parametros) : ''
 
   // Los ítems de la selección con su producto, y cuántas piezas suman. Se
   // calculan acá porque el encabezado necesita el contador; el total va en
@@ -658,11 +712,11 @@ export default function LayoutPublico() {
             left: 0,
             bottom: 0,
             zIndex: 61,
-            width: 290,
-            maxWidth: '85vw',
+            width: 300,
+            maxWidth: '86vw',
             display: 'flex',
             flexDirection: 'column',
-            background: '#5A7A8C',
+            background: 'white',
             boxShadow: menuAbierto ? '0 0 40px rgba(50,58,61,.3)' : 'none',
             transform: menuAbierto ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform .2s',
@@ -676,7 +730,7 @@ export default function LayoutPublico() {
               height: 56,
               flexShrink: 0,
               padding: '0 8px 0 16px',
-              borderBottom: '1px solid rgba(255,255,255,.15)',
+              background: '#5A7A8C',
             }}
           >
             <span style={{ fontFamily: QUICKSAND, fontWeight: 600, fontSize: 17, color: 'white' }}>
@@ -685,7 +739,7 @@ export default function LayoutPublico() {
             <button
               onClick={() => setMenuAbierto(false)}
               title="Cerrar"
-              className="catalogo-item-panel"
+              className="catalogo-accion-aviso"
               style={{
                 width: 44,
                 height: 44,
@@ -710,22 +764,32 @@ export default function LayoutPublico() {
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
-              padding: '10px 8px',
             }}
           >
+            {/* "Inicio" lleva al mismo lugar que "Ver todos los productos":
+                la página inicial es el catálogo. Está igual porque es lo
+                primero que un visitante busca en un menú. Los dos se marcan
+                solo si de verdad se está viendo todo: sin filtros y sin
+                búsqueda. */}
+            <ItemPanel
+              texto="Inicio"
+              ruta="/"
+              activo={enCatalogo && idsElegidos.length === 0 && busqueda === ''}
+              onClick={alElegir}
+            />
+
             <ItemPanel
               texto="Productos"
               abierto={productosAbierto}
               onClick={() => setProductosAbierto((abierto) => !abierto)}
             />
-
             {productosAbierto && (
               <ItemPanel
                 texto="Ver todos los productos"
-                sangria={22}
+                nivel={1}
+                destacado
                 ruta="/"
-                activo={enCatalogo && idsElegidos.length === 0}
+                activo={enCatalogo && idsElegidos.length === 0 && busqueda === ''}
                 onClick={alElegir}
               />
             )}
@@ -733,24 +797,30 @@ export default function LayoutPublico() {
             {productosAbierto && grupos.length > 0 && (
               <ItemPanel
                 texto="Categorías"
-                sangria={22}
+                nivel={1}
                 abierto={categoriasAbierto}
                 onClick={() => setCategoriasAbierto((abierto) => !abierto)}
               />
             )}
 
             {productosAbierto && categoriasAbierto && grupos.map((grupo) => (
-              <div key={grupo.tipo} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div key={grupo.tipo} style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* El título del grupo es un renglón más, con el fondo del
+                    nivel de las categorías, pero no se toca: por eso no es
+                    un ItemPanel. */}
                 <p
                   style={{
-                    margin: '10px 0 4px',
-                    padding: '0 10px 0 34px',
-                    fontFamily: QUICKSAND,
-                    fontWeight: 600,
-                    fontSize: 12,
-                    letterSpacing: '.06em',
-                    textTransform: 'uppercase',
-                    color: 'rgba(255,255,255,.55)',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    minHeight: 52,
+                    padding: '0 16px 0 40px',
+                    borderBottom: '1px solid #E0E8EB',
+                    background: FONDOS[2],
+                    fontFamily: "'Nunito Sans', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 16,
+                    color: '#323A3D',
                   }}
                 >
                   {grupo.titulo}
@@ -760,7 +830,8 @@ export default function LayoutPublico() {
                   <ItemPanel
                     key={categoria.id}
                     texto={categoria.nombre}
-                    sangria={34}
+                    nivel={2}
+                    sangria={52}
                     ruta={`/?categoria=${categoria.id}`}
                     activo={idsElegidos.includes(categoria.id)}
                     onClick={alElegir}
@@ -769,7 +840,8 @@ export default function LayoutPublico() {
               </div>
             ))}
 
-            {/* Las dos páginas de texto, al mismo nivel que Productos. */}
+            {/* Las dos páginas de texto y la selección, al mismo nivel que
+                Productos. */}
             <ItemPanel
               texto="Cómo hacer un pedido"
               ruta="/como-hacer-un-pedido"
@@ -782,14 +854,21 @@ export default function LayoutPublico() {
               activo={enTips}
               onClick={alElegir}
             />
+            <ItemPanel
+              texto="Mi selección"
+              ruta="/seleccion"
+              activo={enSeleccion}
+              contador={piezas}
+              onClick={alElegir}
+            />
           </div>
 
-          <div style={{ flexShrink: 0, padding: '8px 8px 16px', borderTop: '1px solid rgba(255,255,255,.15)' }}>
+          <div style={{ flexShrink: 0, padding: '6px 8px 14px', borderTop: '1px solid #E0E8EB', background: 'white' }}>
             <a
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="catalogo-item-panel"
+              className="catalogo-suave"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -801,7 +880,7 @@ export default function LayoutPublico() {
                 fontFamily: QUICKSAND,
                 fontWeight: 600,
                 fontSize: 15,
-                color: 'rgba(255,255,255,.85)',
+                color: '#5A7A8C',
               }}
             >
               <IconoInstagram lado={20} />

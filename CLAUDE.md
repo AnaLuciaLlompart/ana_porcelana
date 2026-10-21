@@ -758,7 +758,14 @@ ni nada de gestión. Tiene la franja celeste, el encabezado pegado arriba
 (logo, ☰ o enlace a Instagram, "Mi selección" con su contador), la barra
 con "Productos ▾ · Cómo hacer un pedido · Tips para tus piezas" en
 escritorio y el panel ☰ con el mismo árbol en celular, el `main`, el pie
-y el aviso flotante. Importa de la carpeta `catalogo` (`api`, `filtros`,
+y el aviso flotante. El panel ☰ es blanco con la barra celeste arriba;
+arranca con "Inicio", que lleva a `/` igual que "Ver todos los productos"
+porque es lo primero que se busca en un menú; cada nivel del árbol lleva
+un fondo un poco más oscuro (`FONDOS` en `ItemPanel`), y termina con "Mi
+selección" con su contador y el enlace a Instagram. Los títulos de las
+columnas del pie y de los grupos de filtros van en el celeste del precio
+a 15px, para distinguirse de los enlaces y las casillas. Importa de la
+carpeta `catalogo` (`api`, `filtros`,
 `seleccion`, `presentacion`, `ToastCatalogo`), al revés de lo habitual:
 el layout es el que carga el catálogo, arma el árbol y guarda la
 selección, pero esas piezas viven donde corresponde.
@@ -782,6 +789,9 @@ cuatro valores de `ORDENES`; si falta o trae otra cosa vale
 `ORDEN_POR_DEFECTO` (`nombre-asc`), que no se escribe. El orden se
 aplica siempre en el navegador, también el de por defecto, para que A–Z
 y Z–A sean espejo exacto aunque la base ordene con otra intercalación.
+**Y la búsqueda: `?busqueda=aros`**, el texto tal cual, que
+`buscarProductos` aplica como "contiene" sin acentos ni mayúsculas en el
+nombre o la descripción; un texto en blanco no se escribe.
 Las funciones están en `filtros.js`: `agruparCategorias`
 (los dos grupos, tipo de accesorio y después temática, cada categoría con su cantidad
 contada sobre la lista completa; las que no tienen productos no salen, y
@@ -790,17 +800,23 @@ el título del grupo es el `tipo_display` del backend), `leerFiltros`
 viejo o mal escrito no filtra ni se cuenta), `escribirFiltros`,
 `alternarFiltro`, `filtrarProductos` (**O dentro de un grupo, Y entre
 grupos**: con Aros, Dijes y Harry Potter quedan los aros y los dijes que
-sean de Harry Potter), `ordenarCategorias`, `leerOrden`, `escribirOrden`
-y `ordenarProductos` (copia y ordena con `localeCompare(…, 'es')` o con
-`Number(precio_actual)`). Las casillas y el desplegable de orden escriben
-con `replace: true`, para que tildar tres filtros no deje tres pasos en
-el historial, y cada escritura lleva filtros y orden juntos, porque
-`setSearchParams` reemplaza todos los parámetros; elegir desde el árbol,
-el pie o un chip del detalle navega a `/?categoria=<id>`, una sola.
-"Volver al catálogo" conserva los filtros y el orden porque la tarjeta
-los deja en el `state` del enlace. Los derivados (elegidos, orden,
+sean de Harry Potter), `ordenarCategorias`, `leerOrden`, `escribirOrden`,
+`ordenarProductos` (copia y ordena con `localeCompare(…, 'es')` o con
+`Number(precio_actual)`), `leerBusqueda`, `escribirBusqueda` y
+`buscarProductos`. Las casillas, el desplegable de orden y el buscador
+escriben con `replace: true`, para que tildar tres filtros o escribir seis
+letras no deje seis pasos en el historial, y cada escritura lleva filtros,
+orden y búsqueda juntos, por `escribirDireccion` en `Catalogo.jsx`, que
+parte de lo que hay y pisa lo que cambia, porque `setSearchParams`
+reemplaza todos los parámetros; elegir desde el árbol, el pie o un chip
+del detalle navega a `/?categoria=<id>`, una sola. "Volver al catálogo"
+conserva los filtros, el orden y la búsqueda porque la tarjeta los deja en
+el `state` del enlace. Los derivados (elegidos, orden, búsqueda,
 filtrados, cantidades, "N piezas") se calculan en cada dibujo y nunca se
-guardan en estado.
+guardan en estado. Sin resultados por la búsqueda, "Limpiar búsqueda" es
+un botón (prop `onSalida` de `CajaMensaje`) que deja los filtros; sin
+resultados por los filtros, "Ver todas las piezas" sigue siendo el enlace
+a `/`.
 
 **La selección vive en `localStorage`, bajo la clave
 `catalogo-seleccion`**, con esta forma exacta:
@@ -861,11 +877,16 @@ seis renglones.
 proyecto. Lo usan el encabezado, el panel, el pie, el paso 4 de "Cómo
 hacer un pedido" y la pantalla del mensaje.
 
-**Dos cosas más.** `formatearPrecio` y `textoDificultad` se importan de
-`productos/presentacion.js` y se re-exportan desde
-`catalogo/presentacion.js`, como hacen Pedidos y Gastos; los colores de
-dificultad sí son propios (`COLOR_DIFICULTAD`), porque la gestión usa
-rosa para Alta. Y la pantalla de la selección se llama `MiSeleccion.jsx`
+**Dos cosas más.** `formatearPrecio` se importa de
+`productos/presentacion.js` y se re-exporta desde
+`catalogo/presentacion.js`, como hacen Pedidos y Gastos. La dificultad de
+elaboración no lleva chip ni colores en el catálogo: la tarjeta no la
+muestra (como chip en la miniatura no se entendía a qué se refería), y el
+detalle la muestra debajo del precio como "Dificultad de elaboración:
+media" con tres círculos celestes que se rellenan según el nivel
+(`NIVEL_DIFICULTAD`: 1, 2 o 3), dibujados en SVG y no con los caracteres
+●○○ para que se vean iguales en todos los sistemas, como el corazón de la
+portada; sin rojo, que se lee como error. Y la pantalla de la selección se llama `MiSeleccion.jsx`
 y no `Seleccion.jsx` porque al lado está `seleccion.js`: en Windows el
 disco no distingue mayúsculas, un import de `./Seleccion` encontraba
 primero al `.js` y el build fallaba.
@@ -898,34 +919,38 @@ grillas del pie, de los pasos y de las tarjetas usan
 Hovers, fuera de la media query, con `!important` sobre lo que está en
 línea:
 
-- `catalogo-suave`: fondo celeste suave; el ☰, Filtrar y su cruz, − y +,
-  y los botones y enlaces con borde (Copiar mensaje, Seguir mirando, las
-  salidas de `CajaMensaje`).
+- `catalogo-suave`: fondo celeste suave; el ☰, Filtrar y su cruz, la cruz
+  del buscador, el enlace a Instagram del panel ☰, − y +, y los botones y
+  enlaces con borde (Copiar mensaje, Seguir mirando, las salidas de
+  `CajaMensaje`).
 - `catalogo-tarjeta`: borde más oscuro; la tarjeta del listado y los
   chips de categoría del detalle.
 - `catalogo-subrayado`: subrayado; "Volver al catálogo", "Volver",
   "Quitar filtros" y "Ver todos los productos".
 - `catalogo-item`: texto celeste; los tres ítems de la barra, el
   desplegable y los enlaces del pie.
-- `catalogo-item-panel`: velo blanco; los renglones del panel ☰, su cruz
-  y su enlace a Instagram.
+- `catalogo-item-panel`: se oscurecen apenas (`brightness .97`, sin
+  `!important` porque `filter` no está en línea); los renglones del
+  panel ☰.
 - `catalogo-instagram`: celeste claro; los enlaces a Instagram del
   encabezado, del pie y del paso 4.
 - `catalogo-relleno`: opacidad .92; los enlaces con fondo celeste
   (Consultar por Instagram, Abrir Instagram, Ver el catálogo), que al ser
   `<a>` no toman el hover global de los botones.
 - `catalogo-quitar`: fondo rojo claro; la cruz de quitar en la selección.
-- `catalogo-campo`: borde celeste al enfocar; el textarea de aclaraciones
-  y el desplegable de orden del listado (la regla global de foco de
-  `index.css` es solo para `input`).
-- `catalogo-accion-aviso`: el "Ver" del aviso flotante.
+- `catalogo-campo`: borde celeste al enfocar; el textarea de aclaraciones,
+  el desplegable de orden y el buscador del listado (la regla global de
+  foco de `index.css` es solo para `input` y pinta el rosa de la gestión:
+  en el buscador la clase le gana por especificidad).
+- `catalogo-accion-aviso`: velo blanco sobre fondo oscuro; el "Ver" del
+  aviso flotante y la cruz del panel ☰.
 
 De 900px para arriba, solo medidas:
 
 - `catalogo-contenido`: el `main`; padding 28/24 en vez de 16.
 - `catalogo-logo`: el logo del encabezado; 22px en vez de 18.
 - `catalogo-portada` y su `h1`: la portada del listado; más aire y el
-  título a 36px.
+  título a 36px (22 en celular).
 - `catalogo-columnas`: la grilla del listado; `240px 1fr`, filtros y
   tarjetas. Va solo cuando hay filtros que poner en la primera columna.
 - `catalogo-detalle`: la grilla del detalle; galería y datos lado a lado.

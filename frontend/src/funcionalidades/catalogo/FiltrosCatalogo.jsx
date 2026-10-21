@@ -17,15 +17,17 @@ export default function FiltrosCatalogo({ grupos, idsElegidos, onAlternar, onQui
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       {grupos.map((grupo) => (
         <div key={grupo.tipo}>
+          {/* El título del grupo va en el celeste del precio y un poco más
+              grande que las casillas, para que se distinga de ellas. */}
           <p
             style={{
               margin: '0 0 6px',
               fontFamily: QUICKSAND,
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 15,
               letterSpacing: '.06em',
               textTransform: 'uppercase',
-              color: '#708085',
+              color: '#5A7A8C',
             }}
           >
             {grupo.titulo}

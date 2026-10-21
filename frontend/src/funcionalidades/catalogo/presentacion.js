@@ -4,14 +4,13 @@
 //
 // Es .js y no .jsx porque no tiene una sola línea de JSX.
 
-// El precio ("$6.500") y el texto de la dificultad ("Dificultad media") se
-// escriben igual que en la gestión, así que las dos funciones se importan
-// de Productos en vez de escribirse de nuevo, con el mismo criterio que
-// Pedidos y Gastos. Se importan Y se re-exportan para que los archivos del
-// catálogo las tomen de acá.
-import { formatearPrecio, textoDificultad } from '../productos/presentacion'
+// El precio ("$6.500") se escribe igual que en la gestión, así que la
+// función se importa de Productos en vez de escribirse de nuevo, con el
+// mismo criterio que Pedidos y Gastos. Se importa Y se re-exporta para que
+// los archivos del catálogo la tomen de acá.
+import { formatearPrecio } from '../productos/presentacion'
 
-export { formatearPrecio, textoDificultad }
+export { formatearPrecio }
 
 
 export const QUICKSAND = "'Quicksand', sans-serif"
@@ -19,6 +18,8 @@ export const QUICKSAND = "'Quicksand', sans-serif"
 export const ICONO_FILTROS = 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z'
 
 export const ICONO_CERRAR = 'M6 18L18 6M6 6l12 12'
+
+export const ICONO_LUPA = 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
 
 export const ICONO_VOLVER = 'M15 19l-7-7 7-7'
 
@@ -38,14 +39,11 @@ export const ICONO_CORAZON = 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7
 export const ICONO_CAMARA = 'M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z'
 
 
-// Los colores del chip de dificultad, por el código que manda el backend.
-// Son los de colorDif() del diseño y no los de la gestión: allá Alta va en
-// rosa, que es el color de esas pantallas.
-export const COLOR_DIFICULTAD = {
-  BAJA: { color: '#4E8C6A', fondo: '#E8F5EF' },
-  MEDIA: { color: '#8A6320', fondo: '#FDF3E0' },
-  ALTA: { color: '#C0442F', fondo: '#FAEAE8' },
-}
+// Cuántos de los tres círculos de la dificultad de elaboración van llenos,
+// por el código que manda el backend. El catálogo no usa colores para la
+// dificultad: el detalle la muestra con el texto y los círculos, y la
+// tarjeta no la muestra.
+export const NIVEL_DIFICULTAD = { BAJA: 1, MEDIA: 2, ALTA: 3 }
 
 
 // El fondo del lugar de la foto: se ve entero cuando el producto no tiene

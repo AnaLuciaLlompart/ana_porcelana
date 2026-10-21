@@ -5,11 +5,12 @@ import { QUICKSAND } from './presentacion'
 // del catálogo donde no hay nada que mostrar: el listado sin resultados,
 // el producto que no existe, la página que no existe y la selección vacía.
 //
-// La salida es siempre un enlace (`ruta`), porque siempre lleva a otra
-// dirección; con `principal` va con fondo celeste en vez de con borde,
-// como "Ver el catálogo" en el diseño. `icono` dibuja arriba del título el
-// cuadrado con el icono, que el diseño pone solo en la selección vacía.
-// Las tres son opcionales.
+// La salida es un enlace cuando lleva a otra dirección (`ruta`) y un botón
+// cuando solo cambia la consulta, como "Limpiar búsqueda" (`onSalida`); con
+// `principal` va con fondo celeste en vez de con borde, como "Ver el
+// catálogo" en el diseño. `icono` dibuja arriba del título el cuadrado con
+// el icono, que el diseño pone solo en la selección vacía. Todas son
+// opcionales.
 
 const estiloSalida = {
   display: 'inline-block',
@@ -34,7 +35,7 @@ const estiloSalidaPrincipal = {
   fontSize: 16,
 }
 
-export default function CajaMensaje({ titulo, texto, textoSalida, ruta, icono, principal = false }) {
+export default function CajaMensaje({ titulo, texto, textoSalida, ruta, onSalida, icono, principal = false }) {
   return (
     <div
       style={{
@@ -86,6 +87,12 @@ export default function CajaMensaje({ titulo, texto, textoSalida, ruta, icono, p
         >
           {textoSalida}
         </Link>
+      )}
+
+      {onSalida && (
+        <button onClick={onSalida} className="catalogo-suave" style={{ ...estiloSalida, cursor: 'pointer' }}>
+          {textoSalida}
+        </button>
       )}
     </div>
   )

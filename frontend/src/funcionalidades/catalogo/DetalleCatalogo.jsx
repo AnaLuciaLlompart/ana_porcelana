@@ -4,13 +4,12 @@ import { obtenerProductoDelCatalogo } from './api'
 import CajaMensaje from './CajaMensaje'
 import { ordenarCategorias } from './filtros'
 import {
-  COLOR_DIFICULTAD,
   ICONO_CAMARA,
   ICONO_MAS,
   ICONO_VOLVER,
+  NIVEL_DIFICULTAD,
   QUICKSAND,
   formatearPrecio,
-  textoDificultad,
   tinteDe,
 } from './presentacion'
 
@@ -80,7 +79,7 @@ export default function DetalleCatalogo() {
     return <CajaMensaje titulo={error} textoSalida="Volver al catálogo" ruta="/" />
   }
 
-  const dificultad = COLOR_DIFICULTAD[producto.dificultad]
+  const nivel = NIVEL_DIFICULTAD[producto.dificultad]
   const foto = producto.imagenes[fotoIdx]
   const categorias = ordenarCategorias(producto.categorias)
 
@@ -203,60 +202,97 @@ export default function DetalleCatalogo() {
               {producto.nombre}
             </h1>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginTop: 8 }}>
-              <p style={{ margin: 0, fontFamily: QUICKSAND, fontWeight: 600, fontSize: 24, color: '#5A7A8C' }}>
-                {formatearPrecio(producto.precio_actual)}
-              </p>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  padding: '5px 12px',
-                  borderRadius: 20,
-                  fontFamily: QUICKSAND,
-                  fontWeight: 600,
-                  fontSize: 13,
-                  border: `1px solid ${dificultad.color}`,
-                  background: dificultad.fondo,
-                  color: dificultad.color,
-                }}
-              >
-                {textoDificultad(producto)}
-              </span>
-            </div>
+            <p style={{ margin: '8px 0 0', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 24, color: '#5A7A8C' }}>
+              {formatearPrecio(producto.precio_actual)}
+            </p>
           </div>
 
-          {producto.descripcion && (
-            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: '#323A3D', textWrap: 'pretty' }}>
-              {producto.descripcion}
-            </p>
-          )}
+          <div style={{ height: 1, background: '#E0E8EB' }} />
 
-          {/* Cada categoría lleva al catálogo filtrado por ella sola. */}
-          {categorias.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {categorias.map((categoria) => (
-                <Link
-                  key={categoria.id}
-                  to={`/?categoria=${categoria.id}`}
-                  className="catalogo-tarjeta"
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 20,
-                    border: '1px solid #E0E8EB',
-                    background: '#E2EAF0',
-                    color: '#5A7A8C',
-                    textDecoration: 'none',
-                    fontFamily: QUICKSAND,
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                >
-                  {categoria.nombre}
-                </Link>
-              ))}
-            </div>
-          )}
+          {/* La descripción es una sección con título, para que se distinga
+              del nombre y el precio. Adentro van la dificultad de
+              elaboración, el texto y las categorías. El título es como los
+              títulos de grupo de los filtros, pero un poco más grande y en
+              el celeste del precio. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: QUICKSAND,
+                fontWeight: 600,
+                fontSize: 15,
+                letterSpacing: '.06em',
+                textTransform: 'uppercase',
+                color: '#5A7A8C',
+              }}
+            >
+              Descripción
+            </p>
+
+            {/* La dificultad de elaboración: el texto y tres círculos que se
+                rellenan según el nivel (●○○, ●●○, ●●●). Son círculos en SVG y
+                no esos caracteres: un carácter lo dibuja cada sistema con su
+                fuente, y acá tienen que verse iguales en todos, como el
+                corazón de la portada. Sin colores de semáforo: el rojo se
+                lee como error y no va con la estética de la página. */}
+            <p
+              style={{
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                fontSize: 15,
+                color: '#323A3D',
+              }}
+            >
+              Dificultad de elaboración: {producto.dificultad_display.toLowerCase()}
+              <svg width="40" height="12" viewBox="0 0 40 12" role="img" aria-label={`${nivel} de 3`}>
+                {[0, 1, 2].map((indice) => (
+                  <circle
+                    key={indice}
+                    cx={6 + indice * 14}
+                    cy="6"
+                    r="5"
+                    fill={indice < nivel ? '#5A7A8C' : 'white'}
+                    stroke="#5A7A8C"
+                    strokeWidth="1.5"
+                  />
+                ))}
+              </svg>
+            </p>
+
+            {producto.descripcion && (
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: '#323A3D', textWrap: 'pretty' }}>
+                {producto.descripcion}
+              </p>
+            )}
+
+            {/* Cada categoría lleva al catálogo filtrado por ella sola. */}
+            {categorias.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {categorias.map((categoria) => (
+                  <Link
+                    key={categoria.id}
+                    to={`/?categoria=${categoria.id}`}
+                    className="catalogo-tarjeta"
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 20,
+                      border: '1px solid #E0E8EB',
+                      background: '#E2EAF0',
+                      color: '#5A7A8C',
+                      textDecoration: 'none',
+                      fontFamily: QUICKSAND,
+                      fontWeight: 600,
+                      fontSize: 13,
+                    }}
+                  >
+                    {categoria.nombre}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div style={{ height: 1, background: '#E0E8EB' }} />
 
@@ -294,7 +330,7 @@ export default function DetalleCatalogo() {
           )}
 
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#708085', textWrap: 'pretty' }}>
-            Cada pieza se hace a mano, por eso puede variar un poquito respecto de la foto. El precio es orientativo: te lo confirmo por mensaje.
+            Cada pieza se hace a mano, por eso puede variar un poquito respecto de la foto.
           </p>
         </div>
       </div>
