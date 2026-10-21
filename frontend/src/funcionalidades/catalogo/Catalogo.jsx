@@ -99,10 +99,6 @@ export default function Catalogo() {
   // El texto "N piezas" y el desplegable de orden se dibujan en un lugar
   // distinto según el ancho, así que se definen una vez acá y se ubican
   // más abajo.
-  const resumen = (
-    <span style={{ fontSize: 14, color: '#64727A', whiteSpace: 'nowrap' }}>{textoPiezas(filtrados.length)}</span>
-  )
-
   const selectorDeOrden = (
     <select
       value={orden}
@@ -306,7 +302,6 @@ export default function Catalogo() {
 
                 {esEscritorio && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
-                    {resumen}
                     <span style={{ fontSize: 14, color: '#64727A' }}>Ordenar por</span>
                     {selectorDeOrden}
                   </div>
@@ -315,7 +310,6 @@ export default function Catalogo() {
 
               {!esEscritorio && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  {resumen}
                   <div style={{ marginLeft: 'auto' }}>{selectorDeOrden}</div>
                 </div>
               )}

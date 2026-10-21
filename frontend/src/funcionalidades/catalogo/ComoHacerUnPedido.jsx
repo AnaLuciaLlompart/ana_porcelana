@@ -17,12 +17,12 @@ const PASOS = [
   {
     numero: '1',
     titulo: 'Mirá el catálogo',
-    texto: 'Recorré las piezas por tipo o por temática. Cada una tiene sus fotos, su descripción y su precio orientativo.',
+    texto: 'Recorré los productos por tipo o por temática. Cada uno tiene sus fotos, su descripción y su precio orientativo.',
   },
   {
     numero: '2',
     titulo: 'Armá tu selección',
-    texto: 'Desde cada pieza tocá "Agregar a mi selección". Después entrá a Mi selección, arriba a la derecha, para ajustar cantidades, quitar piezas y anotar tus aclaraciones.',
+    texto: 'Desde cada producto tocá "Agregar a mi selección". Después entrá a Mi selección, arriba a la derecha, para ajustar cantidades, quitar piezas y anotar tus aclaraciones.',
   },
   {
     numero: '3',
