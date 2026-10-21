@@ -186,11 +186,15 @@ ana_porcelana/
 │
 ├── frontend/
 │   ├── index.html
+│   ├── public/
+│   │   ├── robots.txt           qué pueden indexar los buscadores: todo salvo /gestion/ y /api/
+│   │   └── favicon-*.svg        íconos de la pestaña, uno por ámbito
 │   ├── vite.config.js           configuración del proxy inverso
 │   ├── Dockerfile               imagen del frontend (compila React y lo sirve con nginx)
 │   ├── .dockerignore
 │   ├── nginx/
 │   │   ├── sitio.conf           reglas comunes: archivos estáticos, /media/ y /api/
+│   │   ├── cabeceras.conf       cabeceras de seguridad que nginx agrega a todas las respuestas
 │   │   ├── http.conf            sin certificado (solo puerto 80)
 │   │   ├── https.conf           con certificado (80 redirige a 443)
 │   │   └── elegir-config.sh     elige http o https según exista el certificado
@@ -500,10 +504,13 @@ cualquier caso que la base de datos quede en un estado inconsistente.
 
 ## Despliegue
 
-El procedimiento operativo completo —instalación en el servidor,
-actualización, consulta de registros, copias de seguridad y
-restauración— está en [DESPLIEGUE.md](DESPLIEGUE.md). Esta sección
-resume lo que la aplicación ya contempla.
+El sistema está publicado en https://anaporcelana.com.ar, en un Cloud
+Server de DonWeb con Ubuntu 24.04, Docker Compose y un certificado de
+Let's Encrypt. El procedimiento operativo completo —instalación en el
+servidor, actualización, tareas programadas, copias de seguridad y
+restauración, consulta de registros— está en
+[DESPLIEGUE.md](DESPLIEGUE.md). Esta sección resume lo que la aplicación
+ya contempla.
 
 **Servidor de aplicación.** En producción Django no se sirve con
 `runserver` sino con gunicorn, que carga la aplicación a través de
@@ -523,8 +530,10 @@ advertencias.
 `frontend/Dockerfile`; `docker-compose.yml` levanta los tres contenedores
 y los dos volúmenes. nginx responde con `index.html` a las rutas de React
 (`try_files`), entrega `/media/` directamente desde el volumen, sin
-listado de directorio y con `nosniff`, y envía `X-Forwarded-For` con la
-dirección del visitante; DRF (`NUM_PROXIES`) y django-axes
+listado de directorio, agrega a todas las respuestas las cabeceras de
+seguridad (HSTS, `X-Frame-Options`, `X-Content-Type-Options` y
+`Referrer-Policy`) sin publicar su versión, y envía `X-Forwarded-For`
+con la dirección del visitante; DRF (`NUM_PROXIES`) y django-axes
 (`AXES_CLIENT_IP_CALLABLE`) la leen, de modo que los límites de
 peticiones y el bloqueo por intentos fallidos cuentan por visitante y no
 por proxy.
@@ -544,8 +553,10 @@ producirse, y la variante compilada exigiría agregar un compilador de C a
 la imagen sin ningún beneficio.
 
 **Copias de seguridad.** Los datos residen en dos lugares, la base de
-datos y la carpeta de medios, y el procedimiento de DESPLIEGUE.md los
-respalda y restaura juntos.
+datos y la carpeta de medios. Una tarea programada del servidor los
+respalda juntos todas las noches, con una retención de 30 y 7 días
+respectivamente, y DESPLIEGUE.md describe cómo descargar las copias a
+otra máquina y cómo restaurarlas.
 
 ---
 

@@ -1044,9 +1044,9 @@ en PostgreSQL; `DB_NAME=ana_porcelana_prueba` en el `.env` (y reiniciar
 ## Despliegue
 
 Guía de operación en `DESPLIEGUE.md` (raíz): primera vez en el servidor,
-actualizar, logs, respaldos. **Armado y verificado en la PC con Docker
-Desktop; el servidor todavía no se activó.** Servidor: Cloud Server de
-DonWeb, Ubuntu 24.04, 2 vCPU, 4 GB, anaporcelana.com.ar (con `www`).
+actualizar, tareas programadas, logs, respaldos. **En producción desde
+octubre de 2026 en https://anaporcelana.com.ar.** Servidor: Cloud Server
+de DonWeb, Ubuntu 24.04, 2 vCPU, 4 GB, anaporcelana.com.ar (con `www`).
 
 **Tres contenedores con Compose, y nada más:** `frontend` (nginx con el
 React compilado, único expuesto, 80/443), `backend` (Django + gunicorn,
@@ -1165,11 +1165,14 @@ sí.
 saldrían con CRLF y un script con CRLF no arranca en Linux. Los dos `.sh`
 están en git con modo 100755.
 
-**Pendiente para el día del servidor:** los pasos de `DESPLIEGUE.md`.
-Datos del servidor real que están ahí y no en el código: SSH en el
-puerto 5807 (`ssh -p 5807`, `scp -P 5807`), el firewall del panel de
-DonWeb con 80, 443 y 5807 (y `ufw` adentro con los mismos tres), `sudo`
-pide contraseña, y una línea de cron semanal con `clearsessions`.
+**Datos del servidor real que están en `DESPLIEGUE.md` y no en el
+código:** SSH en el puerto 5807 (`ssh -p 5807`, `scp -P 5807`, o el alias
+`anaporcelana` de `~/.ssh/config`), el firewall del panel de DonWeb con
+80, 443 y 5807 (y `ufw` adentro con los mismos tres), `sudo` pide
+contraseña, y el crontab de `ana` con tres tareas: `clearsessions` los
+lunes, y los respaldos diarios de la base (`base-FECHA.sql`, 30 días) y
+de las fotos (`media-FECHA.tar.gz`, 7 días) en `/home/ana/respaldos`. La
+renovación del certificado es del `certbot.timer`, no de cron.
 
 
 ---

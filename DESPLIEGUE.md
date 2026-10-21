@@ -1,8 +1,9 @@
 # Despliegue de Ana Porcelana
 
 Cómo levantar el sistema en el servidor, actualizarlo después de un
-cambio, hacer copias de seguridad y mirar los logs. Está escrito para
-seguirlo paso a paso copiando los comandos. Todos los comandos
+cambio, dejar programadas las tareas de mantenimiento, hacer copias de
+seguridad, restaurarlas y mirar los logs. Está escrito para seguirlo
+paso a paso copiando los comandos. Todos los comandos
 `docker compose` se corren desde la carpeta del proyecto, donde está
 `docker-compose.yml`.
 
@@ -31,6 +32,19 @@ de Docker. Sus dos carpetas (`/etc/letsencrypt`, donde guarda los
 certificados, y `/var/www/certbot`, donde deja la prueba que Let's
 Encrypt le pide) se le prestan al contenedor `frontend` con
 `docker-compose.override.yml`, un archivo que existe solo en el servidor.
+
+Las cabeceras de seguridad (HSTS, `X-Frame-Options`,
+`X-Content-Type-Options` y `Referrer-Policy`) las agrega nginx a todas
+las respuestas, desde `frontend/nginx/cabeceras.conf`. Django las manda
+también en `/api/`, y nginx descarta esa copia para que no salgan dos
+veces. nginx no publica su versión (`server_tokens off`) y atiende por
+HTTP/2. Que HTTP/2 está activo se ve en la columna Protocol de la
+pestaña Red de las herramientas del navegador, o desde cualquier
+terminal con openssl (tiene que responder `ALPN protocol: h2`):
+
+```bash
+echo | openssl s_client -connect anaporcelana.com.ar:443 -servername anaporcelana.com.ar -alpn h2,http/1.1 2>/dev/null | grep ALPN
+```
 
 Las contraseñas y el dominio no están en ningún archivo del repositorio.
 Están en `.env.produccion`, que se escribe a mano en cada máquina
@@ -241,48 +255,103 @@ sudo certbot renew --dry-run
 Tiene que terminar con `Congratulations, all simulated renewals
 succeeded`. Con eso el HTTPS queda completo.
 
-### 10. Limpieza semanal de sesiones
-
-Cada inicio de sesión guarda una fila en la tabla `django_session`, y
-Django no borra las vencidas por su cuenta: solo deja de aceptarlas. Con
-el tiempo la tabla acumula filas que no sirven. `clearsessions` las
-borra, y cron lo corre una vez por semana:
+`--dry-run` simula la renovación pero **no corre los deploy-hooks**. Para
+probar también el script de arriba:
 
 ```bash
-sudo crontab -e
+sudo certbot renew --dry-run --run-deploy-hooks
+```
+
+Si al final dice `Hook 'deploy-hook' ran with error output` y lo que
+muestra adentro son líneas como `Restarting` o `Started`, no es un
+error: Docker escribe el progreso por la salida de errores y certbot lo
+informa igual.
+
+### 10. Tareas programadas
+
+Tres cosas corren solas, de noche, desde el crontab de `ana`, el usuario
+con el que se entra por SSH. Es el crontab de ese usuario y no el de
+root: puede usar `docker` sin `sudo` desde el paso 1.
+
+- **Los lunes a las 4:00, `clearsessions`.** Cada inicio de sesión guarda
+  una fila en la tabla `django_session`, y Django no borra las vencidas
+  por su cuenta: solo deja de aceptarlas. Con el tiempo la tabla acumula
+  filas que no sirven.
+- **Todos los días a las 3:30, un respaldo de la base**: `pg_dump` dentro
+  del contenedor `db`, guardado en `/home/ana/respaldos/base-FECHA.sql`.
+  Se borran los de más de 30 días.
+- **Todos los días a las 3:45, un respaldo de las fotos**: `tar czf` de
+  `/app/media` dentro del contenedor `backend`, guardado en
+  `/home/ana/respaldos/media-FECHA.tar.gz`. Se borran los de más de 7
+  días.
+
+La carpeta tiene que existir antes:
+
+```bash
+mkdir -p ~/respaldos
+crontab -e
 ```
 
 La primera vez pregunta qué editor usar: `nano` (opción 1). Al final del
-archivo, agregar esta línea y guardar:
+archivo van estas tres líneas con sus comentarios, que son las que están
+instaladas en el servidor:
 
 ```
+# Ana Porcelana - Tareas automáticas del sistema
+
+# Lunes 4:00 · borrar de la base las sesiones de login vencidas
 0 4 * * 1 cd /srv/ana_porcelana && docker compose exec -T backend python manage.py clearsessions
+
+# Todos los días 3:30 · copia de la base en /home/ana/respaldos/base-FECHA.sql (se guardan 30 días)
+30 3 * * * cd /srv/ana_porcelana && docker compose exec -T db pg_dump -U ana_porcelana -d ana_porcelana --no-owner --no-acl > /home/ana/respaldos/base-$(date +\%F).sql && find /home/ana/respaldos -name "base-*.sql" -mtime +30 -delete
+
+# Todos los días 3:45 · copia de las fotos en /home/ana/respaldos/media-FECHA.tar.gz (se guardan 7 días)
+45 3 * * * cd /srv/ana_porcelana && docker compose exec -T backend tar czf - -C /app media > /home/ana/respaldos/media-$(date +\%F).tar.gz && find /home/ana/respaldos -name "media-*.tar.gz" -mtime +7 -delete
 ```
 
-Los cinco primeros campos son minuto, hora, día del mes, mes y día de la
-semana: los lunes a las 4:00. `-T` hace falta porque cron no tiene
-terminal. `sudo crontab -l` muestra que quedó. Con eso el servidor queda
-completo.
+Los cinco primeros campos de cada línea son minuto, hora, día del mes,
+mes y día de la semana. `-T` hace falta porque cron no tiene terminal.
+En crontab el `%` es un carácter especial (corta la línea), así que el
+de `date +%F` va escapado: `\%F`. `crontab -l` muestra que quedó, y al
+día siguiente `ls -lh ~/respaldos` tiene que mostrar los dos archivos.
+
+La renovación del certificado **no** está acá: la hace el `certbot.timer`
+de systemd del paso 9 (`systemctl list-timers certbot.timer`). Con eso el
+servidor queda completo.
 
 ---
 
-## Volver a levantar después de un cambio
+## Actualizar el sistema
 
-Cuando hay código nuevo en el repositorio:
+Siempre desde la carpeta del proyecto (`cd /srv/ana_porcelana`). Según
+qué cambió:
+
+- **Solo documentación** (archivos `.md`): `git pull` y nada más. Los
+  contenedores no la usan.
+- **Código** (backend, frontend, nginx, Dockerfiles):
+
+  ```bash
+  git pull
+  docker compose up -d --build
+  ```
+
+  Compose vuelve a construir lo que cambió y recrea solo esos
+  contenedores; el backend corre las migraciones al arrancar. El sitio se
+  corta unos segundos mientras cambia. Después, `docker compose ps` y
+  `docker compose logs --tail 50 backend` para ver que arrancó bien.
+- **Solo `.env.produccion`**: `docker compose up -d`, sin `--build`. Las
+  imágenes son las mismas; cambian las variables con las que arrancan.
+
+**Volver atrás.** Si una versión nueva sale mal, se vuelve a la anterior
+con el hash del commit que funcionaba (`git log --oneline` los lista):
 
 ```bash
-cd /srv/ana_porcelana
-git pull
+git checkout <hash>
 docker compose up -d --build
 ```
 
-Compose vuelve a construir lo que cambió y recrea solo esos contenedores;
-el backend corre las migraciones al arrancar. El sitio se corta unos
-segundos mientras cambia. Después, `docker compose ps` y
-`docker compose logs --tail 50 backend` para ver que arrancó bien.
-
-Si lo único que cambió es `.env.produccion`, alcanza con
-`docker compose up -d` (sin `--build`).
+Para retomar después la rama principal, `git checkout main` y otra vez
+`docker compose up -d --build`.
 
 ---
 
@@ -308,82 +377,135 @@ Qué hay en cada uno:
 
 ---
 
+## Reinicio automático
+
+Los tres contenedores tienen `restart: unless-stopped`: si uno se cae,
+Docker lo vuelve a levantar solo, también después de reiniciar el
+servidor. Para probarlo hay que matar el proceso **desde adentro**:
+
+```bash
+docker compose exec backend sh -c 'kill 1'
+docker compose ps
+```
+
+A los pocos segundos vuelve a decir `Up`. `docker kill` desde afuera no
+sirve como prueba: Docker lo cuenta como una parada a mano, y una parada
+a mano no se reinicia.
+
+---
+
 ## Copias de seguridad
 
 Los datos están en dos lugares, la base y las fotos, y se respaldan
 juntos: una base restaurada sin sus fotos muestra productos sin imagen.
-Los comandos crean los respaldos en la carpeta del proyecto, con la
-fecha en el nombre.
+Las copias las hace cron todas las noches (paso 10), en
+`/home/ana/respaldos`:
 
-### La base
+- `base-FECHA.sql`: la base entera como un archivo de texto con las
+  órdenes para reconstruirla (`pg_dump`, sin dueños ni permisos, para
+  que sirva en cualquier base). Crea las tablas pero no borra las que
+  haya: por eso la restauración vacía la base antes de cargarlo. Quedan
+  los últimos 30 días.
+- `media-FECHA.tar.gz`: la carpeta `media` del volumen (con
+  `materiales/` y `productos/`) comprimida. Quedan los últimos 7 días.
+
+`ls -lh ~/respaldos` muestra que se están haciendo.
+
+### Una copia a mano
+
+Antes de un cambio grande conviene una copia fuera de horario. Son los
+mismos dos comandos del crontab, con la fecha de hoy en el nombre:
 
 ```bash
 cd /srv/ana_porcelana
-docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" --no-owner --no-privileges --clean --if-exists "$POSTGRES_DB"' > respaldo-base-$(date +%F).sql
+docker compose exec -T db pg_dump -U ana_porcelana -d ana_porcelana --no-owner --no-acl > ~/respaldos/base-$(date +%F).sql
+docker compose exec -T backend tar czf - -C /app media > ~/respaldos/media-$(date +%F).tar.gz
 ```
 
-`pg_dump` escribe la base entera como un archivo de texto con las
-órdenes para reconstruirla. Las variables entre comillas simples las lee
-el contenedor (son las de `.env.produccion`). `--clean --if-exists` hace
-que al restaurar se reemplace lo que haya.
+Acá el `%` va sin escapar: la barra invertida es solo para crontab. `-T`
+hace falta para que la salida vaya al archivo sin pasar por una
+terminal.
 
-### Las fotos
-
-```bash
-docker compose cp backend:/app/media ./respaldo-media-$(date +%F)
-```
-
-Copia la carpeta `media` del volumen (con `materiales/` y `productos/`)
-a una carpeta del servidor.
-
-### Guardarlos fuera del servidor
+### Bajarlas a la PC
 
 Un respaldo que vive en la misma máquina que los datos no sirve si la
-máquina se pierde. Desde tu PC, en PowerShell:
+máquina se pierde. Desde PowerShell, con la fecha que corresponda y una
+carpeta de la PC como destino:
 
 ```powershell
-scp -P 5807 usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-base-2026-10-18.sql .
-scp -P 5807 -r usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media-2026-10-18 .
+scp "anaporcelana:~/respaldos/*FECHA*" <carpeta>
 ```
 
-(con la fecha que corresponda). `-P` mayúscula es el puerto en `scp`, al
-revés que en `ssh`. Después se pueden borrar del servidor.
+Trae los dos archivos de ese día. `anaporcelana` es un alias definido en
+`~/.ssh/config` de la PC, que ahorra escribir el usuario, la IP y el
+puerto en cada comando:
 
-### Restaurar
+```
+Host anaporcelana
+    HostName IP-DEL-SERVIDOR
+    User ana
+    Port 5807
+```
 
-Con los contenedores levantados. Primero la base:
+Sin el alias es lo mismo con la forma larga,
+`scp -P 5807 "ana@IP-DEL-SERVIDOR:~/respaldos/*FECHA*" <carpeta>`
+(`-P` mayúscula es el puerto en `scp`, al revés que en `ssh`).
+
+### Restaurar la base
+
+Con el respaldo en `~/respaldos` del servidor (si está en la PC, se sube
+con `scp <carpeta>\base-FECHA.sql anaporcelana:~/respaldos/`). Se para el
+backend para que nadie use la base mientras se reemplaza, se la borra y
+se la crea vacía (el archivo crea las tablas, no las borra), se carga el
+archivo y se vuelve a arrancar el backend. Medido con la base real: 1,9
+segundos.
 
 ```bash
-docker compose cp respaldo-base-2026-10-18.sql db:/tmp/respaldo.sql
-docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /tmp/respaldo.sql'
+cd /srv/ana_porcelana
+docker compose stop backend
+docker compose exec db psql -U ana_porcelana -d postgres -c "DROP DATABASE ana_porcelana;" -c "CREATE DATABASE ana_porcelana;"
+docker compose exec -T db psql -U ana_porcelana -d ana_porcelana -v ON_ERROR_STOP=1 < ~/respaldos/base-FECHA.sql
+docker compose start backend
 ```
 
-Reemplaza todo lo que haya en la base por lo del respaldo. Después las
-fotos:
+`ON_ERROR_STOP=1` corta al primer error, en vez de seguir y dejar la base
+a medias.
+
+### Restaurar las fotos
+
+Se descomprime el `.tar.gz` (deja una carpeta `media/`), se copia adentro
+del contenedor y se le devuelve la propiedad al usuario `app`, con el que
+corre Django: `docker cp` deja los archivos como de `root`, y sin el
+`chown` Django podría leerlos pero no reemplazarlos ni borrarlos.
 
 ```bash
-docker compose cp respaldo-media-2026-10-18/. backend:/app/media/
-docker compose exec -u root backend chown -R app:app /app/media
+cd ~/respaldos
+tar xzf media-FECHA.tar.gz
+docker cp media/. ana_porcelana-backend-1:/app/media/
+cd /srv/ana_porcelana
+docker compose run --rm --no-deps -u root backend chown -R app:app /app/media
 ```
 
-El `chown` hace falta porque `docker compose cp` deja los archivos como
-de `root`, y Django corre como el usuario `app`: sin eso podría leerlos
-pero no reemplazarlos ni borrarlos.
+Los dos últimos comandos sirven aunque el backend esté parado: `docker
+cp` copia igual, y `run --rm --no-deps` levanta un contenedor aparte solo
+para ese `chown` y lo borra al terminar.
 
 ### Subir los datos de tu PC al servidor
 
-Es una restauración, con un respaldo hecho en la PC. En PowerShell, en la
+Es una restauración con un respaldo hecho en la PC. En PowerShell, en la
 carpeta del proyecto:
 
 ```powershell
-& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" -U postgres --no-owner --no-privileges --clean --if-exists -f respaldo-base.sql ana_porcelana
-scp -P 5807 respaldo-base.sql usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/
-scp -P 5807 -r backend\media usuario@IP-DEL-SERVIDOR:/srv/ana_porcelana/respaldo-media
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" -U postgres --no-owner --no-acl -f base-pc.sql ana_porcelana
+scp base-pc.sql anaporcelana:~/respaldos/
+scp -r backend\media anaporcelana:~/respaldos/media-pc
 ```
 
-(`-P` mayúscula: el puerto, como arriba). Y en el servidor, los dos pasos
-de Restaurar con esos nombres. El
-respaldo trae tu usuaria de desarrollo, que reemplaza a la del paso 7.
+Y en el servidor, los pasos de arriba: la base con `base-pc.sql`, y las
+fotos sin descomprimir nada, con
+`docker cp ~/respaldos/media-pc/. ana_porcelana-backend-1:/app/media/` y
+el `chown`. El respaldo trae tu usuaria de desarrollo, que reemplaza a la
+del paso 7.
 
 ---
 
@@ -436,6 +558,17 @@ volúmenes (la base y las fotos siguen al volver a levantar);
   falta `docker-compose.override.yml` o `/var/www/certbot` (paso 5), o
   los contenedores no están levantados (paso 6: nginx tiene que estar
   sirviendo el puerto 80).
+- **certbot falla con "During secondary validation: DNS problem:
+  networking error"** aunque el DNS esté bien: antes de tocar nada,
+  revisar https://letsdebug.net (prueba el dominio desde afuera) y
+  https://letsencrypt.status.io (incidentes de Let's Encrypt). Ya pasó
+  una vez y era un incidente de ellos. Let's Encrypt admite 5 fallos por
+  hora por dominio: para reintentar sin gastarlos, `--dry-run`.
+- **`docker compose` dice "no configuration file provided"**: no estás en
+  la carpeta del proyecto. `cd /srv/ana_porcelana` y de nuevo.
+- **`/api/` responde 400 "DisallowedHost" al entrar por la IP** en vez de
+  por el dominio: es lo esperado. Django solo acepta los nombres de
+  `ALLOWED_HOSTS`, el dominio con y sin `www`.
 - **nginx sigue en http después de emitir el certificado**: falta el
   `docker compose restart frontend` del paso 8.
 - **La contraseña de la usuaria se perdió**:
