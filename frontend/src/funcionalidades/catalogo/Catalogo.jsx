@@ -96,35 +96,57 @@ export default function Catalogo() {
     escribirDireccion({ busqueda: '' })
   }
 
-  // El texto "N piezas" y el desplegable de orden se dibujan en un lugar
-  // distinto según el ancho, así que se definen una vez acá y se ubican
-  // más abajo.
+  // El desplegable de orden se dibuja en un lugar distinto según el ancho,
+  // así que se define una vez acá y se ubica más abajo. Mide lo mismo que
+  // el buscador y que Filtrar (44 de alto, letra 16, el mismo borde y
+  // radio) y lleva el texto en el mismo celeste que Filtrar, para que la
+  // barra sea pareja.
+  //
+  // La flecha nativa del desplegable la ubica cada navegador a su gusto, y
+  // queda más pegada al borde que el texto. Por eso se apaga (appearance
+  // none) y se dibuja una propia, a 12px del borde derecho, igual que el
+  // texto está a 12px del izquierdo. pointerEvents none deja que el toque
+  // sobre la flecha llegue al desplegable.
   const selectorDeOrden = (
-    <select
-      value={orden}
-      onChange={cambiarOrden}
-      aria-label="Ordenar por"
-      className="catalogo-campo"
-      style={{
-        minHeight: 38,
-        padding: '0 10px',
-        border: '1px solid #E0E8EB',
-        background: 'white',
-        color: '#323A3D',
-        borderRadius: 6,
-        outline: 'none',
-        cursor: 'pointer',
-        fontFamily: QUICKSAND,
-        fontWeight: 600,
-        fontSize: 14,
-      }}
-    >
-      {ORDENES.map((o) => (
-        <option key={o.valor} value={o.valor}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <div style={{ position: 'relative', display: 'inline-flex' }}>
+      <select
+        value={orden}
+        onChange={cambiarOrden}
+        aria-label="Ordenar por"
+        className="catalogo-campo"
+        style={{
+          appearance: 'none',
+          minHeight: 44,
+          padding: '0 38px 0 12px',
+          border: '1px solid #E0E8EB',
+          background: 'white',
+          color: '#557385',
+          borderRadius: 6,
+          outline: 'none',
+          cursor: 'pointer',
+          fontFamily: QUICKSAND,
+          fontWeight: 600,
+          fontSize: 16,
+        }}
+      >
+        {ORDENES.map((o) => (
+          <option key={o.valor} value={o.valor}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#557385"
+        strokeWidth="2.2"
+        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
   )
 
   return (
@@ -196,19 +218,20 @@ export default function Catalogo() {
         )}
 
         <div style={{ minWidth: 0 }}>
-          {/* Arriba de la grilla: el buscador, cuántas piezas se están
-              viendo, el orden y, solo en celular, el botón que abre el panel
-              de filtros. En celular son dos filas (buscador y Filtrar;
-              cantidad y orden); en escritorio una sola, con el buscador a la
-              izquierda y el resto a la derecha. */}
+          {/* Arriba de la grilla: el buscador, el orden y, solo en celular,
+              el botón que abre el panel de filtros. En celular son dos
+              filas: el buscador solo, y debajo el orden a la izquierda y
+              Filtrar a la derecha, los tres con el mismo alto, borde, radio
+              y letra. En escritorio es una sola fila, con el buscador a la
+              izquierda y "Ordenar por" con el desplegable a la derecha. */}
           {productos.length > 0 && (
             <>
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: esEscritorio ? 16 : 10,
-                  marginBottom: esEscritorio ? 16 : 10,
+                  gap: 16,
+                  marginBottom: esEscritorio ? 16 : 12,
                 }}
               >
                 {/* fontSize 16 es el mínimo con el que iPhone no hace zoom
@@ -273,33 +296,6 @@ export default function Catalogo() {
                   )}
                 </div>
 
-                {!esEscritorio && grupos.length > 0 && (
-                  <button
-                    onClick={() => setFiltrosAbierto(true)}
-                    className="catalogo-suave"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      minHeight: 38,
-                      padding: '0 12px',
-                      border: '1px solid #557385',
-                      background: 'white',
-                      color: '#557385',
-                      borderRadius: 6,
-                      cursor: 'pointer',
-                      fontFamily: QUICKSAND,
-                      fontWeight: 600,
-                      fontSize: 14,
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FILTROS} />
-                    </svg>
-                    {idsElegidos.length > 0 ? `Filtrar (${idsElegidos.length})` : 'Filtrar'}
-                  </button>
-                )}
-
                 {esEscritorio && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
                     <span style={{ fontSize: 14, color: '#64727A' }}>Ordenar por</span>
@@ -309,8 +305,43 @@ export default function Catalogo() {
               </div>
 
               {!esEscritorio && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <div style={{ marginLeft: 'auto' }}>{selectorDeOrden}</div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    marginBottom: 12,
+                  }}
+                >
+                  {selectorDeOrden}
+
+                  {grupos.length > 0 && (
+                    <button
+                      onClick={() => setFiltrosAbierto(true)}
+                      className="catalogo-suave"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        minHeight: 44,
+                        padding: '0 14px',
+                        border: '1px solid #E0E8EB',
+                        background: 'white',
+                        color: '#557385',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        fontFamily: QUICKSAND,
+                        fontWeight: 600,
+                        fontSize: 16,
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FILTROS} />
+                      </svg>
+                      {idsElegidos.length > 0 ? `Filtrar (${idsElegidos.length})` : 'Filtrar'}
+                    </button>
+                  )}
                 </div>
               )}
             </>
