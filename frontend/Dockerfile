@@ -27,10 +27,11 @@ FROM nginx:1.30-alpine
 COPY --from=compilar /app/dist /usr/share/nginx/html
 
 # Las configuraciones. sitio.conf son las rutas que comparten las dos
-# variantes; http.conf y https.conf son las variantes, y elegir-config.sh
+# variantes y cabeceras.conf las cabeceras de seguridad que sitio.conf
+# incluye; http.conf y https.conf son las variantes, y elegir-config.sh
 # decide cuál se activa al arrancar (la imagen oficial corre todo lo que
 # haya en /docker-entrypoint.d/ antes de levantar nginx).
-COPY nginx/sitio.conf /etc/nginx/sitio.conf
+COPY nginx/sitio.conf nginx/cabeceras.conf /etc/nginx/
 COPY nginx/http.conf nginx/https.conf /etc/nginx/configuraciones/
 COPY nginx/elegir-config.sh /docker-entrypoint.d/40-elegir-config.sh
 RUN chmod +x /docker-entrypoint.d/40-elegir-config.sh

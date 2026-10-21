@@ -1137,10 +1137,15 @@ que un backend recreado con otra IP no deje 502; `/media/` con `alias` al
 volumen, 30 días (el storage reutiliza un nombre solo tras borrar el
 archivo), nosniff y sin autoindex; `/assets/` un año e `immutable` (Vite
 pone un hash en el nombre); `/` con `try_files $uri /index.html` y
-`no-cache`, para que cada despliegue se vea al recargar. HSTS lo manda
-Django en cada respuesta de `/api/` y el navegador lo aplica al dominio:
-nginx no lo repite, porque un `add_header` en una location anula los del
-server y habría que ponerlo en cuatro lugares.
+`no-cache`, para que cada despliegue se vea al recargar. Las cuatro
+cabeceras de seguridad (HSTS, `X-Frame-Options`, `nosniff`,
+`Referrer-Policy`) las pone nginx en todas las respuestas desde
+`cabeceras.conf`, incluido a nivel server y otra vez en cada location con
+`add_header` propio, porque un `add_header` en una location anula los del
+server; HSTS solo en https, por la variable `$hsts` que `http.conf` deja
+vacía (nginx no manda una cabecera vacía); en `/api/` se descartan con
+`proxy_hide_header` las copias que manda Django, para que no salgan dos
+veces; `server_tokens off` oculta la versión.
 
 **`.env.produccion`** (git-ignorado; ejemplo en
 `.env.produccion.ejemplo`): `ENTORNO`, `SECRET_KEY`
