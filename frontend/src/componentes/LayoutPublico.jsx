@@ -124,7 +124,7 @@ function ItemPanel({
     cursor: 'pointer',
     textAlign: 'left',
     textDecoration: 'none',
-    color: activo ? '#5A7A8C' : '#323A3D',
+    color: activo ? '#557385' : '#323A3D',
   }
 
   const nombre = (
@@ -155,7 +155,7 @@ function ItemPanel({
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: 11,
-              background: '#5A7A8C',
+              background: '#557385',
               fontFamily: QUICKSAND,
               fontWeight: 700,
               fontSize: 12,
@@ -172,7 +172,7 @@ function ItemPanel({
   return (
     <button onClick={onClick} className="catalogo-item-panel" style={estilo}>
       {nombre}
-      <Flecha lado={18} abierto={abierto} color="#5A7A8C" />
+      <Flecha lado={18} abierto={abierto} color="#557385" />
     </button>
   )
 }
@@ -304,14 +304,14 @@ export default function LayoutPublico() {
       height: 46,
       padding: '0 16px',
       border: 0,
-      borderBottom: `2px solid ${activo ? '#5A7A8C' : 'transparent'}`,
+      borderBottom: `2px solid ${activo ? '#557385' : 'transparent'}`,
       background: 'transparent',
       cursor: 'pointer',
       textDecoration: 'none',
       fontFamily: QUICKSAND,
       fontWeight: 600,
       fontSize: 15,
-      color: activo ? '#5A7A8C' : '#323A3D',
+      color: activo ? '#557385' : '#323A3D',
     }
   }
 
@@ -361,7 +361,7 @@ export default function LayoutPublico() {
     >
       <div
         style={{
-          background: '#5A7A8C',
+          background: '#557385',
           textAlign: 'center',
           padding: '8px 16px',
           fontFamily: QUICKSAND,
@@ -403,7 +403,7 @@ export default function LayoutPublico() {
                   fontFamily: QUICKSAND,
                   fontWeight: 600,
                   fontSize: 14,
-                  color: '#5A7A8C',
+                  color: '#557385',
                 }}
               >
                 <IconoInstagram lado={18} />
@@ -426,7 +426,7 @@ export default function LayoutPublico() {
                   cursor: 'pointer',
                 }}
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" strokeWidth="2">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#557385" strokeWidth="2">
                   <path strokeLinecap="round" d={ICONO_MENU} />
                 </svg>
               </button>
@@ -444,7 +444,7 @@ export default function LayoutPublico() {
               fontWeight: 700,
               fontSize: 18,
               letterSpacing: '.02em',
-              color: '#5A7A8C',
+              color: '#557385',
             }}
           >
             Ana Porcelana
@@ -469,10 +469,10 @@ export default function LayoutPublico() {
                 fontFamily: QUICKSAND,
                 fontWeight: 600,
                 fontSize: 14,
-                color: '#5A7A8C',
+                color: '#557385',
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" strokeWidth="1.8">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#557385" strokeWidth="1.8">
                 <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_CORAZON} />
               </svg>
               <span>Mi selección</span>
@@ -486,7 +486,7 @@ export default function LayoutPublico() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 10,
-                    background: '#5A7A8C',
+                    background: '#557385',
                     fontFamily: QUICKSAND,
                     fontWeight: 700,
                     fontSize: 12,
@@ -575,7 +575,7 @@ export default function LayoutPublico() {
                         fontFamily: QUICKSAND,
                         fontWeight: 700,
                         fontSize: 14,
-                        color: '#5A7A8C',
+                        color: '#557385',
                       }}
                     >
                       Ver todos los productos
@@ -592,7 +592,7 @@ export default function LayoutPublico() {
                           fontSize: 12,
                           letterSpacing: '.06em',
                           textTransform: 'uppercase',
-                          color: '#708085',
+                          color: '#64727A',
                         }}
                       >
                         {grupo.titulo}
@@ -641,7 +641,7 @@ export default function LayoutPublico() {
         }}
       >
         {cargando && (
-          <p style={{ margin: 0, fontSize: 15, color: '#708085' }}>Cargando…</p>
+          <p style={{ margin: 0, fontSize: 15, color: '#64727A' }}>Cargando…</p>
         )}
 
         {!cargando && error && (
@@ -730,7 +730,7 @@ export default function LayoutPublico() {
               height: 56,
               flexShrink: 0,
               padding: '0 8px 0 16px',
-              background: '#5A7A8C',
+              background: '#557385',
             }}
           >
             <span style={{ fontFamily: QUICKSAND, fontWeight: 600, fontSize: 17, color: 'white' }}>
@@ -880,7 +880,7 @@ export default function LayoutPublico() {
                 fontFamily: QUICKSAND,
                 fontWeight: 600,
                 fontSize: 15,
-                color: '#5A7A8C',
+                color: '#557385',
               }}
             >
               <IconoInstagram lado={20} />

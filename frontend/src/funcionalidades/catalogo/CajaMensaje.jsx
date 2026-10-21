@@ -16,9 +16,9 @@ const estiloSalida = {
   display: 'inline-block',
   marginTop: 8,
   padding: '10px 18px',
-  border: '1px solid #5A7A8C',
+  border: '1px solid #557385',
   background: 'white',
-  color: '#5A7A8C',
+  color: '#557385',
   borderRadius: 6,
   textDecoration: 'none',
   fontFamily: QUICKSAND,
@@ -30,7 +30,7 @@ const estiloSalidaPrincipal = {
   ...estiloSalida,
   padding: '11px 20px',
   border: 0,
-  background: '#5A7A8C',
+  background: '#557385',
   color: 'white',
   fontSize: 16,
 }
@@ -63,7 +63,7 @@ export default function CajaMensaje({ titulo, texto, textoSalida, ruta, onSalida
             justifyContent: 'center',
           }}
         >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" strokeWidth="1.6">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#557385" strokeWidth="1.6">
             <path strokeLinecap="round" strokeLinejoin="round" d={icono} />
           </svg>
         </div>
@@ -74,7 +74,7 @@ export default function CajaMensaje({ titulo, texto, textoSalida, ruta, onSalida
       </p>
 
       {texto && (
-        <p style={{ margin: 0, maxWidth: 340, fontSize: 15, color: '#708085', textWrap: 'pretty' }}>
+        <p style={{ margin: 0, maxWidth: 340, fontSize: 15, color: '#64727A', textWrap: 'pretty' }}>
           {texto}
         </p>
       )}

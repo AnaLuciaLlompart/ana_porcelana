@@ -27,7 +27,7 @@ export default function FiltrosCatalogo({ grupos, idsElegidos, onAlternar, onQui
               fontSize: 15,
               letterSpacing: '.06em',
               textTransform: 'uppercase',
-              color: '#5A7A8C',
+              color: '#557385',
             }}
           >
             {grupo.titulo}
@@ -66,8 +66,8 @@ export default function FiltrosCatalogo({ grupos, idsElegidos, onAlternar, onQui
                     alignItems: 'center',
                     justifyContent: 'center',
                     borderRadius: 5,
-                    border: `1px solid ${elegida ? '#5A7A8C' : '#E0E8EB'}`,
-                    background: elegida ? '#5A7A8C' : 'white',
+                    border: `1px solid ${elegida ? '#557385' : '#E0E8EB'}`,
+                    background: elegida ? '#557385' : 'white',
                   }}
                 >
                   {elegida && (
@@ -79,7 +79,7 @@ export default function FiltrosCatalogo({ grupos, idsElegidos, onAlternar, onQui
 
                 <span style={{ flex: 1 }}>{categoria.nombre}</span>
 
-                <span style={{ fontSize: 13, color: '#87A0B0' }}>{categoria.cantidad}</span>
+                <span style={{ fontSize: 13, color: '#64727A' }}>{categoria.cantidad}</span>
               </button>
             )
           })}
@@ -99,7 +99,7 @@ export default function FiltrosCatalogo({ grupos, idsElegidos, onAlternar, onQui
             fontFamily: QUICKSAND,
             fontWeight: 600,
             fontSize: 14,
-            color: '#5A7A8C',
+            color: '#557385',
           }}
         >
           Quitar filtros

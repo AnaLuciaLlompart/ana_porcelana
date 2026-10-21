@@ -100,7 +100,7 @@ export default function Catalogo() {
   // distinto según el ancho, así que se definen una vez acá y se ubican
   // más abajo.
   const resumen = (
-    <span style={{ fontSize: 14, color: '#708085', whiteSpace: 'nowrap' }}>{textoPiezas(filtrados.length)}</span>
+    <span style={{ fontSize: 14, color: '#64727A', whiteSpace: 'nowrap' }}>{textoPiezas(filtrados.length)}</span>
   )
 
   const selectorDeOrden = (
@@ -141,7 +141,7 @@ export default function Catalogo() {
             fontWeight: 700,
             fontSize: 22,
             lineHeight: 1.2,
-            color: '#5A7A8C',
+            color: '#557385',
             textWrap: 'pretty',
           }}
         >
@@ -225,7 +225,7 @@ export default function Catalogo() {
                     height="16"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#708085"
+                    stroke="#64727A"
                     strokeWidth="2"
                     style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
                   >
@@ -270,7 +270,7 @@ export default function Catalogo() {
                         cursor: 'pointer',
                       }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#708085" strokeWidth="2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64727A" strokeWidth="2">
                         <path strokeLinecap="round" d={ICONO_CERRAR} />
                       </svg>
                     </button>
@@ -287,9 +287,9 @@ export default function Catalogo() {
                       gap: 6,
                       minHeight: 38,
                       padding: '0 12px',
-                      border: '1px solid #5A7A8C',
+                      border: '1px solid #557385',
                       background: 'white',
-                      color: '#5A7A8C',
+                      color: '#557385',
                       borderRadius: 6,
                       cursor: 'pointer',
                       fontFamily: QUICKSAND,
@@ -307,7 +307,7 @@ export default function Catalogo() {
                 {esEscritorio && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
                     {resumen}
-                    <span style={{ fontSize: 14, color: '#708085' }}>Ordenar por</span>
+                    <span style={{ fontSize: 14, color: '#64727A' }}>Ordenar por</span>
                     {selectorDeOrden}
                   </div>
                 )}
@@ -449,7 +449,7 @@ export default function Catalogo() {
                   width: '100%',
                   minHeight: 48,
                   border: 0,
-                  background: '#5A7A8C',
+                  background: '#557385',
                   color: 'white',
                   borderRadius: 6,
                   cursor: 'pointer',

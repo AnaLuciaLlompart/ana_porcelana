@@ -345,7 +345,7 @@ button:not(:disabled):hover {
 }
 
 .catalogo-item:hover {
-  color: #5A7A8C !important;
+  color: #557385 !important;
 }
 
 .catalogo-item-panel:hover {
@@ -408,7 +408,7 @@ button:not(:disabled):hover {
 }
 
 .catalogo-campo:focus {
-  border-color: #5A7A8C !important;
+  border-color: #557385 !important;
 }
 
 .catalogo-accion-aviso:hover {

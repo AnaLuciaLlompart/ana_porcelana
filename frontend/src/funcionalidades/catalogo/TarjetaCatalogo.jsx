@@ -90,7 +90,7 @@ export default function TarjetaCatalogo({ producto, filtros, indice }) {
           {producto.nombre}
         </p>
 
-        <p style={{ margin: 0, paddingTop: 4, marginTop: 'auto', fontFamily: QUICKSAND, fontWeight: 700, fontSize: 15, color: '#5A7A8C' }}>
+        <p style={{ margin: 0, paddingTop: 4, marginTop: 'auto', fontFamily: QUICKSAND, fontWeight: 700, fontSize: 15, color: '#557385' }}>
           {formatearPrecio(producto.precio_actual)}
         </p>
       </div>

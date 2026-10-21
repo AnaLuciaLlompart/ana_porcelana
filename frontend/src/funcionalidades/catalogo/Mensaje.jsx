@@ -59,7 +59,7 @@ export default function Mensaje() {
           fontFamily: QUICKSAND,
           fontWeight: 600,
           fontSize: 15,
-          color: '#5A7A8C',
+          color: '#557385',
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -68,10 +68,10 @@ export default function Mensaje() {
         Volver
       </Link>
 
-      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#5A7A8C' }}>
+      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#557385' }}>
         Tu mensaje está listo
       </h1>
-      <p style={{ margin: '0 0 22px', fontSize: 15, color: '#708085', textWrap: 'pretty' }}>
+      <p style={{ margin: '0 0 22px', fontSize: 15, color: '#64727A', textWrap: 'pretty' }}>
         Copialo y pegalo en el chat de Instagram con @{INSTAGRAM_USUARIO}.
       </p>
 
@@ -84,7 +84,7 @@ export default function Mensaje() {
               fontWeight: 600,
               fontSize: 13,
               letterSpacing: '.06em',
-              color: '#708085',
+              color: '#64727A',
             }}
           >
             VISTA PREVIA
@@ -119,9 +119,9 @@ export default function Mensaje() {
               gap: 8,
               minHeight: 48,
               padding: '12px 18px',
-              border: '1px solid #5A7A8C',
+              border: '1px solid #557385',
               background: 'white',
-              color: '#5A7A8C',
+              color: '#557385',
               borderRadius: 6,
               cursor: 'pointer',
               fontFamily: QUICKSAND,
@@ -149,7 +149,7 @@ export default function Mensaje() {
               gap: 8,
               minHeight: 48,
               padding: '12px 18px',
-              background: '#5A7A8C',
+              background: '#557385',
               color: 'white',
               borderRadius: 6,
               textDecoration: 'none',

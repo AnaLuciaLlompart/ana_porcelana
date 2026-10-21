@@ -29,6 +29,20 @@ const estiloEtiqueta = {
   letterSpacing: '.03em',
 }
 
+// El texto que se muestra cuando el login falla. El backend responde 429
+// por dos motivos distintos: el throttle de DRF (más de 5 intentos en un
+// minuto), cuyo 'detail' es un texto genérico traducido ("Solicitud fue
+// regulada…"), y el bloqueo de axes por intentos fallidos, que trae un
+// texto propio. Los distingue la cabecera Retry-After, que DRF manda
+// siempre con el throttle y axes no: solo el primero se reemplaza.
+function mensajeDeError(err) {
+  const respuesta = err.response
+  if (respuesta?.status === 429 && respuesta.headers['retry-after']) {
+    return 'Demasiados intentos. Esperá un minuto y volvé a probar.'
+  }
+  return respuesta?.data?.detail || 'No se pudo iniciar sesión.'
+}
+
 export default function Login() {
   const { entrar } = useAuth()
   const navegar = useNavigate()
@@ -55,7 +69,7 @@ export default function Login() {
       await entrar(username, password)
       navegar(BASE_GESTION)
     } catch (err) {
-      setError(err.response?.data?.detail || 'No se pudo iniciar sesión.')
+      setError(mensajeDeError(err))
     } finally {
       setEnviando(false)
     }

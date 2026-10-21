@@ -41,10 +41,10 @@ const TIPS = [
 export default function Tips() {
   return (
     <section>
-      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#5A7A8C' }}>
+      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#557385' }}>
         Tips para tus piezas
       </h1>
-      <p style={{ margin: '0 0 24px', fontSize: 15, color: '#708085', textWrap: 'pretty' }}>
+      <p style={{ margin: '0 0 24px', fontSize: 15, color: '#64727A', textWrap: 'pretty' }}>
         Para que te duren mucho tiempo como el primer día.
       </p>
 
@@ -73,7 +73,7 @@ export default function Tips() {
                 background: '#E2EAF0',
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" strokeWidth="1.8">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#557385" strokeWidth="1.8">
                 <path strokeLinecap="round" strokeLinejoin="round" d={tip.icono} />
               </svg>
             </span>

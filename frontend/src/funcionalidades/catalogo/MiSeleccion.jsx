@@ -50,7 +50,7 @@ function BotonCantidad({ icono, title, deshabilitado, onClick }) {
         opacity: deshabilitado ? 0.35 : 1,
       }}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A7A8C" strokeWidth="2.3">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#557385" strokeWidth="2.3">
         <path strokeLinecap="round" d={icono} />
       </svg>
     </button>
@@ -64,10 +64,10 @@ export default function MiSeleccion() {
 
   return (
     <section>
-      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#5A7A8C' }}>
+      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#557385' }}>
         Mi selección
       </h1>
-      <p style={{ margin: '0 0 22px', fontSize: 15, color: '#708085' }}>
+      <p style={{ margin: '0 0 22px', fontSize: 15, color: '#64727A' }}>
         {items.length === 0
           ? 'Acá vas a ver las piezas que elijas.'
           : `${textoCantidadElegida(piezas)} Ajustá cantidades y contame lo que necesites.`}
@@ -133,7 +133,7 @@ export default function MiSeleccion() {
                   >
                     {producto.nombre}
                   </p>
-                  <p style={{ margin: '3px 0 0', fontSize: 14, color: '#708085' }}>
+                  <p style={{ margin: '3px 0 0', fontSize: 14, color: '#64727A' }}>
                     {formatearPrecio(producto.precio_actual)}
                   </p>
                 </div>
@@ -210,7 +210,7 @@ export default function MiSeleccion() {
                   fontWeight: 600,
                   fontSize: 13,
                   letterSpacing: '.06em',
-                  color: '#708085',
+                  color: '#64727A',
                 }}
               >
                 ACLARACIONES
@@ -254,7 +254,7 @@ export default function MiSeleccion() {
               <span style={{ fontFamily: QUICKSAND, fontWeight: 600, fontSize: 15, color: '#323A3D' }}>
                 Total orientativo
               </span>
-              <span style={{ fontFamily: QUICKSAND, fontWeight: 700, fontSize: 24, color: '#5A7A8C' }}>
+              <span style={{ fontFamily: QUICKSAND, fontWeight: 700, fontSize: 24, color: '#557385' }}>
                 {formatearPrecio(total)}
               </span>
             </div>
@@ -269,7 +269,7 @@ export default function MiSeleccion() {
                 gap: 8,
                 minHeight: 48,
                 padding: '12px 20px',
-                background: '#5A7A8C',
+                background: '#557385',
                 color: 'white',
                 borderRadius: 6,
                 textDecoration: 'none',
@@ -290,7 +290,7 @@ export default function MiSeleccion() {
                 padding: '10px 18px',
                 border: '1px solid #E0E8EB',
                 background: 'white',
-                color: '#5A7A8C',
+                color: '#557385',
                 borderRadius: 6,
                 textAlign: 'center',
                 textDecoration: 'none',

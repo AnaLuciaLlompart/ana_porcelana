@@ -62,7 +62,7 @@ export default function DetalleCatalogo() {
   }, [id])
 
   if (cargando) {
-    return <p style={{ margin: 0, fontSize: 15, color: '#708085' }}>Cargando…</p>
+    return <p style={{ margin: 0, fontSize: 15, color: '#64727A' }}>Cargando…</p>
   }
 
   if (noExiste) {
@@ -112,7 +112,7 @@ export default function DetalleCatalogo() {
           fontFamily: QUICKSAND,
           fontWeight: 600,
           fontSize: 15,
-          color: '#5A7A8C',
+          color: '#557385',
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -172,7 +172,7 @@ export default function DetalleCatalogo() {
                     borderRadius: 6,
                     cursor: 'pointer',
                     background: tinteDe(producto),
-                    border: `2px solid ${fotoIdx === indice ? '#5A7A8C' : 'transparent'}`,
+                    border: `2px solid ${fotoIdx === indice ? '#557385' : 'transparent'}`,
                   }}
                 >
                   <img
@@ -202,7 +202,7 @@ export default function DetalleCatalogo() {
               {producto.nombre}
             </h1>
 
-            <p style={{ margin: '8px 0 0', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 24, color: '#5A7A8C' }}>
+            <p style={{ margin: '8px 0 0', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 24, color: '#557385' }}>
               {formatearPrecio(producto.precio_actual)}
             </p>
           </div>
@@ -223,7 +223,7 @@ export default function DetalleCatalogo() {
                 fontSize: 15,
                 letterSpacing: '.06em',
                 textTransform: 'uppercase',
-                color: '#5A7A8C',
+                color: '#557385',
               }}
             >
               Descripción
@@ -253,8 +253,8 @@ export default function DetalleCatalogo() {
                     cx={6 + indice * 14}
                     cy="6"
                     r="5"
-                    fill={indice < nivel ? '#5A7A8C' : 'white'}
-                    stroke="#5A7A8C"
+                    fill={indice < nivel ? '#557385' : 'white'}
+                    stroke="#557385"
                     strokeWidth="1.5"
                   />
                 ))}
@@ -280,7 +280,7 @@ export default function DetalleCatalogo() {
                       borderRadius: 20,
                       border: '1px solid #E0E8EB',
                       background: '#E2EAF0',
-                      color: '#5A7A8C',
+                      color: '#323A3D',
                       textDecoration: 'none',
                       fontFamily: QUICKSAND,
                       fontWeight: 600,
@@ -308,7 +308,7 @@ export default function DetalleCatalogo() {
               minHeight: 48,
               padding: '12px 20px',
               border: 0,
-              background: '#5A7A8C',
+              background: '#557385',
               color: 'white',
               borderRadius: 6,
               cursor: 'pointer',
@@ -324,12 +324,12 @@ export default function DetalleCatalogo() {
           </button>
 
           {enSeleccion > 0 && (
-            <p style={{ margin: '-4px 0 0', textAlign: 'center', fontSize: 14, color: '#708085' }}>
+            <p style={{ margin: '-4px 0 0', textAlign: 'center', fontSize: 14, color: '#64727A' }}>
               Ya tenés {enSeleccion} en tu selección
             </p>
           )}
 
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#708085', textWrap: 'pretty' }}>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#64727A', textWrap: 'pretty' }}>
             Cada pieza se hace a mano, por eso puede variar un poquito respecto de la foto.
           </p>
         </div>

@@ -25,7 +25,7 @@ const estiloTitulo = {
   fontWeight: 600,
   fontSize: 15,
   letterSpacing: '.06em',
-  color: '#5A7A8C',
+  color: '#557385',
 }
 
 const estiloEnlace = {
@@ -52,10 +52,10 @@ export default function PiePublico({ grupos, alElegir }) {
         }}
       >
         <div>
-          <p style={{ margin: '0 0 10px', fontFamily: QUICKSAND, fontWeight: 700, fontSize: 18, color: '#5A7A8C' }}>
+          <p style={{ margin: '0 0 10px', fontFamily: QUICKSAND, fontWeight: 700, fontSize: 18, color: '#557385' }}>
             Ana Porcelana
           </p>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#708085', textWrap: 'pretty' }}>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#64727A', textWrap: 'pretty' }}>
             Accesorios artesanales en porcelana fría, hechos a mano en Tucumán, Argentina.
           </p>
         </div>
@@ -106,7 +106,7 @@ export default function PiePublico({ grupos, alElegir }) {
               fontFamily: QUICKSAND,
               fontWeight: 600,
               fontSize: 14,
-              color: '#5A7A8C',
+              color: '#557385',
             }}
           >
             <IconoInstagram lado={18} />
@@ -116,7 +116,7 @@ export default function PiePublico({ grupos, alElegir }) {
       </div>
 
       <div style={{ borderTop: '1px solid #E0E8EB' }}>
-        <p style={{ maxWidth: 1200, margin: '0 auto', padding: '14px 16px', fontSize: 13, color: '#708085' }}>
+        <p style={{ maxWidth: 1200, margin: '0 auto', padding: '14px 16px', fontSize: 13, color: '#64727A' }}>
           © {new Date().getFullYear()} Ana Porcelana
         </p>
       </div>

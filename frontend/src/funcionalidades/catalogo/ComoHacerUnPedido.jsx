@@ -40,7 +40,7 @@ const PASOS = [
           target="_blank"
           rel="noopener noreferrer"
           className="catalogo-instagram"
-          style={{ color: '#5A7A8C', fontWeight: 600 }}
+          style={{ color: '#557385', fontWeight: 600 }}
         >
           @{INSTAGRAM_USUARIO}
         </a>
@@ -53,7 +53,7 @@ const PASOS = [
 export default function ComoHacerUnPedido() {
   return (
     <section>
-      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#5A7A8C' }}>
+      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#557385' }}>
         Cómo hacer un pedido
       </h1>
       <p style={{ margin: '0 0 24px', maxWidth: 1000, fontSize: 15, lineHeight: 1.55, color: '#323A3D', textWrap: 'pretty' }}>
@@ -95,7 +95,7 @@ export default function ComoHacerUnPedido() {
                 fontFamily: QUICKSAND,
                 fontWeight: 700,
                 fontSize: 16,
-                color: '#5A7A8C',
+                color: '#557385',
               }}
             >
               {paso.numero}
@@ -103,7 +103,7 @@ export default function ComoHacerUnPedido() {
             <p style={{ margin: 0, fontFamily: QUICKSAND, fontWeight: 600, fontSize: 16, color: '#323A3D' }}>
               {paso.titulo}
             </p>
-            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: '#708085', textWrap: 'pretty' }}>
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: '#64727A', textWrap: 'pretty' }}>
               {paso.texto}
             </p>
           </div>
@@ -123,7 +123,7 @@ export default function ComoHacerUnPedido() {
         <p style={{ margin: 0, fontFamily: QUICKSAND, fontWeight: 600, fontSize: 16, color: '#323A3D' }}>
           ¿Tenés una idea que no está en el catálogo?
         </p>
-        <p style={{ margin: '6px 0 0', fontSize: 15, lineHeight: 1.55, color: '#708085', textWrap: 'pretty' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 15, lineHeight: 1.55, color: '#64727A', textWrap: 'pretty' }}>
           También hago pedidos personalizados: alguna temática que te guste, un regalo con iniciales, un color en particular. Escribime por Instagram con tu idea y, si tenés, una referencia (por ejemplo, de Pinterest). Te paso un presupuesto antes de empezar.
         </p>
       </div>
@@ -135,7 +135,7 @@ export default function ComoHacerUnPedido() {
           display: 'inline-block',
           marginTop: 24,
           padding: '11px 20px',
-          background: '#5A7A8C',
+          background: '#557385',
           color: 'white',
           borderRadius: 6,
           textDecoration: 'none',
