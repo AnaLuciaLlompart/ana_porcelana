@@ -32,27 +32,6 @@ const estiloCampo = {
 }
 
 
-// Encabezado de campo con la etiqueta a la izquierda y una aclaración chica
-// a la derecha. Es lo que distingue la descripción del paso a paso: uno lo
-// lee el cliente, el otro no sale nunca del módulo de gestión.
-function EtiquetaConNota({ texto, nota }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: 8,
-        marginBottom: 7,
-      }}
-    >
-      <label style={{ ...estiloEtiqueta, display: 'inline', marginBottom: 0 }}>{texto}</label>
-      <span style={{ fontSize: 12, color: '#B08791' }}>{nota}</span>
-    </div>
-  )
-}
-
-
 export default function PestanaDatos({
   borrador,
   onCambiar,
@@ -191,10 +170,7 @@ export default function PestanaDatos({
       </label>
 
       <div>
-        <EtiquetaConNota
-          texto="Descripción para el catálogo (opcional)"
-          nota="La lee el cliente"
-        />
+        <label style={estiloEtiqueta}>Descripción para el catálogo (opcional)</label>
         <textarea
           value={borrador.descripcion}
           onChange={(e) => onCambiar({ descripcion: e.target.value })}
@@ -209,10 +185,7 @@ export default function PestanaDatos({
       </div>
 
       <div>
-        <EtiquetaConNota
-          texto="Paso a paso de elaboración (opcional)"
-          nota="Solo uso interno"
-        />
+        <label style={estiloEtiqueta}>Paso a paso de elaboración (opcional)</label>
         <textarea
           value={borrador.paso_a_paso}
           onChange={(e) => onCambiar({ paso_a_paso: e.target.value })}
