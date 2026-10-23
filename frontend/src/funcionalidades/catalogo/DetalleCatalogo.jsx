@@ -438,7 +438,7 @@ export default function DetalleCatalogo() {
                   color: '#323A3D',
                 }}
               >
-                {enSeleccion} en tu selección
+                {enSeleccion}
               </span>
 
               <button
