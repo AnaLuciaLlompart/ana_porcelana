@@ -870,7 +870,17 @@ decisivo, que su acción "Ver" lleva a `/seleccion` y por eso es un
 layout, para seguir a la vista si cambia la pantalla; dura 2,8 segundos;
 lleva `width: max-content`, porque un elemento fijo con `left: 50%` solo
 puede medirse con la mitad derecha de la pantalla y el texto se partía en
-seis renglones.
+seis renglones. Agregar un producto desde el detalle ya no avisa: el
+contador que aparece en el lugar del botón lo dice solo. Hoy el aviso lo
+usa solo la pantalla del mensaje ("Mensaje copiado"), así que la acción
+"Ver" sigue en el componente pero nadie la pasa.
+
+**La galería del detalle se recorre deslizando el dedo.** La foto grande
+es una fila con todas las fotos, que se desplaza de costado con
+`scroll-snap` para frenar siempre en una foto; seguir el dedo y la inercia
+los hace el navegador, sin librerías. Las miniaturas se sincronizan con la
+fila en los dos sentidos: `alDeslizar` marca la que quedó a la vista e
+`irAFoto` lleva la fila hasta la que se toca.
 
 **`INSTAGRAM_USUARIO = 'ana_porcelanaa'` e `INSTAGRAM_URL` viven en
 `constantes.js`.** Es con doble a al final, distinto del nombre del
@@ -916,8 +926,13 @@ porque son otras pantallas.
 grillas del pie, de los pasos y de las tarjetas usan
 `repeat(auto-fit, …)` y no necesitan clase.
 
-Hovers, fuera de la media query, con `!important` sobre lo que está en
-línea:
+Hovers, fuera de la media query de 900, con `!important` sobre lo que
+está en línea. Van todos dentro de `@media (hover: hover)`, que se cumple
+solo donde hay un mouse de verdad: en un celular el navegador activa
+`:hover` al tocar y algunos lo dejan puesto después del toque, así que el
+botón tocado ("Mi selección", el ☰, Filtrar) quedaba sombreado en unos
+celulares y en otros no. En una pantalla táctil no hay hover nunca. El
+foco de `catalogo-campo` queda afuera, porque no es un hover:
 
 - `catalogo-suave`: fondo celeste suave; el ☰, Filtrar y su cruz, la cruz
   del buscador, el enlace a Instagram del panel ☰, − y +, y los botones y

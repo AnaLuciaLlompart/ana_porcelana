@@ -10,7 +10,6 @@ import {
   QUICKSAND,
   TEXTOS_SELECCION_VACIA,
   formatearPrecio,
-  textoCantidadElegida,
   tinteDe,
 } from './presentacion'
 
@@ -60,18 +59,15 @@ function BotonCantidad({ icono, title, deshabilitado, onClick }) {
 
 export default function MiSeleccion() {
   const { seleccion } = useOutletContext()
-  const { items, piezas, total, aclaraciones, modificarCantidad, quitarProducto, registrarAclaraciones } = seleccion
+  const { items, total, aclaraciones, modificarCantidad, quitarProducto, registrarAclaraciones } = seleccion
 
   return (
     <section>
-      <h1 style={{ margin: '0 0 6px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#557385' }}>
+      {/* Sin texto debajo del título: la lista o la caja de la selección
+          vacía ya dicen lo que hay. */}
+      <h1 style={{ margin: '0 0 22px', fontFamily: QUICKSAND, fontWeight: 600, fontSize: 32, color: '#557385' }}>
         Mi selección
       </h1>
-      <p style={{ margin: '0 0 22px', fontSize: 15, color: '#64727A' }}>
-        {items.length === 0
-          ? 'Acá vas a ver las piezas que elijas.'
-          : `${textoCantidadElegida(piezas)} Ajustá cantidades y contame lo que necesites.`}
-      </p>
 
       {items.length === 0 && (
         <CajaMensaje icono={ICONO_CORAZON} {...TEXTOS_SELECCION_VACIA} principal />
@@ -138,65 +134,71 @@ export default function MiSeleccion() {
                   </p>
                 </div>
 
-                {/* El "−" se apaga en 1: para sacar la pieza está Quitar. */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    flexShrink: 0,
-                    marginLeft: 'auto',
-                    border: '1px solid #E0E8EB',
-                    borderRadius: 6,
-                  }}
-                >
-                  <BotonCantidad
-                    icono={ICONO_MENOS}
-                    title="Una menos"
-                    deshabilitado={cantidad <= 1}
-                    onClick={() => modificarCantidad(producto.id, cantidad - 1)}
-                  />
-                  <span
+                {/* El contador y Quitar van juntos en un bloque que no se
+                    parte: si la fila no entra en un renglón (un celular
+                    angosto), baja el bloque entero, a la derecha, y los
+                    botones quedan siempre alineados entre sí. Sueltos, el
+                    contador entraba arriba y Quitar bajaba solo. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, marginLeft: 'auto' }}>
+                  {/* El "−" se apaga en 1: para sacar la pieza está Quitar. */}
+                  <div
                     style={{
-                      minWidth: 22,
-                      textAlign: 'center',
-                      fontFamily: QUICKSAND,
-                      fontWeight: 600,
-                      fontSize: 15,
-                      color: '#323A3D',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      flexShrink: 0,
+                      border: '1px solid #E0E8EB',
+                      borderRadius: 6,
                     }}
                   >
-                    {cantidad}
-                  </span>
-                  <BotonCantidad
-                    icono={ICONO_MAS}
-                    title="Una más"
-                    deshabilitado={cantidad >= CANTIDAD_MAXIMA}
-                    onClick={() => modificarCantidad(producto.id, cantidad + 1)}
-                  />
-                </div>
+                    <BotonCantidad
+                      icono={ICONO_MENOS}
+                      title="Una menos"
+                      deshabilitado={cantidad <= 1}
+                      onClick={() => modificarCantidad(producto.id, cantidad - 1)}
+                    />
+                    <span
+                      style={{
+                        minWidth: 22,
+                        textAlign: 'center',
+                        fontFamily: QUICKSAND,
+                        fontWeight: 600,
+                        fontSize: 15,
+                        color: '#323A3D',
+                      }}
+                    >
+                      {cantidad}
+                    </span>
+                    <BotonCantidad
+                      icono={ICONO_MAS}
+                      title="Una más"
+                      deshabilitado={cantidad >= CANTIDAD_MAXIMA}
+                      onClick={() => modificarCantidad(producto.id, cantidad + 1)}
+                    />
+                  </div>
 
-                <button
-                  onClick={() => quitarProducto(producto.id)}
-                  title="Quitar"
-                  className="catalogo-quitar"
-                  style={{
-                    width: 36,
-                    height: 36,
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: 0,
-                    background: 'transparent',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0442F" strokeWidth="1.9">
-                    <path strokeLinecap="round" d={ICONO_CERRAR} />
-                  </svg>
-                </button>
+                  <button
+                    onClick={() => quitarProducto(producto.id)}
+                    title="Quitar"
+                    className="catalogo-quitar"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 0,
+                      background: 'transparent',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0442F" strokeWidth="1.9">
+                      <path strokeLinecap="round" d={ICONO_CERRAR} />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
 

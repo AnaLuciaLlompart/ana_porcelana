@@ -331,29 +331,37 @@ button:not(:disabled):hover {
    oscurecen apenas (filter no está en línea, así que va sin !important);
    y el enlace a Instagram del encabezado. Los !important pisan el
    background, el border, el color y el text-decoration que esos elementos
-   ya llevan en línea. */
-.catalogo-suave:hover {
-  background: #E2EAF0 !important;
-}
+   ya llevan en línea.
 
-.catalogo-tarjeta:hover {
-  border-color: #87A0B0 !important;
-}
+   Todos los hovers del catálogo van dentro de (hover: hover), que se
+   cumple solo donde hay un mouse de verdad. En un celular el navegador
+   activa :hover al tocar, y algunos lo dejan puesto después del toque: el
+   botón tocado quedaba sombreado hasta tocar otra cosa, en unos celulares
+   sí y en otros no. Así, en una pantalla táctil no hay hover nunca. */
+@media (hover: hover) {
+  .catalogo-suave:hover {
+    background: #E2EAF0 !important;
+  }
 
-.catalogo-subrayado:hover {
-  text-decoration: underline !important;
-}
+  .catalogo-tarjeta:hover {
+    border-color: #87A0B0 !important;
+  }
 
-.catalogo-item:hover {
-  color: #557385 !important;
-}
+  .catalogo-subrayado:hover {
+    text-decoration: underline !important;
+  }
 
-.catalogo-item-panel:hover {
-  filter: brightness(0.97);
-}
+  .catalogo-item:hover {
+    color: #557385 !important;
+  }
 
-.catalogo-instagram:hover {
-  color: #87A0B0 !important;
+  .catalogo-item-panel:hover {
+    filter: brightness(0.97);
+  }
+
+  .catalogo-instagram:hover {
+    color: #87A0B0 !important;
+  }
 }
 
 /* Catálogo público, de 900px para arriba. El catálogo se diseñó primero
@@ -398,21 +406,24 @@ button:not(:disabled):hover {
    línea. Quitar se tiñe de rojo claro; el textarea de aclaraciones y el
    desplegable de orden del listado toman el borde celeste al enfocarlos
    (la regla global de foco de arriba es solo para input); y el "Ver" del
-   aviso flotante aclara su fondo. */
-.catalogo-relleno:hover {
-  opacity: 0.92;
-}
+   aviso flotante aclara su fondo. Los hovers van dentro de (hover: hover),
+   por lo mismo que los de arriba; el foco no, porque no es un hover. */
+@media (hover: hover) {
+  .catalogo-relleno:hover {
+    opacity: 0.92;
+  }
 
-.catalogo-quitar:hover {
-  background: #FAEAE8 !important;
+  .catalogo-quitar:hover {
+    background: #FAEAE8 !important;
+  }
+
+  .catalogo-accion-aviso:hover {
+    background: rgba(255, 255, 255, 0.28) !important;
+  }
 }
 
 .catalogo-campo:focus {
   border-color: #557385 !important;
-}
-
-.catalogo-accion-aviso:hover {
-  background: rgba(255, 255, 255, 0.28) !important;
 }
 
 /* Catálogo público, de 900px para arriba: en /seleccion la lista y el

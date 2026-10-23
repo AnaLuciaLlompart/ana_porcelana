@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useOutletContext, useParams } from 'react-router-dom'
 import { obtenerProductoDelCatalogo } from './api'
 import CajaMensaje from './CajaMensaje'
 import { ordenarCategorias } from './filtros'
+import { CANTIDAD_MAXIMA } from './seleccion'
 import {
   ICONO_CAMARA,
   ICONO_MAS,
+  ICONO_MENOS,
+  ICONO_TACHO,
   ICONO_VOLVER,
   NIVEL_DIFICULTAD,
   QUICKSAND,
@@ -21,7 +24,7 @@ import {
 export default function DetalleCatalogo() {
   const { id } = useParams()
   const ubicacion = useLocation()
-  const { seleccion, mostrarAviso } = useOutletContext()
+  const { seleccion } = useOutletContext()
 
   const [producto, setProducto] = useState(null)
   const [cargando, setCargando] = useState(true)
@@ -29,9 +32,12 @@ export default function DetalleCatalogo() {
   // Va aparte del error porque no es una falla: el servidor contestó bien
   // que ese producto no está en el catálogo. Se muestra otra cosa.
   const [noExiste, setNoExiste] = useState(false)
-  // Cuál de las fotos está en grande. Es estado local: no hace falta que
-  // sobreviva a salir de la pantalla.
+  // Cuál de las fotos está a la vista. Lo escribe alDeslizar a partir de
+  // cuánto se desplazó la fila de fotos, y es lo que marca la miniatura. Es
+  // estado local: no hace falta que sobreviva a salir de la pantalla.
   const [fotoIdx, setFotoIdx] = useState(0)
+  // La fila de fotos de la galería, para leer y mover su desplazamiento.
+  const fila = useRef(null)
 
   // Si se pasa de una pieza a otra sin salir de la pantalla (solo pasa
   // escribiendo la dirección a mano: ningún enlace del catálogo lo hace),
@@ -80,7 +86,6 @@ export default function DetalleCatalogo() {
   }
 
   const nivel = NIVEL_DIFICULTAD[producto.dificultad]
-  const foto = producto.imagenes[fotoIdx]
   const categorias = ordenarCategorias(producto.categorias)
 
   // La tarjeta del listado deja anotada en el state del enlace la consulta
@@ -92,10 +97,51 @@ export default function DetalleCatalogo() {
   // Cuántas de esta pieza hay ya en la selección: 0 si ninguna.
   const enSeleccion = seleccion.cantidades[producto.id] || 0
 
-  // CU66. Suma una y avisa, con el "Ver" que lleva a la selección.
+  // CU66. La primera pieza: la agrega, y desde ahí el botón pasa a ser el
+  // contador. No hay aviso flotante: el contador que aparece en el lugar
+  // del botón ya dice que se agregó.
   function agregar() {
     seleccion.agregarProducto(producto.id)
-    mostrarAviso(`${producto.nombre} agregado a tu selección`, '/seleccion')
+  }
+
+  // El − del contador. Con dos o más resta una (CU67); con una sola, la
+  // quita de la selección (CU68) y el contador vuelve a ser el botón.
+  // Ninguno de los dos avisa: el efecto se ve en el contador mismo.
+  function restar() {
+    if (enSeleccion > 1) seleccion.modificarCantidad(producto.id, enSeleccion - 1)
+    else seleccion.quitarProducto(producto.id)
+  }
+
+  // La galería se recorre deslizando el dedo sobre la foto (la fila se
+  // desplaza de costado) o tocando una miniatura. Las dos cosas mueven la
+  // misma fila, y la miniatura marcada sale siempre de dónde quedó la fila:
+  // así no pueden contradecirse.
+  //
+  // Al deslizar: qué foto quedó a la vista. Cada foto mide lo mismo que la
+  // fila, así que es cuánto se desplazó dividido ese ancho, redondeado.
+  function alDeslizar() {
+    const { scrollLeft, clientWidth } = fila.current
+    setFotoIdx(Math.round(scrollLeft / clientWidth))
+  }
+
+  // Al tocar una miniatura: llevar la fila hasta esa foto, con movimiento
+  // suave. La miniatura se marca sola cuando la foto llega, por alDeslizar.
+  function irAFoto(indice) {
+    fila.current.scrollTo({ left: indice * fila.current.clientWidth, behavior: 'smooth' })
+  }
+
+  // Los dos botones de los costados del contador: cuadrados, sin fondo,
+  // separados del número por una línea.
+  const estiloBotonContador = {
+    width: 56,
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 0,
+    background: 'transparent',
+    color: '#557385',
+    cursor: 'pointer',
   }
 
   return (
@@ -141,12 +187,38 @@ export default function DetalleCatalogo() {
               background: tinteDe(producto),
             }}
           >
-            {foto ? (
-              <img
-                src={foto.imagen}
-                alt={producto.nombre}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
+            {producto.imagenes.length > 0 ? (
+              <div
+                ref={fila}
+                onScroll={alDeslizar}
+                style={{
+                  display: 'flex',
+                  width: '100%',
+                  height: '100%',
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  scrollSnapType: 'x mandatory',
+                  overscrollBehaviorX: 'contain',
+                  scrollbarWidth: 'none',
+                }}
+              >
+                {producto.imagenes.map((imagen) => (
+                  <img
+                    key={imagen.id}
+                    src={imagen.imagen}
+                    alt={producto.nombre}
+                    style={{
+                      flex: '0 0 100%',
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      scrollSnapAlign: 'center',
+                      scrollSnapStop: 'always',
+                    }}
+                  />
+                ))}
+              </div>
             ) : (
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#87A0B0" strokeWidth="1.2">
                 <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_CAMARA} />
@@ -154,15 +226,15 @@ export default function DetalleCatalogo() {
             )}
           </div>
 
-          {/* Las miniaturas son botones y no enlaces: cambian la foto
-              grande, no llevan a ningún lado. Con una sola foto no hay
-              nada que elegir y no se dibujan. */}
+          {/* Las miniaturas son botones y no enlaces: llevan la fila hasta
+              esa foto, no llevan a ninguna otra pantalla. Con una sola foto
+              no hay nada que elegir y no se dibujan. */}
           {producto.imagenes.length > 1 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
               {producto.imagenes.map((imagen, indice) => (
                 <button
                   key={imagen.id}
-                  onClick={() => setFotoIdx(indice)}
+                  onClick={() => irAFoto(indice)}
                   style={{
                     width: 64,
                     height: 64,
@@ -296,37 +368,122 @@ export default function DetalleCatalogo() {
 
           <div style={{ height: 1, background: '#E0E8EB' }} />
 
-          {/* Es un botón y no un enlace: agrega, no lleva a ningún lado. */}
-          <button
-            onClick={agregar}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              width: '100%',
-              minHeight: 48,
-              padding: '12px 20px',
-              border: 0,
-              background: '#557385',
-              color: 'white',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: QUICKSAND,
-              fontWeight: 600,
-              fontSize: 16,
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
-              <path strokeLinecap="round" d={ICONO_MAS} />
-            </svg>
-            Agregar a mi selección
-          </button>
+          {/* Sin la pieza en la selección, el botón "Agregar a mi
+              selección". Con la pieza, en el mismo lugar y del mismo tamaño,
+              el contador: − (o el tachito si queda una), cuántas hay y +.
+              Son botones y no enlaces: cambian la selección, no llevan a
+              ningún lado. */}
+          {enSeleccion === 0 ? (
+            <button
+              onClick={agregar}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                width: '100%',
+                minHeight: 48,
+                padding: '12px 20px',
+                border: 0,
+                background: '#557385',
+                color: 'white',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontFamily: QUICKSAND,
+                fontWeight: 600,
+                fontSize: 16,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+                <path strokeLinecap="round" d={ICONO_MAS} />
+              </svg>
+              Agregar a mi selección
+            </button>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'stretch',
+                width: '100%',
+                height: 48,
+                border: '1px solid #557385',
+                borderRadius: 6,
+                background: 'white',
+                overflow: 'hidden',
+              }}
+            >
+              <button
+                onClick={restar}
+                title={enSeleccion === 1 ? 'Quitar de mi selección' : 'Una menos'}
+                className="catalogo-suave"
+                style={{ ...estiloBotonContador, borderRight: '1px solid #E0E8EB' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={enSeleccion === 1 ? 1.8 : 2.3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={enSeleccion === 1 ? ICONO_TACHO : ICONO_MENOS} />
+                </svg>
+              </button>
 
+              {/* aria-live hace que un lector de pantalla diga la cantidad
+                  nueva cada vez que cambia. */}
+              <span
+                aria-live="polite"
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: QUICKSAND,
+                  fontWeight: 600,
+                  fontSize: 16,
+                  color: '#323A3D',
+                }}
+              >
+                {enSeleccion} en tu selección
+              </span>
+
+              <button
+                onClick={() => seleccion.modificarCantidad(producto.id, enSeleccion + 1)}
+                disabled={enSeleccion >= CANTIDAD_MAXIMA}
+                title="Una más"
+                className="catalogo-suave"
+                style={{
+                  ...estiloBotonContador,
+                  borderLeft: '1px solid #E0E8EB',
+                  opacity: enSeleccion >= CANTIDAD_MAXIMA ? 0.4 : undefined,
+                  cursor: enSeleccion >= CANTIDAD_MAXIMA ? 'default' : 'pointer',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
+                  <path strokeLinecap="round" d={ICONO_MAS} />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {/* Después de agregar, el paso siguiente: ver la selección. Es un
+              enlace porque lleva a otra pantalla. */}
           {enSeleccion > 0 && (
-            <p style={{ margin: '-4px 0 0', textAlign: 'center', fontSize: 14, color: '#64727A' }}>
-              Ya tenés {enSeleccion} en tu selección
-            </p>
+            <Link
+              to="/seleccion"
+              className="catalogo-subrayado"
+              style={{
+                alignSelf: 'center',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                marginTop: -4,
+                textDecoration: 'none',
+                fontFamily: QUICKSAND,
+                fontWeight: 600,
+                fontSize: 15,
+                color: '#557385',
+              }}
+            >
+              Ver mi selección
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
           )}
 
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#64727A', textWrap: 'pretty' }}>
