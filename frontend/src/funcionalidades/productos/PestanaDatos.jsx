@@ -255,7 +255,7 @@ export default function PestanaDatos({
           }}
         >
           {esAlta
-            ? (guardando ? 'Creando…' : 'Crear producto')
+            ? (guardando ? 'Creando…' : 'Crear y seguir')
             : (guardando ? 'Guardando…' : 'Guardar')}
         </button>
       </div>
