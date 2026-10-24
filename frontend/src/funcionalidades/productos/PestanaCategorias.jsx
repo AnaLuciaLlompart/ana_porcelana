@@ -9,6 +9,83 @@ const GRUPOS = [
   { tipo: 'TEMATICA', titulo: 'Por temática', icono: ICONO_TEMA, fondo: '#FDF3E0', color: '#D9A441' },
 ]
 
+// "ASIGNADAS" y "AGREGAR A UNA CATEGORÍA".
+const estiloTituloSeccion = {
+  margin: 0,
+  fontFamily: "'Quicksand', sans-serif",
+  fontWeight: 600,
+  fontSize: 15,
+  color: '#857078',
+  letterSpacing: '.06em',
+}
+
+
+// Una de las dos columnas de "Agregar a una categoría". El título del grupo
+// va más chico y más claro que el de la sección, para que se lea un nivel
+// por debajo.
+function Grupo({ grupo, disponibles, onAsignar }) {
+  const opciones = disponibles.filter((c) => c.tipo === grupo.tipo)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+        <div
+          style={{
+            width: 24,
+            height: 24,
+            flexShrink: 0,
+            borderRadius: 6,
+            background: grupo.fondo,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={grupo.color} strokeWidth="1.9">
+            <path strokeLinecap="round" strokeLinejoin="round" d={grupo.icono} />
+          </svg>
+        </div>
+        <span style={{ fontSize: 13, color: '#857078' }}>{grupo.titulo}</span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {opciones.map((categoria) => (
+          <button
+            key={categoria.id}
+            onClick={() => onAsignar(categoria)}
+            className="btn-agregar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 14px',
+              border: '1px solid #EBE0E2',
+              background: 'white',
+              color: '#857078',
+              borderRadius: 20,
+              cursor: 'pointer',
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+              <path strokeLinecap="round" d={ICONO_MAS} />
+            </svg>
+            {categoria.nombre}
+          </button>
+        ))}
+
+        {opciones.length === 0 && (
+          <span style={{ fontSize: 14, color: '#B08791' }}>
+            Ya está en todas las categorías activas de este grupo.
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 export default function PestanaCategorias({ asignadas, disponibles, onAsignar, onQuitar }) {
   return (
@@ -23,10 +100,7 @@ export default function PestanaCategorias({ asignadas, disponibles, onAsignar, o
       }}
     >
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #EBE0E2' }}>
-        <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
-          Un producto puede estar en varias categorías, o en ninguna. Si alguna
-          está de baja, el producto no sale en el catálogo.
-        </p>
+        <p style={estiloTituloSeccion}>ASIGNADAS</p>
       </div>
 
       {asignadas.map((categoria) => {
@@ -127,92 +201,19 @@ export default function PestanaCategorias({ asignadas, disponibles, onAsignar, o
         </div>
       )}
 
-      <div style={{ padding: '18px 20px' }}>
-        <p
-          style={{
-            margin: '0 0 12px',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 15,
-            color: '#857078',
-            letterSpacing: '.06em',
-          }}
+      <div style={{ padding: 20, background: '#FAF7F7', borderTop: '1px solid #EBE0E2' }}>
+        <p style={{ ...estiloTituloSeccion, marginBottom: 16 }}>AGREGAR A UNA CATEGORÍA</p>
+
+        {/* En pantalla chica, campos-dos-columnas deja una sola columna. La
+            línea es un elemento más de la grilla: en dos columnas la estira el
+            alto de la fila, y en una ocupa el ancho y minHeight le da 1px. */}
+        <div
+          className="campos-dos-columnas"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 24 }}
         >
-          AGREGAR A UNA CATEGORÍA
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {GRUPOS.map((grupo) => {
-            const opciones = disponibles.filter((c) => c.tipo === grupo.tipo)
-
-            return (
-              <div key={grupo.tipo}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-                  <div
-                    style={{
-                      width: 24,
-                      height: 24,
-                      flexShrink: 0,
-                      borderRadius: 6,
-                      background: grupo.fondo,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={grupo.color} strokeWidth="1.9">
-                      <path strokeLinecap="round" strokeLinejoin="round" d={grupo.icono} />
-                    </svg>
-                  </div>
-                  <span
-                    style={{
-                      fontFamily: "'Quicksand', sans-serif",
-                      fontWeight: 600,
-                      fontSize: 14,
-                      color: '#3D3238',
-                    }}
-                  >
-                    {grupo.titulo}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {opciones.map((categoria) => (
-                    <button
-                      key={categoria.id}
-                      onClick={() => onAsignar(categoria)}
-                      className="btn-agregar"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '7px 14px',
-                        border: '1px solid #EBE0E2',
-                        background: 'white',
-                        color: '#857078',
-                        borderRadius: 20,
-                        cursor: 'pointer',
-                        fontFamily: "'Quicksand', sans-serif",
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                        <path strokeLinecap="round" d={ICONO_MAS} />
-                      </svg>
-                      {categoria.nombre}
-                    </button>
-                  ))}
-
-                  {opciones.length === 0 && (
-                    <span style={{ fontSize: 14, color: '#B08791' }}>
-                      Ya está en todas las categorías activas de este grupo.
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          <Grupo grupo={GRUPOS[0]} disponibles={disponibles} onAsignar={onAsignar} />
+          <div style={{ minHeight: 1, background: '#EBE0E2' }} />
+          <Grupo grupo={GRUPOS[1]} disponibles={disponibles} onAsignar={onAsignar} />
         </div>
       </div>
     </div>
