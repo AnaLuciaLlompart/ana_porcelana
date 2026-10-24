@@ -7,6 +7,7 @@ import {
   chipSaldo,
   fmtFechaLarga,
   formatearPrecio,
+  motivoSinCobro,
 } from './presentacion'
 
 
@@ -40,10 +41,12 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
 
   const costoPropio = Number(pedido.costo_envio_a_cobrar) > 0
 
-  // Sin productos no hay nada que cobrar, y el backend lo rechaza contando
-  // las filas de productos, no el total. Acá se apaga el botón y lo dice la
-  // lista vacía, porque el title no se ve en el celular.
+  // Sin productos no hay nada que cobrar, y la lista vacía lo dice, porque
+  // el title del botón no se ve en el celular. Cuándo va apagado el botón
+  // lo decide motivoSinCobro, el mismo que usa el listado.
   const sinProductos = pedido.cantidad_productos === 0
+  const motivo = motivoSinCobro(pedido)
+  const cobroApagado = motivo !== ''
 
   return (
     <div
@@ -95,8 +98,8 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
 
           <button
             onClick={onRegistrar}
-            disabled={sinProductos}
-            title={sinProductos ? 'Agregá productos al pedido para poder registrar un cobro' : undefined}
+            disabled={cobroApagado}
+            title={cobroApagado ? motivo : undefined}
             className="btn-reponer"
             style={{
               display: 'flex',
@@ -108,8 +111,8 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
               background: 'white',
               color: '#8C5A66',
               borderRadius: 5,
-              cursor: sinProductos ? 'default' : 'pointer',
-              opacity: sinProductos ? 0.5 : undefined,
+              cursor: cobroApagado ? 'default' : 'pointer',
+              opacity: cobroApagado ? 0.5 : undefined,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
               fontSize: 14,
@@ -198,7 +201,7 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
                 ? 'Agregá productos al pedido para poder registrar un cobro.'
                 : 'Sin cobros todavía'}
             </p>
-            {!sinProductos && (
+            {!cobroApagado && (
               <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
                 Registrá la seña cuando la recibas.
               </p>

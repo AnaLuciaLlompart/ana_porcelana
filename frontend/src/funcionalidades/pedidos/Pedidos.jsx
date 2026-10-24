@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { listarPedidos } from './api'
+import { listarPedidos, registrarCobro } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
+import ModalCobro from './ModalCobro'
 import { FILTROS_VACIOS, OPCIONES_ENTREGA, candidatos, contarFiltros, leerFiltrosDeLaUrl } from './filtros'
 import {
   ESTADOS,
   ICONO_BORRAR,
   ICONO_BUSCAR,
+  ICONO_COBRO,
+  ICONO_EDITAR,
   ICONO_FILTROS,
   ICONO_NUEVO,
   ICONO_PEDIDOS,
-  ICONO_VER,
   OPCIONES_SALDO,
   atraso,
   chipSaldo,
@@ -19,6 +21,7 @@ import {
   entregaTexto,
   entregaTitle,
   formatearPrecio,
+  motivoSinCobro,
 } from './presentacion'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
@@ -28,6 +31,7 @@ import { listarClientes } from '../clientes/api'
 
 import BotonAccion from '../../componentes/BotonAccion'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
+import Toast from '../../componentes/Toast'
 import { BASE_GESTION } from '../../constantes'
 
 
@@ -47,14 +51,15 @@ const estiloTd = {
   color: '#3D3238',
 }
 
-// Las columnas del listado, con los anchos del diseño salvo CONTENIDO y
-// SALDO, que se movieron tres puntos para que el chip de saldo más largo
-// entre en su columna. Con la de SALDO suman exactamente 100 junto al 9%
-// de ACCIONES.
+// Las columnas del listado, con los anchos del diseño salvo CLIENTE,
+// CONTENIDO, SALDO y ACCIONES. SALDO ganó tres puntos de CONTENIDO para que
+// entre el chip de saldo más largo, y ACCIONES pasó del 9 al 15 para los
+// tres botones, a costa de CLIENTE y CONTENIDO, que cortan con puntos
+// suspensivos. Suman 100.
 const COLS = [
   { campo: 'id', label: 'PEDIDO', ancho: '10%', justify: 'flex-start' },
-  { campo: 'cliente', label: 'CLIENTE', ancho: '16%', justify: 'flex-start' },
-  { campo: 'contenido', label: 'CONTENIDO', ancho: '14%', justify: 'flex-start' },
+  { campo: 'cliente', label: 'CLIENTE', ancho: '12%', justify: 'flex-start' },
+  { campo: 'contenido', label: 'CONTENIDO', ancho: '12%', justify: 'flex-start' },
   { campo: 'entrega', label: 'ENTREGA', ancho: '12%', justify: 'center' },
   { campo: 'estado', label: 'ESTADO', ancho: '13%', justify: 'center' },
   { campo: 'total', label: 'TOTAL', ancho: '10%', justify: 'flex-end' },
@@ -127,17 +132,28 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 }
 
 
-// Los dos botones de la fila. Ver abre la ficha del pedido, igual que el
-// número de la primera columna.
-function Acciones({ pedido, onVer, onEliminar }) {
+// Los tres botones de la fila. Ver y editar abre la ficha del pedido, igual
+// que el número de la primera columna; Registrar cobro abre el mismo modal
+// que la pestaña Cobros, sin entrar al pedido.
+function Acciones({ pedido, onVer, onCobrar, onEliminar }) {
+  const motivo = motivoSinCobro(pedido)
+
   return (
     <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       <BotonAccion
         onClick={() => onVer(pedido)}
-        titulo="Ver pedido"
+        titulo="Ver y editar"
         color="#8C5A66"
         hover="#F0E2E4"
-        icono={ICONO_VER}
+        icono={ICONO_EDITAR}
+      />
+      <BotonAccion
+        onClick={() => onCobrar(pedido)}
+        titulo={motivo || 'Registrar cobro'}
+        color="#8C5A66"
+        hover="#F0E2E4"
+        icono={ICONO_COBRO}
+        deshabilitado={motivo !== ''}
       />
       <BotonAccion
         onClick={() => onEliminar(pedido)}
@@ -174,7 +190,7 @@ function SinResultados() {
 }
 
 
-function Tabla({ pedidos, cargando, onVer, onEliminar }) {
+function Tabla({ pedidos, cargando, onVer, onCobrar, onEliminar }) {
   const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
   const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
@@ -249,7 +265,7 @@ function Tabla({ pedidos, cargando, onVer, onEliminar }) {
                 ancho={col.ancho}
               />
             ))}
-            <th style={{ ...estiloTh, textAlign: 'center', width: '9%', padding: '12px 8px' }}>
+            <th style={{ ...estiloTh, textAlign: 'center', width: '15%', padding: '12px 8px' }}>
               ACCIONES
             </th>
           </tr>
@@ -401,7 +417,7 @@ function Tabla({ pedidos, cargando, onVer, onEliminar }) {
                   </td>
 
                   <td style={{ ...estiloTd, padding: '14px 8px' }}>
-                    <Acciones pedido={p} onVer={onVer} onEliminar={onEliminar} />
+                    <Acciones pedido={p} onVer={onVer} onCobrar={onCobrar} onEliminar={onEliminar} />
                   </td>
                 </tr>
               )
@@ -525,6 +541,15 @@ export default function Pedidos() {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [pedidoEliminando, setPedidoEliminando] = useState(null)
 
+  // Registrar cobro desde la fila: el pedido del modal abierto, el error que
+  // devolvió el servidor y si el cobro está viajando.
+  const [pedidoCobrando, setPedidoCobrando] = useState(null)
+  const [errorCobro, setErrorCobro] = useState('')
+  const [enviandoCobro, setEnviandoCobro] = useState(false)
+
+  const [toast, setToast] = useState('')
+  const temporizador = useRef(null)
+
   // Una sola carga al montar. El buscador filtra sobre estos datos, así que
   // no vuelve a pedir nada y tampoco lleva debounce.
   useEffect(() => {
@@ -554,6 +579,46 @@ export default function Pedidos() {
 
   function verPedido(pedido) {
     navegar(`${BASE_GESTION}/pedidos/${pedido.id}`)
+  }
+
+  function mostrarToast(texto) {
+    setToast(texto)
+    // Se cancela el anterior, como en la ficha: si no, el temporizador de un
+    // aviso viejo apagaría el nuevo antes de tiempo.
+    clearTimeout(temporizador.current)
+    temporizador.current = setTimeout(() => setToast(''), 2600)
+  }
+
+  // El error se limpia al abrir y al cerrar, así nunca se ve el de otro
+  // pedido.
+  function abrirCobro(pedido) {
+    setErrorCobro('')
+    setPedidoCobrando(pedido)
+  }
+
+  function cerrarCobro() {
+    setErrorCobro('')
+    setPedidoCobrando(null)
+  }
+
+  // A diferencia de la ficha, el modal queda abierto mientras viaja el
+  // cobro: si el servidor lo rechaza, el mensaje se lee adentro, como en
+  // Eliminar. Si sale bien, se recarga el listado para que el saldo se
+  // actualice, y se avisa porque la fila puede irse por un filtro de saldo.
+  async function guardarCobro(datos) {
+    setErrorCobro('')
+    setEnviandoCobro(true)
+
+    try {
+      await registrarCobro(pedidoCobrando.id, datos)
+      setPedidoCobrando(null)
+      mostrarToast('Cobro registrado')
+      recargar()
+    } catch (err) {
+      setErrorCobro(err.response?.data?.detail || 'No se pudo registrar el cobro.')
+    } finally {
+      setEnviandoCobro(false)
+    }
   }
 
   // Derivados: no se guardan en estado porque se calculan de pedidos.
@@ -835,6 +900,7 @@ export default function Pedidos() {
             pedidos={filtrados}
             cargando={cargando}
             onVer={verPedido}
+            onCobrar={abrirCobro}
             onEliminar={(p) => setPedidoEliminando(p)}
           />
         </>
@@ -864,6 +930,23 @@ export default function Pedidos() {
           }}
         />
       )}
+
+      {/* El listado trae todo lo que el modal necesita. No trae la lista de
+          cobros, pero cobrado > 0 dice lo mismo: un cobro nunca es de $0. */}
+      {pedidoCobrando && (
+        <ModalCobro
+          cobro={null}
+          saldo={pedidoCobrando.saldo}
+          total={pedidoCobrando.total}
+          hayCobros={Number(pedidoCobrando.cobrado) > 0}
+          error={errorCobro}
+          enviando={enviandoCobro}
+          onCerrar={cerrarCobro}
+          onGuardar={(_, datos) => guardarCobro(datos)}
+        />
+      )}
+
+      {toast && <Toast texto={toast} />}
     </div>
   )
 }

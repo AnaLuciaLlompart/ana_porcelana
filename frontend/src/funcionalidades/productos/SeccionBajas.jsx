@@ -2,6 +2,7 @@ import BotonAccion from '../../componentes/BotonAccion'
 import {
   ICONO_IMAGEN,
   ICONO_VER,
+  ICONO_EDITAR,
   ICONO_ALTA,
   ICONO_TIPO,
   ICONO_TEMA,
@@ -415,12 +416,15 @@ export default function SeccionBajas({
                             </p>
                           </div>
 
+                          {/* Lápiz y no ojo: acá el producto está activo (la
+                              de baja es su categoría), así que su ficha se
+                              edita. */}
                           <BotonAccion
                             onClick={() => onVer(producto)}
-                            titulo="Ver producto"
+                            titulo="Ver y editar"
                             color="#8C5A66"
                             hover="#F0E2E4"
-                            icono={ICONO_VER}
+                            icono={ICONO_EDITAR}
                             lado={34}
                           />
                         </div>

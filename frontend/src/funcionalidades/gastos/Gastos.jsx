@@ -7,10 +7,10 @@ import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
 import {
   ICONO_BORRAR,
   ICONO_BUSCAR,
+  ICONO_EDITAR,
   ICONO_FILTROS,
   ICONO_GASTOS,
   ICONO_NUEVO,
-  ICONO_VER,
   TIPOS,
   fmtFechaLarga,
   formatearPrecio,
@@ -95,17 +95,17 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 }
 
 
-// Los dos botones de la fila. Ver abre la ficha del gasto, igual que el
-// número de la primera columna.
+// Los dos botones de la fila. Ver y editar abre la ficha del gasto, igual
+// que el número de la primera columna.
 function Acciones({ gasto, onVer, onEliminar }) {
   return (
     <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       <BotonAccion
         onClick={() => onVer(gasto)}
-        titulo="Ver gasto"
+        titulo="Ver y editar"
         color="#8C5A66"
         hover="#F0E2E4"
-        icono={ICONO_VER}
+        icono={ICONO_EDITAR}
       />
       <BotonAccion
         onClick={() => onEliminar(gasto)}

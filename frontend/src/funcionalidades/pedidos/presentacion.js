@@ -108,8 +108,6 @@ export const ICONO_BUSCAR = 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
 
 export const ICONO_FILTROS = 'M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z'
 
-export const ICONO_VER = 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
-
 export const ICONO_BORRAR = 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'
 
 // La flecha del breadcrumb de la ficha.
@@ -122,11 +120,16 @@ export const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 
 // Materiales, Productos y Clientes en sus estados vacíos.
 export const ICONO_PEDIDOS = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'
 
-// El más del botón de agregar y la cruz del de quitar, en la pestaña de
-// productos del pedido.
+// El más de los botones de agregar productos y registrar cobro, en las
+// pestañas del pedido, y la cruz del de quitar.
 export const ICONO_MAS = 'M12 5v14m7-7H5'
 
 export const ICONO_CRUZ = 'M6 18L18 6M6 6l12 12'
+
+// El signo $ en un círculo, del botón Registrar cobro del listado. No son
+// los billetes de Gastos a propósito: cobrar es plata que entra y gastar es
+// plata que sale, y en la pantalla no tienen que confundirse.
+export const ICONO_COBRO = 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
 
 // El lápiz de editar, el mismo que usan Categorías, Clientes y Materiales.
 export const ICONO_EDITAR = 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
@@ -298,6 +301,23 @@ export function diasEnEtapa(productoDelPedido, hoyIso = hoy()) {
 // saldo negativo sin recortarlo justamente para poder mostrarla: esa
 // plata hay que devolverla, así que no puede quedar escondida detrás de
 // un «Al día».
+// Por qué no se puede registrar un cobro en este pedido, o '' si se puede.
+// Lo usan la pestaña Cobros y el listado, así los dos botones se apagan en
+// los mismos casos y con el mismo texto. El saldo llega como texto (es un
+// decimal), por eso el Number.
+export function motivoSinCobro(pedido) {
+  if (pedido.cantidad_productos === 0) {
+    return 'Agregá productos al pedido para poder registrar un cobro'
+  }
+
+  if (Number(pedido.saldo) <= 0) {
+    return 'Este pedido ya está cobrado por completo'
+  }
+
+  return ''
+}
+
+
 export function chipSaldo(saldo) {
   const numero = Number(saldo)
 

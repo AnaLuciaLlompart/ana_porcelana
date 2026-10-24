@@ -371,12 +371,30 @@ El saldo todavía puede quedar negativo por otro camino: bajarle el total
 a un pedido ya cobrado, que se permite para poder corregir una carga mal
 hecha. Por eso el chip conserva su tercera cara, "A favor $X".
 
-**Sin productos no se cobra.** El backend lo rechaza contando las filas de
-productos, no el total (`_revisar_cobro`), y la pestaña Cobros lo dice
-antes: "Registrar cobro" va apagado con un title, y como el title no se ve
-en el celular, la lista vacía cambia a "Agregá productos al pedido para
-poder registrar un cobro." sin la frase de la seña. Vale en la ficha y en
-el recorrido del alta.
+**Cuándo se puede registrar un cobro.** `motivoSinCobro(pedido)`, en
+`pedidos/presentacion.js`, devuelve por qué no, o `''` si se puede. Hay dos
+motivos. Sin productos: "Agregá productos al pedido para poder registrar
+un cobro", la misma regla que `_revisar_cobro`, que cuenta filas y no el
+total. Ya pagado, con saldo en cero o a favor: "Este pedido ya está
+cobrado por completo". Lo usan la pestaña Cobros y el listado, así los dos
+botones se apagan en los mismos casos y con el mismo title. Como el title
+no se ve en el celular, sin productos la lista vacía de la pestaña lo
+dice, y la frase de la seña sale solo con el botón encendido. Vale en la
+ficha y en el recorrido del alta.
+
+**Registrar cobro desde el listado (CU48).** El $ de la fila abre el mismo
+`ModalCobro` de la ficha, sin entrar al pedido. Los datos del listado
+alcanzan: no viaja la lista de cobros, pero `cobrado > 0` dice lo mismo,
+porque un cobro nunca es de $0. A diferencia de la ficha, el modal queda
+abierto mientras viaja el POST: si el servidor lo rechaza, el mensaje se
+ve adentro, como en Eliminar, y la tabla no se toca. Para eso `ModalCobro`
+tiene dos props opcionales que la ficha no pasa: `error` y `enviando`, que
+apaga Registrar para que un doble clic no cobre dos veces. El error se
+limpia al abrir y al cerrar el modal. Si sale bien, avisa "Cobro
+registrado" y recarga el listado, porque con un filtro de saldo la fila
+puede desaparecer. Para los tres botones, ACCIONES pasó del 9% al 15% a
+costa de CLIENTE (de 16 a 12) y CONTENIDO (de 14 a 12): a 384px todavía se
+lee la primera palabra antes del "+N".
 
 **La tarjeta de estado va entre la cabecera y las pestañas**, visible
 desde las tres, porque cambiar el estado es una acción instantánea y no un
@@ -1333,8 +1351,18 @@ tarjeta.
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
-`#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar (tilde,
-`#4E8C6A`), Eliminar (papelera, `#C0442F`).
+`#8C5A66`), Registrar cobro (signo $ en un círculo, `#8C5A66`), Dar de
+baja (prohibido, `#D9A441`), Reactivar (tilde, `#4E8C6A`), Eliminar
+(papelera, `#C0442F`).
+
+**Lápiz donde se puede modificar, ojo donde solo se mira.** La acción que
+abre una ficha editable se llama "Ver y editar" y lleva el lápiz: en los
+listados de Productos (grilla, tabla y el bloque "Baja por su categoría",
+cuyos productos están activos), Pedidos y Gastos. El ojo queda para lo
+que se abre en solo lectura: los modales Ver de Materiales y Clientes y
+la ficha de un producto de baja. El $ de Registrar cobro no son los
+billetes de Gastos a propósito: cobrar es plata que entra y gastar, plata
+que sale.
 
 
 - El vocabulario sale de mis casos de uso, no de sinónimos. Los materiales de

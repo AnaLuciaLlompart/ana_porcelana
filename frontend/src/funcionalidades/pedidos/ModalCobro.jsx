@@ -68,7 +68,21 @@ function Segmentado({ opciones, valor, onElegir }) {
 // distinto son los valores iniciales, el título y el botón. En los
 // productos del pedido hicimos dos archivos porque ahí el producto pasa
 // de ser un desplegable a un texto fijo.
-export default function ModalCobro({ cobro, saldo, total, hayCobros, onCerrar, onGuardar }) {
+export default function ModalCobro({
+  cobro,
+  saldo,
+  total,
+  hayCobros,
+  onCerrar,
+  onGuardar,
+  error = '',
+  enviando = false,
+}) {
+  // error y enviando son opcionales: sin ellos el modal se dibuja como
+  // siempre, que es como lo usa la ficha, que lo cierra antes de llamar a
+  // la API. El listado lo deja abierto mientras viaja el cobro: enviando
+  // apaga Registrar para que un doble clic no cobre dos veces, y error
+  // muestra el rechazo del servidor.
   const editando = Boolean(cobro)
 
   // Los dos llegan como texto y se comparan contra cero, así que se
@@ -303,6 +317,23 @@ export default function ModalCobro({ cobro, saldo, total, hayCobros, onCerrar, o
             <span style={estiloEtiqueta}>MEDIO</span>
             <Segmentado opciones={MEDIOS} valor={medio} onElegir={setMedio} />
           </div>
+
+          {error && (
+            <p
+              role="alert"
+              style={{
+                margin: 0,
+                padding: '10px 12px',
+                background: '#FAEAE8',
+                border: '1px solid #F0C4BC',
+                borderRadius: 6,
+                fontSize: 14,
+                color: '#C0442F',
+              }}
+            >
+              {error}
+            </p>
+          )}
         </div>
 
         <div
@@ -335,13 +366,15 @@ export default function ModalCobro({ cobro, saldo, total, hayCobros, onCerrar, o
 
           <button
             onClick={guardar}
+            disabled={enviando}
             style={{
               padding: '10px 18px',
               border: 0,
               background: '#8C5A66',
               color: 'white',
               borderRadius: 6,
-              cursor: 'pointer',
+              cursor: enviando ? 'default' : 'pointer',
+              opacity: enviando ? 0.7 : undefined,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
               fontSize: 15,
