@@ -32,12 +32,13 @@ const estiloCampo = {
 }
 
 
+// enRecorrido es true en los pasos del alta: en /productos/nuevo y en el
+// paso 1 ya creado el producto. Por defecto false, que es la ficha.
 export default function PestanaDatos({
   borrador,
   onCambiar,
   esAlta,
-  esPersonalizado,
-  onTogglePersonalizado,
+  enRecorrido = false,
   onGuardar,
   onCancelar,
   guardando,
@@ -127,12 +128,10 @@ export default function PestanaDatos({
         </div>
       </div>
 
-      {/* Este tilde se comporta distinto según el caso, y es a propósito.
-          En la EDICIÓN no espera al botón: tildarlo es CU24 (quitar del
-          catálogo) y destildarlo CU23 (publicar), que son casos de uso
-          propios con sus endpoints. En el ALTA no hay producto todavía al
-          que llamar, así que es un campo más del formulario y viaja en el
-          POST con el resto. */}
+      {/* El tilde es un campo más del formulario: espera a Guardar y viaja
+          con el resto, en el POST del alta y en el PUT de la ficha.
+          Tildarlo y guardar es CU24 (quitar del catálogo); destildarlo y
+          guardar, CU23 (publicar). */}
       <label
         style={{
           display: 'flex',
@@ -147,20 +146,12 @@ export default function PestanaDatos({
       >
         <input
           type="checkbox"
-          checked={esPersonalizado}
-          onChange={onTogglePersonalizado}
+          checked={borrador.es_personalizado}
+          onChange={() => onCambiar({ es_personalizado: !borrador.es_personalizado })}
           style={{ accentColor: '#8C5A66', width: 16, height: 16, marginTop: 2, cursor: 'pointer' }}
         />
         <span>
-          <span
-            style={{
-              display: 'block',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-              color: '#3D3238',
-            }}
-          >
+          <span style={{ ...estiloEtiqueta, marginBottom: 0 }}>
             Es un pedido personalizado
           </span>
           <span style={{ display: 'block', fontSize: 13, color: '#857078', marginTop: 2 }}>
@@ -169,30 +160,49 @@ export default function PestanaDatos({
         </span>
       </label>
 
-      <div>
-        <label style={estiloEtiqueta}>Descripción para el catálogo (opcional)</label>
-        <textarea
-          value={borrador.descripcion}
-          onChange={(e) => onCambiar({ descripcion: e.target.value })}
-          maxLength={500}
-          rows={3}
-          placeholder="Cómo se ve la pieza, de qué tamaño es, en qué colores…"
-          style={{ ...estiloCampo, lineHeight: 1.55, resize: 'vertical' }}
-        />
-        <div style={{ marginTop: 5, fontSize: 12, color: '#B08791', textAlign: 'right' }}>
-          {borrador.descripcion.length} / 500
+      {/* Descripción y paso a paso, de a dos cuando hay lugar, como la fila
+          de arriba. En pantalla chica campos-dos-columnas los apila siempre:
+          ahí dos columnas de 300px no entran. */}
+      <div
+        className="campos-dos-columnas"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: 20,
+        }}
+      >
+        {/* Cada campo es una subgrilla de dos filas, etiqueta y caja, que usa
+            las filas de la grilla de afuera: la de las etiquetas mide lo que
+            la más alta, así las dos cajas arrancan a la misma altura. */}
+        <div style={{ display: 'grid', gridRow: 'span 2', gridTemplateRows: 'subgrid', rowGap: 0 }}>
+          <label style={{ ...estiloEtiqueta, alignSelf: 'end' }}>Descripción para el catálogo (opcional)</label>
+          <div>
+            <textarea
+              value={borrador.descripcion}
+              onChange={(e) => onCambiar({ descripcion: e.target.value })}
+              maxLength={500}
+              rows={6}
+              placeholder="Cómo se ve la pieza, de qué tamaño es, en qué colores…"
+              style={{ ...estiloCampo, lineHeight: 1.55, resize: 'vertical' }}
+            />
+            <div style={{ marginTop: 5, fontSize: 12, color: '#B08791', textAlign: 'right' }}>
+              {borrador.descripcion.length} / 500
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div>
-        <label style={estiloEtiqueta}>Paso a paso de elaboración (opcional)</label>
-        <textarea
-          value={borrador.paso_a_paso}
-          onChange={(e) => onCambiar({ paso_a_paso: e.target.value })}
-          rows={6}
-          placeholder="Modelado, secado, pintura, barniz..."
-          style={{ ...estiloCampo, lineHeight: 1.55, resize: 'vertical' }}
-        />
+        <div style={{ display: 'grid', gridRow: 'span 2', gridTemplateRows: 'subgrid', rowGap: 0 }}>
+          <label style={{ ...estiloEtiqueta, alignSelf: 'end' }}>Paso a paso de elaboración (opcional)</label>
+          <div>
+            <textarea
+              value={borrador.paso_a_paso}
+              onChange={(e) => onCambiar({ paso_a_paso: e.target.value })}
+              rows={6}
+              placeholder="Modelado, secado, pintura, barniz..."
+              style={{ ...estiloCampo, lineHeight: 1.55, resize: 'vertical' }}
+            />
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -221,22 +231,27 @@ export default function PestanaDatos({
           paddingTop: 4,
         }}
       >
-        <button
-          onClick={onCancelar}
-          style={{
-            padding: '10px 20px',
-            border: '1px solid #EBE0E2',
-            background: 'white',
-            color: '#8C5A66',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 15,
-          }}
-        >
-          Cancelar
-        </button>
+        {/* En el alta Cancelar es «no lo crees», y en la ficha sale sin
+            guardar. En el paso 1 ya creado no va: se leería como deshacer el
+            alta, y para salir está el enlace de arriba. */}
+        {(esAlta || !enRecorrido) && (
+          <button
+            onClick={onCancelar}
+            style={{
+              padding: '10px 20px',
+              border: '1px solid #EBE0E2',
+              background: 'white',
+              color: '#8C5A66',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            Cancelar
+          </button>
+        )}
 
         <button
           onClick={onGuardar}
@@ -256,7 +271,7 @@ export default function PestanaDatos({
         >
           {esAlta
             ? (guardando ? 'Creando…' : 'Crear y seguir')
-            : (guardando ? 'Guardando…' : 'Guardar')}
+            : (guardando ? 'Guardando…' : enRecorrido ? 'Guardar y seguir' : 'Guardar')}
         </button>
       </div>
     </div>

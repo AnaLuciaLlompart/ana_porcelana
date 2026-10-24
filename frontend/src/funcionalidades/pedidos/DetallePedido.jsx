@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import {
   obtenerPedido,
@@ -23,6 +23,8 @@ import { listarProductos } from '../productos/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
+import BarraDePasos from '../../componentes/BarraDePasos'
+import PieDelRecorrido from '../../componentes/PieDelRecorrido'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
@@ -97,18 +99,37 @@ function mensajeDeError(err) {
 
 
 const PESTANAS = [
-  { id: 'datos', label: 'Datos y estado' },
+  { id: 'datos', label: 'Datos' },
   { id: 'productos', label: 'Productos del pedido' },
   { id: 'cobros', label: 'Cobros' },
 ]
 
+// Los tres pasos del alta, con nombres cortos para la barra. Los id son los
+// de PESTANAS: es la misma pestaña, dicha de otra forma.
+const PASOS = [
+  { id: 'datos', label: 'Datos' },
+  { id: 'productos', label: 'Productos' },
+  { id: 'cobros', label: 'Cobros' },
+]
 
-// La misma ficha atiende dos casos: el alta (/pedidos/nuevo) y la edición
-// (/pedidos/:id). Cuál es lo dice la ruta con la prop, en vez de que el
-// componente lo deduzca de que falte el id.
+
+// El paso del recorrido que pide la dirección (?paso=cobros), o null si no
+// pide ninguno o pide uno que no existe. Datos también cuenta: ya creado el
+// pedido, el paso 1 se reabre para corregirlo, sin crearlo de nuevo.
+function leerPaso(parametros) {
+  const paso = parametros.get('paso')
+  return ['datos', 'productos', 'cobros'].includes(paso) ? paso : null
+}
+
+
+// La misma ficha atiende tres casos: el alta (/pedidos/nuevo), el resto del
+// recorrido, ya creado el pedido (/pedidos/:id?paso=...), y la edición
+// (/pedidos/:id). El alta lo dice la ruta con la prop, en vez de que el
+// componente lo deduzca de que falte el id; el recorrido, la dirección.
 export default function DetallePedido({ esAlta = false }) {
   const { id } = useParams()
   const navegar = useNavigate()
+  const [parametros, setParametros] = useSearchParams()
 
   const [pedido, setPedido] = useState(null)
   // En un alta no hay nada que traer del servidor.
@@ -385,13 +406,32 @@ export default function DetallePedido({ esAlta = false }) {
   }
 
 
-  // El botón del formulario: en un alta, además de crear, lleva a la ficha
-  // del pedido nuevo, que ya es una edición con las dos pestañas.
+  // Diferencia deliberada con el prototipo: allá el alta son las tres
+  // pestañas, con lo demás apagado hasta crear el pedido. Acá es un recorrido
+  // por pasos: el pedido se crea en el paso 1, porque tiene que existir para
+  // colgarle lo demás, y después los pasos van en la dirección (?paso=).
+  const paso = esAlta ? 'datos' : leerPaso(parametros)
+  const enRecorrido = paso !== null
+  // En el recorrido la pestaña que se ve la elige el paso; en la ficha, tab.
+  const pestana = enRecorrido ? paso : tab
+
+  // El botón del formulario: en el recorrido, además de crear o guardar,
+  // lleva al paso 2. En la ficha solo guarda.
   async function guardarFormulario() {
+    // En el paso 1 ya creado, sin cambios no hay nada que guardar: se avanza
+    // sin el PUT, y así no sale "Cambios guardados" sin haber tocado nada.
+    if (enRecorrido && !esAlta && !hayCambios) {
+      irAlPaso('productos')
+      return
+    }
+
     const nuevoId = await guardarDatos()
+    if (!nuevoId) return
+
     // replace: el alta ya se consumió. Si quedara en el historial, Atrás
     // volvería a /pedidos/nuevo con el formulario lleno del pedido recién creado.
-    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/pedidos/${nuevoId}`, { replace: true })
+    if (esAlta) navegar(`${BASE_GESTION}/pedidos/${nuevoId}?paso=productos`, { replace: true })
+    else if (enRecorrido) irAlPaso('productos')
   }
 
 
@@ -401,11 +441,26 @@ export default function DetallePedido({ esAlta = false }) {
     navegar(`${BASE_GESTION}/pedidos`)
   }
 
+  // Cambiar de paso reemplaza la dirección en vez de sumar una al
+  // historial, como en productos: Atrás sale del recorrido.
+  function irAlPaso(nuevo) {
+    setParametros({ paso: nuevo }, { replace: true })
+    setError('')
+  }
+
+  // replace por lo mismo que al crear: el recorrido ya se consumió, y Atrás
+  // desde el listado no tiene que volver a abrir el último paso.
+  function terminar() {
+    navegar(`${BASE_GESTION}/pedidos`, { replace: true })
+  }
+
 
   // Derivados, calculados en cada render.
   //
-  // El cliente y el estado se leen del BORRADOR y no del pedido guardado,
-  // así el encabezado acompaña lo que se está eligiendo, como en el diseño.
+  // El cliente se lee del BORRADOR y no del pedido guardado, así la cabecera
+  // cambia apenas se elige otro. El estado no está en el borrador: el chip
+  // sale del pedido guardado y solo se dibuja en el recorrido, donde la
+  // tarjeta de estado está oculta.
   const clienteElegido = clientes.find((c) => String(c.id) === borrador.cliente)
 
   const subtitulo = clienteElegido
@@ -417,7 +472,8 @@ export default function DetallePedido({ esAlta = false }) {
   const colorEstado = esAlta ? null : COLOR_ESTADO[pedido.estado]
   const chipDelSaldo = esAlta ? null : chipSaldo(pedido.saldo)
 
-  // En un alta no hay nada que contar, así que la pestaña va sin globito.
+  // Las cuentas solo se ven en las pestañas de la ficha. En un alta pedido
+  // todavía es null, así que no hay nada que contar.
   const CUENTAS = esAlta
     ? {}
     : { productos: pedido.cantidad_productos, cobros: pedido.cobros.length }
@@ -444,9 +500,8 @@ export default function DetallePedido({ esAlta = false }) {
   // más de fondo al más fácil de resolver.
   let motivoSinComprobante = ''
 
-  if (esAlta) {
-    motivoSinComprobante = 'Disponible después de crear el pedido'
-  } else if (pedido.cantidad_productos === 0) {
+  // En un alta pedido es null, y el enlace tampoco se dibuja.
+  if (!esAlta && pedido.cantidad_productos === 0) {
     // El mismo criterio con el que el backend devuelve el 400: los dos
     // cuentan las filas de productos del pedido.
     motivoSinComprobante = 'Agregá productos al pedido para generar el comprobante'
@@ -525,21 +580,25 @@ export default function DetallePedido({ esAlta = false }) {
 
             {!esAlta && (
               <>
-                <span
-                  style={{
-                    whiteSpace: 'nowrap',
-                    fontFamily: "'Quicksand', sans-serif",
-                    fontWeight: 600,
-                    fontSize: 14,
-                    borderRadius: 20,
-                    padding: '5px 12px',
-                    border: `1px solid ${colorEstado.borde}`,
-                    background: colorEstado.fondo,
-                    color: colorEstado.color,
-                  }}
-                >
-                  {pedido.estado_display}
-                </span>
+                {/* En la ficha el estado lo muestra la tarjeta de abajo;
+                    en el recorrido, donde está oculta, lo dice este chip. */}
+                {enRecorrido && (
+                  <span
+                    style={{
+                      whiteSpace: 'nowrap',
+                      fontFamily: "'Quicksand', sans-serif",
+                      fontWeight: 600,
+                      fontSize: 14,
+                      borderRadius: 20,
+                      padding: '5px 12px',
+                      border: `1px solid ${colorEstado.borde}`,
+                      background: colorEstado.fondo,
+                      color: colorEstado.color,
+                    }}
+                  >
+                    {pedido.estado_display}
+                  </span>
+                )}
 
                 <span
                   style={{
@@ -579,6 +638,9 @@ export default function DetallePedido({ esAlta = false }) {
             abre otra pestaña: evita que la pestaña nueva pueda manejar a
             esta. textDecoration va en none porque un enlace, a diferencia
             de un botón, viene subrayado de fábrica. */}
+        {/* Durante el recorrido no se ofrece, como Dar de baja en productos:
+            el pedido se está terminando de cargar. */}
+        {!enRecorrido && (
         <a
           href={comprobanteApagado ? undefined : urlComprobante(id)}
           target="_blank"
@@ -609,9 +671,91 @@ export default function DetallePedido({ esAlta = false }) {
           </svg>
           Comprobante
         </a>
+        )}
       </div>
 
-      {error && !esAlta && tab !== 'datos' && (
+      {/* Diferencia deliberada con el prototipo: el estado es una acción
+          instantánea, así que va afuera del formulario, arriba de las
+          pestañas. */}
+      {/* El estado no existe hasta que el pedido existe, y en el
+          recorrido no se ofrece: el pedido se está terminando de cargar. */}
+      {!esAlta && !enRecorrido && (
+        <div
+          className="ancho-pantalla"
+          style={{
+            background: 'white',
+            border: '1px solid #EBE0E2',
+            borderRadius: 8,
+            padding: 20,
+            marginBottom: 20,
+            maxWidth: ANCHO_MAXIMO,
+          }}
+        >
+          <h2
+            style={{
+              margin: '0 0 10px',
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 14,
+              color: '#8C5A66',
+              letterSpacing: '.06em',
+            }}
+          >
+            ESTADO DEL PEDIDO
+          </h2>
+
+          <div className="botones-estado" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {ESTADOS.map((e) => {
+              const activo = pedido.estado === e.valor
+              const solido = COLOR_ESTADO[e.valor].solido
+
+              return (
+                <button
+                  key={e.valor}
+                  onClick={() => cambiarEstado(e.valor, e.label)}
+                  style={{
+                    padding: '9px 16px',
+                    borderRadius: 5,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    fontFamily: "'Quicksand', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    border: activo ? `1px solid ${solido}` : '1px solid #EBE0E2',
+                    background: activo ? solido : 'white',
+                    color: activo ? 'white' : '#857078',
+                  }}
+                >
+                  {e.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Debajo de los botones y no arriba: se lee después de haber
+              tocado el que lo provocó. Es el mismo recuadro del
+              formulario, para que un error se vea siempre igual. */}
+          {errorEstado && (
+            <p
+              role="alert"
+              style={{
+                margin: '12px 0 0',
+                padding: '10px 12px',
+                background: '#FAEAE8',
+                border: '1px solid #F0C4BC',
+                borderRadius: 6,
+                fontSize: 14,
+                color: '#C0442F',
+                textWrap: 'pretty',
+              }}
+            >
+              {errorEstado}
+            </p>
+          )}
+        </div>
+      )}
+
+      {error && !esAlta && pestana !== 'datos' && (
         <div
           className="ancho-pantalla"
           style={{
@@ -641,6 +785,9 @@ export default function DetallePedido({ esAlta = false }) {
         </div>
       )}
 
+      {enRecorrido ? (
+        <BarraDePasos pasos={PASOS} pasoActual={paso} conAnchoMaximo />
+      ) : (
       <div
         className="fila-pestanas ancho-pantalla"
         style={{
@@ -655,15 +802,11 @@ export default function DetallePedido({ esAlta = false }) {
         {PESTANAS.map((p) => {
           const activa = tab === p.id
           const cuenta = CUENTAS[p.id]
-          // En un alta solo se puede estar en Datos: los productos del
-          // pedido cuelgan de un pedido que todavía no existe.
-          const deshabilitada = esAlta && p.id !== 'datos'
 
           return (
             <button
               key={p.id}
               onClick={() => setTab(p.id)}
-              disabled={deshabilitada}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -672,11 +815,11 @@ export default function DetallePedido({ esAlta = false }) {
                 border: 0,
                 borderBottom: `2px solid ${activa ? '#8C5A66' : 'transparent'}`,
                 background: 'transparent',
-                cursor: deshabilitada ? 'default' : 'pointer',
+                cursor: 'pointer',
                 fontFamily: "'Quicksand', sans-serif",
                 fontWeight: 600,
                 fontSize: 15,
-                color: deshabilitada ? '#B08791' : activa ? '#8C5A66' : '#857078',
+                color: activa ? '#8C5A66' : '#857078',
               }}
             >
               {p.label}
@@ -704,90 +847,10 @@ export default function DetallePedido({ esAlta = false }) {
           )
         })}
       </div>
-
-      {esAlta && (
-        <p style={{ margin: '-8px 0 20px', fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
-          Primero creá el pedido. Después vas a poder sumarle los productos
-          que te encargaron.
-        </p>
       )}
 
-      {tab === 'datos' && (
+      {pestana === 'datos' && (
         <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
-          {/* El estado no existe hasta que el pedido existe. */}
-          {!esAlta && (
-            <div
-              style={{
-                background: 'white',
-                border: '1px solid #EBE0E2',
-                borderRadius: 8,
-                padding: 20,
-              }}
-            >
-              <h2
-                style={{
-                  margin: '0 0 10px',
-                  fontFamily: "'Quicksand', sans-serif",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  color: '#8C5A66',
-                  letterSpacing: '.06em',
-                }}
-              >
-                ESTADO DEL PEDIDO
-              </h2>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {ESTADOS.map((e) => {
-                  const activo = pedido.estado === e.valor
-                  const solido = COLOR_ESTADO[e.valor].solido
-
-                  return (
-                    <button
-                      key={e.valor}
-                      onClick={() => cambiarEstado(e.valor, e.label)}
-                      style={{
-                        padding: '9px 16px',
-                        borderRadius: 5,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        fontFamily: "'Quicksand', sans-serif",
-                        fontWeight: 600,
-                        fontSize: 14,
-                        border: activo ? `1px solid ${solido}` : '1px solid #EBE0E2',
-                        background: activo ? solido : 'white',
-                        color: activo ? 'white' : '#857078',
-                      }}
-                    >
-                      {e.label}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Debajo de los botones y no arriba: se lee después de haber
-                  tocado el que lo provocó. Es el mismo recuadro del
-                  formulario, para que un error se vea siempre igual. */}
-              {errorEstado && (
-                <p
-                  role="alert"
-                  style={{
-                    margin: '12px 0 0',
-                    padding: '10px 12px',
-                    background: '#FAEAE8',
-                    border: '1px solid #F0C4BC',
-                    borderRadius: 6,
-                    fontSize: 14,
-                    color: '#C0442F',
-                    textWrap: 'pretty',
-                  }}
-                >
-                  {errorEstado}
-                </p>
-              )}
-            </div>
-          )}
-
           <PestanaDatos
             borrador={borrador}
             // Va aparte del borrador porque no se edita. En un alta está
@@ -795,6 +858,7 @@ export default function DetallePedido({ esAlta = false }) {
             fechaEntregaReal={esAlta ? '' : pedido.fecha_entrega_real || ''}
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
             esAlta={esAlta}
+            enRecorrido={enRecorrido}
             clientes={clientes}
             onGuardar={guardarFormulario}
             onCancelar={volver}
@@ -806,7 +870,7 @@ export default function DetallePedido({ esAlta = false }) {
         </div>
       )}
 
-      {tab === 'cobros' && (
+      {pestana === 'cobros' && (
         <PestanaCobros
           pedido={pedido}
           onRegistrar={() => setModalCobro('nuevo')}
@@ -815,7 +879,7 @@ export default function DetallePedido({ esAlta = false }) {
         />
       )}
 
-      {tab === 'productos' && (
+      {pestana === 'productos' && (
         <PestanaProductos
           productos={pedido.productos}
           subtotal={pedido.subtotal}
@@ -824,6 +888,12 @@ export default function DetallePedido({ esAlta = false }) {
           onCambiarEtapa={cambiarEtapa}
           onQuitar={quitarProducto}
         />
+      )}
+
+      {/* En el paso 1 el que avanza es "Crear y seguir", dentro del
+          formulario. */}
+      {enRecorrido && paso !== 'datos' && (
+        <PieDelRecorrido pasos={PASOS} paso={paso} onIr={irAlPaso} onTerminar={terminar} />
       )}
 
       {modalProducto && (

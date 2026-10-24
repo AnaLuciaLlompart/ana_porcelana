@@ -137,6 +137,28 @@ recibe la función de la API como argumento.
 como en Materiales. Si el filtrado es local sobre datos ya cargados no
 lleva debounce, como en Categorías y Productos.
 
+**Formulario o acción.** Lo que está adentro de un formulario se guarda
+con Guardar; lo que está afuera es una acción, se aplica al instante y
+avisa con el aviso flotante. Una misma tarjeta no mezcla las dos cosas.
+Salió de que el tutor marcó que en la ficha de pedido el estado cambiaba
+al instante y los demás datos esperaban a Guardar. Se ordenaron los dos
+casos que la rompían: la tarjeta de estado del pedido salió de la pestaña
+Datos (ver Módulo Pedidos), y el tilde "Es un pedido personalizado" de
+producto pasó a ser un campo del borrador, que viaja en el POST del alta y
+en el PUT de la ficha y cuenta para "Cambios sin guardar". Tildarlo y
+guardar es CU24; destildarlo y guardar, CU23. Los endpoints `publicar` y
+`quitar_del_catalogo` siguen en el backend, y `api.js` conserva sus
+funciones (una por endpoint), pero ninguna pantalla las llama. Un
+producto de baja rechaza el PUT con 400, así que el tilde tampoco cambia,
+y en la pantalla su formulario ya está apagado.
+
+Revisadas todas las pantallas de la gestión (octubre de 2026), no queda
+otro control instantáneo dentro de un formulario con Guardar. En la misma
+pantalla que un formulario pero en una tarjeta aparte, y por eso dentro
+de la regla: la tabla de materiales de la ficha de gasto (Quitar, Alta y
+"Marcar todos en disponibilidad Alta"), y Reactivar en la cabecera de la
+ficha de producto, que solo aparece con el formulario apagado.
+
 ---
 
 ## Decisiones cerradas — no proponer cambiarlas
@@ -349,7 +371,82 @@ El saldo todavía puede quedar negativo por otro camino: bajarle el total
 a un pedido ya cobrado, que se permite para poder corregir una carga mal
 hecha. Por eso el chip conserva su tercera cara, "A favor $X".
 
+**Sin productos no se cobra.** El backend lo rechaza contando las filas de
+productos, no el total (`_revisar_cobro`), y la pestaña Cobros lo dice
+antes: "Registrar cobro" va apagado con un title, y como el title no se ve
+en el celular, la lista vacía cambia a "Agregá productos al pedido para
+poder registrar un cobro." sin la frase de la seña. Vale en la ficha y en
+el recorrido del alta.
+
+**La tarjeta de estado va entre la cabecera y las pestañas**, visible
+desde las tres, porque cambiar el estado es una acción instantánea y no un
+campo del formulario (ver "Formulario o acción" en Patrón a seguir).
+Sigue con `cambiar_estado`, su aviso flotante y su error adentro de la
+tarjeta. La pestaña pasó a llamarse "Datos", y en la ficha la cabecera ya
+no lleva el chip de estado, porque lo muestra la tarjeta de abajo. Es una
+diferencia deliberada con el prototipo, donde la pestaña es "Datos y
+estado". En celular (hasta 768px) los cuatro botones van en una grilla de
+2 por 2 con la clase `botones-estado`: en un selector importa ver los
+cuatro de un vistazo más que ahorrar altura, y la ficha se scrollea.
+
 **El comprobante en PDF queda fuera.**
+
+
+---
+
+
+## Alta por pasos (Productos y Pedidos)
+
+**Solo el alta es un recorrido; la edición sigue con pestañas.** Salió de
+que el tutor encontró confuso que "Crear producto" dejara la ficha en
+Datos con un botón Guardar. El registro se crea al terminar el paso 1,
+porque tiene que existir para colgarle lo demás. Es una diferencia
+deliberada con los prototipos, donde el alta tiene las pestañas.
+
+| Dirección | Qué es |
+|---|---|
+| `/gestion/productos/nuevo`, `/gestion/pedidos/nuevo` | paso 1 con el formulario vacío: "Crear y seguir" hace el POST |
+| `…/:id?paso=…` | los pasos con el registro ya creado |
+| `…/:id`, sin `paso` o con uno que no existe | la ficha de siempre |
+
+Los pasos son `datos`, `materiales`, `imagenes` y `categorias` en
+productos, y `datos`, `productos` y `cobros` en pedidos. Los lee
+`leerPaso`, local en cada Detalle. "Crear y seguir" navega al segundo
+paso con `replace`, y cambiar de paso y "Terminar" también: el recorrido
+ocupa una sola entrada del historial y Atrás vuelve al listado. Recargar
+en cualquier paso vuelve al mismo con un GET; el único POST está en
+`/nuevo`, así que nunca se crea dos veces.
+
+**El paso 1 se reabre.** Desde el segundo paso hay "Anterior", que lleva
+a `?paso=datos` con el registro ya creado: el formulario con lo guardado
+y "Guardar y seguir", que hace el PUT y vuelve al paso 2 (sin cambios
+avanza sin guardar, para no avisar "Cambios guardados" de nada). Nunca
+crea de nuevo. En ese paso no hay "Cancelar": en el alta quiere decir "no
+lo crees", y después de crear se leería como deshacer el alta. Para salir
+está el enlace de arriba. En `/nuevo` y en la ficha, Cancelar sigue igual.
+
+**Ningún paso es obligatorio**, y la barra marca hecho lo que está antes
+del actual. "Terminar" está solo en el último paso y lleva al listado; un
+pedido sin productos pasa igual por Cobros. Durante el recorrido no se
+muestran Dar de baja ni el panel de la foto (productos), ni Comprobante,
+la tarjeta de estado ni Eliminar pedido (pedidos): el registro se está
+terminando de cargar. En pedidos el chip de estado de la cabecera se ve
+solo en el recorrido, donde la tarjeta está oculta.
+
+**Abandonar a la mitad no deja nada raro:** no existe un estado
+"incompleto", y el registro queda en el listado como cualquier otro. Un
+producto que no es personalizado ya está en el catálogo público desde el
+paso 1, sin foto ni categorías.
+
+**Dos componentes compartidos en `componentes/`.** `BarraDePasos({ pasos,
+pasoActual, conAnchoMaximo })` es la fila de pestañas con el número del
+paso en el globito; los pasos son botones apagados, así les llega la regla
+`.fila-pestanas > button` de pantalla chica, y `conAnchoMaximo` le pone el
+tope que tiene la fila de pestañas de pedidos y no la de productos.
+`PieDelRecorrido({ pasos, paso, onIr, onTerminar })` dibuja Anterior y
+Siguiente, o Terminar en el último. Las dos `PestanaDatos` reciben
+`enRecorrido`, que cambia el texto del botón ("Crear y seguir", "Guardar y
+seguir" o "Guardar") y saca Cancelar en el paso 1 ya creado.
 
 
 ---
@@ -981,7 +1078,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 - **Los 8 avisos de `npm run lint`**, que vienen de antes del catálogo y
   no son de él: `react-refresh/only-export-components` en
   `componentes/Paginacion.jsx` (línea 11), `contexto/AuthContext.jsx`
-  (34) y `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23, 31 y
+  (39) y `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23, 31 y
   36); y `react-hooks/exhaustive-deps` en
   `funcionalidades/materiales/Materiales.jsx` (720), que es un warning.
 
@@ -1366,7 +1463,15 @@ dice.
 - `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 24
   modales; 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
-  ModalAgregarProducto y ModalEditarProductoDelPedido; una columna.
+  ModalAgregarProducto y ModalEditarProductoDelPedido, la grilla
+  Descripción / Paso a paso de PestanaDatos de producto y las dos columnas
+  de "Agregar a una categoría" de PestanaCategorias; una columna. En
+  PestanaDatos los dos campos son subgrillas (`gridTemplateRows:
+  'subgrid'`), así las cajas arrancan a la misma altura aunque una
+  etiqueta se parta; en PestanaCategorias la línea del medio es un
+  elemento de la grilla, que con una columna queda horizontal.
+- `botones-estado`: los cuatro botones de la tarjeta de estado del pedido;
+  grilla de 2 por 2, todos del mismo ancho.
 - `paneles-finanzas` y `cobros-dos-columnas`: la grilla INGRESOS / GASTOS
   de Finanzas y la grilla lista + resumen de la pestaña Cobros; una
   columna.
@@ -1391,7 +1496,12 @@ dice.
   para arriba, dos tercios y un tercio, para que el costo no sea un campo
   de 700px.
 - `datos-producto`: el contenedor de la pestaña Datos de Producto; de 1440
-  para arriba, dos columnas (formulario y panel con la imagen).
+  para arriba, dos columnas (formulario y panel con la imagen). El panel
+  mide lo que el formulario: lleva `contain: 'size'`, así no cuenta para
+  el alto de la fila, y la grilla lo estira (`stretch`). La foto ocupa el
+  alto que deja el resumen de abajo, a todo el ancho y recortada con
+  `cover`. Es la que quedó de tres versiones probadas: las otras eran la
+  foto cuadrada más chica y hacer crecer las cajas de texto.
 
 Los hovers siguen en el mismo archivo, fuera de las media queries, con
 sus propias clases (`nav-item`, `btn-accion`, `btn-reponer`, etc.).

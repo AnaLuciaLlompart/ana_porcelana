@@ -76,11 +76,14 @@ function EtiquetaConNota({ texto, nota }) {
 }
 
 
+// enRecorrido es true en los pasos del alta: en /pedidos/nuevo y en el paso
+// 1 ya creado el pedido. Por defecto false, que es la ficha.
 export default function PestanaDatos({
   borrador,
   fechaEntregaReal,
   onCambiar,
   esAlta,
+  enRecorrido = false,
   clientes,
   onGuardar,
   onCancelar,
@@ -297,22 +300,27 @@ export default function PestanaDatos({
               paddingTop: 2,
             }}
           >
-            <button
-              onClick={onCancelar}
-              style={{
-                padding: '10px 18px',
-                border: '1px solid #EBE0E2',
-                background: 'white',
-                color: '#8C5A66',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-              }}
-            >
-              Cancelar
-            </button>
+            {/* En el alta Cancelar es «no lo crees», y en la ficha sale sin
+                guardar. En el paso 1 ya creado no va: se leería como deshacer
+                el alta, y para salir está el enlace de arriba. */}
+            {(esAlta || !enRecorrido) && (
+              <button
+                onClick={onCancelar}
+                style={{
+                  padding: '10px 18px',
+                  border: '1px solid #EBE0E2',
+                  background: 'white',
+                  color: '#8C5A66',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontFamily: "'Quicksand', sans-serif",
+                  fontWeight: 600,
+                  fontSize: 15,
+                }}
+              >
+                Cancelar
+              </button>
+            )}
 
             <button
               onClick={onGuardar}
@@ -331,16 +339,18 @@ export default function PestanaDatos({
               }}
             >
               {esAlta
-                ? (guardando ? 'Creando…' : 'Crear pedido')
-                : (guardando ? 'Guardando…' : 'Guardar')}
+                ? (guardando ? 'Creando…' : 'Crear y seguir')
+                : (guardando ? 'Guardando…' : enRecorrido ? 'Guardar y seguir' : 'Guardar')}
             </button>
           </div>
         </div>
       </div>
 
       {/* Eliminar va fuera de la tarjeta, como en el diseño: no es uno más
-          de los campos del formulario. En un alta no hay nada que eliminar. */}
-      {!esAlta && (
+          de los campos del formulario. En el recorrido del alta no se
+          ofrece: antes de crear no hay nada que eliminar, y después el
+          pedido se está terminando de cargar. */}
+      {!esAlta && !enRecorrido && (
         <div>
           <button
             onClick={onEliminar}

@@ -6,8 +6,6 @@ import {
   crearProducto,
   modificarProducto,
   reactivarProducto,
-  publicarProducto,
-  quitarProductoDelCatalogo,
   asignarMaterialAProducto,
   modificarCantidadDeMaterial,
   quitarMaterialDeProducto,
@@ -26,6 +24,8 @@ import { listarMateriales } from '../materiales/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
+import BarraDePasos from '../../componentes/BarraDePasos'
+import PieDelRecorrido from '../../componentes/PieDelRecorrido'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaMateriales from './PestanaMateriales'
@@ -45,7 +45,6 @@ import {
 
 const ICONO_FLECHA = 'M9 5l7 7-7 7'
 const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-const ICONO_TILDE = 'M5 13l4 4L19 7'
 
 // Además de las pestañas de la ficha, son los cuatro pasos del recorrido
 // del alta, en este mismo orden.
@@ -111,11 +110,11 @@ function mensajeDeError(err) {
 
 
 // El paso del recorrido que pide la dirección (?paso=imagenes), o null si
-// no pide ninguno o pide uno que no existe. Datos no cuenta: una vez creado
-// el producto, ese paso no se vuelve a abrir.
+// no pide ninguno o pide uno que no existe. Datos también cuenta: ya creado
+// el producto, el paso 1 se reabre para corregirlo, sin crearlo de nuevo.
 function leerPaso(parametros) {
   const paso = parametros.get('paso')
-  return ['materiales', 'imagenes', 'categorias'].includes(paso) ? paso : null
+  return ['datos', 'materiales', 'imagenes', 'categorias'].includes(paso) ? paso : null
 }
 
 
@@ -166,25 +165,47 @@ function Chip({ texto, color, fondo }) {
 
 // El panel de la derecha en pantalla grande: la imagen principal y, debajo,
 // el mismo resumen de la cabecera más las categorías. Solo se dibuja en la
-// pestaña Datos de un producto que existe, y solo de 1440px para arriba: en
+// pestaña Datos de la ficha, no en el recorrido del alta, y solo de 1440px
+// para arriba: en
 // los otros anchos la cabecera ya dice lo mismo, y un panel escondido con
 // CSS igual descargaría la imagen en el celular.
 function ResumenDelProducto({ producto, activo, dificultad, catalogo }) {
   // La principal es la primera de tipo RESULTADO, como en PestanaImagenes.
   const principal = producto.imagenes.find((i) => i.tipo === 'RESULTADO')
 
+  // contain: 'size' hace que el panel no cuente para el alto de la fila: lo
+  // pone el formulario, y el panel se estira hasta ahí. La foto ocupa todo el
+  // ancho y el alto que deja el resumen de abajo; objectFit: 'cover' la
+  // recorta sin deformarla.
   return (
-    <div style={{ background: 'white', border: '1px solid #EBE0E2', borderRadius: 8, overflow: 'hidden' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        contain: 'size',
+        background: 'white',
+        border: '1px solid #EBE0E2',
+        borderRadius: 8,
+        overflow: 'hidden',
+      }}
+    >
       {principal ? (
         <img
           src={principal.imagen}
           alt={producto.nombre}
-          style={{ display: 'block', width: '100%', aspectRatio: '1', objectFit: 'cover' }}
+          style={{
+            display: 'block',
+            flex: '1 1 0',
+            minHeight: 0,
+            width: '100%',
+            objectFit: 'cover',
+          }}
         />
       ) : (
         <div
           style={{
-            aspectRatio: '1',
+            flex: '1 1 0',
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -255,146 +276,10 @@ function ResumenDelProducto({ producto, activo, dificultad, catalogo }) {
 }
 
 
-// La barra de arriba durante el recorrido del alta: el contenedor y el
-// estilo de las pestañas, con el número del paso en el globito. Son botones
-// apagados para que les llegue la regla .fila-pestanas > button de pantalla
-// chica; se avanza solo con los botones del pie.
-function BarraDePasos({ pasoActual }) {
-  const actual = PESTANAS.findIndex((p) => p.id === pasoActual)
-
-  return (
-    <div
-      className="fila-pestanas"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 4,
-        marginBottom: 20,
-        borderBottom: '1px solid #EBE0E2',
-      }}
-    >
-      {PESTANAS.map((p, i) => {
-        const activo = i === actual
-        // Hecho es estar antes del actual: ningún paso es obligatorio, así
-        // que no se mira si tiene algo cargado.
-        const hecho = i < actual
-
-        return (
-          <button
-            key={p.id}
-            disabled
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-              padding: '11px 18px',
-              border: 0,
-              borderBottom: `2px solid ${activo ? '#8C5A66' : 'transparent'}`,
-              background: 'transparent',
-              cursor: 'default',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-              color: activo ? '#8C5A66' : '#857078',
-            }}
-          >
-            <span
-              style={{
-                width: 20,
-                height: 20,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 10,
-                background: activo ? '#8C5A66' : hecho ? '#E8F5EF' : '#F0E2E4',
-                color: activo ? 'white' : hecho ? '#4E8C6A' : '#8C5A66',
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {hecho ? (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_TILDE} />
-                </svg>
-              ) : (
-                i + 1
-              )}
-            </span>
-
-            {p.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-
-// Los botones de abajo en los pasos 2 a 4, con los estilos del pie de
-// PestanaDatos. El paso 2 no tiene Anterior porque el de antes es Datos, y
-// en el último el botón principal termina el recorrido.
-function PieDelRecorrido({ paso, onIr, onTerminar }) {
-  const i = PESTANAS.findIndex((p) => p.id === paso)
-  const anterior = i > 1 ? PESTANAS[i - 1] : null
-  // En el último paso no hay siguiente: queda undefined.
-  const siguiente = PESTANAS[i + 1]
-
-  return (
-    <div
-      className="ancho-pantalla"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: 12,
-        marginTop: 20,
-        maxWidth: ANCHO_MAXIMO,
-      }}
-    >
-      {anterior && (
-        <button
-          onClick={() => onIr(anterior.id)}
-          style={{
-            padding: '10px 20px',
-            border: '1px solid #EBE0E2',
-            background: 'white',
-            color: '#8C5A66',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 15,
-          }}
-        >
-          Anterior
-        </button>
-      )}
-
-      <button
-        onClick={siguiente ? () => onIr(siguiente.id) : onTerminar}
-        style={{
-          padding: '10px 20px',
-          border: 0,
-          background: '#8C5A66',
-          color: 'white',
-          borderRadius: 6,
-          cursor: 'pointer',
-          fontFamily: "'Quicksand', sans-serif",
-          fontWeight: 600,
-          fontSize: 15,
-        }}
-      >
-        {siguiente ? 'Siguiente' : 'Terminar'}
-      </button>
-    </div>
-  )
-}
-
-
-// La misma ficha atiende tres casos: el alta (/productos/nuevo), los pasos
-// 2 a 4 del alta (/productos/:id?paso=...) y la edición (/productos/:id).
-// El alta lo dice la ruta con la prop, en vez de que el componente lo
-// deduzca de que falte el id; los pasos, el parámetro de la dirección.
+// La misma ficha atiende tres casos: el alta (/productos/nuevo), el resto
+// del recorrido, ya creado el producto (/productos/:id?paso=...), y la
+// edición (/productos/:id). El alta lo dice la ruta con la prop, en vez de
+// que el componente lo deduzca de que falte el id; el recorrido, la dirección.
 export default function DetalleProducto({ esAlta = false }) {
   const { id } = useParams()
   const navegar = useNavigate()
@@ -544,13 +429,12 @@ export default function DetalleProducto({ esAlta = false }) {
       precio_actual: borrador.precio,
       dificultad: borrador.dificultad,
       paso_a_paso: borrador.paso_a_paso,
+      es_personalizado: borrador.es_personalizado,
     }
 
     try {
       if (esAlta) {
-        // El tilde de personalizado viaja acá porque en el alta todavía no
-        // hay producto al que pedirle CU23 o CU24.
-        const res = await crearProducto({ ...datos, es_personalizado: borrador.es_personalizado })
+        const res = await crearProducto(datos)
         // Antes de navegar, como en Gastos: /productos/nuevo y /productos/:id
         // dibujan este mismo componente y React Router lo reutiliza con su
         // estado. Sin esto, la ficha mostraría "No se encontró el producto"
@@ -596,27 +480,35 @@ export default function DetalleProducto({ esAlta = false }) {
     borrador.precio !== original.precio ||
     borrador.dificultad !== original.dificultad ||
     borrador.paso_a_paso !== original.paso_a_paso ||
-    // El tilde de personalizado cuenta solo en el alta: en la edición se
-    // aplica al instante (CU23 y CU24) y vive en producto, no en el borrador.
-    (esAlta && borrador.es_personalizado !== original.es_personalizado)
+    borrador.es_personalizado !== original.es_personalizado
 
   // Diferencia deliberada con el prototipo: allá el alta tiene las cuatro
   // pestañas y crea todo junto al final. Acá el producto se crea en el paso
-  // 1, porque tiene que existir para colgarle lo demás, y los pasos 2 a 4
-  // van en la dirección (?paso=), así recargar no vuelve al formulario.
+  // 1, porque tiene que existir para colgarle lo demás, y después los pasos
+  // van en la dirección (?paso=), así recargar no lo vuelve a crear.
   const paso = esAlta ? 'datos' : leerPaso(parametros)
   const enRecorrido = paso !== null
   // En el recorrido la pestaña que se ve la elige el paso; en la ficha, tab.
   const pestana = enRecorrido ? paso : tab
 
-  // El botón del formulario: en un alta, además de crear, lleva al paso 2
-  // del recorrido, ya sobre el producto nuevo.
+  // El botón del formulario: en el recorrido, además de crear o guardar,
+  // lleva al paso 2. En la ficha solo guarda.
   async function guardarFormulario() {
+    // En el paso 1 ya creado, sin cambios no hay nada que guardar: se avanza
+    // sin el PUT, y así no sale "Cambios guardados" sin haber tocado nada.
+    if (enRecorrido && !esAlta && !hayCambios) {
+      irAlPaso('materiales')
+      return
+    }
+
     const nuevoId = await guardarDatos()
+    if (!nuevoId) return
+
     // replace: el alta ya se consumió. Si quedara en el historial, Atrás
     // volvería a /productos/nuevo con el componente reutilizado y el
     // formulario lleno con el producto recién creado.
-    if (esAlta && nuevoId) navegar(`${BASE_GESTION}/productos/${nuevoId}?paso=materiales`, { replace: true })
+    if (esAlta) navegar(`${BASE_GESTION}/productos/${nuevoId}?paso=materiales`, { replace: true })
+    else if (enRecorrido) irAlPaso('materiales')
   }
 
 
@@ -823,7 +715,7 @@ export default function DetalleProducto({ esAlta = false }) {
       )}
 
       {enRecorrido ? (
-        <BarraDePasos pasoActual={paso} />
+        <BarraDePasos pasos={PESTANAS} pasoActual={paso} />
       ) : (
       <div
         className="fila-pestanas"
@@ -894,38 +786,27 @@ export default function DetalleProducto({ esAlta = false }) {
 
       {/* El contenedor es una grilla de una columna que en pantalla grande
           pasa a dos (formulario y panel del resumen) por la clase
-          datos-producto. En un alta no hay panel, así que tampoco va la
-          clase: dejaría una columna vacía. */}
+          datos-producto. En el recorrido del alta no hay panel, así que
+          tampoco va la clase: dejaría una columna vacía. */}
       {pestana === 'datos' && (
         <div
-          className={esAlta ? 'ancho-pantalla' : 'ancho-pantalla datos-producto'}
-          style={{ display: 'grid', gap: 24, alignItems: 'start', maxWidth: ANCHO_MAXIMO }}
+          className={enRecorrido ? 'ancho-pantalla' : 'ancho-pantalla datos-producto'}
+          // stretch: el panel se estira hasta el alto del formulario, así los
+          // dos terminan alineados. Con una sola columna no cambia nada.
+          style={{ display: 'grid', gap: 24, alignItems: 'stretch', maxWidth: ANCHO_MAXIMO }}
         >
           <PestanaDatos
             borrador={borrador}
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
             esAlta={esAlta}
-            // En el alta el tilde sale del borrador y no llama a nada; en la
-            // edición sale del producto y dispara CU23 o CU24 al instante.
-            esPersonalizado={esAlta ? borrador.es_personalizado : producto.es_personalizado}
-            onTogglePersonalizado={() => {
-              if (esAlta) {
-                setBorrador({ ...borrador, es_personalizado: !borrador.es_personalizado })
-                return
-              }
-              // Sin aviso flotante: la casilla y el chip de la ficha ya
-              // muestran el cambio.
-              return producto.es_personalizado
-                ? accionInmediata(() => publicarProducto(id))
-                : accionInmediata(() => quitarProductoDelCatalogo(id))
-            }}
+            enRecorrido={enRecorrido}
             onGuardar={guardarFormulario}
             onCancelar={volver}
             guardando={guardando}
             error={error}
           />
 
-          {pantallaGrande && !esAlta && (
+          {pantallaGrande && !enRecorrido && (
             <ResumenDelProducto
               producto={producto}
               activo={activo}
@@ -1034,7 +915,7 @@ export default function DetalleProducto({ esAlta = false }) {
       {/* En el paso 1 el que avanza es "Crear y seguir", dentro del
           formulario. */}
       {enRecorrido && paso !== 'datos' && (
-        <PieDelRecorrido paso={paso} onIr={irAlPaso} onTerminar={terminar} />
+        <PieDelRecorrido pasos={PESTANAS} paso={paso} onIr={irAlPaso} onTerminar={terminar} />
       )}
 
 

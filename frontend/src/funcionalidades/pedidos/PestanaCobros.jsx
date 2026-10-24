@@ -40,6 +40,11 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
 
   const costoPropio = Number(pedido.costo_envio_a_cobrar) > 0
 
+  // Sin productos no hay nada que cobrar, y el backend lo rechaza contando
+  // las filas de productos, no el total. Acá se apaga el botón y lo dice la
+  // lista vacía, porque el title no se ve en el celular.
+  const sinProductos = pedido.cantidad_productos === 0
+
   return (
     <div
       className="cobros-dos-columnas ancho-pantalla"
@@ -90,6 +95,8 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
 
           <button
             onClick={onRegistrar}
+            disabled={sinProductos}
+            title={sinProductos ? 'Agregá productos al pedido para poder registrar un cobro' : undefined}
             className="btn-reponer"
             style={{
               display: 'flex',
@@ -101,7 +108,8 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
               background: 'white',
               color: '#8C5A66',
               borderRadius: 5,
-              cursor: 'pointer',
+              cursor: sinProductos ? 'default' : 'pointer',
+              opacity: sinProductos ? 0.5 : undefined,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
               fontSize: 14,
@@ -186,11 +194,15 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
                 color: '#3D3238',
               }}
             >
-              Sin cobros todavía
+              {sinProductos
+                ? 'Agregá productos al pedido para poder registrar un cobro.'
+                : 'Sin cobros todavía'}
             </p>
-            <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
-              Registrá la seña cuando la recibas.
-            </p>
+            {!sinProductos && (
+              <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
+                Registrá la seña cuando la recibas.
+              </p>
+            )}
           </div>
         )}
       </div>

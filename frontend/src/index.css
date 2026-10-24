@@ -167,11 +167,12 @@ button:not(:disabled):hover {
   }
 }
 
-/* Pantalla chica, modales: el fondo oscuro deja 8px de aire en vez de 24,
-   así la caja ocupa casi todo el ancho; la caja puede llegar al 96% del
-   alto en vez del 90%; y los campos que en escritorio van de a dos se
-   apilan en una columna. El maxWidth no se pisa: a 390px la caja mide 374,
-   menos que cualquier maxWidth. */
+/* Pantalla chica, modales y campos de a dos: el fondo oscuro deja 8px de
+   aire en vez de 24, así la caja ocupa casi todo el ancho; la caja puede
+   llegar al 96% del alto en vez del 90%; y los campos que en escritorio van
+   de a dos se apilan en una columna, en los modales y en la ficha de
+   producto (Descripción / Paso a paso y Agregar a una categoría). El
+   maxWidth no se pisa: a 390px la caja mide 374, menos que cualquier maxWidth. */
 @media (max-width: 768px) {
   .modal-fondo {
     padding: 8px !important;
@@ -297,6 +298,17 @@ button:not(:disabled):hover {
 
   .tipo-cobro > div > button {
     flex-basis: auto !important;
+  }
+}
+
+/* Pantalla chica, la tarjeta de estado del pedido: los cuatro botones pasan
+   a una grilla de 2 por 2, todos del mismo ancho y a todo el ancho de la
+   tarjeta. El !important pisa el display flex que está en línea; el texto
+   no se parte porque los botones ya llevan whiteSpace nowrap en línea. */
+@media (max-width: 768px) {
+  .botones-estado {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
