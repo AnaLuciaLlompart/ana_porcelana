@@ -341,6 +341,41 @@ qué cambió:
   `docker compose logs --tail 50 backend` para ver que arrancó bien.
 - **Solo `.env.produccion`**: `docker compose up -d`, sin `--build`. Las
   imágenes son las mismas; cambian las variables con las que arrancan.
+- **Parches de seguridad de las imágenes base** (nginx, Python, Node,
+  PostgreSQL): `docker compose up -d --build` no los trae, porque reusa
+  las imágenes que Docker ya bajó. `python:3.11-slim`, `node:24-alpine`,
+  `nginx:1.30-alpine` y `postgres:17` son etiquetas que se vuelven a
+  publicar con cada parche, y Docker no las busca de nuevo si ya tiene una
+  con ese nombre. Una vez por mes, o cuando se publique un parche de
+  nginx, Python, Node o PostgreSQL. Dependabot no avisa de estas imágenes,
+  porque no son dependencias de `requirements.txt` ni de `package.json`.
+  Antes, una copia de la base con el comando de "Una copia a mano", pero
+  con `-antes` en el nombre, para que el respaldo de las 3:30 no la pise:
+
+  ```bash
+  docker compose exec -T db pg_dump -U ana_porcelana -d ana_porcelana --no-owner --no-acl > ~/respaldos/base-$(date +%F)-antes.sql
+  git pull
+  docker compose build --pull
+  docker compose pull db
+  docker compose up -d
+  ```
+
+  `build --pull` vuelve a bajar las imágenes de las que parten el backend
+  y el frontend, y los construye de nuevo encima. `pull db` hace lo mismo
+  con PostgreSQL, que no se construye. `up -d` recrea solo los
+  contenedores cuya imagen cambió. La etiqueta `17` trae solo versiones
+  17.x, que usan los mismos datos: nunca pasa sola a otra versión mayor.
+  Para ver qué quedó:
+
+  ```bash
+  docker compose exec frontend nginx -v
+  docker compose exec backend pip list | grep -i -E "^django |djangorestframework"
+  docker compose exec db postgres --version
+  ```
+
+  Django y DRF tienen que seguir en las versiones de `requirements.txt`.
+  Cuando todo anda, se borra la copia de antes con
+  `rm ~/respaldos/base-FECHA-antes.sql`.
 
 **Volver atrás.** Si una versión nueva sale mal, se vuelve a la anterior
 con el hash del commit que funcionaba (`git log --oneline` los lista):

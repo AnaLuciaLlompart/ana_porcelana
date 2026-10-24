@@ -586,7 +586,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
         directamente no está en la lista. Sin eso, mandando un id
         cualquiera se podrían tocar los cobros de otro pedido.
 
-        El \d+ del url_path ya garantizó que cobro_id sean dígitos, así
+        El patrón del url_path ya garantizó que cobro_id sean dígitos, así
         que el int() no puede fallar.
         """
         for cobro in pedido.cobros.all():

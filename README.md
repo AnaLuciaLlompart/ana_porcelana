@@ -169,8 +169,8 @@ ana_porcelana/
 │   ├── catalogo/                catálogo público: tres endpoints de lectura sin sesión; sin modelos propios
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
-│   │   ├── tests.py             las pruebas (78)
-│   │   ├── PRUEBAS.md           qué cubre cada prueba y cómo correrlas
+│   │   ├── tests.py             las 5 generales; las otras 73, en el tests.py de cada app
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 78 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
