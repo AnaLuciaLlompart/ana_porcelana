@@ -101,6 +101,10 @@ export const MEDIOS = [
 // A los cuántos días de secado la pieza pasa a estar marcada para revisar.
 export const DIAS_AVISO_SECADO = 3
 
+// Qué parte de lo que falta cobrar propone el modal como seña. Sin pagos,
+// lo que falta es el total, así que la primera seña es la mitad del pedido.
+export const PORCENTAJE_SENA = 50
+
 
 export const ICONO_NUEVO = 'M12 4v16m8-8H4'
 

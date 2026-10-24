@@ -921,7 +921,6 @@ export default function DetallePedido({ esAlta = false }) {
           // está corrigiendo.
           cobro={modalCobro === 'nuevo' ? null : modalCobro}
           saldo={pedido.saldo}
-          total={pedido.total}
           hayCobros={pedido.cobros.length > 0}
           onCerrar={() => setModalCobro(null)}
           onGuardar={guardarCobro}

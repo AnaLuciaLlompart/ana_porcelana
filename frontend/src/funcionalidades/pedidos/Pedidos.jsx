@@ -937,7 +937,6 @@ export default function Pedidos() {
         <ModalCobro
           cobro={null}
           saldo={pedidoCobrando.saldo}
-          total={pedidoCobrando.total}
           hayCobros={Number(pedidoCobrando.cobrado) > 0}
           error={errorCobro}
           enviando={enviandoCobro}

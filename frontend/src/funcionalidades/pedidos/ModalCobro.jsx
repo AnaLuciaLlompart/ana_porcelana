@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MEDIOS, TIPOS_COBRO, formatearPrecio, hoy } from './presentacion'
+import { MEDIOS, PORCENTAJE_SENA, TIPOS_COBRO, formatearPrecio, hoy } from './presentacion'
 
 
 const estiloEtiqueta = {
@@ -71,7 +71,6 @@ function Segmentado({ opciones, valor, onElegir }) {
 export default function ModalCobro({
   cobro,
   saldo,
-  total,
   hayCobros,
   onCerrar,
   onGuardar,
@@ -85,23 +84,31 @@ export default function ModalCobro({
   // muestra el rechazo del servidor.
   const editando = Boolean(cobro)
 
-  // Los dos llegan como texto y se comparan contra cero, así que se
-  // convierten una sola vez acá.
+  // El saldo llega como texto y se compara contra cero, así que se
+  // convierte una sola vez acá.
   const pendiente = Number(saldo)
-  const totalDelPedido = Number(total)
+
+  // El monto que se propone para cada tipo al registrar: lo que falta
+  // cobrar para Pago completo y Pago restante, y una parte para la seña
+  // (PORCENTAJE_SENA). Diferencia deliberada con el prototipo: allá la seña
+  // arranca vacía. Es una propuesta y se puede cambiar antes de registrar.
+  function montoPropuesto(tipoElegido) {
+    if (pendiente <= 0) return ''
+    const propuesto = tipoElegido === 'SENA' ? (pendiente * PORCENTAJE_SENA) / 100 : pendiente
+    return String(Math.round(propuesto))
+  }
 
   // Con qué arranca el formulario. Al editar, con lo que tiene el cobro.
-  // Al registrar, con lo que propone el diseño: la primera es una seña y
-  // las que siguen son el pago restante, que ya viene con el saldo
-  // cargado para no tener que escribirlo.
-  const [tipo, setTipo] = useState(() => {
-    if (editando) return cobro.tipo
-    return hayCobros ? 'PAGO_RESTANTE' : 'SENA'
-  })
+  // Al registrar, la primera es una seña, que ya viene con la mitad del
+  // total, y las que siguen son el pago restante, que ya viene con el
+  // saldo cargado para no tener que escribirlo.
+  const tipoInicial = hayCobros ? 'PAGO_RESTANTE' : 'SENA'
+
+  const [tipo, setTipo] = useState(() => (editando ? cobro.tipo : tipoInicial))
 
   const [monto, setMonto] = useState(() => {
     if (editando) return String(Math.round(Number(cobro.monto)))
-    return hayCobros && pendiente > 0 ? String(Math.round(pendiente)) : ''
+    return montoPropuesto(tipoInicial)
   })
 
   const [fecha, setFecha] = useState(() => (editando ? cobro.fecha : hoy()))
@@ -126,13 +133,13 @@ export default function ModalCobro({
   const senaQueSalda =
     tipo === 'SENA' && !montoInvalido && !montoExcedido && Number(monto) === disponible
 
-  // Elegir el tipo completa el monto solo, porque dos de los tres ya
-  // dicen cuánto es:
+  // Elegir el tipo completa el monto solo, con lo que propone
+  // montoPropuesto:
   //
-  // - PAGO COMPLETO es pagar el pedido entero, así que carga el TOTAL.
-  // - PAGO RESTANTE es pagar lo que falta, así que carga el SALDO.
-  // - SEÑA es un adelanto de cuánto quiera el cliente, así que no se
-  //   completa: ese número solo lo sabe la emprendedora.
+  // - PAGO COMPLETO y PAGO RESTANTE cargan lo que falta cobrar. Sin pagos,
+  //   lo que falta es el total.
+  // - SEÑA carga la mitad de lo que falta. Es una propuesta: el número
+  //   final lo decide la emprendedora.
   //
   // Al editar no se toca nada solo: ahí los valores son justamente los
   // que se están corrigiendo, y pisarlos sería trabajar en contra.
@@ -141,14 +148,7 @@ export default function ModalCobro({
 
     if (editando) return
 
-    if (nuevo === 'PAGO_COMPLETO' && totalDelPedido > 0) {
-      setMonto(String(Math.round(totalDelPedido)))
-      return
-    }
-
-    if (nuevo === 'PAGO_RESTANTE' && pendiente > 0) {
-      setMonto(String(Math.round(pendiente)))
-    }
+    setMonto(montoPropuesto(nuevo))
   }
 
   function guardar() {

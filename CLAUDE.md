@@ -371,6 +371,16 @@ El saldo todavía puede quedar negativo por otro camino: bajarle el total
 a un pedido ya cobrado, que se permite para poder corregir una carga mal
 hecha. Por eso el chip conserva su tercera cara, "A favor $X".
 
+**Lo que propone el modal de cobro al registrar.** La seña propone la
+mitad de lo que falta cobrar (`PORCENTAJE_SENA`, en
+`pedidos/presentacion.js`), y Pago completo y Pago restante proponen lo
+que falta. Sin pagos, lo que falta es el total: el modal arranca en Seña
+con el 50% del total. Con pagos, arranca en Pago restante con el saldo.
+Elegir un tipo vuelve a proponer su monto; al editar un cobro no se toca
+nada. Es una diferencia deliberada con el prototipo, donde la seña
+arranca vacía. Con pagos previos, Pago completo y Pago restante proponen
+el mismo número, y la diferencia queda solo en el tipo del cobro.
+
 **Cuándo se puede registrar un cobro.** `motivoSinCobro(pedido)`, en
 `pedidos/presentacion.js`, devuelve por qué no, o `''` si se puede. Hay dos
 motivos. Sin productos: "Agregá productos al pedido para poder registrar
