@@ -43,6 +43,7 @@ export default function SelectorBuscable({
   id,
   deshabilitado = false,
   siempreAbierto = false,
+  flotante = false,
 }) {
   const [abierto, setAbierto] = useState(siempreAbierto)
   const [busqueda, setBusqueda] = useState('')
@@ -128,7 +129,7 @@ export default function SelectorBuscable({
   }
 
   return (
-    <div ref={contenedor}>
+    <div ref={contenedor} style={{ position: flotante ? 'relative' : undefined }}>
       {!siempreAbierto && (
         <button
           type="button"
@@ -179,6 +180,10 @@ export default function SelectorBuscable({
             borderRadius: 6,
             background: 'white',
             overflow: 'hidden',
+            // Con flotante el panel pinta encima de lo que sigue, del ancho del
+            // campo, en vez de empujarlo. z-index 1: sobre los campos, y debajo
+            // de todas las capas de Responsive del CLAUDE.md (90 en adelante).
+            ...(flotante && { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1 }),
           }}
         >
           <div style={{ padding: 10, borderBottom: '1px solid #EBE0E2' }}>

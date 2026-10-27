@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { listarPedidos, registrarCobro } from './api'
+import { listarPedidos, registrarCobro, urlComprobante } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
 import ModalCobro from './ModalCobro'
@@ -10,6 +10,7 @@ import {
   ICONO_BORRAR,
   ICONO_BUSCAR,
   ICONO_COBRO,
+  ICONO_COMPROBANTE,
   ICONO_EDITAR,
   ICONO_FILTROS,
   ICONO_NUEVO,
@@ -57,8 +58,8 @@ const estiloTd = {
 // tres botones, a costa de CLIENTE y CONTENIDO, que cortan con puntos
 // suspensivos. Suman 100.
 const COLS = [
-  { campo: 'id', label: 'PEDIDO', ancho: '10%', justify: 'flex-start' },
-  { campo: 'cliente', label: 'CLIENTE', ancho: '12%', justify: 'flex-start' },
+  { campo: 'id', label: 'PEDIDO', ancho: '8%', justify: 'flex-start' },
+  { campo: 'cliente', label: 'CLIENTE', ancho: '10%', justify: 'flex-start' },
   { campo: 'contenido', label: 'CONTENIDO', ancho: '12%', justify: 'flex-start' },
   { campo: 'entrega', label: 'ENTREGA', ancho: '12%', justify: 'center' },
   { campo: 'estado', label: 'ESTADO', ancho: '13%', justify: 'center' },
@@ -135,8 +136,12 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 // Los tres botones de la fila. Ver y editar abre la ficha del pedido, igual
 // que el número de la primera columna; Registrar cobro abre el mismo modal
 // que la pestaña Cobros, sin entrar al pedido.
-function Acciones({ pedido, onVer, onCobrar, onEliminar }) {
+function Acciones({ pedido, onVer, onCobrar, onComprobante, onEliminar }) {
   const motivo = motivoSinCobro(pedido)
+  const motivoComprobante =
+    pedido.cantidad_productos === 0
+      ? 'Agregá productos al pedido para generar el comprobante'
+      : ''
 
   return (
     <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
@@ -154,6 +159,14 @@ function Acciones({ pedido, onVer, onCobrar, onEliminar }) {
         hover="#F0E2E4"
         icono={ICONO_COBRO}
         deshabilitado={motivo !== ''}
+      />
+      <BotonAccion
+        onClick={() => onComprobante(pedido)}
+        titulo={motivoComprobante || 'Generar comprobante en PDF'}
+        color="#8C5A66"
+        hover="#F0E2E4"
+        icono={ICONO_COMPROBANTE}
+        deshabilitado={motivoComprobante !== ''}
       />
       <BotonAccion
         onClick={() => onEliminar(pedido)}
@@ -190,7 +203,7 @@ function SinResultados() {
 }
 
 
-function Tabla({ pedidos, cargando, onVer, onCobrar, onEliminar }) {
+function Tabla({ pedidos, cargando, onVer, onCobrar, onComprobante, onEliminar }) {
   const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
   const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
@@ -265,7 +278,7 @@ function Tabla({ pedidos, cargando, onVer, onCobrar, onEliminar }) {
                 ancho={col.ancho}
               />
             ))}
-            <th style={{ ...estiloTh, textAlign: 'center', width: '15%', padding: '12px 8px' }}>
+            <th style={{ ...estiloTh, textAlign: 'center', width: '19%', padding: '12px 8px' }}>
               ACCIONES
             </th>
           </tr>
@@ -417,7 +430,13 @@ function Tabla({ pedidos, cargando, onVer, onCobrar, onEliminar }) {
                   </td>
 
                   <td style={{ ...estiloTd, padding: '14px 8px' }}>
-                    <Acciones pedido={p} onVer={onVer} onCobrar={onCobrar} onEliminar={onEliminar} />
+                    <Acciones
+                      pedido={p}
+                      onVer={onVer}
+                      onCobrar={onCobrar}
+                      onComprobante={onComprobante}
+                      onEliminar={onEliminar}
+                    />
                   </td>
                 </tr>
               )
@@ -901,6 +920,7 @@ export default function Pedidos() {
             cargando={cargando}
             onVer={verPedido}
             onCobrar={abrirCobro}
+            onComprobante={(p) => window.open(urlComprobante(p.id), '_blank', 'noopener,noreferrer')}
             onEliminar={(p) => setPedidoEliminando(p)}
           />
         </>

@@ -114,7 +114,6 @@ export default function PestanaDatos({
           background: 'white',
           border: '1px solid #EBE0E2',
           borderRadius: 8,
-          overflow: 'hidden',
         }}
       >
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #EBE0E2' }}>
@@ -156,6 +155,7 @@ export default function PestanaDatos({
                 placeholder="Elegí un cliente..."
                 placeholderBusqueda="Buscar por @usuario o nombre..."
                 estiloCampo={estiloCampo}
+                flotante
               />
             </div>
 

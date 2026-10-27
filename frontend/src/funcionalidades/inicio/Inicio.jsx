@@ -236,11 +236,23 @@ function Tarjeta({ titulo, valor, color, enlace, onClick }) {
 
 // La caja de cada uno de los tres paneles, con su título. Igual que en
 // Finanzas, más un estilo extra para el ancho que le toca a cada uno.
-function Panel({ titulo, estilo, className, children }) {
+function Panel({ titulo, nota, estilo, className, children }) {
   return (
     <div className={className} style={{ ...estiloTarjeta, overflow: 'hidden', minWidth: 0, ...estilo }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EBE0E2' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 10,
+          flexWrap: 'wrap',
+          padding: '16px 20px',
+          borderBottom: '1px solid #EBE0E2',
+        }}
+      >
         <h2 style={estiloTituloSeccion}>{titulo}</h2>
+        {/* La aclaración chica al lado del título, como la cantidad en las
+            secciones de Categorías. Es opcional: solo la lleva EN PRODUCCIÓN. */}
+        {nota && <span style={{ fontSize: 13, color: '#B08791' }}>{nota}</span>}
       </div>
       {children}
     </div>
@@ -745,7 +757,12 @@ export default function Inicio() {
             />
           </div>
 
-          <Panel titulo="EN PRODUCCIÓN" className="ancho-pantalla" estilo={{ maxWidth: ANCHO_MAXIMO, marginBottom: 24 }}>
+          <Panel
+            titulo="EN PRODUCCIÓN"
+            nota="Se reordenan de la etapa más avanzada a la que recién empieza"
+            className="ancho-pantalla"
+            estilo={{ maxWidth: ANCHO_MAXIMO, marginBottom: 24 }}
+          >
             <TablaEnProduccion
               productos={datos.en_produccion.productos}
               hoy={datos.hoy}

@@ -249,7 +249,8 @@ en vez de un mensaje.
 **Clientes sigue el patrón de Materiales, no el de Productos.** La
 entidad tiene cuatro campos, así que no lleva pantalla de detalle:
 lleva `Clientes.jsx` más los modales de alta/edición, ver y eliminar,
-igual que `ModalMaterial`, `ModalVerMaterial` y `ModalEliminarMaterial`.
+igual que `ModalMaterial`, `ModalVerMaterial`, `ModalDiscontinuarMaterial`
+y `ModalEliminarMaterial`.
 El modal de ver reusa los mismos campos del formulario en
 `readOnly disabled`, con el placeholder cambiado a "Sin cargar".
 
@@ -402,9 +403,17 @@ tiene dos props opcionales que la ficha no pasa: `error` y `enviando`, que
 apaga Registrar para que un doble clic no cobre dos veces. El error se
 limpia al abrir y al cerrar el modal. Si sale bien, avisa "Cobro
 registrado" y recarga el listado, porque con un filtro de saldo la fila
-puede desaparecer. Para los tres botones, ACCIONES pasó del 9% al 15% a
-costa de CLIENTE (de 16 a 12) y CONTENIDO (de 14 a 12): a 384px todavía se
-lee la primera palabra antes del "+N".
+puede desaparecer. Para los cuatro botones, ACCIONES pasó del 9% al 19%
+(178px en el mínimo de 940) a costa de PEDIDO (de 10 a 8) y CLIENTE (de 16
+a 10), y antes CONTENIDO (de 14 a 12): a 384px todavía se lee la primera
+palabra antes del "+N".
+
+**Comprobante desde el listado (CU60).** El cuarto botón de la fila abre
+`urlComprobante(id)` en una pestaña nueva con `window.open`, igual que el
+botón de la cabecera de la ficha, y se apaga con el mismo motivo cuando el
+pedido no tiene productos (`cantidad_productos === 0`, el criterio del 400
+del backend). El motivo "Guardá los cambios" no existe en el listado,
+porque no hay borrador.
 
 **La tarjeta de estado va entre la cabecera y las pestañas**, visible
 desde las tres, porque cambiar el estado es una acción instantánea y no un
@@ -1361,9 +1370,9 @@ tarjeta.
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
-`#8C5A66`), Registrar cobro (signo $ en un círculo, `#8C5A66`), Dar de
-baja (prohibido, `#D9A441`), Reactivar (tilde, `#4E8C6A`), Eliminar
-(papelera, `#C0442F`).
+`#8C5A66`), Registrar cobro (signo $ en un círculo, `#8C5A66`), Comprobante
+(hoja con la punta doblada, `#8C5A66`), Dar de baja (prohibido, `#D9A441`),
+Reactivar (tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`).
 
 **Lápiz donde se puede modificar, ojo donde solo se mira.** La acción que
 abre una ficha editable se llama "Ver y editar" y lleva el lápiz: en los
@@ -1498,7 +1507,7 @@ dice.
 - `fila-pestanas`: la fila de pestañas de las fichas de producto y de
   pedido; se desliza de lado, con las pestañas sin partirse y menos
   padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 24
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 25
   modales; 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
   ModalAgregarProducto y ModalEditarProductoDelPedido, la grilla
@@ -1517,6 +1526,10 @@ dice.
   Finanzas; se parte, sin margen, con cada fecha en su renglón.
 - `acciones-materiales`: los dos botones de la cabecera de materiales de
   un gasto; uno debajo del otro, a todo el ancho.
+- `acciones-encabezado`: el enlace "Ver catálogo" y el botón de alta del
+  encabezado de Productos; uno debajo del otro, a todo el ancho.
+- `accesos-rapidos`: los cuatro accesos rápidos de Inicio; de a dos por
+  fila, por mitades, y uno por fila si ni dos entran.
 - `fila-producto-baja` y `fila-categoria-baja`: las filas de la sección de
   bajas de Productos; dos y tres renglones.
 - `chips-filtro`: los dos chips de Clientes; se parten, a la izquierda.

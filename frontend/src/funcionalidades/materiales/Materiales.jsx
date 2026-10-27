@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { listarMateriales, discontinuarMaterial, reactivarMaterial } from './api'
+import { listarMateriales, reactivarMaterial } from './api'
 import ModalMaterial from './ModalMaterial'
 import ModalVerMaterial from './ModalVerMaterial'
+import ModalDiscontinuarMaterial from './ModalDiscontinuarMaterial'
 import ModalEliminarMaterial from './ModalEliminarMaterial'
 import ModalFiltros from './ModalFiltros'
 import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
@@ -677,6 +678,7 @@ export default function Materiales() {
   const [modalAbierto, setModalAbierto] = useState(false)
   const [materialEditando, setMaterialEditando] = useState(null)
   const [materialViendo, setMaterialViendo] = useState(null)
+  const [materialDiscontinuando, setMaterialDiscontinuando] = useState(null)
   const [materialEliminando, setMaterialEliminando] = useState(null)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [filtros, setFiltros] = useState(FILTROS_VACIOS)
@@ -790,7 +792,7 @@ export default function Materiales() {
     onVer: (m) => setMaterialViendo(m),
     onEditar: (m) => setMaterialEditando(m),
     onEliminar: (m) => setMaterialEliminando(m),
-    onDiscontinuar: (m) => cambiarEstado(m, discontinuarMaterial),
+    onDiscontinuar: (m) => setMaterialDiscontinuando(m),
     onReactivar: (m) => cambiarEstado(m, reactivarMaterial),
   }
 
@@ -1121,6 +1123,17 @@ export default function Materiales() {
           onAplicar={(nuevos) => {
             setFiltros(nuevos)
             setFiltrosAbiertos(false)
+          }}
+        />
+      )}
+
+      {materialDiscontinuando && (
+        <ModalDiscontinuarMaterial
+          material={materialDiscontinuando}
+          onCerrar={() => setMaterialDiscontinuando(null)}
+          onConfirmado={() => {
+            setMaterialDiscontinuando(null)
+            recargar()
           }}
         />
       )}
