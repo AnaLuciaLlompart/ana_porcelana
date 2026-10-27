@@ -9,9 +9,11 @@ import Materiales from './funcionalidades/materiales/Materiales'
 import Categorias from './funcionalidades/categorias/Categorias'
 import Productos from './funcionalidades/productos/Productos'
 import DetalleProducto from './funcionalidades/productos/DetalleProducto'
+import AltaProducto from './funcionalidades/productos/AltaProducto'
 import Clientes from './funcionalidades/clientes/Clientes'
 import Pedidos from './funcionalidades/pedidos/Pedidos'
 import DetallePedido from './funcionalidades/pedidos/DetallePedido'
+import AltaPedido from './funcionalidades/pedidos/AltaPedido'
 import Gastos from './funcionalidades/gastos/Gastos'
 import DetalleGasto from './funcionalidades/gastos/DetalleGasto'
 import Finanzas from './funcionalidades/finanzas/Finanzas'
@@ -82,11 +84,11 @@ export default function Rutas() {
               <Route path="materiales" element={<Materiales />} />
               <Route path="categorias" element={<Categorias />} />
               <Route path="productos" element={<Productos />} />
-              <Route path="productos/nuevo" element={<DetalleProducto esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /productos/:id para que "nuevo" no se lea como un id. */}
+              <Route path="productos/nuevo" element={<AltaProducto />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /productos/:id para que "nuevo" no se lea como un id. */}
               <Route path="productos/:id" element={<DetalleProducto />} />
               <Route path="clientes" element={<Clientes />} />
               <Route path="pedidos" element={<Pedidos />} />
-              <Route path="pedidos/nuevo" element={<DetallePedido esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /pedidos/:id para que "nuevo" no se lea como un id. */}
+              <Route path="pedidos/nuevo" element={<AltaPedido />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /pedidos/:id para que "nuevo" no se lea como un id. */}
               <Route path="pedidos/:id" element={<DetallePedido />} />
               <Route path="gastos" element={<Gastos />} />
               <Route path="gastos/nuevo" element={<DetalleGasto esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}

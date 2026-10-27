@@ -32,12 +32,12 @@ const estiloCampo = {
 }
 
 
-// enRecorrido es true en los pasos del alta: en /productos/nuevo y en el
-// paso 1 ya creado el producto. Por defecto false, que es la ficha.
+// enRecorrido es true en el alta por pasos: ahí la pestaña no dibuja su pie,
+// porque los botones los pone PieDelRecorrido. Por defecto false, que es la
+// ficha, con Cancelar y Guardar.
 export default function PestanaDatos({
   borrador,
   onCambiar,
-  esAlta,
   enRecorrido = false,
   onGuardar,
   onCancelar,
@@ -222,6 +222,7 @@ export default function PestanaDatos({
         </p>
       )}
 
+      {!enRecorrido && (
       <div
         style={{
           display: 'flex',
@@ -231,27 +232,22 @@ export default function PestanaDatos({
           paddingTop: 4,
         }}
       >
-        {/* En el alta Cancelar es «no lo crees», y en la ficha sale sin
-            guardar. En el paso 1 ya creado no va: se leería como deshacer el
-            alta, y para salir está el enlace de arriba. */}
-        {(esAlta || !enRecorrido) && (
-          <button
-            onClick={onCancelar}
-            style={{
-              padding: '10px 20px',
-              border: '1px solid #EBE0E2',
-              background: 'white',
-              color: '#8C5A66',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            Cancelar
-          </button>
-        )}
+        <button
+          onClick={onCancelar}
+          style={{
+            padding: '10px 20px',
+            border: '1px solid #EBE0E2',
+            background: 'white',
+            color: '#8C5A66',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontFamily: "'Quicksand', sans-serif",
+            fontWeight: 600,
+            fontSize: 15,
+          }}
+        >
+          Cancelar
+        </button>
 
         <button
           onClick={onGuardar}
@@ -269,11 +265,10 @@ export default function PestanaDatos({
             fontSize: 15,
           }}
         >
-          {esAlta
-            ? (guardando ? 'Creando…' : 'Crear y seguir')
-            : (guardando ? 'Guardando…' : enRecorrido ? 'Guardar y seguir' : 'Guardar')}
+          {guardando ? 'Guardando…' : 'Guardar'}
         </button>
       </div>
+      )}
     </div>
   )
 }

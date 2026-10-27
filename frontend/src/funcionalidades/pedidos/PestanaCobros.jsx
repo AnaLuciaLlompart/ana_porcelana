@@ -210,10 +210,10 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
         )}
       </div>
 
-      {/* El resumen muestra lo GUARDADO, no el borrador de la pestaña de
-          datos: los números los calcula el backend, y recalcularlos acá
-          sería escribir por segunda vez una regla que ya está resuelta
-          del otro lado. Al guardar se actualizan solos. */}
+      {/* El resumen muestra el pedido que le llega: en la ficha es lo
+          GUARDADO, que calcula el backend y se actualiza solo al guardar;
+          en el alta, el pedido en memoria que arma AltaPedido con la misma
+          cuenta. Acá no se recalcula nada. */}
       <div
         style={{
           background: 'white',

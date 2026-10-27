@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import {
   obtenerProducto,
-  crearProducto,
   modificarProducto,
   reactivarProducto,
   asignarMaterialAProducto,
@@ -24,8 +23,6 @@ import { listarMateriales } from '../materiales/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
-import BarraDePasos from '../../componentes/BarraDePasos'
-import PieDelRecorrido from '../../componentes/PieDelRecorrido'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaMateriales from './PestanaMateriales'
@@ -46,8 +43,6 @@ import {
 const ICONO_FLECHA = 'M9 5l7 7-7 7'
 const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
 
-// Además de las pestañas de la ficha, son los cuatro pasos del recorrido
-// del alta, en este mismo orden.
 const PESTANAS = [
   { id: 'datos', label: 'Datos' },
   { id: 'materiales', label: 'Materiales' },
@@ -67,19 +62,6 @@ function borradorDe(producto) {
     paso_a_paso: producto.paso_a_paso,
     es_personalizado: producto.es_personalizado,
   }
-}
-
-
-// Con qué arranca el formulario en un alta. Además de ser el punto de
-// partida, es la línea de base contra la que se mide si hay algo escrito:
-// en la edición se compara contra el producto cargado, acá contra esto.
-const BORRADOR_VACIO = {
-  nombre: '',
-  descripcion: '',
-  precio: '',
-  dificultad: '',
-  paso_a_paso: '',
-  es_personalizado: false,
 }
 
 
@@ -107,17 +89,6 @@ function mensajeDeError(err) {
 
   return 'No se pudo completar la acción.'
 }
-
-
-// El paso del recorrido que pide la dirección (?paso=imagenes), o null si
-// no pide ninguno o pide uno que no existe. Datos también cuenta: ya creado
-// el producto, el paso 1 se reabre para corregirlo, sin crearlo de nuevo.
-function leerPaso(parametros) {
-  const paso = parametros.get('paso')
-  return ['datos', 'materiales', 'imagenes', 'categorias'].includes(paso) ? paso : null
-}
-
-
 
 
 // Tiene que ser el mismo 1440 que la media query grande de index.css, por
@@ -165,8 +136,7 @@ function Chip({ texto, color, fondo }) {
 
 // El panel de la derecha en pantalla grande: la imagen principal y, debajo,
 // el mismo resumen de la cabecera más las categorías. Solo se dibuja en la
-// pestaña Datos de la ficha, no en el recorrido del alta, y solo de 1440px
-// para arriba: en
+// pestaña Datos, y solo de 1440px para arriba: en
 // los otros anchos la cabecera ya dice lo mismo, y un panel escondido con
 // CSS igual descargaría la imagen en el celular.
 function ResumenDelProducto({ producto, activo, dificultad, catalogo }) {
@@ -276,18 +246,14 @@ function ResumenDelProducto({ producto, activo, dificultad, catalogo }) {
 }
 
 
-// La misma ficha atiende tres casos: el alta (/productos/nuevo), el resto
-// del recorrido, ya creado el producto (/productos/:id?paso=...), y la
-// edición (/productos/:id). El alta lo dice la ruta con la prop, en vez de
-// que el componente lo deduzca de que falte el id; el recorrido, la dirección.
-export default function DetalleProducto({ esAlta = false }) {
+// La ficha de un producto que ya existe (/productos/:id). El alta vive
+// aparte, en AltaProducto: junta todo en memoria y lo crea al final.
+export default function DetalleProducto() {
   const { id } = useParams()
   const navegar = useNavigate()
-  const [parametros, setParametros] = useSearchParams()
 
   const [producto, setProducto] = useState(null)
-  // En un alta no hay nada que traer del servidor.
-  const [cargando, setCargando] = useState(!esAlta)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState('datos')
 
@@ -295,7 +261,7 @@ export default function DetalleProducto({ esAlta = false }) {
   // borrador del modal de filtros. El motivo es que tiene que sobrevivir al
   // cambio de pestaña: si viviera en la pestaña, pasar a Materiales la
   // desmontaría y se perdería lo escrito.
-  const [borrador, setBorrador] = useState(esAlta ? BORRADOR_VACIO : null)
+  const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
 
   const [categorias, setCategorias] = useState([])
@@ -314,19 +280,17 @@ export default function DetalleProducto({ esAlta = false }) {
   const pantallaGrande = usePantallaGrande()
 
   useEffect(() => {
-    if (!esAlta) {
-      obtenerProducto(id)
-        .then((res) => {
-          setProducto(res.data)
-          setBorrador(borradorDe(res.data))
-        })
-        .catch(() => setError('No se pudo cargar el producto.'))
-        .finally(() => setCargando(false))
-    }
+    obtenerProducto(id)
+      .then((res) => {
+        setProducto(res.data)
+        setBorrador(borradorDe(res.data))
+      })
+      .catch(() => setError('No se pudo cargar el producto.'))
+      .finally(() => setCargando(false))
 
     listarCategorias().then((res) => setCategorias(res.data)).catch(() => {})
     listarMateriales().then((res) => setMateriales(res.data)).catch(() => {})
-  }, [id, esAlta])
+  }, [id])
 
 
 
@@ -399,9 +363,7 @@ export default function DetalleProducto({ esAlta = false }) {
   }
 
 
-  // Devuelve el id del producto si salió bien, o null si no. En un alta ese
-  // id es el del producto recién creado, y hace falta para navegar a su
-  // ficha.
+  // Devuelve el id del producto si salió bien, o null si no.
   async function guardarDatos() {
     setError('')
 
@@ -433,17 +395,6 @@ export default function DetalleProducto({ esAlta = false }) {
     }
 
     try {
-      if (esAlta) {
-        const res = await crearProducto(datos)
-        // Antes de navegar, como en Gastos: /productos/nuevo y /productos/:id
-        // dibujan este mismo componente y React Router lo reutiliza con su
-        // estado. Sin esto, la ficha mostraría "No se encontró el producto"
-        // hasta que llegue el GET del useEffect.
-        setProducto(res.data)
-        setBorrador(borradorDe(res.data))
-        return res.data.id
-      }
-
       const res = await modificarProducto(id, datos)
       setProducto(res.data)
       setBorrador(borradorDe(res.data))
@@ -462,17 +413,15 @@ export default function DetalleProducto({ esAlta = false }) {
     return <p style={{ color: '#857078' }}>Cargando…</p>
   }
 
-  if (!esAlta && !producto) {
+  if (!producto) {
     return <p style={{ color: '#C0442F' }}>{error || 'No se encontró el producto.'}</p>
   }
 
 
   // Derivados, calculados en cada render.
   //
-  // Lo que cambia entre el alta y la edición no es la comparación sino la
-  // LÍNEA DE BASE: en la edición se mide contra el producto que se cargó,
-  // en el alta contra el borrador vacío, o sea "hay algo escrito".
-  const original = esAlta ? BORRADOR_VACIO : borradorDe(producto)
+  // Hay cambios si algún campo del borrador difiere del producto cargado.
+  const original = borradorDe(producto)
 
   const hayCambios =
     borrador.nombre !== original.nombre ||
@@ -482,35 +431,6 @@ export default function DetalleProducto({ esAlta = false }) {
     borrador.paso_a_paso !== original.paso_a_paso ||
     borrador.es_personalizado !== original.es_personalizado
 
-  // Diferencia deliberada con el prototipo: allá el alta tiene las cuatro
-  // pestañas y crea todo junto al final. Acá el producto se crea en el paso
-  // 1, porque tiene que existir para colgarle lo demás, y después los pasos
-  // van en la dirección (?paso=), así recargar no lo vuelve a crear.
-  const paso = esAlta ? 'datos' : leerPaso(parametros)
-  const enRecorrido = paso !== null
-  // En el recorrido la pestaña que se ve la elige el paso; en la ficha, tab.
-  const pestana = enRecorrido ? paso : tab
-
-  // El botón del formulario: en el recorrido, además de crear o guardar,
-  // lleva al paso 2. En la ficha solo guarda.
-  async function guardarFormulario() {
-    // En el paso 1 ya creado, sin cambios no hay nada que guardar: se avanza
-    // sin el PUT, y así no sale "Cambios guardados" sin haber tocado nada.
-    if (enRecorrido && !esAlta && !hayCambios) {
-      irAlPaso('materiales')
-      return
-    }
-
-    const nuevoId = await guardarDatos()
-    if (!nuevoId) return
-
-    // replace: el alta ya se consumió. Si quedara en el historial, Atrás
-    // volvería a /productos/nuevo con el componente reutilizado y el
-    // formulario lleno con el producto recién creado.
-    if (esAlta) navegar(`${BASE_GESTION}/productos/${nuevoId}?paso=materiales`, { replace: true })
-    else if (enRecorrido) irAlPaso('materiales')
-  }
-
 
   // Salir descarta lo escrito sin preguntar. El aviso mientras se está en la
   // ficha es el chip del breadcrumb.
@@ -518,40 +438,25 @@ export default function DetalleProducto({ esAlta = false }) {
     navegar(`${BASE_GESTION}/productos`)
   }
 
-  // Cambiar de paso reemplaza la dirección en vez de sumar una al
-  // historial, como los filtros del catálogo: Atrás sale del recorrido.
-  function irAlPaso(nuevo) {
-    setParametros({ paso: nuevo }, { replace: true })
-    setError('')
-  }
+  // Todo lo que sigue describe el producto cargado.
+  const activo = producto.estado === 'ACTIVO'
+  const deBaja = producto.estado === 'BAJA'
+  const dificultad = COLOR_DIFICULTAD[producto.dificultad]
+  const catalogo = estadoCatalogoFicha(producto)
+  const avisoOculto = activo && !producto.visible_en_catalogo && motivoFuera(producto)
 
-  // replace por lo mismo que al crear: el recorrido ya se consumió, y Atrás
-  // desde el listado no tiene que volver a abrir el último paso.
-  function terminar() {
-    navegar(`${BASE_GESTION}/productos`, { replace: true })
-  }
-
-  // Todo lo que sigue describe un producto que existe, así que en un alta
-  // no aplica y el encabezado lo omite.
-  const activo = !esAlta && producto.estado === 'ACTIVO'
-  const deBaja = !esAlta && producto.estado === 'BAJA'
-  const dificultad = esAlta ? null : COLOR_DIFICULTAD[producto.dificultad]
-  const catalogo = esAlta ? null : estadoCatalogoFicha(producto)
-  const avisoOculto = !esAlta && activo && !producto.visible_en_catalogo && motivoFuera(producto)
-
-  const idsAsignados = esAlta ? [] : producto.categorias.map((c) => c.id)
+  const idsAsignados = producto.categorias.map((c) => c.id)
   const categoriasDisponibles = categorias.filter(
     (c) => c.estado === 'ACTIVO' && !idsAsignados.includes(c.id)
   )
 
-  const idsMateriales = esAlta ? [] : producto.materiales_usados.map((l) => l.material)
+  const idsMateriales = producto.materiales_usados.map((l) => l.material)
   const materialesDisponibles = materiales.filter(
     (m) => m.estado === 'ACTIVO' && !idsMateriales.includes(m.id)
   )
 
-  // Las cuentas solo se ven en las pestañas de la ficha. En un alta
-  // producto todavía es null, así que no hay nada que contar.
-  const CUENTAS = esAlta ? {} : {
+  // Las cuentas de los globitos de las pestañas.
+  const CUENTAS = {
     materiales: producto.cantidad_materiales,
     imagenes: producto.cantidad_imagenes,
     categorias: producto.categorias.length,
@@ -581,9 +486,7 @@ export default function DetalleProducto({ esAlta = false }) {
           <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_FLECHA} />
         </svg>
 
-        <span style={{ fontSize: 15, color: '#857078' }}>
-          {esAlta ? 'Nuevo producto' : producto.nombre}
-        </span>
+        <span style={{ fontSize: 15, color: '#857078' }}>{producto.nombre}</span>
 
         {hayCambios && (
           <span
@@ -630,10 +533,9 @@ export default function DetalleProducto({ esAlta = false }) {
               textWrap: 'pretty',
             }}
           >
-            {esAlta ? 'Nuevo producto' : producto.nombre}
+            {producto.nombre}
           </h1>
 
-          {!esAlta && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span
               style={{
@@ -654,12 +556,8 @@ export default function DetalleProducto({ esAlta = false }) {
             />
             <Chip texto={catalogo.texto} color={catalogo.color} fondo={catalogo.fondo} />
           </div>
-          )}
         </div>
 
-        {/* Dar de baja no tiene sentido sobre algo que todavía no existe, ni
-            sobre algo que se está terminando de cargar en el recorrido. */}
-        {!enRecorrido && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
           <button
             onClick={() =>
@@ -683,7 +581,6 @@ export default function DetalleProducto({ esAlta = false }) {
             {activo ? 'Dar de baja' : 'Reactivar'}
           </button>
         </div>
-        )}
       </div>
 
       {avisoOculto && (
@@ -714,9 +611,6 @@ export default function DetalleProducto({ esAlta = false }) {
         </div>
       )}
 
-      {enRecorrido ? (
-        <BarraDePasos pasos={PESTANAS} pasoActual={paso} />
-      ) : (
       <div
         className="fila-pestanas"
         style={{
@@ -775,7 +669,6 @@ export default function DetalleProducto({ esAlta = false }) {
           )
         })}
       </div>
-      )}
 
 
       {/* Un producto dado de baja es de solo lectura: el fieldset
@@ -786,11 +679,10 @@ export default function DetalleProducto({ esAlta = false }) {
 
       {/* El contenedor es una grilla de una columna que en pantalla grande
           pasa a dos (formulario y panel del resumen) por la clase
-          datos-producto. En el recorrido del alta no hay panel, así que
-          tampoco va la clase: dejaría una columna vacía. */}
-      {pestana === 'datos' && (
+          datos-producto. */}
+      {tab === 'datos' && (
         <div
-          className={enRecorrido ? 'ancho-pantalla' : 'ancho-pantalla datos-producto'}
+          className="ancho-pantalla datos-producto"
           // stretch: el panel se estira hasta el alto del formulario, así los
           // dos terminan alineados. Con una sola columna no cambia nada.
           style={{ display: 'grid', gap: 24, alignItems: 'stretch', maxWidth: ANCHO_MAXIMO }}
@@ -798,15 +690,13 @@ export default function DetalleProducto({ esAlta = false }) {
           <PestanaDatos
             borrador={borrador}
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-            esAlta={esAlta}
-            enRecorrido={enRecorrido}
-            onGuardar={guardarFormulario}
+            onGuardar={guardarDatos}
             onCancelar={volver}
             guardando={guardando}
             error={error}
           />
 
-          {pantallaGrande && !enRecorrido && (
+          {pantallaGrande && (
             <ResumenDelProducto
               producto={producto}
               activo={activo}
@@ -817,7 +707,7 @@ export default function DetalleProducto({ esAlta = false }) {
         </div>
       )}
 
-      {pestana === 'materiales' && (
+      {tab === 'materiales' && (
         <PestanaMateriales
           lineas={producto.materiales_usados}
           onAgregar={() => setModalMaterial(true)}
@@ -842,7 +732,7 @@ export default function DetalleProducto({ esAlta = false }) {
           serían N pedidos y si uno falla la galería queda a medias.
           Intercambiar de a dos es siempre la misma operación: dos PATCH que
           se cruzan el campo 'orden'. */}
-      {pestana === 'imagenes' && (
+      {tab === 'imagenes' && (
         <PestanaImagenes
           imagenes={producto.imagenes}
           error={errorImagen}
@@ -883,7 +773,7 @@ export default function DetalleProducto({ esAlta = false }) {
         />
       )}
 
-      {pestana === 'categorias' && (
+      {tab === 'categorias' && (
         <PestanaCategorias
           asignadas={producto.categorias}
           disponibles={categoriasDisponibles}
@@ -906,16 +796,10 @@ export default function DetalleProducto({ esAlta = false }) {
 
       {/* Datos muestra su error adentro del formulario e Imágenes arriba
           del grupo que falló; este del pie es solo para las otras dos. */}
-      {error && (pestana === 'materiales' || pestana === 'categorias') && (
+      {error && (tab === 'materiales' || tab === 'categorias') && (
         <p role="alert" style={{ marginTop: 16, color: '#C0442F', fontSize: 14 }}>
           {error}
         </p>
-      )}
-
-      {/* En el paso 1 el que avanza es "Crear y seguir", dentro del
-          formulario. */}
-      {enRecorrido && paso !== 'datos' && (
-        <PieDelRecorrido pasos={PESTANAS} paso={paso} onIr={irAlPaso} onTerminar={terminar} />
       )}
 
 
