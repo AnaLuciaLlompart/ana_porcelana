@@ -19,6 +19,21 @@ def url(material):
     return f'{LISTA}{material.id}/'
 
 
+class NombreDeMaterial(PruebaConSesion):
+    """El nombre del material es único (CU04)."""
+
+    def test_nombre_repetido_da_400(self):
+        """CU04: un nombre que ya existe responde 400 con el mensaje del modelo; el PATCH del propio material con su nombre sigue pasando (CU06)."""
+        material = Material.objects.create(nombre='Porcelana fría')
+        respuesta = self.client.post(LISTA, {'nombre': 'Porcelana fría'})
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['nombre'], ['Ya existe un material con este nombre.'])
+        self.assertEqual(Material.objects.count(), 1)
+
+        respuesta = self.client.patch(url(material), {'nombre': 'Porcelana fría'})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+
+
 class MaterialDiscontinuado(PruebaConSesion):
     """Un material discontinuado queda de solo lectura (CU07)."""
 

@@ -72,8 +72,12 @@ class Producto(models.Model):
 
     nombre = models.CharField(
         max_length=80,
+        unique=True,
         verbose_name='nombre',
         help_text='Denominación de la pieza. Ej: "Aros Hedwig".',
+        error_messages={
+            'unique': 'Ya existe un producto con este nombre.',
+        },
     )
 
     descripcion = models.CharField(

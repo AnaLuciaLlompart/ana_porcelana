@@ -11,15 +11,15 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**78 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
-10, `materiales` 9, `categorias` 4, `productos` 10, `clientes` 3,
+**80 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
+10, `materiales` 10, `categorias` 4, `productos` 11, `clientes` 3,
 `pedidos` 10, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
 | reglas de negocio | 36 |
 | permisos | 11 |
-| validación | 11 |
+| validación | 13 |
 | catálogo | 9 |
 | seguridad | 7 |
 | rendimiento | 4 |
@@ -71,6 +71,7 @@ rendimiento.
 | catalogo | test_las_categorias_del_catalogo_son_solo_las_activas | /api/catalogo/categorias/ no incluye categorías de baja | CU64 | catálogo |
 | catalogo | test_detalle_no_visible_da_el_mismo_404_que_inexistente | El detalle de un producto de baja y el de un id inexistente devuelven el mismo status y el mismo cuerpo | El visitante no distingue un producto escondido de uno que no existe (CU65) | catálogo |
 | catalogo | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres productos, cada uno con categorías e imágenes, el listado hace 3 consultas | productos_del_catalogo(): productos, categorías e imágenes prefetcheadas | rendimiento |
+| materiales | test_nombre_repetido_da_400 | POST con un nombre que ya existe responde 400 "Ya existe un material con este nombre." y no crea la fila; el PATCH del propio material con su nombre sigue dando 200 | nombre unique=True con mensaje propio (CU04, CU06) | validación |
 | materiales | test_editar_material_discontinuado_da_400 | PUT y PATCH sobre un material discontinuado responden 400 con mensaje y no cambian nada | Una entidad de baja queda de solo lectura (CU06, CU07) | reglas de negocio |
 | materiales | test_discontinuar_un_material_discontinuado_da_400 | POST discontinuar sobre uno ya discontinuado responde 400 con mensaje | Baja lógica (CU07) | reglas de negocio |
 | materiales | test_eliminar_material_usado_en_un_producto_da_400 | DELETE de un material con MaterialProducto responde 400 "está usado en 1 producto" y el material sigue | Discontinuar ≠ eliminar; FK PROTECT explicada (CU09) | reglas de negocio |
@@ -85,6 +86,7 @@ rendimiento.
 | categorias | test_dar_de_baja_una_categoria_dada_de_baja_da_400 | POST dar_de_baja sobre una ya de baja responde 400 "La categoría ya está dada de baja." | Baja lógica (CU14) | reglas de negocio |
 | categorias | test_eliminar_una_categoria_no_elimina_sus_productos | Después del DELETE (204) la categoría no existe, el producto sigue sin categorías y aparece en el catálogo público | Eliminar una categoría borra solo las asociaciones (CU16) | reglas de negocio |
 | productos | test_subir_imagen_sin_sesion_da_403_y_no_guarda_nada | POST /api/productos/<id>/imagenes/ sin sesión responde 403, sin ImagenProducto y sin archivo en media | Denegación por defecto (CU32) | permisos |
+| productos | test_nombre_repetido_da_400 | POST con un nombre que ya existe responde 400 "Ya existe un producto con este nombre." y no crea la fila; el PUT del propio producto con su nombre sigue dando 200 | nombre unique=True con mensaje propio (CU17, CU19) | validación |
 | productos | test_editar_producto_dado_de_baja_da_400 | PUT y PATCH sobre un producto de baja responden 400 con mensaje y no cambian nada | Una entidad de baja queda de solo lectura (CU19, CU20) | reglas de negocio |
 | productos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres productos con categorías, materiales e imágenes, el listado hace 4 consultas (sin contar la sesión) | prefetch_related en ProductoViewSet.get_queryset (CU18) | rendimiento |
 | productos | test_publicar_y_quitar_del_catalogo_cambian_la_visibilidad | Un personalizado no está en el catálogo público; POST publicar lo muestra; POST quitar_del_catalogo lo esconde | es_personalizado y la regla de visibilidad (CU23, CU24) | reglas de negocio |

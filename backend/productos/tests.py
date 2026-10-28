@@ -41,6 +41,23 @@ class SubirImagenSinSesion(PruebaSinSesion):
         self.assertEqual(os.listdir(settings.MEDIA_ROOT), [])
 
 
+class NombreDeProducto(PruebaConSesion):
+    """El nombre del producto es único (CU17)."""
+
+    def test_nombre_repetido_da_400(self):
+        """CU17: un nombre que ya existe responde 400 con el mensaje del modelo; el PUT del propio producto con su nombre sigue pasando (CU19)."""
+        producto = crear_producto()
+        datos = {'nombre': 'Aros Hedwig', 'precio_actual': '2000.00',
+                 'dificultad': Producto.Dificultad.MEDIA}
+        respuesta = self.client.post(LISTA, datos)
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['nombre'], ['Ya existe un producto con este nombre.'])
+        self.assertEqual(Producto.objects.count(), 1)
+
+        respuesta = self.client.put(f'{LISTA}{producto.id}/', datos)
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+
+
 class ProductoDadoDeBaja(PruebaConSesion):
     """Un producto de baja queda de solo lectura (CU20)."""
 

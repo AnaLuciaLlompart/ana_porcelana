@@ -45,8 +45,12 @@ class Material(models.Model):
 
     nombre = models.CharField(
         max_length=80,
+        unique=True,
         verbose_name='nombre',
         help_text='Denominación del material. Ej: "Acrílico rojo carmín".',
+        error_messages={
+            'unique': 'Ya existe un material con este nombre.',
+        },
     )
 
     estado = models.CharField(
