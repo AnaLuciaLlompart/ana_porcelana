@@ -2,8 +2,9 @@
 // Es el patrón de modal del proyecto (cabecera, cuerpo, pie, fondo que
 // cierra al hacer clic), copiado de los modales de eliminar sin la llamada
 // a la API. No sabe de navegación ni de API: quien lo abre decide qué pasa
-// al confirmar. Lo usan las tres altas para salir con algo cargado, y la de
-// gastos para crear un gasto de materiales sin filas.
+// al confirmar. Lo usan las tres altas para salir sin crear y para crear sin
+// el contenido principal (productos, fotos, materiales), y las fichas de
+// pedido y de gasto para quitar el último producto o material.
 export default function ModalConfirmar({ titulo, texto, textoAccion, onCerrar, onConfirmar }) {
   return (
     <div

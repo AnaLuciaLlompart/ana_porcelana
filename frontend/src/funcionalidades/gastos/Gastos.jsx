@@ -17,6 +17,7 @@ import {
 } from './presentacion'
 
 import BotonAccion from '../../componentes/BotonAccion'
+import ChipSinContenido from '../../componentes/ChipSinContenido'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import { BASE_GESTION } from '../../constantes'
 
@@ -115,34 +116,6 @@ function Acciones({ gasto, onVer, onEliminar }) {
         icono={ICONO_BORRAR}
       />
     </div>
-  )
-}
-
-
-// El chip de la columna MONTO para un gasto de materiales sin filas: su
-// monto es $0 por definición, y el chip dice por qué. Va en ámbar, el color
-// de "falta algo", no en rojo. MONTO pasó de 14% a 19% (y DESCRIPCIÓN de 36
-// a 31) para que entre en el mínimo de 760: mide 108px y la celda tiene 16
-// de padding a cada lado.
-function ChipSinMateriales() {
-  return (
-    <span
-      title="Cargale los materiales desde la ficha"
-      style={{
-        display: 'inline-block',
-        whiteSpace: 'nowrap',
-        fontFamily: "'Quicksand', sans-serif",
-        fontWeight: 600,
-        fontSize: 13,
-        borderRadius: 20,
-        padding: '4px 9px',
-        border: '1px solid #D9A441',
-        background: '#FDF3E0',
-        color: '#8A6320',
-      }}
-    >
-      Sin materiales
-    </span>
   )
 }
 
@@ -316,8 +289,12 @@ function Tabla({ gastos, cargando, onVer, onEliminar }) {
                     fontWeight: 600,
                   }}
                 >
+                  {/* Sin filas, el chip en lugar del $0: el monto es cero
+                      por definición y el chip dice por qué. MONTO pasó de
+                      14% a 19% (y DESCRIPCIÓN de 36 a 31) para que entre en
+                      el mínimo de 760. */}
                   {g.tipo === 'MATERIALES' && g.materiales.length === 0 ? (
-                    <ChipSinMateriales />
+                    <ChipSinContenido texto="Sin materiales" title="Cargale los materiales desde la ficha" />
                   ) : (
                     formatearPrecio(g.monto)
                   )}

@@ -33,6 +33,7 @@ import { listarClientes } from '../clientes/api'
 import BotonAccion from '../../componentes/BotonAccion'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
+import ChipSinContenido from '../../componentes/ChipSinContenido'
 import { BASE_GESTION } from '../../constantes'
 
 
@@ -54,9 +55,9 @@ const estiloTd = {
 
 // Las columnas del listado, con los anchos del diseño salvo CLIENTE,
 // CONTENIDO, SALDO y ACCIONES. SALDO ganó tres puntos de CONTENIDO para que
-// entre el chip de saldo más largo, y ACCIONES pasó del 9 al 15 para los
-// tres botones, a costa de CLIENTE y CONTENIDO, que cortan con puntos
-// suspensivos. Suman 100.
+// entre el chip de saldo más largo, y ACCIONES pasó del 9 al 19 para los
+// cuatro botones, a costa de CLIENTE y CONTENIDO, que cortan con puntos
+// suspensivos. Suman 100 con el 19 de ACCIONES.
 const COLS = [
   { campo: 'id', label: 'PEDIDO', ancho: '8%', justify: 'flex-start' },
   { campo: 'cliente', label: 'CLIENTE', ancho: '10%', justify: 'flex-start' },
@@ -133,9 +134,10 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 }
 
 
-// Los tres botones de la fila. Ver y editar abre la ficha del pedido, igual
+// Los cuatro botones de la fila. Ver y editar abre la ficha del pedido, igual
 // que el número de la primera columna; Registrar cobro abre el mismo modal
-// que la pestaña Cobros, sin entrar al pedido.
+// que la pestaña Cobros, sin entrar al pedido; Comprobante abre el PDF en
+// otra pestaña.
 function Acciones({ pedido, onVer, onCobrar, onComprobante, onEliminar }) {
   const motivo = motivoSinCobro(pedido)
   const motivoComprobante =
@@ -334,38 +336,45 @@ function Tabla({ pedidos, cargando, onVer, onCobrar, onComprobante, onEliminar }
                     </p>
                   </td>
 
+                  {/* Sin productos, el chip en lugar del texto: es el mismo
+                      aviso que "Sin materiales" en Gastos. Entra en el 12%
+                      de CONTENIDO porque mide 12px, como el "+N". */}
                   <td title={items.title} style={estiloTd}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                      <span
-                        style={{
-                          minWidth: 0,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontSize: 15,
-                          lineHeight: 1.3,
-                        }}
-                      >
-                        {items.texto}
-                      </span>
-
-                      {items.resto && (
+                    {p.cantidad_productos === 0 ? (
+                      <ChipSinContenido texto="Sin productos" title="Agregale productos desde la ficha" />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                         <span
                           style={{
-                            flexShrink: 0,
-                            fontFamily: "'Quicksand', sans-serif",
-                            fontWeight: 600,
-                            fontSize: 12,
-                            borderRadius: 20,
-                            padding: '2px 8px',
-                            background: '#F0E2E4',
-                            color: '#8C5A66',
+                            minWidth: 0,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: 15,
+                            lineHeight: 1.3,
                           }}
                         >
-                          {items.resto}
+                          {items.texto}
                         </span>
-                      )}
-                    </div>
+
+                        {items.resto && (
+                          <span
+                            style={{
+                              flexShrink: 0,
+                              fontFamily: "'Quicksand', sans-serif",
+                              fontWeight: 600,
+                              fontSize: 12,
+                              borderRadius: 20,
+                              padding: '2px 8px',
+                              background: '#F0E2E4',
+                              color: '#8C5A66',
+                            }}
+                          >
+                            {items.resto}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
 
                   <td title={entregaTitle(p)} style={{ ...estiloTd, textAlign: 'center' }}>

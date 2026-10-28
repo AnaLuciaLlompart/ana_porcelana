@@ -137,6 +137,10 @@ export default function AltaPedido() {
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
 
+  // El modal de "Crear sin productos": un pedido sin productos se puede
+  // crear, pero antes se pregunta.
+  const [modalSinProductos, setModalSinProductos] = useState(false)
+
   // Un id provisorio por ítem, negativo para que no choque con los de la
   // base. Las filas lo usan de key.
   const proximoId = useRef(-1)
@@ -299,9 +303,21 @@ export default function AltaPedido() {
   }
 
 
+  // El botón del último paso. Un pedido sin productos se puede crear, pero
+  // antes se pregunta: no se puede cobrar ni tiene comprobante.
+  function terminar() {
+    if (borrador.productos.length === 0) {
+      setModalSinProductos(true)
+      return
+    }
+    crear()
+  }
+
   // La cadena de creación. Se anota en qué paso está cada llamada para
   // volver ahí si falla.
   async function crear() {
+    setModalSinProductos(false)
+
     const falta = faltaEnDatos()
     if (falta) {
       setError(falta)
@@ -521,7 +537,7 @@ export default function AltaPedido() {
         paso={paso}
         onIr={irAlPaso}
         onCancelar={salir}
-        onTerminar={creadoAMedias ? irAlCreado : crear}
+        onTerminar={creadoAMedias ? irAlCreado : terminar}
         textoTerminar={creadoAMedias ? 'Ir al pedido' : 'Crear pedido'}
         ocupado={creando}
         textoOcupado={avance}
@@ -551,6 +567,16 @@ export default function AltaPedido() {
           hayCobros={borrador.cobros.length > 0}
           onCerrar={() => setModalCobro(null)}
           onGuardar={guardarCobro}
+        />
+      )}
+
+      {modalSinProductos && (
+        <ModalConfirmar
+          titulo="Crear sin productos"
+          texto="Este pedido no tiene productos cargados. ¿Crear igual?"
+          textoAccion="Crear igual"
+          onCerrar={() => setModalSinProductos(false)}
+          onConfirmar={crear}
         />
       )}
 

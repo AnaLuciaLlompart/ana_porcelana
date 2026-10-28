@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate } from 'react-router-dom'
 
 import {
+  listarProductos,
   crearProducto,
   eliminarProducto,
   asignarMaterialAProducto,
@@ -90,6 +91,10 @@ export default function AltaProducto() {
   const [materiales, setMateriales] = useState([])
   const [modalMaterial, setModalMaterial] = useState(false)
 
+  // Todos los productos, también los de baja, para avisar en Datos un
+  // nombre que ya existe sin esperar a Crear.
+  const [productos, setProductos] = useState([])
+
   // El error general se muestra en el formulario de Datos, o debajo de
   // Materiales y Categorías. El de las fotos guarda en qué grupo fue, como
   // en la ficha.
@@ -102,6 +107,10 @@ export default function AltaProducto() {
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
 
+  // El modal de "Crear sin fotos": un producto sin fotos se puede crear,
+  // pero antes se pregunta.
+  const [modalSinFotos, setModalSinFotos] = useState(false)
+
   // Un id provisorio por ítem, negativo para que no choque con los de la
   // base. Las filas lo usan de key, y Fila y Tarjeta guardan estado por fila.
   const proximoId = useRef(-1)
@@ -109,6 +118,7 @@ export default function AltaProducto() {
   useEffect(() => {
     listarCategorias().then((res) => setCategorias(res.data)).catch(() => {})
     listarMateriales().then((res) => setMateriales(res.data)).catch(() => {})
+    listarProductos().then((res) => setProductos(res.data)).catch(() => {})
   }, [])
 
   // Las miniaturas son URLs de objeto que retienen el archivo hasta que se
@@ -174,6 +184,11 @@ export default function AltaProducto() {
   // que revisa la ficha. Devuelve el mensaje del primero que falte, o ''.
   function faltaEnDatos() {
     if (!borrador.nombre.trim()) return 'Ponele un nombre al producto.'
+    // Compara como el backend: sin los espacios de los extremos y
+    // distinguiendo mayúsculas. Si la lista no cargó, avisa el backend al crear.
+    if (productos.some((p) => p.nombre === borrador.nombre.trim())) {
+      return 'Ya existe un producto con este nombre.'
+    }
     if (!borrador.precio) return 'Ponele un precio al producto.'
     if (!borrador.dificultad) return 'Elegí la dificultad.'
     return ''
@@ -273,9 +288,21 @@ export default function AltaProducto() {
   }
 
 
+  // El botón del último paso. Sin ninguna foto (de los dos grupos) se puede
+  // crear, pero antes se pregunta: el catálogo lo mostraría sin imagen.
+  function terminar() {
+    if (borrador.imagenes.length === 0) {
+      setModalSinFotos(true)
+      return
+    }
+    crear()
+  }
+
   // La cadena de creación. Se anota en qué paso está cada llamada para
   // volver ahí si falla; en las fotos, también el grupo.
   async function crear() {
+    setModalSinFotos(false)
+
     const falta = faltaEnDatos()
     if (falta) {
       setError(falta)
@@ -469,7 +496,7 @@ export default function AltaProducto() {
         paso={paso}
         onIr={irAlPaso}
         onCancelar={salir}
-        onTerminar={creadoAMedias ? irAlCreado : crear}
+        onTerminar={creadoAMedias ? irAlCreado : terminar}
         textoTerminar={creadoAMedias ? 'Ir al producto' : 'Crear producto'}
         ocupado={creando}
         textoOcupado={avance}
@@ -480,6 +507,16 @@ export default function AltaProducto() {
           materiales={materialesDisponibles}
           onCerrar={() => setModalMaterial(false)}
           onElegir={agregarMaterial}
+        />
+      )}
+
+      {modalSinFotos && (
+        <ModalConfirmar
+          titulo="Crear sin fotos"
+          texto="Este producto no tiene fotos. ¿Crear igual?"
+          textoAccion="Crear igual"
+          onCerrar={() => setModalSinFotos(false)}
+          onConfirmar={crear}
         />
       )}
 

@@ -19,6 +19,7 @@ import { cambiarDisponibilidad, listarMateriales } from '../materiales/api'
 
 import Toast from '../../componentes/Toast'
 import ChipCambiosSinGuardar from '../../componentes/ChipCambiosSinGuardar'
+import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import DatosDelGasto from './DatosDelGasto'
 import MaterialesDelGasto from './MaterialesDelGasto'
@@ -76,6 +77,10 @@ export default function DetalleGasto() {
   // modal de cobros.
   const [modalMaterial, setModalMaterial] = useState(null)
   const [modalEliminar, setModalEliminar] = useState(false)
+
+  // La fila que se está por quitar cuando es la última: el modal pregunta
+  // antes, y recién al confirmar se quita.
+  const [filaAQuitar, setFilaAQuitar] = useState(null)
 
   const [toast, setToast] = useState('')
   const [hayDeshacer, setHayDeshacer] = useState(false)
@@ -192,9 +197,22 @@ export default function DetalleGasto() {
     }
   }
 
-  async function quitarMaterial(fila) {
-    // Sin modal de confirmación y sin aviso flotante: la fila desaparece de
-    // la tabla y el monto baja, que ya es confirmación suficiente.
+  // Quitar el último material deja el gasto en $0: se puede, pero antes se
+  // pregunta con el modal. Los demás se quitan directo.
+  function quitarMaterial(fila) {
+    if (gasto.materiales.length === 1) {
+      setFilaAQuitar(fila)
+      return
+    }
+    quitarMaterialAhora(fila)
+  }
+
+  async function quitarMaterialAhora(fila) {
+    setFilaAQuitar(null)
+
+    // Sin aviso flotante: la fila desaparece de la tabla y el monto baja,
+    // que ya es confirmación suficiente. La única pregunta es por el último
+    // material, que deja el gasto en $0, y se hace antes de llegar acá.
     const actualizado = await accionSobreMateriales(() => quitarMaterialDelGasto(id, fila.id))
 
     if (actualizado) setGasto(actualizado)
@@ -471,6 +489,16 @@ export default function DetalleGasto() {
           // Al borrarlo se vuelve al listado: la ficha quedaría mostrando
           // algo que ya no existe.
           onEliminado={() => navegar(`${BASE_GESTION}/gastos`)}
+        />
+      )}
+
+      {filaAQuitar && (
+        <ModalConfirmar
+          titulo="Quitar el último material"
+          texto="Es el último material del gasto: el monto queda en $0. ¿Quitarlo igual?"
+          textoAccion="Quitar igual"
+          onCerrar={() => setFilaAQuitar(null)}
+          onConfirmar={() => quitarMaterialAhora(filaAQuitar)}
         />
       )}
 

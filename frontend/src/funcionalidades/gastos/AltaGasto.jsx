@@ -84,10 +84,10 @@ export default function AltaGasto() {
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
 
-  // Qué pregunta ModalConfirmar: null (cerrado) o 'sin_filas' (Crear gasto
-  // de materiales sin ninguna fila). La pregunta de salir no va acá: la hace
-  // el bloqueo de navegación de abajo.
-  const [confirmacion, setConfirmacion] = useState(null)
+  // El modal de "Crear sin materiales": un gasto de materiales sin filas se
+  // puede crear, pero antes se pregunta. La pregunta de salir no va acá: la
+  // hace el bloqueo de navegación de abajo.
+  const [modalSinFilas, setModalSinFilas] = useState(false)
 
   // Un id provisorio por fila, negativo para que no choque con los de la
   // base. Las filas lo usan de key.
@@ -229,7 +229,7 @@ export default function AltaGasto() {
   // crear, pero nace en $0, así que antes se pregunta.
   function terminar() {
     if (borrador.tipo === 'MATERIALES' && borrador.materiales.length === 0) {
-      setConfirmacion('sin_filas')
+      setModalSinFilas(true)
       return
     }
     crear()
@@ -238,7 +238,7 @@ export default function AltaGasto() {
   // La cadena de creación. Se anota en qué paso está cada llamada para
   // volver ahí si falla.
   async function crear() {
-    setConfirmacion(null)
+    setModalSinFilas(false)
 
     const falta = faltaEnDatos()
     if (falta) {
@@ -453,12 +453,12 @@ export default function AltaGasto() {
         />
       )}
 
-      {confirmacion === 'sin_filas' && (
+      {modalSinFilas && (
         <ModalConfirmar
           titulo="Crear sin materiales"
           texto="Este gasto no tiene materiales cargados: se va a crear en $0. ¿Crear igual?"
           textoAccion="Crear igual"
-          onCerrar={() => setConfirmacion(null)}
+          onCerrar={() => setModalSinFilas(false)}
           onConfirmar={crear}
         />
       )}

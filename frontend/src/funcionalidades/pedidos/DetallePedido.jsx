@@ -23,6 +23,7 @@ import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
 import ChipCambiosSinGuardar from '../../componentes/ChipCambiosSinGuardar'
+import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
@@ -123,6 +124,10 @@ export default function DetallePedido() {
   // casos y null ya significa "cerrado".
   const [modalCobro, setModalCobro] = useState(null)
   const [modalEliminar, setModalEliminar] = useState(false)
+
+  // El producto del pedido que se está por quitar cuando es el último: el
+  // modal pregunta antes, y recién al confirmar se quita.
+  const [productoAQuitar, setProductoAQuitar] = useState(null)
 
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
@@ -257,9 +262,22 @@ export default function DetallePedido() {
     avisarSiBajoSolo(estadoAntes, actualizado)
   }
 
-  async function quitarProducto(productoDelPedido) {
+  // Quitar el último producto deja el pedido sin contenido: se puede, pero
+  // antes se pregunta con el modal. Los demás se quitan directo.
+  function quitarProducto(productoDelPedido) {
+    if (pedido.productos.length === 1) {
+      setProductoAQuitar(productoDelPedido)
+      return
+    }
+    quitarProductoAhora(productoDelPedido)
+  }
+
+  async function quitarProductoAhora(productoDelPedido) {
+    setProductoAQuitar(null)
+
     // Sin aviso flotante: la fila desaparece de la tabla.
     // Salvo que quitar esta pieza haya bajado el pedido, que sí se avisa.
+    // Si era la última, la pregunta ya se hizo antes de llegar acá.
     const estadoAntes = pedido.estado
     const actualizado = await accionInmediata(
       () => quitarProductoDelPedido(id, productoDelPedido.id)
@@ -791,6 +809,16 @@ export default function DetallePedido() {
           // Al borrarlo se vuelve al listado: la ficha quedaría mostrando
           // algo que ya no existe.
           onEliminado={() => navegar(`${BASE_GESTION}/pedidos`)}
+        />
+      )}
+
+      {productoAQuitar && (
+        <ModalConfirmar
+          titulo="Quitar el último producto"
+          texto="Es el último producto del pedido. ¿Quitarlo igual?"
+          textoAccion="Quitar igual"
+          onCerrar={() => setProductoAQuitar(null)}
+          onConfirmar={() => quitarProductoAhora(productoAQuitar)}
         />
       )}
 
