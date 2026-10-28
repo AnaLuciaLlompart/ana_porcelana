@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useBlocker, useNavigate } from 'react-router-dom'
 
 import { crearGasto, eliminarGasto, registrarMaterialDelGasto } from './api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
@@ -84,9 +84,9 @@ export default function AltaGasto() {
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
 
-  // Qué pregunta ModalConfirmar: null (cerrado), 'salir' (Cancelar o el
-  // enlace de arriba con algo cargado) o 'sin_filas' (Crear gasto de
-  // materiales sin ninguna fila).
+  // Qué pregunta ModalConfirmar: null (cerrado) o 'sin_filas' (Crear gasto
+  // de materiales sin ninguna fila). La pregunta de salir no va acá: la hace
+  // el bloqueo de navegación de abajo.
   const [confirmacion, setConfirmacion] = useState(null)
 
   // Un id provisorio por fila, negativo para que no choque con los de la
@@ -122,6 +122,19 @@ export default function AltaGasto() {
     return () => window.removeEventListener('beforeunload', avisar)
   }, [hayAlgo, creando])
 
+  // Mientras el alta no haya creado el registro, cualquier navegación que
+  // salga de esta pantalla se frena y pregunta: Cancelar, el breadcrumb, el
+  // menú lateral y el Atrás del navegador pasan todos por acá. Después de
+  // crear, la navegación a la ficha nueva no tiene que preguntar, y la del
+  // cierre de sesión tampoco: la sesión ya no está.
+  const saltearBloqueo = useRef(false)
+  const bloqueo = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      !saltearBloqueo.current &&
+      nextLocation.pathname !== currentLocation.pathname &&
+      nextLocation.pathname !== `${BASE_GESTION}/login`
+  )
+
 
   function nuevoId() {
     const id = proximoId.current
@@ -155,14 +168,17 @@ export default function AltaGasto() {
     setPaso(nuevo)
   }
 
-  // Cancelar y el enlace de arriba quieren decir "no lo crees". Con algo
-  // cargado preguntan con el modal, porque se pierde; sin nada, salen.
+  // Cancelar y el enlace de arriba quieren decir "no lo crees". Navegan al
+  // listado, y el bloqueo de arriba es el que pregunta.
   function salir() {
-    if (hayAlgo) {
-      setConfirmacion('salir')
-      return
-    }
     navegar(`${BASE_GESTION}/gastos`)
+  }
+
+  // Con el gasto creado a medias, el último botón lleva a su ficha: no se
+  // sale sin crear, así que no se pregunta.
+  function irAlCreado() {
+    saltearBloqueo.current = true
+    navegar(`${BASE_GESTION}/gastos/${creadoAMedias}`)
   }
 
 
@@ -269,7 +285,8 @@ export default function AltaGasto() {
       }
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
-      // formulario lleno de lo que ya se creó.
+      // formulario lleno de lo que ya se creó. Sin bloqueo: se va a lo creado.
+      saltearBloqueo.current = true
       navegar(`${BASE_GESTION}/gastos/${id}`, { replace: true })
     } catch (err) {
       let mensaje = `No se pudo crear el gasto: ${mensajeDeError(err)}`
@@ -403,7 +420,7 @@ export default function AltaGasto() {
         paso={paso}
         onIr={irAlPaso}
         onCancelar={salir}
-        onTerminar={creadoAMedias ? () => navegar(`${BASE_GESTION}/gastos/${creadoAMedias}`) : terminar}
+        onTerminar={creadoAMedias ? irAlCreado : terminar}
         textoTerminar={creadoAMedias ? 'Ir al gasto' : 'Crear gasto'}
         ocupado={creando}
         textoOcupado={avance}
@@ -424,13 +441,15 @@ export default function AltaGasto() {
         />
       )}
 
-      {confirmacion === 'salir' && (
+      {/* La navegación frenada espera acá: Cancelar la deja sin efecto y el
+          router repone la dirección; "Salir sin crear" la deja seguir. */}
+      {bloqueo.state === 'blocked' && (
         <ModalConfirmar
           titulo="Salir sin crear"
-          texto="Se pierde lo que cargaste. ¿Salir sin crear el gasto?"
+          texto={hayAlgo ? 'Se pierde lo que cargaste. ¿Salir sin crear el gasto?' : '¿Salir sin crear el gasto?'}
           textoAccion="Salir sin crear"
-          onCerrar={() => setConfirmacion(null)}
-          onConfirmar={() => navegar(`${BASE_GESTION}/gastos`)}
+          onCerrar={() => bloqueo.reset()}
+          onConfirmar={() => bloqueo.proceed()}
         />
       )}
 

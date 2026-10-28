@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useBlocker, useNavigate } from 'react-router-dom'
 
 import {
   crearProducto,
@@ -102,9 +102,6 @@ export default function AltaProducto() {
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
 
-  // El modal de "¿Salir sin crear?". Se abre solo con algo cargado.
-  const [modalSalir, setModalSalir] = useState(false)
-
   // Un id provisorio por ítem, negativo para que no choque con los de la
   // base. Las filas lo usan de key, y Fila y Tarjeta guardan estado por fila.
   const proximoId = useRef(-1)
@@ -153,6 +150,19 @@ export default function AltaProducto() {
     return () => window.removeEventListener('beforeunload', avisar)
   }, [hayAlgo, creando])
 
+  // Mientras el alta no haya creado el registro, cualquier navegación que
+  // salga de esta pantalla se frena y pregunta: Cancelar, el breadcrumb, el
+  // menú lateral y el Atrás del navegador pasan todos por acá. Después de
+  // crear, la navegación a la ficha nueva no tiene que preguntar, y la del
+  // cierre de sesión tampoco: la sesión ya no está.
+  const saltearBloqueo = useRef(false)
+  const bloqueo = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      !saltearBloqueo.current &&
+      nextLocation.pathname !== currentLocation.pathname &&
+      nextLocation.pathname !== `${BASE_GESTION}/login`
+  )
+
 
   function nuevoId() {
     const id = proximoId.current
@@ -183,14 +193,17 @@ export default function AltaProducto() {
     setPaso(nuevo)
   }
 
-  // Cancelar y el enlace de arriba quieren decir "no lo crees". Con algo
-  // cargado preguntan con el modal, porque se pierde; sin nada, salen.
+  // Cancelar y el enlace de arriba quieren decir "no lo crees". Navegan al
+  // listado, y el bloqueo de arriba es el que pregunta.
   function salir() {
-    if (hayAlgo) {
-      setModalSalir(true)
-      return
-    }
     navegar(`${BASE_GESTION}/productos`)
+  }
+
+  // Con el producto creado a medias, el último botón lleva a su ficha: no
+  // se sale sin crear, así que no se pregunta.
+  function irAlCreado() {
+    saltearBloqueo.current = true
+    navegar(`${BASE_GESTION}/productos/${creadoAMedias}`)
   }
 
 
@@ -323,7 +336,8 @@ export default function AltaProducto() {
       }
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
-      // formulario lleno de lo que ya se creó.
+      // formulario lleno de lo que ya se creó. Sin bloqueo: se va a lo creado.
+      saltearBloqueo.current = true
       navegar(`${BASE_GESTION}/productos/${id}`, { replace: true })
     } catch (err) {
       let mensaje = `No se pudo crear el producto: ${mensajeDeError(err)}`
@@ -455,7 +469,7 @@ export default function AltaProducto() {
         paso={paso}
         onIr={irAlPaso}
         onCancelar={salir}
-        onTerminar={creadoAMedias ? () => navegar(`${BASE_GESTION}/productos/${creadoAMedias}`) : crear}
+        onTerminar={creadoAMedias ? irAlCreado : crear}
         textoTerminar={creadoAMedias ? 'Ir al producto' : 'Crear producto'}
         ocupado={creando}
         textoOcupado={avance}
@@ -469,13 +483,15 @@ export default function AltaProducto() {
         />
       )}
 
-      {modalSalir && (
+      {/* La navegación frenada espera acá: Cancelar la deja sin efecto y el
+          router repone la dirección; "Salir sin crear" la deja seguir. */}
+      {bloqueo.state === 'blocked' && (
         <ModalConfirmar
           titulo="Salir sin crear"
-          texto="Se pierde lo que cargaste. ¿Salir sin crear el producto?"
+          texto={hayAlgo ? 'Se pierde lo que cargaste. ¿Salir sin crear el producto?' : '¿Salir sin crear el producto?'}
           textoAccion="Salir sin crear"
-          onCerrar={() => setModalSalir(false)}
-          onConfirmar={() => navegar(`${BASE_GESTION}/productos`)}
+          onCerrar={() => bloqueo.reset()}
+          onConfirmar={() => bloqueo.proceed()}
         />
       )}
     </div>

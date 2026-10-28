@@ -159,6 +159,23 @@ de la regla: la tabla de materiales de la ficha de gasto (Quitar, Alta y
 "Marcar todos en disponibilidad Alta"), y Reactivar en la cabecera de la
 ficha de producto, que solo aparece con el formulario apagado.
 
+**El pie de Datos es el mismo en las tres fichas** (producto, pedido y
+gasto): Descartar y Guardar siempre visibles, apagados mientras no haya
+cambios, con el motivo en el `title` ("No hay cambios que descartar" / "No
+hay cambios que guardar"); Guardar se apaga además mientras guarda.
+Descartar repone el borrador desde lo guardado y se queda en la ficha;
+para salir está el breadcrumb, que descarta sin preguntar, y el aviso
+mientras se está en la ficha es el chip "Cambios sin guardar" del
+breadcrumb, `ChipCambiosSinGuardar` en `componentes/`, que las tres dibujan
+con `hayCambios`. Las tres tarjetas de Datos reciben `hayCambios`. Antes
+cada ficha tenía su pie (Producto y Pedido con Cancelar que salía al
+listado y nada apagado, Gasto con Descartar y Guardar solo con cambios) y
+solo Producto tenía el chip. Es una diferencia deliberada con los tres
+prototipos: en el de Productos el pie es CANCELAR (vuelve al listado, con
+un modal si hay cambios) y GUARDAR CAMBIOS, siempre visibles, y el chip
+existe; en los de Pedidos y Gastos el pie es Cancelar / Guardar y aparece
+solo con cambios, donde ese Cancelar descarta, y no hay chip.
+
 ---
 
 ## Decisiones cerradas — no proponer cambiarlas
@@ -552,18 +569,25 @@ Datos distinto del vacío o cualquier ítem) y mientras se crea, la pantalla
 escucha `beforeunload` y el navegador muestra su propio cartel al
 recargar, cerrar la pestaña, escribir otra dirección o salir de la
 aplicación con Atrás; el texto no se puede cambiar. Cancelar y el enlace
-del breadcrumb abren `ModalConfirmar` ("Se pierde lo que cargaste. ¿Salir
-sin crear el producto?", con "pedido" y "gasto" en los otros, y la acción
-"Salir sin crear"); sin nada cargado salen directo. **Nada de
+del breadcrumb abren `ModalConfirmar` siempre, con la acción "Salir sin
+crear": con algo cargado dice "Se pierde lo que cargaste. ¿Salir sin crear
+el producto?" (pedido, gasto) y sin nada cargado solo "¿Salir sin crear el
+producto?". **Nada de
 `window.confirm`** en la aplicación: las preguntas van con el patrón de
 modal del sistema, y el único cartel del navegador es el de
-`beforeunload`, que no tiene reemplazo. **El hueco:** el menú lateral y el
-Atrás del navegador dentro de la aplicación salen sin avisar. React Router
-solo puede frenar una navegación propia con `useBlocker`, que exige un
-data router (`createBrowserRouter`), y `rutas.jsx` usa `BrowserRouter`:
-con él `useBlocker` tira "must be used within a data router". Pasar el
-router son unas 15 líneas que tocan el enrutado de toda la aplicación;
-quedó para después de la entrega, si sobra tiempo.
+`beforeunload`, que no tiene reemplazo. **El que pregunta es un bloqueo de
+navegación**, `useBlocker` de React Router, en cada alta: frena toda
+navegación que cambie de ruta y la deja esperando; el modal se dibuja con
+`bloqueo.state === 'blocked'`, su Cancelar llama a `reset()` (el router
+repone la dirección, también después de un Atrás) y "Salir sin crear" a
+`proceed()`. Así Cancelar y el breadcrumb (que solo navegan al listado), el
+menú lateral y el Atrás del navegador pasan todos por el mismo lugar. No
+frena dos navegaciones: la de la ficha recién creada (y la de "Ir al …"
+con el registro a medias), con el ref `saltearBloqueo`, y la del login,
+porque al cerrar sesión desde un alta la sesión ya no está. `useBlocker`
+exige un data router: por eso `rutas.jsx` usa `createBrowserRouter` (ver
+Rutas, en Catálogo público). Un router admite un solo bloqueo a la vez, y
+las tres altas nunca están montadas juntas.
 
 **Tres componentes compartidos en `componentes/`.** `BarraDePasos({ pasos,
 pasoActual, conAnchoMaximo })` es la fila de pestañas con el número del
@@ -747,7 +771,8 @@ vacía y el listado lo marca con el chip "Sin materiales".
 
 **La ficha no tiene pestañas**, porque el prototipo no las tiene: son dos
 tarjetas apiladas y el botón de eliminar. Los botones Descartar y Guardar
-aparecen recién cuando hay cambios. Salir descarta sin preguntar.
+están siempre, apagados sin cambios (ver "El pie de Datos" en Patrón a
+seguir). Salir descarta sin preguntar.
 
 **El monto de un gasto de materiales no se calcula en el navegador, en la
 ficha.** Se muestra `gasto.monto` tal cual viene en cada respuesta, tanto
@@ -961,8 +986,23 @@ rutas de `NAV` en `Layout.jsx`, los dos con query string) usan la
 constante con template literals. `rutaActual`, en `Layout.jsx`, le saca
 la barra final a `pathname` antes de comparar, porque `/gestion/` muestra
 Inicio igual pero no sería igual a `BASE_GESTION`. No se usó `basename`
-de `BrowserRouter` porque le pondría el prefijo a todo el router, y el
-catálogo lo comparte sin prefijo.
+del router porque le pondría el prefijo a todo el router, y el catálogo lo
+comparte sin prefijo.
+
+**`Rutas` es un data router.** El `router` se arma una vez, a nivel de
+módulo, con `createBrowserRouter(createRoutesFromElements(…))` sobre el
+mismo árbol de `<Route>` de siempre (dentro de un fragmento), y `Rutas()`
+devuelve `<RouterProvider router={router} />`. Se pasó de `BrowserRouter`
+porque `useBlocker`, el que frena el menú lateral y el Atrás en las altas,
+solo funciona en un data router. Todo lo demás es igual: `AuthProvider`
+como `element` de la ruta madre, `Protegido` y `Publico` con `<Navigate>`,
+`LayoutPublico` con `Outlet`, `useNavigate`, `useSearchParams`, el `state`
+del `Link` del catálogo. Verificado recorriendo las 28 direcciones y las
+navegaciones internas antes y después del cambio, con la misma salida; y
+HMR de Vite actualiza `rutas.jsx` en caliente. La única diferencia: un
+error de render ya no deja la pantalla en blanco, lo atrapa la página de
+error propia de React Router ("Unexpected Application Error!"). Un
+`errorElement` propio queda pendiente.
 
 **`AuthProvider` envuelve solo la rama de gestión**, como `element` de la
 ruta madre (`<AuthProvider><Outlet /></AuthProvider>`), y ya no a toda la

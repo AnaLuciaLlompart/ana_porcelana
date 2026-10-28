@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { createBrowserRouter, createRoutesFromElements, RouterProvider, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexto/AuthContext'
 import { BASE_GESTION } from './constantes'
 import Layout from './componentes/Layout'
@@ -47,60 +47,67 @@ function Publico() {
   return <Outlet />
 }
 
-export default function Rutas() {
-  return (
-    <BrowserRouter>
-      <Routes>
+// El router se arma UNA vez, afuera del componente: RouterProvider no espera
+// que cambie entre dibujos. Es un "data router" (createBrowserRouter) y no
+// BrowserRouter porque solo así las altas pueden usar useBlocker, que frena
+// también el menú lateral y el Atrás del navegador antes de salir sin crear.
+// createRoutesFromElements lee el mismo árbol de <Route> de siempre.
+const router = createBrowserRouter(
+  createRoutesFromElements(
+    <>
 
-        {/* El catálogo público, sin sesión (CU63 a CU70). LayoutPublico no
-            lleva path: envuelve a todas. El asterisco atrapa cualquier
-            dirección que no sea de nadie, también las de gestión escritas
-            sin el prefijo. */}
-        <Route element={<LayoutPublico />}>
-          <Route path="/" element={<Catalogo />} />
-          <Route path="/productos/:id" element={<DetalleCatalogo />} />
-          <Route path="/seleccion" element={<MiSeleccion />} />
-          <Route path="/mensaje" element={<Mensaje />} />
-          <Route path="/como-hacer-un-pedido" element={<ComoHacerUnPedido />} />
-          <Route path="/tips" element={<Tips />} />
-          <Route path="*" element={<PaginaNoEncontrada />} />
+      {/* El catálogo público, sin sesión (CU63 a CU70). LayoutPublico no
+          lleva path: envuelve a todas. El asterisco atrapa cualquier
+          dirección que no sea de nadie, también las de gestión escritas
+          sin el prefijo. */}
+      <Route element={<LayoutPublico />}>
+        <Route path="/" element={<Catalogo />} />
+        <Route path="/productos/:id" element={<DetalleCatalogo />} />
+        <Route path="/seleccion" element={<MiSeleccion />} />
+        <Route path="/mensaje" element={<Mensaje />} />
+        <Route path="/como-hacer-un-pedido" element={<ComoHacerUnPedido />} />
+        <Route path="/tips" element={<Tips />} />
+        <Route path="*" element={<PaginaNoEncontrada />} />
+      </Route>
+
+      {/* Toda la gestión cuelga de esta ruta. El prefijo se escribe acá
+          una sola vez y las de adentro son relativas a él: sin barra
+          adelante, y con index para la que coincide con el prefijo solo.
+          AuthProvider envuelve solo esta rama: es la única que necesita
+          saber quién tiene la sesión, y así el catálogo no la consulta.
+          El Outlet de adentro es donde se dibujan las rutas hijas. */}
+      <Route path={BASE_GESTION} element={<AuthProvider><Outlet /></AuthProvider>}>
+
+        <Route element={<Publico />}>
+          <Route path="login" element={<Login />} />
         </Route>
 
-        {/* Toda la gestión cuelga de esta ruta. El prefijo se escribe acá
-            una sola vez y las de adentro son relativas a él: sin barra
-            adelante, y con index para la que coincide con el prefijo solo.
-            AuthProvider envuelve solo esta rama: es la única que necesita
-            saber quién tiene la sesión, y así el catálogo no la consulta.
-            El Outlet de adentro es donde se dibujan las rutas hijas. */}
-        <Route path={BASE_GESTION} element={<AuthProvider><Outlet /></AuthProvider>}>
-
-          <Route element={<Publico />}>
-            <Route path="login" element={<Login />} />
+        <Route element={<Protegido />}>
+          <Route element={<Layout />}>
+            <Route index element={<Inicio />} />
+            <Route path="mi-cuenta" element={<MiCuenta />} />
+            <Route path="materiales" element={<Materiales />} />
+            <Route path="categorias" element={<Categorias />} />
+            <Route path="productos" element={<Productos />} />
+            <Route path="productos/nuevo" element={<AltaProducto />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /productos/:id para que "nuevo" no se lea como un id. */}
+            <Route path="productos/:id" element={<DetalleProducto />} />
+            <Route path="clientes" element={<Clientes />} />
+            <Route path="pedidos" element={<Pedidos />} />
+            <Route path="pedidos/nuevo" element={<AltaPedido />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /pedidos/:id para que "nuevo" no se lea como un id. */}
+            <Route path="pedidos/:id" element={<DetallePedido />} />
+            <Route path="gastos" element={<Gastos />} />
+            <Route path="gastos/nuevo" element={<AltaGasto />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}
+            <Route path="gastos/:id" element={<DetalleGasto />} />
+            <Route path="finanzas" element={<Finanzas />} />
           </Route>
-
-          <Route element={<Protegido />}>
-            <Route element={<Layout />}>
-              <Route index element={<Inicio />} />
-              <Route path="mi-cuenta" element={<MiCuenta />} />
-              <Route path="materiales" element={<Materiales />} />
-              <Route path="categorias" element={<Categorias />} />
-              <Route path="productos" element={<Productos />} />
-              <Route path="productos/nuevo" element={<AltaProducto />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /productos/:id para que "nuevo" no se lea como un id. */}
-              <Route path="productos/:id" element={<DetalleProducto />} />
-              <Route path="clientes" element={<Clientes />} />
-              <Route path="pedidos" element={<Pedidos />} />
-              <Route path="pedidos/nuevo" element={<AltaPedido />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /pedidos/:id para que "nuevo" no se lea como un id. */}
-              <Route path="pedidos/:id" element={<DetallePedido />} />
-              <Route path="gastos" element={<Gastos />} />
-              <Route path="gastos/nuevo" element={<AltaGasto />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}
-              <Route path="gastos/:id" element={<DetalleGasto />} />
-              <Route path="finanzas" element={<Finanzas />} />
-            </Route>
-          </Route>
-
         </Route>
 
-      </Routes>
-    </BrowserRouter>
+      </Route>
+
+    </>
   )
+)
+
+export default function Rutas() {
+  return <RouterProvider router={router} />
 }
