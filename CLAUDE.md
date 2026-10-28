@@ -439,114 +439,150 @@ cuatro de un vistazo más que ahorrar altura, y la ficha se scrollea.
 ---
 
 
-## Alta por pasos (Productos y Pedidos)
+## Alta por pasos (Productos, Pedidos y Gastos)
 
 **Solo el alta es un recorrido; la edición sigue con pestañas.** Salió de
 que el tutor encontró confuso que "Crear producto" dejara la ficha en
 Datos con un botón Guardar. Y **el registro se crea recién al final**, con
-"Crear producto" / "Crear pedido" en el último paso: fue la segunda
-corrección del tutor, porque la primera versión lo creaba al terminar el
-paso 1. Hasta tocar Crear todo vive en memoria, en el estado de la
-pantalla de alta. Con los prototipos la diferencia queda en los pasos en
-lugar de pestañas (el de Productos también junta todo y crea al final; el
-de Pedidos apaga las otras pestañas hasta crear).
+"Crear producto" / "Crear pedido" / "Crear gasto" en el último paso: fue
+la segunda corrección del tutor, porque la primera versión lo creaba al
+terminar el paso 1. Hasta tocar Crear todo vive en memoria, en el estado
+de la pantalla de alta. Con los prototipos la diferencia queda en los
+pasos en lugar de pestañas (los de Productos y Gastos también juntan todo
+y crean al final; el de Pedidos apaga las otras pestañas hasta crear).
 
-**El alta es otra pantalla, no la ficha.** `productos/AltaProducto.jsx` y
-`pedidos/AltaPedido.jsx` atienden `/gestion/productos/nuevo` y
-`/gestion/pedidos/nuevo`; `DetalleProducto` y `DetallePedido` son solo la
-ficha de un registro que existe. No hay `?paso=`: el paso es un estado de
-la pantalla y `/nuevo` es la única dirección del alta. Los pasos son
-`datos`, `materiales`, `imagenes` y `categorias` en productos, y `datos`,
-`productos` y `cobros` en pedidos.
+**El alta es otra pantalla, no la ficha.** `productos/AltaProducto.jsx`,
+`pedidos/AltaPedido.jsx` y `gastos/AltaGasto.jsx` atienden
+`/gestion/productos/nuevo`, `/gestion/pedidos/nuevo` y
+`/gestion/gastos/nuevo`; `DetalleProducto`, `DetallePedido` y
+`DetalleGasto` son solo la ficha de un registro que existe. No hay
+`?paso=`: el paso es un estado de la pantalla y `/nuevo` es la única
+dirección del alta. Los pasos son `datos`, `materiales`, `imagenes` y
+`categorias` en productos; `datos`, `productos` y `cobros` en pedidos; y
+`datos` y `materiales` en gastos, donde el segundo existe solo si el tipo
+es Materiales: con Publicidad u Otro no hay nada más que cargar, el paso 1
+ya tiene "Crear gasto" y la barra no se dibuja, porque un "① Datos" solo
+es ruido. Al elegir Materiales aparece "② Materiales" y el botón pasa a
+"Siguiente".
 
 **El borrador junta todo.** Es el de Datos más una lista por paso
-(`materiales`, `imagenes`, `categorias`; `productos`, `cobros`). Las
-pestañas son las mismas de la ficha, sin tocar: reciben la lista y avisan
-con callbacks, y en el alta cada callback escribe en el borrador en vez de
-llamar a la API. Para eso los ítems en memoria tienen la misma forma que
-los que devuelve el backend, con un id provisorio negativo (`-1`, `-2`, …)
-que nunca choca con uno real. Las fotos se guardan como su `File` más una
-URL de `URL.createObjectURL` para la miniatura (ninguna de las dos copia el
-archivo); la URL se revoca al quitar la foto y al desmontar la pantalla.
-Intercambiar el orden intercambia las posiciones del arreglo, y al crear
-`orden` es la posición dentro de su grupo.
+(`materiales`, `imagenes`, `categorias`; `productos`, `cobros`;
+`materiales`). Las pestañas son las mismas de la ficha, sin tocar: reciben
+la lista y avisan con callbacks, y en el alta cada callback escribe en el
+borrador en vez de llamar a la API. Para eso los ítems en memoria tienen la
+misma forma que los que devuelve el backend, con un id provisorio negativo
+(`-1`, `-2`, …) que nunca choca con uno real. Las fotos se guardan como su
+`File` más una URL de `URL.createObjectURL` para la miniatura (ninguna de
+las dos copia el archivo); la URL se revoca al quitar la foto y al
+desmontar la pantalla. Intercambiar el orden intercambia las posiciones
+del arreglo, y al crear `orden` es la posición dentro de su grupo. En
+gastos las dos tarjetas de la ficha, `DatosDelGasto` y
+`MaterialesDelGasto`, salieron de `DetalleGasto.jsx` a archivos propios
+para que el alta las comparta, como las `Pestana*` de los otros dos; y
+`ModalMaterial`, que en la ficha llama él mismo a la API, recibe en el alta
+la prop `onGuardar` y le entrega los datos en vez de mandarlos. Si se
+cargan filas y después se cambia el tipo a Publicidad, las filas quedan en
+memoria pero no viajan; al volver a Materiales reaparecen.
 
-**El pedido en memoria.** `PestanaCobros`, `ModalCobro` y `motivoSinCobro`
-necesitan subtotal, total, cobrado, saldo y `cantidad_productos`, y antes
-de crear no hay backend que los calcule. `pedidoEnMemoria(borrador)`, en
-`AltaPedido.jsx`, hace las mismas cuentas que `Pedido` en `models.py`. Es
-la única cuenta del backend escrita por segunda vez en el navegador, y no
-hay alternativa; la ficha sigue mostrando lo que calcula el backend. Una
+**El pedido y el gasto en memoria.** `PestanaCobros`, `ModalCobro` y
+`motivoSinCobro` necesitan subtotal, total, cobrado, saldo y
+`cantidad_productos`, y antes de crear no hay backend que los calcule.
+`pedidoEnMemoria(borrador)`, en `AltaPedido.jsx`, hace las mismas cuentas
+que `Pedido` en `models.py`; `montoEnMemoria(borrador)`, en
+`AltaGasto.jsx`, la de `_recalcular_monto` en `gastos/views.py` (la suma
+de cantidad por precio unitario de las filas). Son las dos únicas cuentas
+del backend escritas por segunda vez en el navegador, y no hay
+alternativa; las fichas siguen mostrando lo que calcula el backend. Una
 pieza nueva nace Pendiente: si en el alta se le cambia la etapa, al crear
 va un PATCH después de su POST, que es lo que hace el selector en la
 ficha. Un cobro que dejó de valer (se cargó y después se sacaron
-productos) no se revalida en memoria: lo rechaza el backend al crear.
+productos) no se revalida en memoria: lo rechaza el backend al crear. En
+el alta de gastos no se ofrece "Marcar en disponibilidad Alta": esos
+endpoints necesitan un gasto creado, y escribir sobre Materiales antes de
+registrar la compra no corresponde; se marca desde la ficha. Por eso
+`MaterialesDelGasto` recibe `onAlta` y `onAltaTodos` opcionales, y sin
+ellos no dibuja esos botones.
 
 **Crear es una cadena de los endpoints de la ficha**, porque el backend no
 tiene transacciones ni escrituras anidadas y cada POST hijo ya acepta todo
 en una llamada (`cantidad`; `titulo`, `tipo` y `orden`; `precio` y
-`descripcion`). Productos: POST del producto → materiales → fotos →
-categorías. Pedidos: POST del pedido → productos del pedido (y el PATCH de
-etapa) → cobros, en ese orden porque `_revisar_cobro` rechaza un cobro en
-un pedido sin productos. Mientras tanto los tres botones del pie están
-apagados y el principal muestra el avance ("Subiendo foto 2 de 5…",
-"Agregando productos (1 de 2)…"). Al terminar navega a la ficha nueva con
-`replace`. Si un POST hijo falla, se hace el DELETE del registro (borra en
-cascada lo que se alcanzó a guardar) y se vuelve al paso del ítem con "No
-se pudo crear el …: <mensaje del backend>", con el borrador entero para
-corregir y volver a tocar Crear; en fotos el error va en el grupo que
-falló. Si falla el POST principal, el error va en el formulario del paso
-1. Lo que se cede: no es atómico en la base. Hay una ventana de
-milisegundos a segundos en que el registro existe incompleto, y si falla
-un ítem y también falla el DELETE (se cayó la red entre los dos), el
-registro queda a medias: la pantalla lo dice, el botón pasa a "Ir al
-producto" / "Ir al pedido", y se arregla desde la ficha. Se eligió esto y
-no un endpoint anidado con `transaction.atomic` porque el backend no se
-toca, las 78 pruebas siguen valiendo, y cada regla (duplicados, achicado
-de la imagen, precio congelado, `_revisar_cobro`) sigue con una sola
+`descripcion`; `material`, `cantidad` y `precio_unitario`). Productos:
+POST del producto → materiales → fotos → categorías. Pedidos: POST del
+pedido → productos del pedido (y el PATCH de etapa) → cobros, en ese orden
+porque `_revisar_cobro` rechaza un cobro en un pedido sin productos.
+Gastos: POST del gasto → materiales del gasto; el POST va sin `monto`
+cuando es de materiales, porque el serializer lo descarta y los
+validadores de campo corren antes. Mientras tanto los tres botones del
+pie están apagados y el principal muestra el avance ("Subiendo foto 2 de
+5…", "Agregando productos (1 de 2)…", "Guardando materiales (1 de 2)…").
+Al terminar navega a la ficha nueva con `replace`. Si un POST hijo falla,
+se hace el DELETE del registro (borra en cascada lo que se alcanzó a
+guardar) y se vuelve al paso del ítem con "No se pudo crear el …: <mensaje
+del backend>", con el borrador entero para corregir y volver a tocar
+Crear; en fotos el error va en el grupo que falló, y en gastos pegado a la
+tabla, donde la ficha muestra `errorMateriales`. Si falla el POST
+principal, el error va en el formulario del paso 1. Lo que se cede: no es
+atómico en la base. Hay una ventana de milisegundos a segundos en que el
+registro existe incompleto, y si falla un ítem y también falla el DELETE
+(se cayó la red entre los dos), el registro queda a medias: la pantalla lo
+dice, el botón pasa a "Ir al producto" / "Ir al pedido" / "Ir al gasto", y
+se arregla desde la ficha. Se eligió esto y no un endpoint anidado con
+`transaction.atomic` porque el backend no se toca, las 78 pruebas siguen
+valiendo, y cada regla (duplicados, achicado de la imagen, precio
+congelado, `_revisar_cobro`, `_recalcular_monto`) sigue con una sola
 puerta.
 
 **Ningún paso es obligatorio.** La barra marca hecho lo que está antes del
 actual, y "Siguiente" en Datos hace las mismas comprobaciones que la ficha
-(nombre, precio y dificultad; cliente y fecha) y no avanza si falta algo.
-"Anterior" va a cualquier paso sin guardar nada. El pie tiene Cancelar en
-todos los pasos y quiere decir una sola cosa: "no lo crees". Como en el
-alta no hay registro, no hay nada que ocultar: Dar de baja, el panel de la
-foto, Comprobante, la tarjeta de estado y Eliminar existen solo en la
-ficha, y la cabecera del alta no lleva ningún chip: tampoco "Cambios sin
-guardar", que en un alta no dice nada que no se sepa.
+(nombre, precio y dificultad; cliente y fecha; fecha, y el monto si el
+gasto no es de materiales) y no avanza si falta algo. "Anterior" va a
+cualquier paso sin guardar nada. El pie tiene Cancelar en todos los pasos
+y quiere decir una sola cosa: "no lo crees". Un gasto de materiales sin
+filas se puede crear, pero nace en $0, así que "Crear gasto" pregunta
+antes con `ModalConfirmar` ("Este gasto no tiene materiales cargados: se
+va a crear en $0. ¿Crear igual?") y el listado lo marca con el chip "Sin
+materiales". Como en el alta no hay registro, no hay nada que ocultar: Dar
+de baja, el panel de la foto, Comprobante, la tarjeta de estado, Eliminar
+y los botones de disponibilidad Alta existen solo en la ficha, y la
+cabecera del alta no lleva ningún chip: tampoco "Cambios sin guardar", que
+en un alta no dice nada que no se sepa.
 
 **Salir pierde todo, y se avisa.** Con algo cargado (cualquier campo de
 Datos distinto del vacío o cualquier ítem) y mientras se crea, la pantalla
 escucha `beforeunload` y el navegador muestra su propio cartel al
 recargar, cerrar la pestaña, escribir otra dirección o salir de la
 aplicación con Atrás; el texto no se puede cambiar. Cancelar y el enlace
-del breadcrumb preguntan con `window.confirm` ("Se pierde lo que cargaste.
-¿Salir sin crear el producto?"); sin nada cargado salen directo. **El
-hueco:** el menú lateral y el Atrás del navegador dentro de la aplicación
-salen sin avisar. React Router solo puede frenar una navegación propia con
-`useBlocker`, que exige un data router (`createBrowserRouter`), y
-`rutas.jsx` usa `BrowserRouter`: con él `useBlocker` tira "must be used
-within a data router". Pasar el router son unas 15 líneas que tocan el
-enrutado de toda la aplicación; quedó para después de la entrega, si sobra
-tiempo.
+del breadcrumb abren `ModalConfirmar` ("Se pierde lo que cargaste. ¿Salir
+sin crear el producto?", con "pedido" y "gasto" en los otros, y la acción
+"Salir sin crear"); sin nada cargado salen directo. **Nada de
+`window.confirm`** en la aplicación: las preguntas van con el patrón de
+modal del sistema, y el único cartel del navegador es el de
+`beforeunload`, que no tiene reemplazo. **El hueco:** el menú lateral y el
+Atrás del navegador dentro de la aplicación salen sin avisar. React Router
+solo puede frenar una navegación propia con `useBlocker`, que exige un
+data router (`createBrowserRouter`), y `rutas.jsx` usa `BrowserRouter`:
+con él `useBlocker` tira "must be used within a data router". Pasar el
+router son unas 15 líneas que tocan el enrutado de toda la aplicación;
+quedó para después de la entrega, si sobra tiempo.
 
-**Dos componentes compartidos en `componentes/`.** `BarraDePasos({ pasos,
+**Tres componentes compartidos en `componentes/`.** `BarraDePasos({ pasos,
 pasoActual, conAnchoMaximo })` es la fila de pestañas con el número del
 paso en el globito; los pasos son botones apagados, así les llega la regla
 `.fila-pestanas > button` de pantalla chica, y `conAnchoMaximo` le pone el
-tope que tiene la fila de pestañas de pedidos y no la de productos.
-`PieDelRecorrido({ pasos, paso, onIr, onCancelar, onTerminar,
+tope que tiene la fila de pestañas de pedidos y gastos, y no la de
+productos. `PieDelRecorrido({ pasos, paso, onIr, onCancelar, onTerminar,
 textoTerminar, ocupado, textoOcupado })` dibuja Cancelar, Anterior desde el
 segundo paso y Siguiente, que en el último dice `textoTerminar`; con
-`ocupado` apaga los tres y el principal muestra `textoOcupado`. Las dos
-`PestanaDatos` reciben `enRecorrido`, que quiere decir una sola cosa: no
-dibujar su pie, porque los botones los pone `PieDelRecorrido`. La de
-pedidos recibe además `esAlta`, que saca Eliminar.
-
-**Pendiente: Gastos.** Es la única alta que todavía crea primero (ver
-Módulo Gastos). Se hace después con un plan aparte: un gasto de materiales
-tiene que crearse con sus materiales cargados, o avisar que faltan.
+`ocupado` apaga los tres y el principal muestra `textoOcupado`. Los dos
+reciben `pasos` como prop, así que la lista puede cambiar en cada dibujo,
+que es lo que hace gastos. `ModalConfirmar({ titulo, texto, textoAccion,
+onCerrar, onConfirmar })` es el patrón de modal con una pregunta, Cancelar
+y la acción en rosa, copiado de los modales de eliminar sin la llamada a la
+API; no sabe de navegación ni de API, quien lo abre decide qué pasa al
+confirmar. Las dos `PestanaDatos` y `DatosDelGasto` reciben `enRecorrido`,
+que quiere decir una sola cosa: no dibujar su pie, porque los botones los
+pone `PieDelRecorrido`. La `PestanaDatos` de pedidos recibe además
+`esAlta`, que saca Eliminar.
 
 
 ---
@@ -667,15 +703,27 @@ local en el navegador, como en todos los módulos.
 
 ### El frontend de Gastos
 
-En `funcionalidades/gastos/`: `Gastos.jsx` es el listado y
-`DetalleGasto.jsx` la ficha, con `esAlta` como DetallePedido. Los
-acompañan `ModalFiltros.jsx`, `ModalMaterial.jsx`,
-`ModalEliminarGasto.jsx`, `filtros.js`, `presentacion.js` y `api.js`.
+En `funcionalidades/gastos/`: `Gastos.jsx` es el listado, `AltaGasto.jsx`
+el alta por pasos y `DetalleGasto.jsx` la ficha. Las dos tarjetas de la
+ficha, `DatosDelGasto.jsx` y `MaterialesDelGasto.jsx`, están en archivos
+propios porque el alta las comparte. Los acompañan `ModalFiltros.jsx`,
+`ModalMaterial.jsx`, `ModalEliminarGasto.jsx`, `filtros.js`,
+`presentacion.js` y `api.js`.
 
 **El resumen del listado cuenta sobre lo FILTRADO**, al revés que Pedidos
 y Clientes. Allá el resumen dice cómo viene el trabajo; acá dice cuánto
 suma lo que se está mirando, porque filtrar por período o por tipo es
 justamente la forma de preguntar cuánto se gastó.
+
+**El chip "Sin materiales" del listado.** En la columna MONTO, un gasto de
+materiales con cero filas muestra el chip en lugar del "$0": el monto es
+cero por definición y el chip dice por qué. Va en ámbar (texto `#8A6320`,
+fondo `#FDF3E0`, borde `#D9A441`), el color de "falta algo" y no el de
+error, con el title "Cargale los materiales desde la ficha". Es
+`ChipSinMateriales`, local en `Gastos.jsx`. Para que entre en el mínimo de
+760, MONTO pasó de 14% a 19% y DESCRIPCIÓN de 36 a 31: el chip mide 108px
+y la celda tiene 16 de padding a cada lado, que a 760 dejan 112 de
+contenido. Con 18% quedaba 3px corto, medido en el navegador.
 
 **El tope del deslizador de monto sale de los datos.** `montoMaximo`, en
 `filtros.js`, toma el gasto más caro y lo redondea hacia arriba a mil, con
@@ -689,32 +737,26 @@ Dibuja las opciones del modal de filtros, la etiqueta del chip aplicado y
 los segmentos de la ficha, que tienen que existir aunque no haya ningún
 gasto de ese tipo. Donde se muestra el tipo de un gasto va `tipo_display`.
 
-**El alta crea el gasto primero: diferencia deliberada con el prototipo.**
-El prototipo deja cargar materiales antes de crear el gasto y exige al
-menos uno. Acá el gasto tiene que existir en la base antes de colgarle
-materiales: el alta hace el POST y navega a `/gastos/<id>`, igual que
-Pedidos. El "Agregá al menos un material…" del prototipo no es un error:
-queda como leyenda bajo la tabla vacía. Desde que Productos y Pedidos
-crean al final, es la única alta que crea primero; pasarla a crear al
-final con sus materiales está pendiente (ver Alta por pasos).
-
-**`setGasto` va antes de navegar en el alta, y no es prolijidad.**
-`/gastos/nuevo` y `/gastos/:id` dibujan el mismo componente, así que React
-Router no lo desmonta al pasar de una ruta a la otra: lo reutiliza con su
-estado. Sin ese `setGasto`, la ficha mostraría un instante "No se encontró
-el gasto" hasta que llegue el GET.
+**El alta crea el gasto al final**, como Productos y Pedidos (ver Alta por
+pasos): dos pasos, Datos y Materiales, el segundo solo si el tipo es
+Materiales. La primera versión creaba primero y cargaba los materiales en
+la ficha. El "Agregá al menos un material…" del prototipo no es un error:
+ningún paso es obligatorio, un gasto de materiales en $0 es válido (el alta
+pregunta antes de crearlo así), el texto queda como leyenda bajo la tabla
+vacía y el listado lo marca con el chip "Sin materiales".
 
 **La ficha no tiene pestañas**, porque el prototipo no las tiene: son dos
-tarjetas apiladas y el botón de eliminar. En un gasto existente los botones
-Descartar y Guardar aparecen recién cuando hay cambios; en el alta están
-siempre Cancelar y "Crear gasto". Salir descarta sin preguntar.
+tarjetas apiladas y el botón de eliminar. Los botones Descartar y Guardar
+aparecen recién cuando hay cambios. Salir descarta sin preguntar.
 
-**El monto de un gasto de materiales no se calcula en el navegador.** Se
-muestra `gasto.monto` tal cual viene en cada respuesta, tanto en el campo
-apagado de arriba como en el pie de la tabla. El único caso con $0 escrito
-por el frontend es cuando se eligió Materiales pero el gasto todavía no se
-guardó así: no hay materiales que sumar, y es lo que el backend va a
-escribir al guardar.
+**El monto de un gasto de materiales no se calcula en el navegador, en la
+ficha.** Se muestra `gasto.monto` tal cual viene en cada respuesta, tanto
+en el campo apagado de arriba como en el pie de la tabla. El único caso con
+$0 escrito por el frontend es cuando se eligió Materiales pero el gasto
+todavía no se guardó así (un gasto de publicidad que se está pasando a
+materiales): no hay materiales que sumar, y es lo que el backend va a
+escribir al guardar. En el alta sí se calcula, con `montoEnMemoria` (ver
+Alta por pasos), hasta crear.
 
 **El tipo se bloquea en la ficha cuando el gasto GUARDADO es de
 materiales.** Los otros dos segmentos van deshabilitados con un title que
@@ -727,7 +769,9 @@ por prop como ModalCobro; al editar, el material queda bloqueado. Pero a
 diferencia de ModalCobro llama él mismo a la API, como ModalCliente: es la
 única forma de que el error del backend se vea adentro del modal con el
 formulario todavía abierto. Al salir bien le entrega a la ficha el gasto
-actualizado. El desplegable ofrece solo los materiales activos que todavía
+actualizado. Con la prop opcional `onGuardar` no llama a la API: valida
+igual y le entrega los datos a quien lo abrió, que es como lo usa el alta
+por pasos. El desplegable ofrece solo los materiales activos que todavía
 no están en el gasto.
 
 **Las operaciones sobre materiales devuelven el gasto completo**, y la
@@ -1572,7 +1616,7 @@ dice.
 - `fila-pestanas`: la fila de pestañas de las fichas de producto y de
   pedido; se desliza de lado, con las pestañas sin partirse y menos
   padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 25
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 26
   modales; 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
   ModalAgregarProducto y ModalEditarProductoDelPedido, la grilla

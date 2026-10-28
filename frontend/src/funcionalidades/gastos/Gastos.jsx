@@ -43,8 +43,8 @@ const COLS = [
   { campo: 'id', label: 'GASTO', ancho: '9%', justify: 'flex-start' },
   { campo: 'tipo', label: 'TIPO', ancho: '14%', justify: 'flex-start' },
   { campo: 'fecha', label: 'FECHA', ancho: '14%', justify: 'flex-start' },
-  { campo: 'descripcion', label: 'DESCRIPCIÓN', ancho: '36%', justify: 'flex-start' },
-  { campo: 'monto', label: 'MONTO', ancho: '14%', justify: 'flex-end' },
+  { campo: 'descripcion', label: 'DESCRIPCIÓN', ancho: '31%', justify: 'flex-start' },
+  { campo: 'monto', label: 'MONTO', ancho: '19%', justify: 'flex-end' },
 ]
 
 
@@ -115,6 +115,34 @@ function Acciones({ gasto, onVer, onEliminar }) {
         icono={ICONO_BORRAR}
       />
     </div>
+  )
+}
+
+
+// El chip de la columna MONTO para un gasto de materiales sin filas: su
+// monto es $0 por definición, y el chip dice por qué. Va en ámbar, el color
+// de "falta algo", no en rojo. MONTO pasó de 14% a 19% (y DESCRIPCIÓN de 36
+// a 31) para que entre en el mínimo de 760: mide 108px y la celda tiene 16
+// de padding a cada lado.
+function ChipSinMateriales() {
+  return (
+    <span
+      title="Cargale los materiales desde la ficha"
+      style={{
+        display: 'inline-block',
+        whiteSpace: 'nowrap',
+        fontFamily: "'Quicksand', sans-serif",
+        fontWeight: 600,
+        fontSize: 13,
+        borderRadius: 20,
+        padding: '4px 9px',
+        border: '1px solid #D9A441',
+        background: '#FDF3E0',
+        color: '#8A6320',
+      }}
+    >
+      Sin materiales
+    </span>
   )
 }
 
@@ -288,7 +316,11 @@ function Tabla({ gastos, cargando, onVer, onEliminar }) {
                     fontWeight: 600,
                   }}
                 >
-                  {formatearPrecio(g.monto)}
+                  {g.tipo === 'MATERIALES' && g.materiales.length === 0 ? (
+                    <ChipSinMateriales />
+                  ) : (
+                    formatearPrecio(g.monto)
+                  )}
                 </td>
 
                 <td style={{ ...estiloTd, padding: '14px 8px' }}>
@@ -427,7 +459,7 @@ export default function Gastos() {
       .finally(() => setCargando(false))
   }
 
-  // El alta y la ficha comparten pantalla, como en Pedidos.
+  // El alta es otra pantalla, como en Productos y Pedidos.
   function nuevoGasto() {
     navegar(`${BASE_GESTION}/gastos/nuevo`)
   }

@@ -52,7 +52,12 @@ const FONDO_APAGADO = '#F7F3F4'
 //
 // Al salir bien le entrega a la ficha el gasto completo que devolvió el
 // backend, con la fila y el monto ya actualizados.
-export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onGuardado }) {
+//
+// Con onGuardar, en cambio, el modal no llama a la API: valida igual y le
+// entrega los datos a quien lo abrió. Así lo usa el alta por pasos, que los
+// guarda en memoria hasta crear el gasto; ahí no hay backend que pueda
+// rechazar nada, y el cartel de error no aparece.
+export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onGuardado, onGuardar }) {
   const editando = Boolean(fila)
 
   // El material va como texto porque el value de un <select> siempre lo es;
@@ -74,12 +79,24 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
 
   // Solo una vista previa para que ella vea cuánto va a sumar la fila antes
   // de guardarla. El subtotal de verdad, y el monto del gasto, los calcula
-  // el backend y vuelven en la respuesta.
+  // el backend y vuelven en la respuesta; en el alta, montoEnMemoria hace la
+  // misma cuenta hasta crear.
   const subtotal = Math.max(0, Number(cantidad) || 0) * Number(precio)
 
   async function guardar() {
     if (sinMaterial || cantidadInvalida || precioInvalido) {
       setTocado(true)
+      return
+    }
+
+    // Los mismos datos que viajarían al backend, sin viajar. Al editar no va
+    // el material, como en la llamada de abajo.
+    if (onGuardar) {
+      onGuardar(
+        editando
+          ? { cantidad: Number(cantidad), precio_unitario: precio }
+          : { material: Number(material), cantidad: Number(cantidad), precio_unitario: precio }
+      )
       return
     }
 

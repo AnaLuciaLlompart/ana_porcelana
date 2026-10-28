@@ -13,8 +13,8 @@ import cliente from '../../api/cliente'
 // obtenerGasto no implementa un CU: trae la ficha que CU54 necesita para
 // cargar el formulario de edición.
 //
-// El listado usa solo listarGastos y eliminarGasto. Las otras tres son de
-// la ficha del gasto.
+// El listado usa listarGastos y eliminarGasto; el alta, crearGasto y
+// eliminarGasto (para deshacer); la ficha, obtenerGasto y modificarGasto.
 //
 // Al crear y al modificar un gasto de MATERIALES el monto no se manda: lo
 // calcula el backend sumando los materiales del gasto, y si va en el cuerpo

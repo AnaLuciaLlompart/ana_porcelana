@@ -22,6 +22,7 @@ import { listarProductos } from '../productos/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
+import ChipCambiosSinGuardar from '../../componentes/ChipCambiosSinGuardar'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
@@ -349,9 +350,15 @@ export default function DetallePedido() {
 
 
   // Salir descarta lo escrito sin preguntar, igual que en la ficha de
-  // Producto.
+  // Producto. El aviso mientras se está en la ficha es el chip del breadcrumb.
   function volver() {
     navegar(`${BASE_GESTION}/pedidos`)
+  }
+
+  // Descartar repone el formulario desde el pedido guardado.
+  function descartar() {
+    setError('')
+    setBorrador(borradorDe(pedido))
   }
 
 
@@ -431,6 +438,8 @@ export default function DetallePedido() {
         </svg>
 
         <span style={{ fontSize: 15, color: '#857078' }}>{titulo}</span>
+
+        {hayCambios && <ChipCambiosSinGuardar />}
       </div>
 
       <div
@@ -712,9 +721,10 @@ export default function DetallePedido() {
             // Va aparte del borrador porque no se edita.
             fechaEntregaReal={pedido.fecha_entrega_real || ''}
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
+            hayCambios={hayCambios}
             clientes={clientes}
             onGuardar={guardarDatos}
-            onCancelar={volver}
+            onCancelar={descartar}
             onEliminar={() => setModalEliminar(true)}
             guardando={guardando}
             error={error}

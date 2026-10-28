@@ -17,6 +17,7 @@ import { BASE_GESTION } from '../../constantes'
 
 import BarraDePasos from '../../componentes/BarraDePasos'
 import PieDelRecorrido from '../../componentes/PieDelRecorrido'
+import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaMateriales from './PestanaMateriales'
@@ -101,6 +102,9 @@ export default function AltaProducto() {
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
 
+  // El modal de "¿Salir sin crear?". Se abre solo con algo cargado.
+  const [modalSalir, setModalSalir] = useState(false)
+
   // Un id provisorio por ítem, negativo para que no choque con los de la
   // base. Las filas lo usan de key, y Fila y Tarjeta guardan estado por fila.
   const proximoId = useRef(-1)
@@ -180,9 +184,12 @@ export default function AltaProducto() {
   }
 
   // Cancelar y el enlace de arriba quieren decir "no lo crees". Con algo
-  // cargado preguntan, porque se pierde.
+  // cargado preguntan con el modal, porque se pierde; sin nada, salen.
   function salir() {
-    if (hayAlgo && !window.confirm('Se pierde lo que cargaste. ¿Salir sin crear el producto?')) return
+    if (hayAlgo) {
+      setModalSalir(true)
+      return
+    }
     navegar(`${BASE_GESTION}/productos`)
   }
 
@@ -459,6 +466,16 @@ export default function AltaProducto() {
           materiales={materialesDisponibles}
           onCerrar={() => setModalMaterial(false)}
           onElegir={agregarMaterial}
+        />
+      )}
+
+      {modalSalir && (
+        <ModalConfirmar
+          titulo="Salir sin crear"
+          texto="Se pierde lo que cargaste. ¿Salir sin crear el producto?"
+          textoAccion="Salir sin crear"
+          onCerrar={() => setModalSalir(false)}
+          onConfirmar={() => navegar(`${BASE_GESTION}/productos`)}
         />
       )}
     </div>

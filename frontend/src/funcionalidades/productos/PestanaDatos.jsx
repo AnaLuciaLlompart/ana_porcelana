@@ -34,11 +34,12 @@ const estiloCampo = {
 
 // enRecorrido es true en el alta por pasos: ahí la pestaña no dibuja su pie,
 // porque los botones los pone PieDelRecorrido. Por defecto false, que es la
-// ficha, con Cancelar y Guardar.
+// ficha, con Descartar y Guardar apagados mientras no haya cambios.
 export default function PestanaDatos({
   borrador,
   onCambiar,
   enRecorrido = false,
+  hayCambios,
   onGuardar,
   onCancelar,
   guardando,
@@ -232,34 +233,40 @@ export default function PestanaDatos({
           paddingTop: 4,
         }}
       >
+        {/* Sin cambios los dos se apagan, con el motivo en el title, como
+            todo botón apagado por una regla. */}
         <button
           onClick={onCancelar}
+          disabled={!hayCambios}
+          title={hayCambios ? undefined : 'No hay cambios que descartar'}
           style={{
             padding: '10px 20px',
             border: '1px solid #EBE0E2',
             background: 'white',
             color: '#8C5A66',
             borderRadius: 6,
-            cursor: 'pointer',
+            cursor: hayCambios ? 'pointer' : 'default',
+            opacity: hayCambios ? undefined : 0.5,
             fontFamily: "'Quicksand', sans-serif",
             fontWeight: 600,
             fontSize: 15,
           }}
         >
-          Cancelar
+          Descartar
         </button>
 
         <button
           onClick={onGuardar}
-          disabled={guardando}
+          disabled={!hayCambios || guardando}
+          title={hayCambios ? undefined : 'No hay cambios que guardar'}
           style={{
             padding: '10px 20px',
             border: 0,
             background: '#8C5A66',
             color: 'white',
             borderRadius: 6,
-            cursor: guardando ? 'default' : 'pointer',
-            opacity: guardando ? 0.7 : 1,
+            cursor: hayCambios && !guardando ? 'pointer' : 'default',
+            opacity: guardando ? 0.7 : hayCambios ? undefined : 0.5,
             fontFamily: "'Quicksand', sans-serif",
             fontWeight: 600,
             fontSize: 15,

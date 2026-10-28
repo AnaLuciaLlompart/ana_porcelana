@@ -16,6 +16,7 @@ import DetallePedido from './funcionalidades/pedidos/DetallePedido'
 import AltaPedido from './funcionalidades/pedidos/AltaPedido'
 import Gastos from './funcionalidades/gastos/Gastos'
 import DetalleGasto from './funcionalidades/gastos/DetalleGasto'
+import AltaGasto from './funcionalidades/gastos/AltaGasto'
 import Finanzas from './funcionalidades/finanzas/Finanzas'
 import Inicio from './funcionalidades/inicio/Inicio'
 import Catalogo from './funcionalidades/catalogo/Catalogo'
@@ -91,7 +92,7 @@ export default function Rutas() {
               <Route path="pedidos/nuevo" element={<AltaPedido />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /pedidos/:id para que "nuevo" no se lea como un id. */}
               <Route path="pedidos/:id" element={<DetallePedido />} />
               <Route path="gastos" element={<Gastos />} />
-              <Route path="gastos/nuevo" element={<DetalleGasto esAlta />} />  {/* El alta usa la misma ficha que la edición. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}
+              <Route path="gastos/nuevo" element={<AltaGasto />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}
               <Route path="gastos/:id" element={<DetalleGasto />} />
               <Route path="finanzas" element={<Finanzas />} />
             </Route>

@@ -17,6 +17,7 @@ import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import BarraDePasos from '../../componentes/BarraDePasos'
 import PieDelRecorrido from '../../componentes/PieDelRecorrido'
+import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
@@ -136,6 +137,9 @@ export default function AltaPedido() {
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
 
+  // El modal de "¿Salir sin crear?". Se abre solo con algo cargado.
+  const [modalSalir, setModalSalir] = useState(false)
+
   // Un id provisorio por ítem, negativo para que no choque con los de la
   // base. Las filas lo usan de key.
   const proximoId = useRef(-1)
@@ -203,9 +207,12 @@ export default function AltaPedido() {
   }
 
   // Cancelar y el enlace de arriba quieren decir "no lo crees". Con algo
-  // cargado preguntan, porque se pierde.
+  // cargado preguntan con el modal, porque se pierde; sin nada, salen.
   function salir() {
-    if (hayAlgo && !window.confirm('Se pierde lo que cargaste. ¿Salir sin crear el pedido?')) return
+    if (hayAlgo) {
+      setModalSalir(true)
+      return
+    }
     navegar(`${BASE_GESTION}/pedidos`)
   }
 
@@ -530,6 +537,16 @@ export default function AltaPedido() {
           hayCobros={borrador.cobros.length > 0}
           onCerrar={() => setModalCobro(null)}
           onGuardar={guardarCobro}
+        />
+      )}
+
+      {modalSalir && (
+        <ModalConfirmar
+          titulo="Salir sin crear"
+          texto="Se pierde lo que cargaste. ¿Salir sin crear el pedido?"
+          textoAccion="Salir sin crear"
+          onCerrar={() => setModalSalir(false)}
+          onConfirmar={() => navegar(`${BASE_GESTION}/pedidos`)}
         />
       )}
     </div>

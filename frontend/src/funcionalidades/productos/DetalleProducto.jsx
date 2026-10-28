@@ -23,6 +23,7 @@ import { listarMateriales } from '../materiales/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 import Toast from '../../componentes/Toast'
+import ChipCambiosSinGuardar from '../../componentes/ChipCambiosSinGuardar'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaMateriales from './PestanaMateriales'
@@ -438,6 +439,12 @@ export default function DetalleProducto() {
     navegar(`${BASE_GESTION}/productos`)
   }
 
+  // Descartar repone el formulario desde el producto guardado.
+  function descartar() {
+    setError('')
+    setBorrador(borradorDe(producto))
+  }
+
   // Todo lo que sigue describe el producto cargado.
   const activo = producto.estado === 'ACTIVO'
   const deBaja = producto.estado === 'BAJA'
@@ -488,26 +495,7 @@ export default function DetalleProducto() {
 
         <span style={{ fontSize: 15, color: '#857078' }}>{producto.nombre}</span>
 
-        {hayCambios && (
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              marginLeft: 4,
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 13,
-              borderRadius: 20,
-              padding: '3px 11px',
-              border: '1px solid #EEDCB4',
-              background: '#FDF3E0',
-              color: '#8A6320',
-            }}
-          >
-            Cambios sin guardar
-          </span>
-        )}
+        {hayCambios && <ChipCambiosSinGuardar />}
       </div>
 
       <div
@@ -690,8 +678,9 @@ export default function DetalleProducto() {
           <PestanaDatos
             borrador={borrador}
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
+            hayCambios={hayCambios}
             onGuardar={guardarDatos}
-            onCancelar={volver}
+            onCancelar={descartar}
             guardando={guardando}
             error={error}
           />
