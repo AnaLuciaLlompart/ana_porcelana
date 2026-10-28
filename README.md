@@ -128,7 +128,7 @@ distinguir quién pregunta.
 |---|---|
 | React 19 | Biblioteca de interfaz basada en componentes |
 | Vite | Herramienta de construcción. Aporta el servidor de desarrollo y el proxy inverso |
-| React Router | Enrutamiento del lado del cliente. Determina qué pantalla corresponde a cada dirección sin recargar la página |
+| React Router | Enrutamiento del lado del cliente. Determina qué pantalla corresponde a cada dirección sin recargar la página. Se usa como router de datos, que permite frenar la salida de un alta sin confirmar |
 | Axios | Cliente HTTP. Realiza las peticiones al backend y gestiona de forma centralizada el envío de credenciales y del token de verificación |
 
 **Despliegue**
@@ -169,8 +169,8 @@ ana_porcelana/
 │   ├── catalogo/                catálogo público: tres endpoints de lectura sin sesión; sin modelos propios
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
-│   │   ├── tests.py             las 5 generales; las otras 73, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 78 y cómo correrlas
+│   │   ├── tests.py             las 5 generales; las otras 75, en el tests.py de cada app
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 80 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -202,22 +202,24 @@ ana_porcelana/
 │       ├── api/cliente.js       cliente HTTP compartido
 │       ├── contexto/            estado de sesión compartido
 │       ├── componentes/         navegación y elementos compartidos
+│       │   ├── BarraDePasos.jsx · PieDelRecorrido.jsx  los pasos y los botones del alta
+│       │   ├── ModalConfirmar.jsx  la pregunta antes de salir sin crear o de dejar un registro sin contenido
 │       │   ├── LayoutPublico.jsx  encabezado, navegación y pie del catálogo público
 │       │   └── PiePublico.jsx     el pie del catálogo público
 │       ├── funcionalidades/
 │       │   ├── auth/
 │       │   ├── materiales/
 │       │   ├── categorias/
-│       │   ├── productos/
+│       │   ├── productos/       listado, alta por pasos y ficha
 │       │   ├── clientes/
-│       │   ├── pedidos/
-│       │   ├── gastos/
+│       │   ├── pedidos/         listado, alta por pasos y ficha, con los cobros
+│       │   ├── gastos/          listado, alta por pasos y ficha
 │       │   ├── finanzas/        informes económicos
 │       │   ├── inicio/          pantalla de inicio
 │       │   └── catalogo/        catálogo público: listado, detalle, selección y mensaje de consulta
 │       ├── validadores.js       límite de tamaño (espejo del backend)
 │       ├── index.css            hovers y reglas de pantalla chica
-│       ├── rutas.jsx
+│       ├── rutas.jsx            el árbol de direcciones, armado como router de datos
 │       └── main.jsx
 │
 ├── disenio/                     prototipos de interfaz de cada módulo
@@ -409,12 +411,11 @@ en un monto consignado a mano sin inventarlo. La operación inversa sí se
 admite: un gasto de otro tipo puede pasar a ser de materiales, con lo
 cual su monto queda en cero hasta que se registren las compras.
 
-**El gasto se crea antes de registrar sus materiales.** El prototipo
-permitía cargar los materiales antes de crear el gasto y exigía al menos
-uno. La implementación se aparta deliberadamente de ese flujo: los
-materiales son un subrecurso del gasto y requieren que este exista. Un
-gasto de materiales recién creado tiene monto cero, y esa situación es
-válida.
+**Un gasto de materiales puede crearse sin materiales.** El prototipo
+exigía al menos uno. La implementación lo admite, porque ningún paso del
+alta es obligatorio y un gasto de materiales sin materiales tiene monto
+cero, una situación válida. En lugar de impedirlo, la interfaz lo
+advierte antes de crearlo y lo señala en el listado.
 
 **Una única operación escribe sobre otro módulo.** Registrar la compra
 de un material indica que volvió a haber existencias, de modo que desde
@@ -445,6 +446,43 @@ gestionan mediante subrecursos —`/api/productos/1/materiales/3/`— en
 lugar de enviar el objeto completo con sus vínculos. Los
 serializadores exponen las relaciones en modo de solo lectura.
 
+**El alta crea el registro al final.** El alta de productos, pedidos y
+gastos es un recorrido por pasos —los datos y, en los pasos siguientes,
+los materiales, las fotos y las categorías del producto, los productos y
+los cobros del pedido, o los materiales del gasto—, y el registro se crea
+recién al confirmar el último. Hasta entonces todo se conserva en la
+memoria de la pantalla, de modo que abandonar el recorrido no deja
+registros incompletos. Al confirmar, la interfaz encadena las mismas
+operaciones que emplea la ficha de edición: crea el registro y después
+cada uno de sus elementos. Si el servidor rechaza alguno, elimina el
+registro —la eliminación arrastra lo que se alcanzó a guardar— y vuelve
+al paso correspondiente con el mensaje del servidor y lo cargado intacto.
+Se prefirió a una operación única en el servidor porque así cada regla de
+negocio conserva una sola vía de verificación: las operaciones que
+validan la carga desde la ficha son las mismas que validan la del alta.
+Los importes de un pedido o de un gasto que todavía no existe se calculan
+en el navegador con la misma cuenta que el servidor; una vez creado, se
+muestran los que calcula el servidor. Mientras el alta no se confirma,
+cualquier salida de la pantalla —el botón Cancelar, la barra lateral o el
+botón Atrás del navegador— pregunta antes de abandonarla, y recargar o
+cerrar la pestaña lo advierte el propio navegador.
+
+**Advertir en lugar de prohibir.** Un pedido sin productos, un producto
+sin fotos y un gasto de materiales sin materiales son registros válidos,
+y el servidor no los rechaza. La interfaz, en cambio, pregunta antes de
+crearlos así y antes de quitar el último producto de un pedido o el
+último material de un gasto, y los listados los señalan con una marca. La
+decisión queda en manos de la emprendedora, pero no puede tomarse por
+descuido.
+
+**Formulario o acción.** Lo que se edita dentro de un formulario se
+guarda con un botón; lo que está fuera de él es una acción que se aplica
+al instante y se confirma con un aviso, y una misma tarjeta no combina
+ambos comportamientos. Los formularios de edición de productos, pedidos y
+gastos comparten el mismo pie —Descartar y Guardar, inhabilitados
+mientras no haya cambios— y una marca de cambios sin guardar en la
+cabecera.
+
 **Validación del tamaño de las imágenes en ambas capas.** El límite se
 aplica en el backend, que constituye la autoridad y no puede
 eludirse, y se replica en el frontend para evitar transferencias
@@ -467,6 +505,13 @@ escritura pueda eludirla, y en el serializador, porque la validación de
 unicidad se ejecuta antes que la lógica propia y de otro modo el
 conflicto se manifestaría como un error de base de datos en lugar de un
 mensaje comprensible.
+
+**Nombres únicos.** Dos categorías, dos productos o dos materiales no
+pueden llamarse igual. La restricción se declara en el modelo, con un
+mensaje propio que el serializador devuelve al rechazar el alta o la
+modificación, y la base de datos la garantiza para cualquier otra vía de
+escritura. A diferencia del usuario de Instagram, el nombre no se
+normaliza: la comparación distingue mayúsculas de minúsculas.
 
 **Interfaz de gestión adaptada a pantalla chica.** Los estilos de la
 interfaz son objetos en línea de React; para pantallas de hasta 768px,
@@ -499,6 +544,14 @@ modifica desde dos sesiones simultáneas, la última en guardar
 prevalece sobre la anterior. La restricción no resulta significativa
 con una única usuaria, y las validaciones del backend impiden en
 cualquier caso que la base de datos quede en un estado inconsistente.
+
+El alta de un registro junto con sus elementos no es atómica en la base
+de datos. Entre la creación del registro y la de su último elemento
+transcurre un intervalo breve en que el registro existe incompleto, y si
+la eliminación que deshace un alta fallida también fallara —por ejemplo,
+por una interrupción de la conexión entre ambas operaciones—, el
+registro quedaría creado a medias. La pantalla lo informa y ofrece
+abrirlo, para completarlo o eliminarlo desde su ficha.
 
 ---
 

@@ -123,6 +123,16 @@ Convenciones que ya uso:
   methods=['post'])`, en snake_case: `dar_de_baja`, `reactivar`.
 - El serializer expone los `get_..._display` como campos de solo
   lectura (`estado_display`, `tipo_display`).
+- El nombre es único en Categoría, Producto y Material: `unique=True` con
+  `error_messages={'unique': 'Ya existe un … con este nombre.'}` en el
+  campo del modelo, y nada en el serializer, porque `ModelSerializer` arma
+  el `UniqueValidator` con ese mensaje (en PUT y PATCH excluye a la propia
+  fila). Distingue mayúsculas: "Aros" y "aros" conviven. El único texto
+  normalizado antes de comparar es el instagram de Cliente. Agregar
+  `unique` a un campo con datos exige revisar repetidos antes de migrar,
+  también en el servidor, donde `arrancar.sh` corre `migrate` al levantar
+  y un repetido deja el backend sin arrancar. El alta de producto lo
+  avisa ya en el paso Datos (ver Alta por pasos).
 
 **Frontend**: `api.js` con una función exportada por endpoint,
 importando `cliente` → pantalla con el patrón de tres estados
@@ -175,6 +185,30 @@ prototipos: en el de Productos el pie es CANCELAR (vuelve al listado, con
 un modal si hay cambios) y GUARDAR CAMBIOS, siempre visibles, y el chip
 existe; en los de Pedidos y Gastos el pie es Cancelar / Guardar y aparece
 solo con cambios, donde ese Cancelar descarta, y no hay chip.
+
+**Avisar, no prohibir, cuando falta el contenido principal.** Un pedido sin
+productos, un producto sin fotos y un gasto de materiales sin filas son
+válidos: el backend no los rechaza y ningún paso del alta es obligatorio.
+Pero se avisa, siempre con `ModalConfirmar` y una pregunta "¿… igual?":
+
+| Cuándo | Título | Texto | Acción |
+|---|---|---|---|
+| "Crear pedido" sin productos | Crear sin productos | Este pedido no tiene productos cargados. ¿Crear igual? | Crear igual |
+| "Crear producto" sin fotos (de ningún grupo) | Crear sin fotos | Este producto no tiene fotos. ¿Crear igual? | Crear igual |
+| "Crear gasto" de materiales sin filas | Crear sin materiales | Este gasto no tiene materiales cargados: se va a crear en $0. ¿Crear igual? | Crear igual |
+| Quitar el último producto de un pedido | Quitar el último producto | Es el último producto del pedido. ¿Quitarlo igual? | Quitar igual |
+| Quitar el último material de un gasto | Quitar el último material | Es el último material del gasto: el monto queda en $0. ¿Quitarlo igual? | Quitar igual |
+
+En las altas lo decide `terminar()`, que llama a `crear()` directo si hay
+contenido; en las fichas, `quitarProducto` / `quitarMaterial`, que guardan
+la fila en `productoAQuitar` / `filaAQuitar` si es la última y si no
+llaman a `quitarProductoAhora` / `quitarMaterialAhora`. Quitar filas en
+memoria dentro de un alta no pregunta: la pregunta está al crear. La
+acción va en rosa, no en rojo: es una confirmación, no un modal de
+eliminar. En los listados el aviso es `ChipSinContenido` (en
+`componentes/`, con `texto` y `title`): "Sin materiales" en MONTO de
+Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
+"falta algo" y no el de error.
 
 ---
 
@@ -450,6 +484,22 @@ estado". En celular (hasta 768px) los cuatro botones van en una grilla de
 2 por 2 con la clase `botones-estado`: en un selector importa ver los
 cuatro de un vistazo más que ahorrar altura, y la ficha se scrollea.
 
+**Un pedido sin productos se marca, no se prohíbe.** En el listado,
+CONTENIDO muestra el chip "Sin productos" (`ChipSinContenido`, con el
+title "Agregale productos desde la ficha") cuando `cantidad_productos` es
+0, en lugar del texto plano del prototipo. Entra en el 12% de CONTENIDO
+sin mover ninguna columna: a 12px de letra y `padding: '3px 7px'`, como el
+"+N", mide 94px, y a 940 la celda deja 81 de contenido más 16 de padding
+derecho (medido en el navegador). Subir CONTENIDO no se pudo: ninguna
+columna tenía tres puntos de sobra a 940, y subir el mínimo daba scroll
+horizontal en una notebook de 1366. En la pestaña Productos vacía, debajo
+de los dos textos, va la aclaración "Este pedido no tiene productos: no se
+puede cobrar ni generar el comprobante hasta que agregues uno.", como la
+de la tabla vacía de materiales del gasto; se ve en la ficha y en el alta.
+Del segundo texto se sacó "Si el mismo modelo va en dos colores, cargalo
+dos veces.", que sí está en el prototipo: diferencia deliberada. Quitar el
+último producto pregunta (ver "Avisar, no prohibir" en Patrón a seguir).
+
 **El comprobante en PDF queda fuera.**
 
 
@@ -544,7 +594,7 @@ registro existe incompleto, y si falla un ítem y también falla el DELETE
 (se cayó la red entre los dos), el registro queda a medias: la pantalla lo
 dice, el botón pasa a "Ir al producto" / "Ir al pedido" / "Ir al gasto", y
 se arregla desde la ficha. Se eligió esto y no un endpoint anidado con
-`transaction.atomic` porque el backend no se toca, las 78 pruebas siguen
+`transaction.atomic` porque el backend no se toca, las pruebas siguen
 valiendo, y cada regla (duplicados, achicado de la imagen, precio
 congelado, `_revisar_cobro`, `_recalcular_monto`) sigue con una sola
 puerta.
@@ -552,13 +602,16 @@ puerta.
 **Ningún paso es obligatorio.** La barra marca hecho lo que está antes del
 actual, y "Siguiente" en Datos hace las mismas comprobaciones que la ficha
 (nombre, precio y dificultad; cliente y fecha; fecha, y el monto si el
-gasto no es de materiales) y no avanza si falta algo. "Anterior" va a
+gasto no es de materiales) y no avanza si falta algo. En productos revisa
+además que el nombre no exista, contra la lista de todos los productos
+que el alta trae al abrirse; si la lista no cargó, lo rechaza el backend
+al crear. "Anterior" va a
 cualquier paso sin guardar nada. El pie tiene Cancelar en todos los pasos
-y quiere decir una sola cosa: "no lo crees". Un gasto de materiales sin
-filas se puede crear, pero nace en $0, así que "Crear gasto" pregunta
-antes con `ModalConfirmar` ("Este gasto no tiene materiales cargados: se
-va a crear en $0. ¿Crear igual?") y el listado lo marca con el chip "Sin
-materiales". Como en el alta no hay registro, no hay nada que ocultar: Dar
+y quiere decir una sola cosa: "no lo crees". Un pedido sin productos, un
+producto sin fotos y un gasto de materiales sin filas se pueden crear,
+pero "Crear …" pregunta antes con `ModalConfirmar` (ver "Avisar, no
+prohibir" en Patrón a seguir), y los listados de pedidos y gastos los
+marcan con un chip. Como en el alta no hay registro, no hay nada que ocultar: Dar
 de baja, el panel de la foto, Comprobante, la tarjeta de estado, Eliminar
 y los botones de disponibilidad Alta existen solo en la ficha, y la
 cabecera del alta no lleva ningún chip: tampoco "Cambios sin guardar", que
@@ -603,7 +656,9 @@ que es lo que hace gastos. `ModalConfirmar({ titulo, texto, textoAccion,
 onCerrar, onConfirmar })` es el patrón de modal con una pregunta, Cancelar
 y la acción en rosa, copiado de los modales de eliminar sin la llamada a la
 API; no sabe de navegación ni de API, quien lo abre decide qué pasa al
-confirmar. Las dos `PestanaDatos` y `DatosDelGasto` reciben `enRecorrido`,
+confirmar. Lo usan las tres altas para salir sin crear y para crear sin el
+contenido principal, y las fichas de pedido y de gasto para quitar el
+último producto o material. Las dos `PestanaDatos` y `DatosDelGasto` reciben `enRecorrido`,
 que quiere decir una sola cosa: no dibujar su pie, porque los botones los
 pone `PieDelRecorrido`. La `PestanaDatos` de pedidos recibe además
 `esAlta`, que saca Eliminar.
@@ -744,10 +799,11 @@ materiales con cero filas muestra el chip en lugar del "$0": el monto es
 cero por definición y el chip dice por qué. Va en ámbar (texto `#8A6320`,
 fondo `#FDF3E0`, borde `#D9A441`), el color de "falta algo" y no el de
 error, con el title "Cargale los materiales desde la ficha". Es
-`ChipSinMateriales`, local en `Gastos.jsx`. Para que entre en el mínimo de
-760, MONTO pasó de 14% a 19% y DESCRIPCIÓN de 36 a 31: el chip mide 108px
-y la celda tiene 16 de padding a cada lado, que a 760 dejan 112 de
-contenido. Con 18% quedaba 3px corto, medido en el navegador.
+`ChipSinContenido`, en `componentes/`, compartido con el "Sin productos" de
+Pedidos (ver "Avisar, no prohibir" en Patrón a seguir); salió de
+`Gastos.jsx`, que lo tenía local. Para que entre en el mínimo de 760, MONTO
+pasó de 14% a 19% y DESCRIPCIÓN de 36 a 31; hoy el chip mide 97px (12px de
+letra) y la celda deja 112 de contenido.
 
 **El tope del deslizador de monto sale de los datos.** `montoMaximo`, en
 `filtros.js`, toma el gasto más caro y lo redondea hacia arriba a mil, con
@@ -801,8 +857,9 @@ no están en el gasto.
 
 **Las operaciones sobre materiales devuelven el gasto completo**, y la
 ficha lo reemplaza en estado sin volver a pedirlo. Quitar es inmediato,
-sin modal de confirmación ni aviso, igual que quitar un producto del
-pedido. Sus errores se muestran dentro de la tarjeta de materiales, no en
+sin aviso flotante, igual que quitar un producto del pedido, salvo el
+último material, que pregunta antes porque deja el gasto en $0 (ver
+"Avisar, no prohibir" en Patrón a seguir). Sus errores se muestran dentro de la tarjeta de materiales, no en
 el formulario: el mismo criterio que `errorEstado` en Pedidos.
 
 **El aviso con Deshacer.** Al marcar en disponibilidad Alta, si
@@ -1275,7 +1332,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 78 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 80 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -1657,7 +1714,8 @@ dice.
   pedido; se desliza de lado, con las pestañas sin partirse y menos
   padding.
 - `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 26
-  modales; 8px de aire y hasta 96vh de alto.
+  modales (`ModalConfirmar` cuenta uno, aunque se dibuje en varios
+  lugares); 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
   ModalAgregarProducto y ModalEditarProductoDelPedido, la grilla
   Descripción / Paso a paso de PestanaDatos de producto y las dos columnas

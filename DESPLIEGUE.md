@@ -339,6 +339,24 @@ qué cambió:
   contenedores; el backend corre las migraciones al arrancar. El sitio se
   corta unos segundos mientras cambia. Después, `docker compose ps` y
   `docker compose logs --tail 50 backend` para ver que arrancó bien.
+- **Una migración que agrega un nombre único** (o cualquier otra
+  restricción de unicidad, como la de productos y materiales): antes del
+  `git pull`, revisar que la base no tenga repetidos. `migrate` corre al
+  arrancar el backend y, con un repetido, falla y el backend no levanta.
+  Esta consulta solo lee:
+
+  ```bash
+  docker compose exec backend python manage.py shell -c "
+  from django.db.models import Count
+  from productos.models import Producto
+  from materiales.models import Material
+  for m in (Producto, Material):
+      print(m.__name__, list(m.objects.values('nombre').annotate(n=Count('id')).filter(n__gt=1).values_list('nombre', 'n')))"
+  ```
+
+  Si las dos listas salen vacías (`Producto []` y `Material []`), se
+  actualiza como cualquier cambio de código. Si no, primero se renombran
+  los repetidos desde la gestión.
 - **Solo `.env.produccion`**: `docker compose up -d`, sin `--build`. Las
   imágenes son las mismas; cambian las variables con las que arrancan.
 - **Parches de seguridad de las imágenes base** (nginx, Python, Node,
@@ -585,6 +603,13 @@ volúmenes (la base y las fotos siguen al volver a levantar);
 - **`502 Bad Gateway`**: nginx no pudo hablar con el backend. Pasa unos
   segundos al arrancar, mientras corren las migraciones; si sigue,
   `docker compose logs backend`.
+- **El backend no arranca y el log dice `could not create unique index`
+  … `is duplicated`** (el PostgreSQL instalado en la PC lo dice en
+  castellano: `no se pudo crear el índice único` … `está duplicada`): una
+  migración agregó un nombre único y en la base hay dos registros con el
+  mismo nombre (el log dice cuál). Se vuelve a la
+  versión anterior ("Volver atrás", en Actualizar el sistema), se renombra
+  uno de los dos desde la gestión y se actualiza de nuevo.
 - **"No se pudo cargar el catálogo."** En el servidor antes del
   certificado es lo esperado (paso 6). En la PC, puede ser el límite de
   60 pedidos por minuto por IP del catálogo: esperá un minuto.
