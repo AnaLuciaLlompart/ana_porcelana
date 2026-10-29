@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { listarGastos } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarGasto from './ModalEliminarGasto'
+import ModalVerGasto from './ModalVerGasto'
 import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
 import {
   ICONO_BORRAR,
@@ -11,6 +12,7 @@ import {
   ICONO_FILTROS,
   ICONO_GASTOS,
   ICONO_NUEVO,
+  ICONO_VER,
   TIPOS,
   fmtFechaLarga,
   formatearPrecio,
@@ -39,12 +41,12 @@ const estiloTd = {
 }
 
 // Las columnas del listado, con los anchos del diseño. Suman exactamente
-// 100 junto al 13% de ACCIONES.
+// 100 junto al 18% de ACCIONES.
 const COLS = [
   { campo: 'id', label: 'GASTO', ancho: '9%', justify: 'flex-start' },
   { campo: 'tipo', label: 'TIPO', ancho: '14%', justify: 'flex-start' },
   { campo: 'fecha', label: 'FECHA', ancho: '14%', justify: 'flex-start' },
-  { campo: 'descripcion', label: 'DESCRIPCIÓN', ancho: '31%', justify: 'flex-start' },
+  { campo: 'descripcion', label: 'DESCRIPCIÓN', ancho: '26%', justify: 'flex-start' },
   { campo: 'monto', label: 'MONTO', ancho: '19%', justify: 'flex-end' },
 ]
 
@@ -96,13 +98,21 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 }
 
 
-// Los dos botones de la fila. Ver y editar abre la ficha del gasto, igual
-// que el número de la primera columna.
-function Acciones({ gasto, onVer, onEliminar }) {
+// Los tres botones de la fila. Ver abre el gasto en un modal de solo
+// lectura; Ver y editar abre la ficha del gasto, igual que el número de la
+// primera columna.
+function Acciones({ gasto, onVer, onEditar, onEliminar }) {
   return (
     <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       <BotonAccion
         onClick={() => onVer(gasto)}
+        titulo="Ver"
+        color="#8C5A66"
+        hover="#F0E2E4"
+        icono={ICONO_VER}
+      />
+      <BotonAccion
+        onClick={() => onEditar(gasto)}
         titulo="Ver y editar"
         color="#8C5A66"
         hover="#F0E2E4"
@@ -143,7 +153,7 @@ function SinResultados() {
 }
 
 
-function Tabla({ gastos, cargando, onVer, onEliminar }) {
+function Tabla({ gastos, cargando, onVer, onEditar, onEliminar }) {
   const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
   const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
@@ -218,7 +228,7 @@ function Tabla({ gastos, cargando, onVer, onEliminar }) {
                 ancho={col.ancho}
               />
             ))}
-            <th style={{ ...estiloTh, textAlign: 'center', width: '13%', padding: '12px 8px' }}>
+            <th style={{ ...estiloTh, textAlign: 'center', width: '18%', padding: '12px 8px' }}>
               ACCIONES
             </th>
           </tr>
@@ -238,7 +248,7 @@ function Tabla({ gastos, cargando, onVer, onEliminar }) {
               <tr key={g.id} style={{ borderTop: '1px solid #EBE0E2' }}>
                 <td style={estiloTd}>
                   <button
-                    onClick={() => onVer(g)}
+                    onClick={() => onEditar(g)}
                     className="btn-usuario"
                     style={{
                       border: 0,
@@ -301,7 +311,7 @@ function Tabla({ gastos, cargando, onVer, onEliminar }) {
                 </td>
 
                 <td style={{ ...estiloTd, padding: '14px 8px' }}>
-                  <Acciones gasto={g} onVer={onVer} onEliminar={onEliminar} />
+                  <Acciones gasto={g} onVer={onVer} onEditar={onEditar} onEliminar={onEliminar} />
                 </td>
               </tr>
             ))}
@@ -418,6 +428,7 @@ export default function Gastos() {
   const [filtros, setFiltros] = useState(FILTROS_VACIOS)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [gastoEliminando, setGastoEliminando] = useState(null)
+  const [gastoViendo, setGastoViendo] = useState(null)
 
   // Una sola carga al montar. El buscador filtra sobre estos datos, así que
   // no vuelve a pedir nada y tampoco lleva debounce.
@@ -708,7 +719,8 @@ export default function Gastos() {
           <Tabla
             gastos={filtrados}
             cargando={cargando}
-            onVer={verGasto}
+            onVer={(g) => setGastoViendo(g)}
+            onEditar={verGasto}
             onEliminar={(g) => setGastoEliminando(g)}
           />
         </>
@@ -724,6 +736,14 @@ export default function Gastos() {
             setFiltros(nuevos)
             setFiltrosAbiertos(false)
           }}
+        />
+      )}
+
+      {gastoViendo && (
+        <ModalVerGasto
+          gasto={gastoViendo}
+          onCerrar={() => setGastoViendo(null)}
+          onEditar={() => verGasto(gastoViendo)}
         />
       )}
 

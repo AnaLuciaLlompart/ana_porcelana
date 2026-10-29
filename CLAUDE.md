@@ -931,7 +931,19 @@ error, con el title "Cargale los materiales desde la ficha". Es
 Pedidos (ver "Avisar, no prohibir" en Patrón a seguir); salió de
 `Gastos.jsx`, que lo tenía local. Para que entre en el mínimo de 760, MONTO
 pasó de 14% a 19% y DESCRIPCIÓN de 36 a 31; hoy el chip mide 97px (12px de
-letra) y la celda deja 112 de contenido.
+letra) y la celda deja 112 de contenido. Con el ojo de A1, ACCIONES pasó
+de 13% a 18% (tres botones de 36px, 136px con el padding a 760) a costa
+de DESCRIPCIÓN, de 31 a 26, que ya cortaba con puntos suspensivos.
+
+**Ver un gasto sin entrar a la ficha** (corrección del tutor del
+28/10/2026, A1). La fila tiene ojo, lápiz y papelera, como Clientes: el
+ojo (`onVer`) abre `ModalVerGasto`, de solo lectura, y el lápiz y el
+número (`onEditar`) abren la ficha. El modal no pide nada: la fila ya
+trae el gasto con sus materiales. Muestra fecha, tipo, descripción y monto
+en `readOnly disabled` con "Sin cargar" de placeholder, y si es de
+materiales, la tabla sin botones (decidido por la usuaria; el pedido del
+tutor decía solo los datos). El pie es Cerrar y Editar, que lleva a la
+ficha, como el Ver de Clientes.
 
 **El tope del deslizador de monto sale de los datos.** `montoMaximo`, en
 `filtros.js`, toma el gasto más caro y lo redondea hacia arriba a mil, con
@@ -1712,8 +1724,8 @@ Reactivar (tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`).
 abre una ficha editable se llama "Ver y editar" y lleva el lápiz: en los
 listados de Productos (grilla, tabla y el bloque "Baja por su categoría",
 cuyos productos están activos), Pedidos y Gastos. El ojo queda para lo
-que se abre en solo lectura: los modales Ver de Materiales y Clientes y
-la ficha de un producto de baja. El $ de Registrar cobro no son los
+que se abre en solo lectura: los modales Ver de Materiales, Clientes y
+Gastos y la ficha de un producto de baja. El $ de Registrar cobro no son los
 billetes de Gastos a propósito: cobrar es plata que entra y gastar, plata
 que sale.
 
@@ -1841,7 +1853,7 @@ dice.
 - `fila-pestanas`: la fila de pestañas de la ficha de producto y la
   `BarraDePasos` de las tres altas; se desliza de lado, con las pestañas
   sin partirse y menos padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 28
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 29
   modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
   se dibujen en varios lugares); 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
