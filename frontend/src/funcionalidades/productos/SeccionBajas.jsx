@@ -27,6 +27,7 @@ export default function SeccionBajas({
   colapsadas,
   onToggleCategoria,
   onVer,
+  onEditar,
   onReactivarProducto,
   onReactivarCategoria,
 }) {
@@ -420,7 +421,7 @@ export default function SeccionBajas({
                               de baja es su categoría), así que su ficha se
                               edita. */}
                           <BotonAccion
-                            onClick={() => onVer(producto)}
+                            onClick={() => onEditar(producto)}
                             titulo="Ver y editar"
                             color="#8C5A66"
                             hover="#F0E2E4"

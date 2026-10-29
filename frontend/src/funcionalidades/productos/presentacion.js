@@ -165,9 +165,12 @@ export function textoMeta(producto) {
   return `${formatearPrecio(producto.precio_actual)} · dificultad ${producto.dificultad_display.toLowerCase()}`
 }
 
-export function accionesDe(producto, { onVer, onDarDeBaja, onEliminar }) {
+// Los cuatro botones de un producto activo, en la grilla y en la tabla. Ver
+// abre el modal de solo lectura; Ver y editar, la ficha.
+export function accionesDe(producto, { onVer, onEditar, onDarDeBaja, onEliminar }) {
   return [
-    { title: 'Ver y editar', icono: ICONO_EDITAR, color: '#8C5A66', hover: '#F0E2E4', onClick: () => onVer(producto) },
+    { title: 'Ver', icono: ICONO_VER, color: '#8C5A66', hover: '#F0E2E4', onClick: () => onVer(producto) },
+    { title: 'Ver y editar', icono: ICONO_EDITAR, color: '#8C5A66', hover: '#F0E2E4', onClick: () => onEditar(producto) },
     { title: 'Dar de baja', icono: ICONO_BAJA, color: '#D9A441', hover: '#FDF3E0', onClick: () => onDarDeBaja(producto) },
     { title: 'Eliminar', icono: ICONO_BORRAR, color: '#C0442F', hover: '#FAEAE8', onClick: () => onEliminar(producto) },
   ]

@@ -30,7 +30,7 @@ export default function TarjetaProducto({ producto, acciones }) {
       }}
     >
       <button
-        onClick={() => acciones.onVer(producto)}
+        onClick={() => acciones.onEditar(producto)}
         style={{
           position: 'relative',
           height: 168,

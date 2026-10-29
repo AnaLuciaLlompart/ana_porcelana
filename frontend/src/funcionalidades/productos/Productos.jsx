@@ -9,6 +9,7 @@ import TarjetaProducto from './TarjetaProducto'
 import SeccionBajas from './SeccionBajas'
 import ModalBajaProducto from './ModalBajaProducto'
 import ModalEliminarProducto from './ModalEliminarProducto'
+import ModalVerProducto from './ModalVerProducto'
 import ModalReactivarCategoria from './ModalReactivarCategoria'
 import ModalFiltros from './ModalFiltros'
 import { FILTROS_VACIOS, candidatos, contarFiltros, rangoDePrecios } from './filtros'
@@ -64,7 +65,7 @@ function FilaProducto({ producto, acciones }) {
     <tr style={{ borderTop: '1px solid #EBE0E2' }}>
       <td style={{ padding: 16 }}>
         <button
-          onClick={() => acciones.onVer(producto)}
+          onClick={() => acciones.onEditar(producto)}
           className="btn-ver-productos"
           style={{
             padding: 0,
@@ -298,6 +299,7 @@ export default function Productos() {
   const [catsColapsadas, setCatsColapsadas] = useState([])
   const [productoDandoBaja, setProductoDandoBaja] = useState(null)
   const [productoEliminando, setProductoEliminando] = useState(null)
+  const [productoViendo, setProductoViendo] = useState(null)
   const [categoriaReactivando, setCategoriaReactivando] = useState(null)
   const [filtros, setFiltros] = useState(FILTROS_VACIOS)
   const [filtrosAbierto, setFiltrosAbierto] = useState(false)
@@ -533,7 +535,8 @@ export default function Productos() {
 
 
   const acciones = {
-    onVer: (p) => navegar(`${BASE_GESTION}/productos/${p.id}`),
+    onVer: (p) => setProductoViendo(p),
+    onEditar: (p) => navegar(`${BASE_GESTION}/productos/${p.id}`),
     onDarDeBaja: (p) => setProductoDandoBaja(p),
     onEliminar: (p) => setProductoEliminando(p),
   }
@@ -989,6 +992,7 @@ export default function Productos() {
               )
             }
             onVer={acciones.onVer}
+            onEditar={acciones.onEditar}
             onReactivarProducto={(p) => cambiarEstado(p, reactivarProducto)}
             onReactivarCategoria={(categoria) => setCategoriaReactivando(categoria)}
           />
@@ -1006,6 +1010,14 @@ export default function Productos() {
             setProductoDandoBaja(null)
             recargar()
           }}
+        />
+      )}
+
+      {productoViendo && (
+        <ModalVerProducto
+          producto={productoViendo}
+          onCerrar={() => setProductoViendo(null)}
+          onEditar={() => acciones.onEditar(productoViendo)}
         />
       )}
 

@@ -1724,8 +1724,20 @@ Reactivar (tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`).
 abre una ficha editable se llama "Ver y editar" y lleva el lápiz: en los
 listados de Productos (grilla, tabla y el bloque "Baja por su categoría",
 cuyos productos están activos), Pedidos y Gastos. El ojo queda para lo
-que se abre en solo lectura: los modales Ver de Materiales, Clientes y
-Gastos y la ficha de un producto de baja. El $ de Registrar cobro no son los
+que se abre en solo lectura: los modales Ver de Materiales, Clientes,
+Gastos y Productos.
+
+En Productos (corrección del tutor del 28/10/2026, A1) un producto activo
+lleva ojo, lápiz, dar de baja y papelera, en la grilla y en la tabla
+(`accionesDe`): son cuatro y entran sin ⋯. El ojo abre
+`ModalVerProducto`, que pide la ficha al abrirse (el listado no trae
+todas las fotos) con los tres estados adentro, y muestra precio,
+dificultad, catálogo, descripción, paso a paso, las fotos de cada grupo y
+las categorías; su Editar lleva a la ficha y no aparece en un producto de
+baja. La foto y el nombre siguen abriendo la ficha (`onEditar`). En la
+sección de bajas, el ojo de un producto de baja abre el mismo modal y no
+la ficha, así que su ficha, de solo lectura, ya no se abre desde ninguna
+pantalla. El $ de Registrar cobro no son los
 billetes de Gastos a propósito: cobrar es plata que entra y gastar, plata
 que sale.
 
@@ -1853,7 +1865,7 @@ dice.
 - `fila-pestanas`: la fila de pestañas de la ficha de producto y la
   `BarraDePasos` de las tres altas; se desliza de lado, con las pestañas
   sin partirse y menos padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 29
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 30
   modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
   se dibujen en varios lugares); 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
