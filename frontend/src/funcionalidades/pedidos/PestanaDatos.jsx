@@ -1,10 +1,26 @@
+import { useState } from 'react'
 import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
-const ENVIOS = [
+// La forma de entrega se elige como un árbol: primero retiro o envío, y si
+// es envío, quién lo paga. 'ENVIO' es el paso intermedio y no viaja nunca.
+const PRIMER_NIVEL = [
+  { valor: 'RETIRO', label: 'Retiro' },
+  { valor: 'ENVIO', label: 'Envío' },
+]
+
+const QUIEN_PAGA = [
   { valor: 'MIO', label: 'A cargo mío' },
   { valor: 'CLIENTE', label: 'A cargo del cliente' },
 ]
+
+// Los textos de la forma ya elegida, para la ficha. Son las etiquetas del
+// backend, pero salen de acá porque se muestra el borrador, no lo guardado.
+const FORMAS = {
+  RETIRO: 'Retiro',
+  MIO: 'Envío a cargo mío',
+  CLIENTE: 'Envío a cargo del cliente',
+}
 
 
 const estiloEtiqueta = {
@@ -75,13 +91,47 @@ function EtiquetaConNota({ texto, nota }) {
 }
 
 
+// Una fila de botones de los que se elige uno solo, como los de ModalCobro.
+function Segmentos({ opciones, activo, onElegir }) {
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      {opciones.map((op) => (
+        <button
+          key={op.valor}
+          onClick={() => onElegir(op.valor)}
+          style={{
+            flex: 1,
+            padding: '10px 0',
+            borderRadius: 5,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            fontFamily: "'Quicksand', sans-serif",
+            fontWeight: 600,
+            fontSize: 14,
+            border: activo === op.valor ? '1px solid #8C5A66' : '1px solid #EBE0E2',
+            background: activo === op.valor ? '#8C5A66' : 'white',
+            color: activo === op.valor ? 'white' : '#857078',
+          }}
+        >
+          {op.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+
 // enRecorrido es true en el alta por pasos: ahí la pestaña no dibuja su pie,
 // porque los botones los pone PieDelRecorrido. Por defecto false, que es la
 // ficha, con Descartar y Guardar apagados mientras no haya cambios.
+//
+// esAlta deja el árbol de la forma de entrega siempre a la vista. En la
+// ficha se muestra la forma elegida y el botón "Cambiar forma de entrega".
 export default function PestanaDatos({
   borrador,
   fechaEntregaReal,
   onCambiar,
+  esAlta = false,
   enRecorrido = false,
   hayCambios,
   clientes,
@@ -90,11 +140,28 @@ export default function PestanaDatos({
   guardando,
   error,
 }) {
-  // Lo único que cambia con el envío es esta nota. El campo del costo se
-  // carga igual con las dos opciones: cuando lo paga el cliente el importe
-  // se sigue anotando, y el resumen lo muestra aparte sin sumarlo.
+  const [cambiandoForma, setCambiandoForma] = useState(false)
+  const mostrarArbol = esAlta || cambiandoForma
+
+  const forma = borrador.forma_entrega
+  const esEnvio = forma === 'ENVIO' || forma === 'MIO' || forma === 'CLIENTE'
+
+  // El costo aparece recién cuando se sabe quién paga el envío: de eso
+  // depende si suma al total, y la nota no puede decirlo antes.
+  const sabeQuienPaga = forma === 'MIO' || forma === 'CLIENTE'
+
+  // Envío: si ya había uno elegido, se conserva quién lo paga.
+  function elegirPrimerNivel(valor) {
+    if (valor === 'RETIRO') onCambiar({ forma_entrega: 'RETIRO' })
+    else if (!esEnvio) onCambiar({ forma_entrega: 'ENVIO' })
+  }
+
+  // Lo único que cambia con quién paga el envío es esta nota. El campo del
+  // costo se carga igual con los dos envíos: cuando lo paga el cliente el
+  // importe se sigue anotando, y el resumen lo muestra aparte sin sumarlo.
+  // Con retiro no hay costo.
   const notaCosto =
-    borrador.envio_a_cargo === 'MIO'
+    forma === 'MIO'
       ? 'Se suma al total del pedido'
       : 'Lo paga el cliente: no suma al total'
 
@@ -215,63 +282,83 @@ export default function PestanaDatos({
             }}
           >
             <div>
-              <span style={estiloEtiqueta}>ENVÍO</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {ENVIOS.map((e) => {
-                  const activo = borrador.envio_a_cargo === e.valor
+              <span style={estiloEtiqueta}>FORMA DE ENTREGA *</span>
 
-                  return (
-                    <button
-                      key={e.valor}
-                      onClick={() => onCambiar({ envio_a_cargo: e.valor })}
-                      style={{
-                        flex: 1,
-                        padding: '10px 0',
-                        borderRadius: 5,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        fontFamily: "'Quicksand', sans-serif",
-                        fontWeight: 600,
-                        fontSize: 14,
-                        border: activo ? '1px solid #8C5A66' : '1px solid #EBE0E2',
-                        background: activo ? '#8C5A66' : 'white',
-                        color: activo ? 'white' : '#857078',
-                      }}
-                    >
-                      {e.label}
-                    </button>
-                  )
-                })}
-              </div>
+              {mostrarArbol ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <Segmentos
+                    opciones={PRIMER_NIVEL}
+                    activo={esEnvio ? 'ENVIO' : forma}
+                    onElegir={elegirPrimerNivel}
+                  />
+
+                  {esEnvio && (
+                    <div>
+                      <span style={estiloEtiqueta}>¿QUIÉN PAGA EL ENVÍO?</span>
+                      <Segmentos
+                        opciones={QUIEN_PAGA}
+                        activo={forma}
+                        onElegir={(valor) => onCambiar({ forma_entrega: valor })}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 15, color: '#3D3238' }}>{FORMAS[forma]}</span>
+
+                  <button
+                    onClick={() => setCambiandoForma(true)}
+                    className="btn-reponer"
+                    style={{
+                      padding: '8px 14px',
+                      border: '1px solid #8C5A66',
+                      background: 'white',
+                      color: '#8C5A66',
+                      borderRadius: 5,
+                      cursor: 'pointer',
+                      fontFamily: "'Quicksand', sans-serif",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    Cambiar forma de entrega
+                  </button>
+                </div>
+              )}
             </div>
 
+            {sabeQuienPaga && (
+              <div>
+                <EtiquetaConNota texto="COSTO DE ENTREGA" nota={notaCosto} />
+                <input
+                  value={borrador.costo_entrega}
+                  // Se limpia todo lo que no sea dígito, como el precio en la
+                  // ficha de Producto: los importes se cargan en pesos
+                  // enteros.
+                  onChange={(e) => onCambiar({ costo_entrega: e.target.value.replace(/[^0-9]/g, '') })}
+                  placeholder="$"
+                  style={estiloCampo}
+                />
+              </div>
+            )}
+          </div>
+
+          {esEnvio && (
             <div>
-              <EtiquetaConNota texto="COSTO DE ENTREGA" nota={notaCosto} />
+              <label htmlFor="direccion" style={estiloEtiqueta}>
+                DIRECCIÓN DE ENTREGA
+              </label>
               <input
-                value={borrador.costo_entrega}
-                // Se limpia todo lo que no sea dígito, como el precio en la
-                // ficha de Producto: los importes se cargan en pesos
-                // enteros.
-                onChange={(e) => onCambiar({ costo_entrega: e.target.value.replace(/[^0-9]/g, '') })}
-                placeholder="$"
+                id="direccion"
+                value={borrador.direccion_entrega}
+                onChange={(e) => onCambiar({ direccion_entrega: e.target.value })}
+                maxLength={100}
+                placeholder="Calle y número, localidad, referencias..."
                 style={estiloCampo}
               />
             </div>
-          </div>
-
-          <div>
-            <label htmlFor="direccion" style={estiloEtiqueta}>
-              DIRECCIÓN DE ENTREGA
-            </label>
-            <input
-              id="direccion"
-              value={borrador.direccion_entrega}
-              onChange={(e) => onCambiar({ direccion_entrega: e.target.value })}
-              maxLength={100}
-              placeholder="Calle y número, localidad, referencias..."
-              style={estiloCampo}
-            />
-          </div>
+          )}
 
           {error && (
             <p

@@ -19,7 +19,7 @@ class CobroInline(admin.TabularInline):
 @admin.register(Pedido)
 class PedidoAdmin(admin.ModelAdmin):
     list_display = ('id', 'cliente', 'estado', 'fecha_pedido', 'fecha_entrega_estimada')
-    list_filter = ('estado', 'envio_a_cargo')
+    list_filter = ('estado', 'forma_entrega')
 
     # El doble guion bajo salta a la tabla de al lado: el pedido no
     # tiene instagram ni nombre, los tiene el cliente al que apunta la

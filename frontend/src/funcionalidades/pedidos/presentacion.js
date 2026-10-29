@@ -322,6 +322,30 @@ export function motivoSinCobro(pedido) {
 }
 
 
+// Qué falta elegir de la forma de entrega del borrador, o '' si está
+// completa. 'ENVIO' es el paso intermedio del árbol: eligió envío pero no
+// quién lo paga, y no es un valor del backend, así que nunca viaja.
+// Lo usan el alta (en Siguiente) y la ficha (en Guardar).
+export function faltaFormaEntrega(forma) {
+  if (forma === '') return 'Elegí la forma de entrega: retiro o envío.'
+  if (forma === 'ENVIO') return 'Elegí quién paga el envío.'
+  return ''
+}
+
+// Los tres campos de la entrega tal como viajan al backend. Con retiro no
+// hay dirección ni costo: van vacíos aunque el borrador los conserve, por
+// si se vuelve a elegir envío.
+export function datosDeEntrega(borrador) {
+  const retiro = borrador.forma_entrega === 'RETIRO'
+
+  return {
+    forma_entrega: borrador.forma_entrega,
+    direccion_entrega: retiro ? '' : borrador.direccion_entrega.trim(),
+    costo_entrega: retiro || borrador.costo_entrega === '' ? null : borrador.costo_entrega,
+  }
+}
+
+
 export function chipSaldo(saldo) {
   const numero = Number(saldo)
 

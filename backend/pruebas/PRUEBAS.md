@@ -11,15 +11,15 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**80 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
+**82 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
 10, `materiales` 10, `categorias` 4, `productos` 11, `clientes` 3,
-`pedidos` 10, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
+`pedidos` 12, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 36 |
+| reglas de negocio | 37 |
 | permisos | 11 |
-| validación | 13 |
+| validación | 14 |
 | catálogo | 9 |
 | seguridad | 7 |
 | rendimiento | 4 |
@@ -106,6 +106,8 @@ rendimiento.
 | pedidos | test_no_pasa_a_listo_con_piezas_sin_terminar | Sin productos y con una pieza sin terminar, cambiar_estado a Listo responde 400 con mensaje; con todo terminado pasa | _revisar_estado (CU42) | reglas de negocio |
 | pedidos | test_agregar_una_pieza_a_un_pedido_listo_lo_baja_a_en_produccion | Agregar un producto a un pedido Listo lo devuelve a En producción | _bajar_si_quedo_incompleto (CU44) | reglas de negocio |
 | pedidos | test_la_fecha_de_entrega_real_solo_la_escribe_entregado | Un PUT con fecha_entrega_real la ignora; pasar a Entregado escribe hoy; volver a Listo la borra | fecha_entrega_real read_only; _guardar_estado (CU42) | reglas de negocio |
+| pedidos | test_retiro_no_suma_el_costo_al_total | Con retiro y $2.000 de costo cargado, costo_envio_a_cobrar es $0 y el total $5.000; con envío a cargo mío, $2.000 y $7.000 | Solo el envío a cargo mío suma al total: costo_envio_a_cobrar (CU42) | reglas de negocio |
+| pedidos | test_la_forma_de_entrega_se_guarda_con_su_etiqueta | PUT con forma_entrega 'ENVIO' responde 400 en el campo; con RETIRO responde 200, devuelve forma_entrega_display "Retiro" y queda en la base | Forma de entrega con tres valores (CU42) | validación |
 | pedidos | test_un_id_de_producto_que_es_lista_u_objeto_da_400 | POST {"producto": [1]} y {"producto": {"id": 1}} responden 400 "No existe un producto con ese id." y no crean la línea | TypeError atrapado en agregar_producto (CU44) | validación |
 | pedidos | test_comprobante_sin_sesion_da_403 | GET /api/pedidos/<id>/comprobante/ sin sesión responde 403 | Denegación por defecto (CU60) | permisos |
 | pedidos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres pedidos con productos y cobros, el listado hace 4 consultas (sin contar la sesión) | select_related y prefetch_related en PedidoViewSet.get_queryset (CU41) | rendimiento |

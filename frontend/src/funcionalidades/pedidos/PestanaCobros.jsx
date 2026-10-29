@@ -37,7 +37,7 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
   // El costo que el cliente paga por su cuenta: se anota igual, pero no
   // entra en el total del pedido.
   const costoDelCliente =
-    pedido.envio_a_cargo === 'CLIENTE' && Number(pedido.costo_entrega) > 0
+    pedido.forma_entrega === 'CLIENTE' && Number(pedido.costo_entrega) > 0
 
   const costoPropio = Number(pedido.costo_envio_a_cobrar) > 0
 

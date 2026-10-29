@@ -189,6 +189,44 @@ class FechaDeEntregaReal(PruebaDePedido):
         self.assertIsNone(respuesta.data['fecha_entrega_real'])
 
 
+class FormaDeEntrega(PruebaDePedido):
+    """Retiro, o envío a cargo mío o del cliente (CU42)."""
+
+    def test_retiro_no_suma_el_costo_al_total(self):
+        """CU42: con retiro el costo cargado no entra en el total; con envío a cargo mío sí."""
+        self.agregar_pieza()   # $5.000
+        self.pedido.forma_entrega = Pedido.FormaEntrega.RETIRO
+        self.pedido.costo_entrega = '2000.00'
+        self.pedido.save()
+
+        respuesta = self.client.get(url(self.pedido))
+        self.assertEqual(respuesta.data['costo_envio_a_cobrar'], '0.00')
+        self.assertEqual(respuesta.data['total'], '5000.00')
+
+        self.pedido.forma_entrega = Pedido.FormaEntrega.MIO
+        self.pedido.save()
+        respuesta = self.client.get(url(self.pedido))
+        self.assertEqual(respuesta.data['costo_envio_a_cobrar'], '2000.00')
+        self.assertEqual(respuesta.data['total'], '7000.00')
+
+    def test_la_forma_de_entrega_se_guarda_con_su_etiqueta(self):
+        """CU42: un PUT con una forma que no existe responde 400; con RETIRO guarda y devuelve "Retiro"."""
+        respuesta = self.client.put(
+            url(self.pedido), {'cliente': self.cliente.id, 'forma_entrega': 'ENVIO'},
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('forma_entrega', respuesta.data)
+
+        respuesta = self.client.put(
+            url(self.pedido), {'cliente': self.cliente.id, 'forma_entrega': Pedido.FormaEntrega.RETIRO},
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['forma_entrega'], Pedido.FormaEntrega.RETIRO)
+        self.assertEqual(respuesta.data['forma_entrega_display'], 'Retiro')
+        self.pedido.refresh_from_db()
+        self.assertEqual(self.pedido.forma_entrega, Pedido.FormaEntrega.RETIRO)
+
+
 class ComprobanteSinSesion(PruebaSinSesion):
     """El comprobante es un endpoint de gestión (CU60)."""
 

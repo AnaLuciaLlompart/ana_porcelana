@@ -166,8 +166,8 @@ class PedidoListaSerializer(serializers.ModelSerializer):
         source='get_estado_display',
         read_only=True,
     )
-    envio_a_cargo_display = serializers.CharField(
-        source='get_envio_a_cargo_display',
+    forma_entrega_display = serializers.CharField(
+        source='get_forma_entrega_display',
         read_only=True,
     )
 
@@ -223,8 +223,8 @@ class PedidoListaSerializer(serializers.ModelSerializer):
             'fecha_pedido',
             'fecha_entrega_estimada',
             'fecha_entrega_real',
-            'envio_a_cargo',
-            'envio_a_cargo_display',
+            'forma_entrega',
+            'forma_entrega_display',
             'direccion_entrega',
             'costo_entrega',
             'subtotal',

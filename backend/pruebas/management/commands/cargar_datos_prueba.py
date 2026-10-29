@@ -396,7 +396,7 @@ class Command(BaseCommand):
                 fecha_pedido=fecha,
                 fecha_entrega_estimada=estimada,
                 fecha_entrega_real=real,
-                envio_a_cargo=Pedido.EnvioACargo.MIO if envio_mio else Pedido.EnvioACargo.CLIENTE,
+                forma_entrega=Pedido.FormaEntrega.MIO if envio_mio else Pedido.FormaEntrega.CLIENTE,
                 direccion_entrega=random.choice(DIRECCIONES) if envio_mio else '',
                 costo_entrega=self._plata(1500, 6000) if envio_mio else None,
             )

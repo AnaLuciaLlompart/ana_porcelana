@@ -32,6 +32,8 @@ import {
   ICONO_COBRO,
   ICONO_FLECHA,
   chipSaldo,
+  datosDeEntrega,
+  faltaFormaEntrega,
 } from './presentacion'
 
 
@@ -51,7 +53,7 @@ function borradorDe(pedido) {
     cliente: String(pedido.cliente),
     fecha_pedido: pedido.fecha_pedido,
     fecha_entrega_estimada: pedido.fecha_entrega_estimada || '',
-    envio_a_cargo: pedido.envio_a_cargo,
+    forma_entrega: pedido.forma_entrega,
     direccion_entrega: pedido.direccion_entrega,
     costo_entrega: pedido.costo_entrega === null ? '' : String(Math.round(Number(pedido.costo_entrega))),
   }
@@ -292,6 +294,13 @@ export default function DetallePedido() {
       setError('La fecha del pedido es obligatoria.')
       return null
     }
+    // Lo guardado siempre tiene una forma completa, pero el árbol puede
+    // quedar en "Envío" sin elegir quién lo paga.
+    const faltaForma = faltaFormaEntrega(borrador.forma_entrega)
+    if (faltaForma) {
+      setError(faltaForma)
+      return null
+    }
 
     setGuardando(true)
 
@@ -304,9 +313,7 @@ export default function DetallePedido() {
       cliente: Number(borrador.cliente),
       fecha_pedido: borrador.fecha_pedido,
       fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
-      envio_a_cargo: borrador.envio_a_cargo,
-      direccion_entrega: borrador.direccion_entrega.trim(),
-      costo_entrega: borrador.costo_entrega === '' ? null : borrador.costo_entrega,
+      ...datosDeEntrega(borrador),
     }
 
     try {
@@ -368,7 +375,7 @@ export default function DetallePedido() {
     borrador.cliente !== original.cliente ||
     borrador.fecha_pedido !== original.fecha_pedido ||
     borrador.fecha_entrega_estimada !== original.fecha_entrega_estimada ||
-    borrador.envio_a_cargo !== original.envio_a_cargo ||
+    borrador.forma_entrega !== original.forma_entrega ||
     borrador.direccion_entrega !== original.direccion_entrega ||
     borrador.costo_entrega !== original.costo_entrega
 

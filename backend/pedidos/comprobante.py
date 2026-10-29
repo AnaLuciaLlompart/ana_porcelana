@@ -32,6 +32,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from .models import Pedido
 from .presentacion import plata
 
 
@@ -331,7 +332,7 @@ def _cliente(pedido):
 
 
 def _entrega(pedido):
-    """La fecha de entrega estimada y la dirección, cada una solo si está cargada.
+    """La fecha de entrega estimada y la dirección, cada una solo si está cargada; con retiro, la forma de entrega en lugar de la dirección.
 
     Si no hay ninguna de las dos, la sección entera no aparece: devuelve
     una lista vacía, y _cliente_y_entrega deja esa columna en blanco.
@@ -345,7 +346,15 @@ def _entrega(pedido):
             _parrafo(_fecha_larga(pedido.fecha_entrega_estimada), VALOR),
         ])
 
-    if pedido.direccion_entrega:
+    # Con retiro no hay dirección que mostrar, aunque haya quedado una
+    # cargada desde el admin: lo que importa es que lo busca el cliente.
+    if pedido.forma_entrega == Pedido.FormaEntrega.RETIRO:
+        datos.append([
+            _parrafo('FORMA DE ENTREGA', ETIQUETA),
+            _espacio(5),
+            _parrafo('Retiro por cuenta del cliente', VALOR),
+        ])
+    elif pedido.direccion_entrega:
         datos.append([
             _parrafo('DIRECCIÓN DE ENTREGA', ETIQUETA),
             _espacio(5),

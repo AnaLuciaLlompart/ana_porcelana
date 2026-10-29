@@ -396,8 +396,37 @@ entrega real— tendrían una puerta de atrás. El admin de Django sí lo deja
 cambiar a mano, y se acepta: es herramienta de desarrollo, no interfaz de
 usuaria.
 
-**`costo_entrega` solo se habilita cuando el envío es a cargo mío.** La
-coherencia se valida en la aplicación, no en el modelo.
+**La forma de entrega tiene tres valores: retiro, envío a cargo mío y
+envío a cargo del cliente** (corrección del tutor del 28/10/2026, B4).
+Antes el campo era `envio_a_cargo` y solo tenía los dos envíos: no había
+forma de decir que el cliente pasaba a buscar el pedido. El campo pasó a
+llamarse `forma_entrega` (migración `0003`, escrita a mano: un
+`RenameField`, que en la base es un `RENAME COLUMN` sin tocar filas, y un
+`AlterField` de choices y textos, que no genera SQL), y su clase
+`FormaEntrega` suma `RETIRO`. Las etiquetas pasaron a "Retiro", "Envío a
+cargo mío" y "Envío a cargo del cliente"; los valores `MIO` y `CLIENTE`
+no cambiaron, así que los pedidos guardados siguen valiendo. Solo el envío
+a cargo mío suma el costo al total (`costo_envio_a_cobrar`).
+
+Con retiro no hay dirección ni costo: el frontend los oculta y los manda
+vacíos (`datosDeEntrega`, en `pedidos/presentacion.js`), y el comprobante
+dice "Retiro por cuenta del cliente" en lugar de la dirección. El backend
+no los prohíbe: la coherencia se valida en la aplicación, no en el modelo.
+El modelo conserva el default `CLIENTE`, a diferencia de `Gasto.tipo`,
+porque los pedidos que se crean por ORM (pruebas y `cargar_datos_prueba`)
+quedarían con un valor que no existe.
+
+**Se elige como un árbol**, en `PestanaDatos`: [Retiro] [Envío] y, si es
+envío, "¿Quién paga el envío?" [A cargo mío] [A cargo del cliente]. La
+dirección aparece al elegir Envío; el costo, recién al elegir quién paga,
+porque de eso depende su nota ("Se suma al total del pedido" / "Lo paga
+el cliente: no suma al total"). El borrador guarda `''` (sin elegir),
+`'ENVIO'` (el paso intermedio, que nunca viaja), `'RETIRO'`, `'MIO'` o
+`'CLIENTE'`; `faltaFormaEntrega` frena los dos primeros en Siguiente y en
+Guardar. El alta arranca sin elegir (prop `esAlta`, que deja el árbol
+siempre a la vista): con tres formas, cualquiera de entrada sería un dato
+guardado sin pensarlo. La ficha muestra la forma elegida y el botón
+"Cambiar forma de entrega", que despliega el árbol.
 
 **No hay restricción de unicidad sobre (pedido, producto).** El mismo
 producto puede figurar en dos filas del mismo pedido si difieren en
@@ -1402,7 +1431,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 80 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 82 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -1820,7 +1849,7 @@ dice.
   texto en vez de en tercios.
 - `ancho-pantalla`: todo elemento con `maxWidth: ANCHO_MAXIMO`; de 1440
   para arriba mide 1400.
-- `envio-y-costo`: la fila ENVÍO / COSTO de la ficha de pedido; de 1440
+- `envio-y-costo`: la fila FORMA DE ENTREGA / COSTO de la ficha de pedido; de 1440
   para arriba, dos tercios y un tercio, para que el costo no sea un campo
   de 700px.
 - `datos-producto`: el contenedor de la pestaña Datos de Producto; de 1440

@@ -51,9 +51,10 @@ class Pedido(models.Model):
         LISTO = 'LISTO', 'Listo'
         ENTREGADO = 'ENTREGADO', 'Entregado'
 
-    class EnvioACargo(models.TextChoices):
-        MIO = 'MIO', 'A cargo mío'
-        CLIENTE = 'CLIENTE', 'A cargo del cliente'
+    class FormaEntrega(models.TextChoices):
+        RETIRO = 'RETIRO', 'Retiro'
+        MIO = 'MIO', 'Envío a cargo mío'
+        CLIENTE = 'CLIENTE', 'Envío a cargo del cliente'
 
     # -----------------------------------------------------------------
     # Campos
@@ -107,12 +108,12 @@ class Pedido(models.Model):
         help_text='Opcional. Se completa al pasar el pedido a Entregado.',
     )
 
-    envio_a_cargo = models.CharField(
+    forma_entrega = models.CharField(
         max_length=7,                     # alcanza para 'CLIENTE'
-        choices=EnvioACargo.choices,
-        default=EnvioACargo.CLIENTE,
-        verbose_name='envío a cargo',
-        help_text='Quién paga el envío. Solo el que está a cargo mío suma al total del pedido.',
+        choices=FormaEntrega.choices,
+        default=FormaEntrega.CLIENTE,
+        verbose_name='forma de entrega',
+        help_text='Retiro, o envío a cargo mío o del cliente. Solo el envío a cargo mío suma su costo al total del pedido.',
     )
 
     direccion_entrega = models.CharField(
@@ -204,7 +205,7 @@ class Pedido(models.Model):
         para saber cuánto le salió— pero no entra en el total.
         """
         if (
-            self.envio_a_cargo == Pedido.EnvioACargo.MIO
+            self.forma_entrega == Pedido.FormaEntrega.MIO
             and self.costo_entrega is not None
         ):
             return self.costo_entrega

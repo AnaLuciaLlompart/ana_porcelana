@@ -25,7 +25,15 @@ import PestanaCobros from './PestanaCobros'
 import ModalAgregarProducto from './ModalAgregarProducto'
 import ModalEditarProductoDelPedido from './ModalEditarProductoDelPedido'
 import ModalCobro from './ModalCobro'
-import { ICONO_ALERTA, ICONO_FLECHA, MEDIOS, TIPOS_COBRO, hoy } from './presentacion'
+import {
+  ICONO_ALERTA,
+  ICONO_FLECHA,
+  MEDIOS,
+  TIPOS_COBRO,
+  datosDeEntrega,
+  faltaFormaEntrega,
+  hoy,
+} from './presentacion'
 
 
 // Los tres pasos del alta, con nombres cortos para la barra. Los id son los
@@ -47,7 +55,9 @@ function borradorVacio() {
     cliente: '',
     fecha_pedido: hoy(),
     fecha_entrega_estimada: '',
-    envio_a_cargo: 'CLIENTE',
+    // Sin elegir: con tres formas, cualquiera de entrada sería un dato que
+    // se puede guardar sin haberlo pensado. Siguiente la pide.
+    forma_entrega: '',
     direccion_entrega: '',
     costo_entrega: '',
     productos: [],
@@ -86,12 +96,12 @@ function etiquetaDe(opciones, valor) {
 function pedidoEnMemoria(borrador) {
   const subtotal = borrador.productos.reduce((suma, linea) => suma + Number(linea.subtotal), 0)
   const costoEnvio =
-    borrador.envio_a_cargo === 'MIO' && borrador.costo_entrega !== '' ? Number(borrador.costo_entrega) : 0
+    borrador.forma_entrega === 'MIO' && borrador.costo_entrega !== '' ? Number(borrador.costo_entrega) : 0
   const total = subtotal + costoEnvio
   const cobrado = borrador.cobros.reduce((suma, cobro) => suma + Number(cobro.monto), 0)
 
   return {
-    envio_a_cargo: borrador.envio_a_cargo,
+    forma_entrega: borrador.forma_entrega,
     costo_entrega: borrador.costo_entrega,
     subtotal,
     costo_envio_a_cobrar: costoEnvio,
@@ -157,7 +167,7 @@ export default function AltaPedido() {
     (borrador.cliente !== vacio.cliente ||
       borrador.fecha_pedido !== vacio.fecha_pedido ||
       borrador.fecha_entrega_estimada !== vacio.fecha_entrega_estimada ||
-      borrador.envio_a_cargo !== vacio.envio_a_cargo ||
+      borrador.forma_entrega !== vacio.forma_entrega ||
       borrador.direccion_entrega !== vacio.direccion_entrega ||
       borrador.costo_entrega !== vacio.costo_entrega ||
       borrador.productos.length > 0 ||
@@ -203,7 +213,9 @@ export default function AltaPedido() {
   function faltaEnDatos() {
     if (!borrador.cliente) return 'Elegí el cliente del pedido para poder crearlo.'
     if (!borrador.fecha_pedido) return 'La fecha del pedido es obligatoria.'
-    return ''
+    // La forma de entrega no la exige el backend, que tiene un valor por
+    // defecto: la pide el alta, que arranca sin elegir.
+    return faltaFormaEntrega(borrador.forma_entrega)
   }
 
   // Para salir de Datos hacia adelante tiene que estar completo: así Crear
@@ -334,9 +346,7 @@ export default function AltaPedido() {
       cliente: Number(borrador.cliente),
       fecha_pedido: borrador.fecha_pedido,
       fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
-      envio_a_cargo: borrador.envio_a_cargo,
-      direccion_entrega: borrador.direccion_entrega.trim(),
-      costo_entrega: borrador.costo_entrega === '' ? null : borrador.costo_entrega,
+      ...datosDeEntrega(borrador),
     }
 
     let id = null
@@ -505,6 +515,7 @@ export default function AltaPedido() {
             // Un pedido no nace entregado.
             fechaEntregaReal=""
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
+            esAlta
             enRecorrido
             clientes={clientes}
             error={error}
