@@ -500,13 +500,42 @@ palabra antes del "+N".
 **Comprobante desde el listado (CU60).** El cuarto botón de la fila abre
 `urlComprobante(id)` en una pestaña nueva con `window.open`, y se apaga
 cuando el pedido no tiene productos (`cantidad_productos === 0`, el
-criterio del 400 del backend).
+criterio del 400 del backend). Es provisorio hasta A1 (ver abajo).
+
+**Cada cobro tiene su comprobante de pago** (corrección del tutor del
+28/10/2026, C5): así queda el historial de cada pago, y no solo el del
+pedido. `GET /api/pedidos/<id>/cobros/<cobro_id>/comprobante/`
+(`comprobante_de_cobro`) busca el cobro con `_buscar_cobro`, como
+modificar y borrar: uno de otro pedido da 400 "Ese cobro no pertenece a
+este pedido.". No revisa que haya productos, porque un cobro solo existe
+si los hay. El modelo no cambia. `generar_comprobante(pedido, cobro=None)`
+arma los dos PDF: sin cobro, el de siempre; con cobro, el título es
+"Comprobante de pago" y en lugar de "COBROS DEL PEDIDO" va la sección
+"PAGOS", una sola tabla con los pagos hasta este (por fecha y, el mismo
+día, por id), este al final con fondo verde y "Este pago" debajo del
+tipo, y después "Cobrado hasta este pago" y "Saldo después de este pago"
+con el chip de tres caras. Es una sola tabla y no dos secciones (este
+pago / pagos anteriores) porque con dos un pedido de un producto ya
+ocupaba dos hojas. El saldo se calcula con el total de hoy: el PDF no se
+guarda, se arma cada vez. En pantalla, el botón con la hoja va al lado
+del lápiz de cada cobro en `PestanaCobros`, con la prop opcional
+`onComprobante`, que pasa `ModalCobros` y no el alta (sus cobros todavía
+no existen).
+
+**Dónde queda cada comprobante, decidido por la usuaria.** En
+`ModalCobros`, el de cada pago. En A1, el botón de comprobante sale de la
+fila del listado y en el ⋯ va "Último comprobante", el del cobro más
+reciente (el serializer del listado va a tener que traer su id); sin
+cobros se apaga con "Este pedido todavía no tiene cobros". El PDF del
+pedido sin cobro queda en el backend (`comprobante`), pero cuando llegue
+A1 ninguna pantalla lo va a llamar, como `publicar` y
+`quitar_del_catalogo`. Esto reemplaza lo que decía el pedido del tutor,
+que conservaba el del pedido en la cabecera de la ficha: esa cabecera ya
+no lo tiene.
 
 **La ficha no tiene Comprobante ni Eliminar** (octubre de 2026): los dos
-se hacen desde la fila del listado. Con ellos se fueron el motivo "Guardá
-los cambios para generar el comprobante", que solo existía en la ficha, y
-la prop `esAlta` de `PestanaDatos`, que servía para sacar Eliminar en el
-alta.
+se hacen desde la fila del listado. Con ellos se fue el motivo "Guardá
+los cambios para generar el comprobante", que solo existía en la ficha.
 
 **La ficha no tiene pestañas** (corrección del tutor del 28/10/2026, A7).
 Es como la de Gasto: la cabecera, la tarjeta de estado y, apiladas
@@ -1431,7 +1460,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 82 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 84 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con

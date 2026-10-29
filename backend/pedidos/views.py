@@ -769,3 +769,33 @@ class PedidoViewSet(viewsets.ModelViewSet):
             as_attachment=False,
             filename=f'comprobante-pedido-{pedido.id}.pdf',
         )
+
+    #   GET    /api/pedidos/1/cobros/3/comprobante/   el PDF de ese pago
+
+    @action(detail=True, methods=['get'],
+            url_path=r'cobros/(?P<cobro_id>\d+)/comprobante')
+    def comprobante_de_cobro(self, request, pk=None, cobro_id=None):
+        """CU60 - Generar el comprobante de pago de un cobro.
+
+        Es el recibo de ese pago: el pedido, este pago destacado, los
+        anteriores y cómo quedó el saldo. Uno por cobro, así queda el
+        historial de cada pago.
+
+        No revisa que el pedido tenga productos: un cobro solo se puede
+        registrar si los tiene (_revisar_cobro).
+        """
+        pedido = self.get_object()
+
+        cobro = self._buscar_cobro(pedido, cobro_id)
+
+        if cobro is None:
+            return Response(
+                {'detail': 'Ese cobro no pertenece a este pedido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return FileResponse(
+            generar_comprobante(pedido, cobro),
+            as_attachment=False,
+            filename=f'comprobante-pedido-{pedido.id}-cobro-{cobro.id}.pdf',
+        )

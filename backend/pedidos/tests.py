@@ -237,6 +237,39 @@ class ComprobanteSinSesion(PruebaSinSesion):
         respuesta = self.client.get(url(pedido, 'comprobante/'))
         self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_comprobante_de_un_cobro_sin_sesion_da_403(self):
+        """CU60: GET /api/pedidos/<id>/cobros/<cobro_id>/comprobante/ sin sesión responde 403."""
+        cliente = Cliente.objects.create(instagram='sofi.delgado', nombre='Sofía')
+        pedido = Pedido.objects.create(cliente=cliente)
+        cobro = Cobro.objects.create(pedido=pedido, monto='1000.00')
+        respuesta = self.client.get(url(pedido, f'cobros/{cobro.id}/comprobante/'))
+        self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ComprobanteDeUnCobro(PruebaDePedido):
+    """Cada cobro tiene su comprobante de pago (CU60)."""
+
+    def test_el_comprobante_de_un_cobro_ajeno_da_400(self):
+        """CU60: con el cobro de otro pedido responde 400 con mensaje; con uno propio, el PDF."""
+        self.agregar_pieza()
+        propio = Cobro.objects.create(pedido=self.pedido, monto='1000.00')
+
+        otro_pedido = Pedido.objects.create(cliente=self.cliente)
+        ajeno = Cobro.objects.create(pedido=otro_pedido, monto='1000.00')
+
+        respuesta = self.client.get(url(self.pedido, f'cobros/{ajeno.id}/comprobante/'))
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'Ese cobro no pertenece a este pedido.')
+
+        respuesta = self.client.get(url(self.pedido, f'cobros/{propio.id}/comprobante/'))
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertIn(
+            f'comprobante-pedido-{self.pedido.id}-cobro-{propio.id}.pdf',
+            respuesta['Content-Disposition'],
+        )
+        self.assertTrue(b''.join(respuesta.streaming_content).startswith(b'%PDF-'))
+
 
 class RendimientoDelListado(PruebaSinSesion):
     """El listado no hace una consulta por pedido (CU41).

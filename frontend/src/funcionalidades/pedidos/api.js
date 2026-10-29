@@ -10,6 +10,7 @@ import cliente from '../../api/cliente'
 // modificarPedido      CU42 - modificar
 // eliminarPedido       CU43 - borrar
 // urlComprobante       CU60 - generar comprobante
+// urlComprobanteDeCobro CU60 - generar el comprobante de un pago
 //
 // obtenerPedido no implementa un CU: trae la ficha completa que CU42
 // necesita para cargar el formulario de edición.
@@ -56,6 +57,11 @@ export function cambiarEstadoPedido(id, estado) {
 // funciones se lo agrega el baseURL de cliente, y esta no pasa por cliente.
 export function urlComprobante(id) {
   return `/api/pedidos/${id}/comprobante/`
+}
+
+// El de un solo cobro, por el mismo camino: una dirección para abrir.
+export function urlComprobanteDeCobro(id, cobroId) {
+  return `/api/pedidos/${id}/cobros/${cobroId}/comprobante/`
 }
 
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { registrarCobro, modificarCobro, borrarCobro } from './api'
+import { registrarCobro, modificarCobro, borrarCobro, urlComprobanteDeCobro } from './api'
 import PestanaCobros from './PestanaCobros'
 import ModalCobro from './ModalCobro'
 
@@ -186,6 +186,10 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
               onRegistrar={() => abrirCobro('nuevo')}
               onEditar={(cobro) => abrirCobro(cobro)}
               onQuitar={quitarCobro}
+              // El PDF de ese pago en otra pestaña, como el del listado.
+              onComprobante={(cobro) =>
+                window.open(urlComprobanteDeCobro(pedido.id, cobro.id), '_blank', 'noopener,noreferrer')
+              }
             />
           </div>
 

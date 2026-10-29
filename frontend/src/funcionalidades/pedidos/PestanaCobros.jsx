@@ -1,6 +1,7 @@
 import BotonAccion from '../../componentes/BotonAccion'
 import { ANCHO_MAXIMO } from '../../constantes'
 import {
+  ICONO_COMPROBANTE,
   ICONO_CRUZ,
   ICONO_EDITAR,
   ICONO_MAS,
@@ -31,7 +32,9 @@ function FilaResumen({ etiqueta, valor, apagada, color }) {
 }
 
 
-export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar }) {
+// onComprobante es opcional: sin él no se dibuja el botón del comprobante
+// de cada pago. El alta no lo pasa, porque sus cobros todavía no existen.
+export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar, onComprobante }) {
   const chip = chipSaldo(pedido.saldo)
 
   // El costo que el cliente paga por su cuenta: se anota igual, pero no
@@ -166,6 +169,16 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar 
             </span>
 
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              {onComprobante && (
+                <BotonAccion
+                  onClick={() => onComprobante(cobro)}
+                  titulo="Comprobante de este pago"
+                  color="#8C5A66"
+                  hover="#F0E2E4"
+                  tamanoIcono={20}
+                  icono={ICONO_COMPROBANTE}
+                />
+              )}
               <BotonAccion
                 onClick={() => onEditar(cobro)}
                 titulo="Editar cobro"

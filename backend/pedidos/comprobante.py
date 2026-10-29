@@ -14,6 +14,7 @@ El comprobante es para el cliente, así que NO muestra el estado del
 pedido, la etapa productiva de cada pieza ni los materiales.
 """
 
+from decimal import Decimal
 from io import BytesIO
 from xml.sax.saxutils import escape
 
@@ -141,6 +142,8 @@ CELDA_DERECHA = _estilo('celda_derecha', 16, alineacion=TA_RIGHT)
 CELDA_DESCRIPCION = _estilo('celda_descripcion', 14, NORMAL,
                             TEXTO_SECUNDARIO, interlineado=1.4)
 IMPORTE = _estilo('importe', 16, NEGRITA, TEXTO, TA_RIGHT)
+# La marca "Este pago" debajo del tipo, en el comprobante de un cobro.
+ESTE_PAGO = _estilo('este_pago', 13, NEGRITA, VERDE)
 
 # Los totales y el saldo
 TOTAL_ETIQUETA = _estilo('total_etiqueta', 16, NORMAL, TEXTO_SECUNDARIO,
@@ -229,7 +232,7 @@ def _tabla_de_totales(filas):
 # Las secciones, en el orden en que aparecen en la hoja
 # ---------------------------------------------------------------------
 
-def _encabezado(pedido):
+def _encabezado(pedido, titulo):
     """A la izquierda la marca con su Instagram; a la derecha el título, el número y las fechas."""
     izquierda = [
         _parrafo('Ana Porcelana', MARCA),
@@ -240,7 +243,7 @@ def _encabezado(pedido):
     ]
 
     derecha = [
-        _parrafo('Comprobante de compra', TITULO),
+        _parrafo(titulo, TITULO),
         _espacio(8),
         _parrafo(f'Pedido #{pedido.id}', NUMERO),
         _espacio(6),
@@ -513,47 +516,9 @@ def _cobros(pedido):
     ]
 
     if cobros:
-        filas = [[
-            _parrafo('FECHA', COLUMNA),
-            _parrafo('TIPO', COLUMNA),
-            _parrafo('MEDIO DE PAGO', COLUMNA),
-            _parrafo('MONTO', COLUMNA_DERECHA),
-        ]]
-
-        for cobro in cobros:
-            filas.append([
-                _parrafo(_fecha_larga(cobro.fecha), CELDA),
-                _parrafo(cobro.get_tipo_display(), CELDA),
-                _parrafo(cobro.get_medio_display(), CELDA),
-                _parrafo(plata(cobro.monto), IMPORTE),
-            ])
-
-        tabla = Table(
-            filas,
-            colWidths=[
-                ANCHO_UTIL * 0.30,
-                ANCHO_UTIL * 0.26,
-                ANCHO_UTIL * 0.24,
-                ANCHO_UTIL * 0.20,
-            ],
-            repeatRows=1,
-        )
-
-        tabla.setStyle(_estilo_de_tabla())
+        tabla = _tabla_de_cobros(cobros)
     else:
-        # Una tabla de una sola celda, para que el aviso lleve debajo la
-        # misma raya que llevaría una fila de cobro.
-        tabla = Table(
-            [[_parrafo('Sin cobros registrados', SECUNDARIO)]],
-            colWidths=[ANCHO_UTIL],
-        )
-
-        tabla.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), px(12)),
-            ('TOPPADDING', (0, 0), (-1, -1), px(8)),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), px(22)),
-            ('LINEBELOW', (0, 0), (-1, -1), px(1), BORDE),
-        ]))
+        tabla = _aviso_en_tabla('Sin cobros registrados')
 
     bloques.append(tabla)
     bloques.append(_espacio(6))
@@ -564,7 +529,7 @@ def _cobros(pedido):
     ]]))
 
     bloques.append(_espacio(14))
-    bloques.append(_saldo(pedido))
+    bloques.append(_saldo(pedido.saldo))
 
     # Toda la sección junta: así el título no queda solo al pie de una
     # hoja con su tabla en la siguiente. Si algún día fuera más alta que
@@ -572,10 +537,117 @@ def _cobros(pedido):
     return [KeepTogether(bloques)]
 
 
-def _saldo(pedido):
-    """La palabra Saldo y, a su derecha, el chip con una de sus tres caras."""
-    saldo = pedido.saldo
+def _tabla_de_cobros(cobros, este=None):
+    """La tabla FECHA / TIPO / MEDIO DE PAGO / MONTO de una lista de cobros.
 
+    Si llega este, su fila va con fondo verde claro y "Este pago" debajo
+    del tipo: es el comprobante de ese cobro.
+    """
+    filas = [[
+        _parrafo('FECHA', COLUMNA),
+        _parrafo('TIPO', COLUMNA),
+        _parrafo('MEDIO DE PAGO', COLUMNA),
+        _parrafo('MONTO', COLUMNA_DERECHA),
+    ]]
+
+    fila_de_este = None
+
+    for cobro in cobros:
+        tipo = _parrafo(cobro.get_tipo_display(), CELDA)
+
+        if cobro == este:
+            # Una celda puede llevar una lista de bloques, que se apilan.
+            tipo = [tipo, _parrafo('Este pago', ESTE_PAGO)]
+            fila_de_este = len(filas)
+
+        filas.append([
+            _parrafo(_fecha_larga(cobro.fecha), CELDA),
+            tipo,
+            _parrafo(cobro.get_medio_display(), CELDA),
+            _parrafo(plata(cobro.monto), IMPORTE),
+        ])
+
+    tabla = Table(
+        filas,
+        colWidths=[
+            ANCHO_UTIL * 0.30,
+            ANCHO_UTIL * 0.26,
+            ANCHO_UTIL * 0.24,
+            ANCHO_UTIL * 0.20,
+        ],
+        repeatRows=1,
+    )
+
+    tabla.setStyle(_estilo_de_tabla())
+
+    if fila_de_este is not None:
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, fila_de_este), (-1, fila_de_este), VERDE_FONDO),
+        ]))
+
+    return tabla
+
+
+def _aviso_en_tabla(texto):
+    """Un texto suelto donde iría una tabla de cobros."""
+    # Una tabla de una sola celda, para que el aviso lleve debajo la
+    # misma raya que llevaría una fila de cobro.
+    tabla = Table(
+        [[_parrafo(texto, SECUNDARIO)]],
+        colWidths=[ANCHO_UTIL],
+    )
+
+    tabla.setStyle(TableStyle([
+        ('LEFTPADDING', (0, 0), (-1, -1), px(12)),
+        ('TOPPADDING', (0, 0), (-1, -1), px(8)),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), px(22)),
+        ('LINEBELOW', (0, 0), (-1, -1), px(1), BORDE),
+    ]))
+
+    return tabla
+
+
+def _pago(pedido, cobro):
+    """En el comprobante de un cobro: los pagos hasta este, este destacado, y cómo quedó el saldo.
+
+    Una sola tabla, con los anteriores y este al final, y no dos
+    secciones: así mide lo mismo que la de cobros del pedido y un pedido
+    chico sigue entrando en una hoja.
+    """
+    # Hasta este pago, en el mismo orden que usa _cobros: por fecha y, el
+    # mismo día, por id. Se filtran en Python sobre lo que ya trajo el
+    # prefetch, sin volver a la base. Este es siempre el último.
+    clave = (cobro.fecha, cobro.id)
+    hasta_este = sorted(
+        (c for c in pedido.cobros.all() if (c.fecha, c.id) <= clave),
+        key=lambda c: (c.fecha, c.id),
+    )
+
+    cobrado_hasta_aca = sum((c.monto for c in hasta_este), Decimal('0'))
+
+    # Con el total de HOY: el comprobante no se guarda, se arma cada vez.
+    saldo_despues = pedido.total - cobrado_hasta_aca
+
+    bloques = [
+        _espacio(36),
+        _parrafo('PAGOS', SECCION),
+        _espacio(14),
+        _tabla_de_cobros(hasta_este, este=cobro),
+        _espacio(6),
+        _tabla_de_totales([[
+            _parrafo('Cobrado hasta este pago', TOTAL_ETIQUETA),
+            _parrafo(plata(cobrado_hasta_aca), IMPORTE),
+        ]]),
+        _espacio(14),
+        _saldo(saldo_despues, 'Saldo después de este pago'),
+    ]
+
+    # Toda la sección junta, por lo mismo que en _cobros.
+    return [KeepTogether(bloques)]
+
+
+def _saldo(saldo, etiqueta='Saldo'):
+    """La etiqueta y, a su derecha, el chip con una de las tres caras del saldo."""
     if saldo > 0:
         texto = f'Resta pagar {plata(saldo)}'
         color, fondo, borde = AMBAR_TEXTO, AMBAR_FONDO, AMBAR_BORDE
@@ -619,7 +691,7 @@ def _saldo(pedido):
     ancho_columna_chip = ancho_chip + px(12)
 
     tabla = Table(
-        [[_parrafo('Saldo', SALDO_ETIQUETA), chip]],
+        [[_parrafo(etiqueta, SALDO_ETIQUETA), chip]],
         colWidths=[ANCHO_UTIL - ancho_columna_chip, ancho_columna_chip],
     )
 
@@ -682,18 +754,23 @@ def _dibujar_pie(canvas, documento):
 # Lo único que se usa desde afuera
 # ---------------------------------------------------------------------
 
-def generar_comprobante(pedido):
+def generar_comprobante(pedido, cobro=None):
     """Devuelve el PDF del comprobante de compra del pedido (CU60).
 
     El pedido tiene que venir con el cliente, los productos y los cobros
     ya cargados, que es como lo entrega get_object() en el ViewSet. Que
     tenga al menos un producto lo revisa la acción antes de llamar acá.
 
+    Con un cobro es el comprobante de ese pago: cambia el título, y en
+    lugar de todos los cobros van este pago y los anteriores.
+
     El PDF se arma en memoria y no en el disco: BytesIO se comporta como
     un archivo pero vive en la RAM, así que no queda nada que limpiar
     después de responder.
     """
     archivo = BytesIO()
+
+    titulo = 'Comprobante de pago' if cobro else 'Comprobante de compra'
 
     documento = SimpleDocTemplate(
         archivo,
@@ -704,15 +781,15 @@ def generar_comprobante(pedido):
         bottomMargin=MARGEN_VERTICAL + ALTO_PIE - RELLENO_DEL_MARCO,
         # Lo que el navegador muestra en la pestaña y en las propiedades
         # del archivo.
-        title=f'Comprobante de compra - Pedido #{pedido.id}',
+        title=f'{titulo} - Pedido #{pedido.id}',
         author='Ana Porcelana',
     )
 
     bloques = []
-    bloques += _encabezado(pedido)
+    bloques += _encabezado(pedido, titulo)
     bloques += _cliente_y_entrega(pedido)
     bloques += _productos(pedido)
-    bloques += _cobros(pedido)
+    bloques += _pago(pedido, cobro) if cobro else _cobros(pedido)
 
     documento.build(
         bloques,

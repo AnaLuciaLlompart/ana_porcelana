@@ -11,14 +11,14 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**82 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
+**84 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
 10, `materiales` 10, `categorias` 4, `productos` 11, `clientes` 3,
-`pedidos` 12, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
+`pedidos` 14, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 37 |
-| permisos | 11 |
+| reglas de negocio | 38 |
+| permisos | 12 |
 | validación | 14 |
 | catálogo | 9 |
 | seguridad | 7 |
@@ -110,6 +110,8 @@ rendimiento.
 | pedidos | test_la_forma_de_entrega_se_guarda_con_su_etiqueta | PUT con forma_entrega 'ENVIO' responde 400 en el campo; con RETIRO responde 200, devuelve forma_entrega_display "Retiro" y queda en la base | Forma de entrega con tres valores (CU42) | validación |
 | pedidos | test_un_id_de_producto_que_es_lista_u_objeto_da_400 | POST {"producto": [1]} y {"producto": {"id": 1}} responden 400 "No existe un producto con ese id." y no crean la línea | TypeError atrapado en agregar_producto (CU44) | validación |
 | pedidos | test_comprobante_sin_sesion_da_403 | GET /api/pedidos/<id>/comprobante/ sin sesión responde 403 | Denegación por defecto (CU60) | permisos |
+| pedidos | test_comprobante_de_un_cobro_sin_sesion_da_403 | GET /api/pedidos/<id>/cobros/<cobro_id>/comprobante/ sin sesión responde 403 | Denegación por defecto (CU60) | permisos |
+| pedidos | test_el_comprobante_de_un_cobro_ajeno_da_400 | Con el cobro de otro pedido responde 400 "Ese cobro no pertenece a este pedido."; con el propio, 200, application/pdf y el nombre comprobante-pedido-<id>-cobro-<cobro_id>.pdf | Un comprobante por cobro, buscado con _buscar_cobro (CU60) | reglas de negocio |
 | pedidos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres pedidos con productos y cobros, el listado hace 4 consultas (sin contar la sesión) | select_related y prefetch_related en PedidoViewSet.get_queryset (CU41) | rendimiento |
 | gastos | test_el_monto_es_la_suma_de_sus_filas_y_un_put_no_lo_pisa | Con 3 × $800 y 2 × $150 el monto es $2.700, en la respuesta y en la base; un PUT con monto 99999 lo deja en $2.700 y sí guarda la descripción | _recalcular_monto es la única puerta al monto; GastoSerializer.validate descarta el monto si es de materiales (CU54, CU56) | reglas de negocio |
 | gastos | test_un_gasto_de_materiales_no_puede_cambiar_de_tipo | PUT y PATCH con otro tipo responden 400 con mensaje y el gasto sigue siendo de materiales | GastoViewSet.update (CU54) | reglas de negocio |
