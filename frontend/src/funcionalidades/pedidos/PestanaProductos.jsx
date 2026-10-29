@@ -1,14 +1,11 @@
-import { useNavigate } from 'react-router-dom'
-
 import BotonAccion from '../../componentes/BotonAccion'
-import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
+import { ANCHO_MAXIMO } from '../../constantes'
 import {
   COLOR_ETAPA,
   ETAPAS,
   ICONO_CRUZ,
   ICONO_EDITAR,
   ICONO_MAS,
-  ICONO_MATERIALES,
   diasEnEtapa,
   formatearPrecio,
 } from './presentacion'
@@ -38,8 +35,6 @@ const estiloCartelError = {
 // Una fila de la tabla: una pieza encargada, con su cantidad, su precio
 // congelado y en qué etapa productiva está.
 function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
-  const navegar = useNavigate()
-
   const etapa = COLOR_ETAPA[producto.estado]
   const desde = diasEnEtapa(producto)
 
@@ -136,55 +131,6 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
 
       <td style={{ padding: '11px 8px' }}>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-          {/* El de materiales no aparece si la pieza no tiene ninguno
-              cargado: llevaría a una pantalla filtrada sin nada que
-              mostrar. En esas filas van dos botones y no tres.
-
-              Es el único de los tres que conserva su texto, porque es el
-              único que se va de la pantalla: conviene que diga adónde
-              lleva antes de tocarlo. Por eso la columna PRODUCTO cede
-              ancho, que es lo que permite que entre.
-
-              Navega con navegar() y no con una etiqueta <a>, aunque en el
-              diseño sea un enlace: un <a> recargaría la aplicación entera
-              en vez de cambiar de pantalla. */}
-          {producto.producto_tiene_materiales && (
-            <button
-              onClick={() => navegar(`${BASE_GESTION}/materiales?producto=${producto.producto}`)}
-              title={`Ver los materiales de ${producto.producto_nombre}`}
-              className="btn-reponer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                flexShrink: 0,
-                padding: '8px 12px',
-                border: '1px solid #EBE0E2',
-                background: 'white',
-                color: '#8C5A66',
-                borderRadius: 5,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 13,
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.9"
-                style={{ flexShrink: 0 }}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_MATERIALES} />
-              </svg>
-              Ver/Editar Materiales
-            </button>
-          )}
-
           <BotonAccion
             onClick={() => onEditar(producto)}
             titulo="Editar"
@@ -290,7 +236,7 @@ export default function PestanaProductos({
 
       {/* DIFERENCIA DELIBERADA CON EL DISEÑO, decidida por la usuaria: el
           prototipo no tiene columna de acciones ni forma de editar un
-          producto ya cargado, solo deja cambiar la etapa. Acá los tres
+          producto ya cargado, solo deja cambiar la etapa. Acá los dos
           botones viven juntos en ACCIONES, como en las otras pantallas, y
           el del lápiz abre un modal que el diseño no contempla.
 
@@ -301,7 +247,7 @@ export default function PestanaProductos({
             <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#F0E2E4' }}>
-                  <th style={{ ...estiloTh, width: '20%', padding: '10px 20px', textAlign: 'left' }}>
+                  <th style={{ ...estiloTh, width: '37%', padding: '10px 20px', textAlign: 'left' }}>
                     PRODUCTO
                   </th>
                   <th style={{ ...estiloTh, width: '9%', textAlign: 'center' }}>CANTIDAD</th>
@@ -310,7 +256,7 @@ export default function PestanaProductos({
                   </th>
                   <th style={{ ...estiloTh, width: '11%', textAlign: 'right' }}>SUBTOTAL</th>
                   <th style={{ ...estiloTh, width: '18%', textAlign: 'left' }}>ETAPA</th>
-                  <th style={{ ...estiloTh, width: '27%', textAlign: 'center' }}>ACCIONES</th>
+                  <th style={{ ...estiloTh, width: '10%', textAlign: 'center' }}>ACCIONES</th>
                 </tr>
               </thead>
 

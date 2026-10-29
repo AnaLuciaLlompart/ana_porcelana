@@ -1,26 +1,19 @@
 import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
-// La forma de entrega se elige como un árbol: primero retiro o envío, y si
-// es envío, quién lo paga. 'ENVIO' es el paso intermedio y no viaja nunca.
+// La forma de entrega se elige en dos desplegables: primero retiro o envío,
+// y si es envío, quién lo realiza. 'ENVIO' es el paso intermedio y no viaja
+// nunca. Las listas están acá porque tienen que existir para elegir, como
+// TIPOS en Gastos.
 const PRIMER_NIVEL = [
   { valor: 'RETIRO', label: 'Retiro' },
   { valor: 'ENVIO', label: 'Envío' },
 ]
 
-const QUIEN_PAGA = [
-  { valor: 'MIO', label: 'A cargo mío' },
-  { valor: 'CLIENTE', label: 'A cargo del cliente' },
+const QUIEN_ENVIA = [
+  { valor: 'MIO', label: 'Yo' },
+  { valor: 'CLIENTE', label: 'El cliente' },
 ]
-
-// Las tres formas con sus textos, para el desplegable de la ficha. Son las
-// etiquetas del backend, escritas acá porque la lista tiene que existir
-// para elegir, como TIPOS en Gastos.
-const FORMAS = {
-  RETIRO: 'Retiro',
-  MIO: 'Envío a cargo mío',
-  CLIENTE: 'Envío a cargo del cliente',
-}
 
 
 const estiloEtiqueta = {
@@ -91,64 +84,52 @@ function EtiquetaConNota({ texto, nota }) {
 }
 
 
-// Una fila de botones de los que se elige uno solo, como los de ModalCobro.
-function Segmentos({ opciones, activo, onElegir }) {
+// Un desplegable con el estilo de los demás campos. La primera opción,
+// "Elegí…", no se puede volver a elegir: está para el alta, que arranca sin
+// forma de entrega.
+function Desplegable({ opciones, valor, onElegir }) {
   return (
-    <div style={{ display: 'flex', gap: 8 }}>
+    <select
+      value={valor}
+      onChange={(e) => onElegir(e.target.value)}
+      style={{ ...estiloCampo, cursor: 'pointer' }}
+    >
+      <option value="" disabled>
+        Elegí…
+      </option>
       {opciones.map((op) => (
-        <button
-          key={op.valor}
-          onClick={() => onElegir(op.valor)}
-          style={{
-            flex: 1,
-            padding: '10px 0',
-            borderRadius: 5,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 14,
-            border: activo === op.valor ? '1px solid #8C5A66' : '1px solid #EBE0E2',
-            background: activo === op.valor ? '#8C5A66' : 'white',
-            color: activo === op.valor ? 'white' : '#857078',
-          }}
-        >
+        <option key={op.valor} value={op.valor}>
           {op.label}
-        </button>
+        </option>
       ))}
-    </div>
+    </select>
   )
 }
 
 
-// La tarjeta de los datos del pedido, sin pie: en el alta los botones los
-// pone PieDelRecorrido, y en la ficha el pie va debajo de los productos,
-// porque datos y productos se guardan juntos.
-//
-// esAlta elige la forma de entrega con el árbol de botones. En la ficha es
-// un desplegable con las tres formas, como los demás campos.
+// La tarjeta de los datos del pedido, sin pie: el alta y la ficha lo ponen
+// debajo de los productos, porque datos y productos se guardan juntos.
 export default function PestanaDatos({
   borrador,
   fechaEntregaReal,
   onCambiar,
-  esAlta = false,
   clientes,
   error,
 }) {
   const forma = borrador.forma_entrega
   const esEnvio = forma === 'ENVIO' || forma === 'MIO' || forma === 'CLIENTE'
 
-  // El costo aparece recién cuando se sabe quién paga el envío: de eso
+  // El costo aparece recién cuando se sabe quién realiza el envío: de eso
   // depende si suma al total, y la nota no puede decirlo antes.
-  const sabeQuienPaga = forma === 'MIO' || forma === 'CLIENTE'
+  const sabeQuienEnvia = forma === 'MIO' || forma === 'CLIENTE'
 
-  // Envío: si ya había uno elegido, se conserva quién lo paga.
+  // Envío: si ya había uno elegido, se conserva quién lo realiza.
   function elegirPrimerNivel(valor) {
     if (valor === 'RETIRO') onCambiar({ forma_entrega: 'RETIRO' })
     else if (!esEnvio) onCambiar({ forma_entrega: 'ENVIO' })
   }
 
-  // Lo único que cambia con quién paga el envío es esta nota. El campo del
+  // Lo único que cambia con quién realiza el envío es esta nota. El campo del
   // costo se carga igual con los dos envíos: cuando lo paga el cliente el
   // importe se sigue anotando, y el resumen lo muestra aparte sin sumarlo.
   // Con retiro no hay costo.
@@ -263,7 +244,6 @@ export default function PestanaDatos({
           </div>
 
           <div
-            className="envio-y-costo"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -275,42 +255,25 @@ export default function PestanaDatos({
           >
             <div>
               <span style={estiloEtiqueta}>FORMA DE ENTREGA *</span>
-
-              {esAlta ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <Segmentos
-                    opciones={PRIMER_NIVEL}
-                    activo={esEnvio ? 'ENVIO' : forma}
-                    onElegir={elegirPrimerNivel}
-                  />
-
-                  {esEnvio && (
-                    <div>
-                      <span style={estiloEtiqueta}>¿QUIÉN PAGA EL ENVÍO?</span>
-                      <Segmentos
-                        opciones={QUIEN_PAGA}
-                        activo={forma}
-                        onElegir={(valor) => onCambiar({ forma_entrega: valor })}
-                      />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <select
-                  value={forma}
-                  onChange={(e) => onCambiar({ forma_entrega: e.target.value })}
-                  style={{ ...estiloCampo, cursor: 'pointer' }}
-                >
-                  {Object.entries(FORMAS).map(([valor, texto]) => (
-                    <option key={valor} value={valor}>
-                      {texto}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <Desplegable
+                opciones={PRIMER_NIVEL}
+                valor={esEnvio ? 'ENVIO' : forma}
+                onElegir={elegirPrimerNivel}
+              />
             </div>
 
-            {sabeQuienPaga && (
+            {esEnvio && (
+              <div>
+                <span style={estiloEtiqueta}>¿QUIÉN REALIZA EL ENVÍO? *</span>
+                <Desplegable
+                  opciones={QUIEN_ENVIA}
+                  valor={sabeQuienEnvia ? forma : ''}
+                  onElegir={(valor) => onCambiar({ forma_entrega: valor })}
+                />
+              </div>
+            )}
+
+            {sabeQuienEnvia && (
               <div>
                 <EtiquetaConNota texto="COSTO DE ENTREGA" nota={notaCosto} />
                 <input

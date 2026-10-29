@@ -130,12 +130,15 @@ def resumen_de_hoy(request):
     # Los pedidos Listos no se excluyen: si les quedó una pieza sin
     # terminar, esa pieza sigue en el taller.
     #
-    # select_related('producto') porque el serializer lee su nombre.
+    # select_related('producto') porque el serializer lee su nombre, y
+    # prefetch de sus materiales porque mira si tiene alguno: una consulta
+    # para todas las filas y no una por fila.
     en_produccion = list(
         ProductoDelPedido.objects
         .exclude(estado=ProductoDelPedido.Estado.TERMINADO)
         .exclude(pedido__estado=Pedido.Estado.ENTREGADO)
         .select_related('producto')
+        .prefetch_related('producto__materiales')
     )
 
     # Se ordena en Python y no en la base porque el orden no es el

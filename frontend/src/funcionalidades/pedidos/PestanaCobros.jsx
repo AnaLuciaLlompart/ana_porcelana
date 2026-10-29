@@ -32,8 +32,9 @@ function FilaResumen({ etiqueta, valor, apagada, color }) {
 }
 
 
-// onComprobante es opcional: sin él no se dibuja el botón del comprobante
-// de cada pago. El alta no lo pasa, porque sus cobros todavía no existen.
+// La lista de cobros y el resumen de un pedido guardado. La usa solo
+// ModalCobros. onComprobante es opcional: sin él no se dibuja el botón del
+// comprobante de cada pago.
 export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar, onComprobante }) {
   const chip = chipSaldo(pedido.saldo)
 
@@ -223,10 +224,9 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar,
         )}
       </div>
 
-      {/* El resumen muestra el pedido que le llega: en la ficha es lo
-          GUARDADO, que calcula el backend y se actualiza solo al guardar;
-          en el alta, el pedido en memoria que arma AltaPedido con la misma
-          cuenta. Acá no se recalcula nada. */}
+      {/* El resumen muestra el pedido que le llega, que es lo GUARDADO: lo
+          calcula el backend y se actualiza con cada respuesta. Acá no se
+          recalcula nada. */}
       <div
         style={{
           background: 'white',

@@ -26,9 +26,17 @@ import { BASE_GESTION } from '../../constantes'
 
 
 // El título y el texto del modal de aviso, según lo que dejó en el state la
-// ficha al guardar, o null si no dejó nada. Si al guardar algún material
-// pasó a disponibilidad Alta, el modal lo cuenta.
+// pantalla de la que se viene (el alta, el gasto que creó; la ficha, el que
+// guardó), o null si no dejó nada. Si al guardar algún material pasó a
+// disponibilidad Alta, el modal lo cuenta.
 function avisoDeLaNavegacion(state) {
+  if (state?.creado) {
+    return {
+      titulo: 'Gasto creado',
+      texto: `El gasto #${state.creado} quedó creado y ya aparece en el listado.`,
+    }
+  }
+
   if (!state?.guardado) return null
 
   const n = state.pasaronAAlta || 0
@@ -449,8 +457,8 @@ export default function Gastos() {
   const [gastoEliminando, setGastoEliminando] = useState(null)
   const [gastoViendo, setGastoViendo] = useState(null)
 
-  // El modal de aviso de la ficha, que deja en el state de la navegación el
-  // gasto que guardó. Se lee al montar.
+  // El modal de aviso del alta o de la ficha, que dejan en el state de la
+  // navegación el gasto que crearon o guardaron. Se lee al montar.
   const [aviso, setAviso] = useState(() => avisoDeLaNavegacion(ubicacion.state))
 
   // Una sola carga al montar. El buscador filtra sobre estos datos, así que

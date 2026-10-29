@@ -6,7 +6,6 @@ import {
   eliminarPedido,
   agregarProductoAlPedido,
   modificarProductoDelPedido,
-  registrarCobro,
 } from './api'
 
 // Los mismos imports que cruzan de funcionalidad en la ficha: los clientes
@@ -15,21 +14,14 @@ import { listarClientes } from '../clientes/api'
 import { listarProductos } from '../productos/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
-import BarraDePasos from '../../componentes/BarraDePasos'
-import PieDelRecorrido from '../../componentes/PieDelRecorrido'
 import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
-import PestanaCobros from './PestanaCobros'
 import ModalAgregarProducto from './ModalAgregarProducto'
 import ModalEditarProductoDelPedido from './ModalEditarProductoDelPedido'
-import ModalCobro from './ModalCobro'
 import {
-  ICONO_ALERTA,
   ICONO_FLECHA,
-  MEDIOS,
-  TIPOS_COBRO,
   datosDeEntrega,
   faltaFormaEntrega,
   hoy,
@@ -37,32 +29,19 @@ import {
 } from './presentacion'
 
 
-// Los tres pasos del alta, con nombres cortos para la barra. Los id son los
-// de las pestañas de la ficha.
-const PASOS = [
-  { id: 'datos', label: 'Datos' },
-  { id: 'productos', label: 'Productos' },
-  { id: 'cobros', label: 'Cobros' },
-]
-
-
-// Con qué arranca el formulario en un alta. Los dos valores que no están
-// vacíos son los mismos con los que nace un pedido en el diseño: la fecha
-// de hoy y el envío a cargo del cliente.
-//
-// Las dos listas son lo que se junta en los otros pasos hasta crear.
+// Con qué arranca el formulario en un alta: la fecha de hoy, que es como
+// nace un pedido en el diseño, y todo lo demás vacío.
 function borradorVacio() {
   return {
     cliente: '',
     fecha_pedido: hoy(),
     fecha_entrega_estimada: '',
     // Sin elegir: con tres formas, cualquiera de entrada sería un dato que
-    // se puede guardar sin haberlo pensado. Siguiente la pide.
+    // se puede guardar sin haberlo pensado. Crear la pide.
     forma_entrega: '',
     direccion_entrega: '',
     costo_entrega: '',
     productos: [],
-    cobros: [],
   }
 }
 
@@ -83,43 +62,12 @@ function mensajeDeError(err) {
 }
 
 
-// La etiqueta de un valor con choices, para armar los _display de un cobro
-// en memoria como los que manda el backend.
-function etiquetaDe(opciones, valor) {
-  return opciones.find((op) => op.valor === valor).label
-}
-
-
-// Las mismas cuentas que hace Pedido en models.py (subtotal, costo de envío
-// a cobrar, total, cobrado y saldo), para el pedido que todavía no existe.
-// Es lo único de la ficha que acá se calcula en el navegador: antes de crear
-// no hay backend que lo haga, y la pestaña Cobros y su modal las necesitan.
-function pedidoEnMemoria(borrador) {
-  const subtotal = borrador.productos.reduce((suma, linea) => suma + Number(linea.subtotal), 0)
-  const costoEnvio =
-    borrador.forma_entrega === 'MIO' && borrador.costo_entrega !== '' ? Number(borrador.costo_entrega) : 0
-  const total = subtotal + costoEnvio
-  const cobrado = borrador.cobros.reduce((suma, cobro) => suma + Number(cobro.monto), 0)
-
-  return {
-    forma_entrega: borrador.forma_entrega,
-    costo_entrega: borrador.costo_entrega,
-    subtotal,
-    costo_envio_a_cobrar: costoEnvio,
-    total,
-    cobrado,
-    saldo: total - cobrado,
-    cantidad_productos: borrador.productos.length,
-    productos: borrador.productos,
-    cobros: borrador.cobros,
-  }
-}
-
-
-// El alta de un pedido (CU40), por pasos. Todo se junta en memoria y el
-// pedido se crea recién con el botón del último paso: un POST del pedido y
-// después uno por producto y por cobro, con los endpoints de la ficha. Si
-// uno falla, se borra el pedido y se vuelve al paso del ítem.
+// El alta de un pedido (CU40). Es la misma pantalla que la ficha, con los
+// datos y los productos en un solo formulario, y se crea recién al tocar
+// "Crear pedido": un POST del pedido y después uno por producto, con los
+// endpoints de la ficha. Si uno falla, se borra el pedido y queda todo
+// cargado para corregir. Los cobros no van acá: se registran después, desde
+// el listado.
 export default function AltaPedido() {
   const navegar = useNavigate()
 
@@ -127,23 +75,19 @@ export default function AltaPedido() {
   // fecha de hoy, que no es un valor vacío.
   const [vacio] = useState(borradorVacio)
   const [borrador, setBorrador] = useState(vacio)
-  const [paso, setPaso] = useState('datos')
 
   const [clientes, setClientes] = useState([])
   const [productos, setProductos] = useState([])
   const [modalProducto, setModalProducto] = useState(false)
   const [productoEditando, setProductoEditando] = useState(null)
 
-  // null cuando está cerrado, 'nuevo' para registrar o el cobro que se
-  // edita, como en la ficha.
-  const [modalCobro, setModalCobro] = useState(null)
-
-  // El error se muestra en el formulario de Datos, o en el cartel de arriba
-  // de las pestañas en los otros dos pasos, como en la ficha.
+  // Dos errores, como en la ficha: el de los datos va en su tarjeta, y el de
+  // un producto, pegado a la tabla.
   const [error, setError] = useState('')
+  const [errorProductos, setErrorProductos] = useState('')
 
   // Mientras se crea, el pie queda apagado y muestra el avance. Si falló un
-  // ítem y tampoco se pudo borrar el pedido, acá queda su id.
+  // producto y tampoco se pudo borrar el pedido, acá queda su id.
   const [creando, setCreando] = useState(false)
   const [avance, setAvance] = useState('')
   const [creadoAMedias, setCreadoAMedias] = useState(null)
@@ -152,7 +96,7 @@ export default function AltaPedido() {
   // crear, pero antes se pregunta.
   const [modalSinProductos, setModalSinProductos] = useState(false)
 
-  // Un id provisorio por ítem, negativo para que no choque con los de la
+  // Un id provisorio por producto, negativo para que no choque con los de la
   // base. Las filas lo usan de key.
   const proximoId = useRef(-1)
 
@@ -171,8 +115,7 @@ export default function AltaPedido() {
       borrador.forma_entrega !== vacio.forma_entrega ||
       borrador.direccion_entrega !== vacio.direccion_entrega ||
       borrador.costo_entrega !== vacio.costo_entrega ||
-      borrador.productos.length > 0 ||
-      borrador.cobros.length > 0)
+      borrador.productos.length > 0)
 
   // Recargar o cerrar la pestaña pierde todo, así que mientras haya algo
   // cargado (o se esté creando) el navegador pregunta antes, con su propio
@@ -203,14 +146,8 @@ export default function AltaPedido() {
   )
 
 
-  function nuevoId() {
-    const id = proximoId.current
-    proximoId.current -= 1
-    return id
-  }
-
-  // Los dos que el backend exige, los mismos que revisa la ficha. Devuelve
-  // el mensaje del primero que falte, o ''.
+  // Los dos que el backend exige, los mismos que revisa la ficha, y la forma
+  // de entrega. Devuelve el mensaje del primero que falte, o ''.
   function faltaEnDatos() {
     if (!borrador.cliente) return 'Elegí el cliente del pedido para poder crearlo.'
     if (!borrador.fecha_pedido) return 'La fecha del pedido es obligatoria.'
@@ -219,43 +156,28 @@ export default function AltaPedido() {
     return faltaFormaEntrega(borrador.forma_entrega)
   }
 
-  // Para salir de Datos hacia adelante tiene que estar completo: así Crear
-  // no falla por el paso 1 estando en el 3. Volver a Datos no revisa nada.
-  function irAlPaso(nuevo) {
-    if (paso === 'datos' && nuevo !== 'datos') {
-      const falta = faltaEnDatos()
-      if (falta) {
-        setError(falta)
-        return
-      }
-    }
-    setError('')
-    setPaso(nuevo)
-  }
-
   // Cancelar y el enlace de arriba quieren decir "no lo crees". Navegan al
   // listado, y el bloqueo de arriba es el que pregunta.
   function salir() {
     navegar(`${BASE_GESTION}/pedidos`)
   }
 
-  // Con el pedido creado a medias, el último botón lleva a su ficha: no se
-  // sale sin crear, así que no se pregunta.
+  // Con el pedido creado a medias, el botón principal lleva a su ficha: no
+  // se sale sin crear, así que no se pregunta.
   function irAlCreado() {
     saltearBloqueo.current = true
     navegar(`${BASE_GESTION}/pedidos/${creadoAMedias}`)
   }
 
 
-  // Las acciones de las pestañas escriben en el borrador. Los ítems tienen
-  // la misma forma que los que devuelve el backend, que es lo que las
-  // pestañas saben dibujar.
+  // Las acciones de la tabla escriben en el borrador, como en la ficha. La
+  // pieza nueva la arma lineaEnMemoria, compartida con la ficha.
 
-  // La pieza nueva la arma lineaEnMemoria, compartida con la ficha.
   function agregarProducto(datos) {
     setModalProducto(false)
     const delCatalogo = productos.find((p) => p.id === datos.producto)
-    const linea = lineaEnMemoria(nuevoId(), datos, delCatalogo)
+    const linea = lineaEnMemoria(proximoId.current, datos, delCatalogo)
+    proximoId.current -= 1
     setBorrador({ ...borrador, productos: [...borrador.productos, linea] })
   }
 
@@ -279,34 +201,20 @@ export default function AltaPedido() {
     setBorrador({ ...borrador, productos: borrador.productos.filter((l) => l.id !== linea.id) })
   }
 
-  // El mismo modal registra y edita: si trae un cobro, es una corrección.
-  function guardarCobro(cobro, datos) {
-    setModalCobro(null)
-    const conEtiquetas = {
-      ...datos,
-      tipo_display: etiquetaDe(TIPOS_COBRO, datos.tipo),
-      medio_display: etiquetaDe(MEDIOS, datos.medio),
-    }
 
-    if (cobro) {
-      setBorrador({
-        ...borrador,
-        cobros: borrador.cobros.map((c) => (c.id === cobro.id ? { ...c, ...conEtiquetas } : c)),
-      })
+  // "Crear pedido": primero revisa los datos y, si no hay productos,
+  // pregunta antes. Un pedido sin productos se puede crear, pero no se puede
+  // cobrar.
+  function terminar() {
+    setErrorProductos('')
+
+    const falta = faltaEnDatos()
+    if (falta) {
+      setError(falta)
       return
     }
+    setError('')
 
-    setBorrador({ ...borrador, cobros: [...borrador.cobros, { id: nuevoId(), ...conEtiquetas }] })
-  }
-
-  function quitarCobro(cobro) {
-    setBorrador({ ...borrador, cobros: borrador.cobros.filter((c) => c.id !== cobro.id) })
-  }
-
-
-  // El botón del último paso. Un pedido sin productos se puede crear, pero
-  // antes se pregunta: no se puede cobrar ni tiene comprobante.
-  function terminar() {
     if (borrador.productos.length === 0) {
       setModalSinProductos(true)
       return
@@ -314,19 +222,10 @@ export default function AltaPedido() {
     crear()
   }
 
-  // La cadena de creación. Se anota en qué paso está cada llamada para
-  // volver ahí si falla.
+  // La cadena de creación. Si falla el POST del pedido, el error va en los
+  // datos; si falla un producto, pegado a la tabla.
   async function crear() {
     setModalSinProductos(false)
-
-    const falta = faltaEnDatos()
-    if (falta) {
-      setError(falta)
-      setPaso('datos')
-      return
-    }
-
-    setError('')
     setCreando(true)
 
     // Como en la ficha: la entrega estimada y el costo viajan como null
@@ -339,14 +238,12 @@ export default function AltaPedido() {
     }
 
     let id = null
-    let enPaso = 'datos'
 
     try {
       setAvance('Creando…')
       const res = await crearPedido(datos)
       id = res.data.id
 
-      enPaso = 'productos'
       let hechos = 0
       for (const linea of borrador.productos) {
         hechos += 1
@@ -365,19 +262,6 @@ export default function AltaPedido() {
           const nueva = respuesta.data.productos.reduce((a, b) => (a.id > b.id ? a : b))
           await modificarProductoDelPedido(id, nueva.id, { estado: linea.estado })
         }
-      }
-
-      enPaso = 'cobros'
-      hechos = 0
-      for (const cobro of borrador.cobros) {
-        hechos += 1
-        setAvance(`Registrando cobros (${hechos} de ${borrador.cobros.length})…`)
-        await registrarCobro(id, {
-          tipo: cobro.tipo,
-          monto: cobro.monto,
-          fecha: cobro.fecha,
-          medio: cobro.medio,
-        })
       }
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
@@ -401,8 +285,9 @@ export default function AltaPedido() {
         }
       }
 
-      setError(mensaje)
-      setPaso(enPaso)
+      // Sin id falló el pedido mismo: el error es de los datos.
+      if (id === null) setError(mensaje)
+      else setErrorProductos(mensaje)
     } finally {
       setCreando(false)
       setAvance('')
@@ -411,7 +296,6 @@ export default function AltaPedido() {
 
 
   // Derivados, calculados en cada dibujo.
-  const pedido = pedidoEnMemoria(borrador)
 
   // El cliente se lee del borrador, así la cabecera cambia apenas se elige
   // otro, como en la ficha.
@@ -419,6 +303,9 @@ export default function AltaPedido() {
   const subtitulo = clienteElegido
     ? `@${clienteElegido.instagram} · ${clienteElegido.nombre}`
     : 'Sin cliente'
+
+  // La misma suma que hace el backend con las filas.
+  const subtotal = borrador.productos.reduce((suma, linea) => suma + Number(linea.subtotal), 0)
 
   return (
     <div>
@@ -463,84 +350,69 @@ export default function AltaPedido() {
         <p style={{ margin: 0, fontSize: 15, color: '#857078' }}>{subtitulo}</p>
       </div>
 
-      {/* Datos muestra su error adentro del formulario; este cartel es para
-          los otros dos pasos, como en la ficha. */}
-      {error && paso !== 'datos' && (
-        <div
-          className="ancho-pantalla"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '12px 18px',
-            marginBottom: 20,
-            maxWidth: ANCHO_MAXIMO,
-            background: '#FAEAE8',
-            border: '1px solid #f0b8b0',
-            borderRadius: 6,
-          }}
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#C0442F"
-            strokeWidth="2"
-            style={{ flexShrink: 0 }}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_ALERTA} />
-          </svg>
-          <span style={{ fontSize: 15, color: '#C0442F', textWrap: 'pretty' }}>{error}</span>
-        </div>
-      )}
+      <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
+        <PestanaDatos
+          borrador={borrador}
+          // Un pedido no nace entregado.
+          fechaEntregaReal=""
+          onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
+          clientes={clientes}
+          error={error}
+        />
 
-      <BarraDePasos pasos={PASOS} pasoActual={paso} conAnchoMaximo />
-
-      {paso === 'datos' && (
-        <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
-          <PestanaDatos
-            borrador={borrador}
-            // Un pedido no nace entregado.
-            fechaEntregaReal=""
-            onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-            esAlta
-            clientes={clientes}
-            error={error}
-          />
-        </div>
-      )}
-
-      {paso === 'productos' && (
         <PestanaProductos
           productos={borrador.productos}
-          subtotal={pedido.subtotal}
+          subtotal={subtotal}
+          error={errorProductos}
           onAgregar={() => setModalProducto(true)}
           onEditar={(linea) => setProductoEditando(linea)}
           onCambiarEtapa={cambiarEtapa}
           onQuitar={quitarProducto}
         />
-      )}
 
-      {paso === 'cobros' && (
-        <PestanaCobros
-          pedido={pedido}
-          onRegistrar={() => setModalCobro('nuevo')}
-          onEditar={(cobro) => setModalCobro(cobro)}
-          onQuitar={quitarCobro}
-        />
-      )}
+        {/* El pie del formulario, como el de la ficha pero para crear:
+            Cancelar quiere decir "no lo crees", y el bloqueo pregunta. Con
+            el pedido creado a medias, el botón principal lleva a su ficha. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+          <button
+            onClick={salir}
+            disabled={creando}
+            style={{
+              padding: '10px 18px',
+              border: '1px solid #EBE0E2',
+              background: 'white',
+              color: '#8C5A66',
+              borderRadius: 6,
+              cursor: creando ? 'default' : 'pointer',
+              opacity: creando ? 0.5 : undefined,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            Cancelar
+          </button>
 
-      <PieDelRecorrido
-        pasos={PASOS}
-        paso={paso}
-        onIr={irAlPaso}
-        onCancelar={salir}
-        onTerminar={creadoAMedias ? irAlCreado : terminar}
-        textoTerminar={creadoAMedias ? 'Ir al pedido' : 'Crear pedido'}
-        ocupado={creando}
-        textoOcupado={avance}
-      />
+          <button
+            onClick={creadoAMedias ? irAlCreado : terminar}
+            disabled={creando}
+            style={{
+              padding: '10px 20px',
+              border: 0,
+              background: '#8C5A66',
+              color: 'white',
+              borderRadius: 6,
+              cursor: creando ? 'default' : 'pointer',
+              opacity: creando ? 0.7 : undefined,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            {creando ? avance : creadoAMedias ? 'Ir al pedido' : 'Crear pedido'}
+          </button>
+        </div>
+      </div>
 
       {modalProducto && (
         <ModalAgregarProducto
@@ -556,16 +428,6 @@ export default function AltaPedido() {
           productoDelPedido={productoEditando}
           onCerrar={() => setProductoEditando(null)}
           onGuardar={editarProducto}
-        />
-      )}
-
-      {modalCobro && (
-        <ModalCobro
-          cobro={modalCobro === 'nuevo' ? null : modalCobro}
-          saldo={pedido.saldo}
-          hayCobros={borrador.cobros.length > 0}
-          onCerrar={() => setModalCobro(null)}
-          onGuardar={guardarCobro}
         />
       )}
 

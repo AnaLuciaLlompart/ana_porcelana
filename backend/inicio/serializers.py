@@ -75,19 +75,32 @@ class ProductoDelPedidoEnProduccionSerializer(serializers.ModelSerializer):
         source='get_estado_display',
         read_only=True,
     )
+    producto_tiene_materiales = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductoDelPedido
         fields = [
             'id',
             'pedido',
+            'producto',
             'producto_nombre',
+            'producto_tiene_materiales',
             'descripcion',
             'cantidad',
             'estado',
             'estado_display',
             'fecha_cambio_estado',
         ]
+
+    def get_producto_tiene_materiales(self, obj):
+        """Si el producto tiene materiales cargados.
+
+        Es lo que mira la tabla para mostrar el botón de los materiales de
+        la pieza, que enlaza a /materiales?producto=<producto>: no aparece
+        cuando no hay nada que ver. El mismo cálculo que en Pedidos, con
+        len() sobre lo prefetcheado.
+        """
+        return len(obj.producto.materiales.all()) > 0
 
 
 class MaterialPorReponerSerializer(serializers.ModelSerializer):

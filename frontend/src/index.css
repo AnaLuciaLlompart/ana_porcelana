@@ -281,19 +281,13 @@ button:not(:disabled):hover {
    Inicio, la tabla de entregas sube su mínimo a 720 para que el chip de
    SALDO más largo entre en su celda: un chip centrado que no entra no se
    reparte a los dos lados, arranca en el borde izquierdo y se pasa por el
-   derecho. En la tabla de producción, el "hace N días · revisar" de DESDE
-   puede partirse en dos líneas en vez de salirse de la tabla. En Registrar
-   cobro, las tres opciones de TIPO arrancan midiendo su texto en vez de
-   repartirse en tercios, así "Pago completo" no se corta; MEDIO no cambia.
-   Los !important pisan el minWidth, el whiteSpace y la base de flex: 1,
-   que están en línea. */
+   derecho. En Registrar cobro, las tres opciones de TIPO arrancan midiendo
+   su texto en vez de repartirse en tercios, así "Pago completo" no se
+   corta; MEDIO no cambia. Los !important pisan el minWidth y la base de
+   flex: 1, que están en línea. */
 @media (max-width: 768px) {
   .tabla-entregas {
     min-width: 720px !important;
-  }
-
-  .celda-desde {
-    white-space: normal !important;
   }
 
   .tipo-cobro > div > button {
@@ -301,9 +295,9 @@ button:not(:disabled):hover {
   }
 }
 
-/* Pantalla chica, la tarjeta de estado del pedido: los cuatro botones pasan
-   a una grilla de 2 por 2, todos del mismo ancho y a todo el ancho de la
-   tarjeta. El !important pisa el display flex que está en línea; el texto
+/* Pantalla chica, el modal Cambiar estado del pedido: los cuatro botones
+   pasan a una grilla de 2 por 2, todos del mismo ancho y a todo el ancho del
+   modal. El !important pisa el display flex que está en línea; el texto
    no se parte porque los botones ya llevan whiteSpace nowrap en línea. */
 @media (max-width: 768px) {
   .botones-estado {
@@ -313,9 +307,8 @@ button:not(:disabled):hover {
 }
 
 /* Pantalla grande, de 1440px para arriba. Las fichas y las pantallas que
-   miden ANCHO_MAXIMO (1140, en constantes.js) se estiran a 1400; en la
-   ficha de pedido la fila ENVÍO / COSTO deja de repartirse en mitades, para
-   que el costo no sea un campo de 700px; y la pestaña Datos de Producto se
+   miden ANCHO_MAXIMO (1140, en constantes.js) se estiran a 1400; y la
+   pestaña Datos de Producto se
    parte en dos columnas, el formulario y el panel con la imagen, que
    DetalleProducto dibuja solo en este ancho. Los !important pisan el
    maxWidth y el gridTemplateColumns que están en línea; la grilla del
@@ -323,10 +316,6 @@ button:not(:disabled):hover {
 @media (min-width: 1440px) {
   .ancho-pantalla {
     max-width: 1400px !important;
-  }
-
-  .envio-y-costo {
-    grid-template-columns: 2fr 1fr !important;
   }
 
   .datos-producto {

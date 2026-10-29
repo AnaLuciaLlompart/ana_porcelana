@@ -8,8 +8,6 @@ import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 // materiales para el desplegable del modal.
 import { listarMateriales } from '../materiales/api'
 
-import BarraDePasos from '../../componentes/BarraDePasos'
-import PieDelRecorrido from '../../componentes/PieDelRecorrido'
 import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import DatosDelGasto from './DatosDelGasto'
@@ -18,19 +16,12 @@ import ModalMaterial from './ModalMaterial'
 import { ICONO_FLECHA, filaEnMemoria, hoy, mensajeDeError, montoEnMemoria } from './presentacion'
 
 
-// Los dos pasos del alta. El segundo existe solo si el gasto es de
-// materiales: con publicidad u otro no hay nada más que cargar, así que el
-// paso 1 ya tiene "Crear gasto" y la barra no se dibuja.
-const PASO_DATOS = { id: 'datos', label: 'Datos' }
-const PASO_MATERIALES = { id: 'materiales', label: 'Materiales' }
-
-
 // Con qué arranca el formulario en un alta: el tipo Materiales y la fecha de
 // hoy, que es como nace un gasto en el diseño. Es una función y no una
 // constante para que hoy() se calcule al abrir el alta, no al cargar la
 // aplicación.
 //
-// La lista es lo que se junta en el paso Materiales hasta crear.
+// La lista es lo que se junta en la tabla de materiales hasta crear.
 function borradorVacio() {
   return {
     tipo: 'MATERIALES',
@@ -42,10 +33,11 @@ function borradorVacio() {
 }
 
 
-// El alta de un gasto (CU52), por pasos. Todo se junta en memoria y el
-// gasto se crea recién con el botón del último paso: un POST del gasto y,
-// si es de materiales, uno por fila, con los endpoints de la ficha. Si uno
-// falla, se borra el gasto y se vuelve al paso de la fila.
+// El alta de un gasto (CU52). Es la misma pantalla que la ficha, con los
+// datos y los materiales en un solo formulario, y se crea recién al tocar
+// "Crear gasto": un POST del gasto y, si es de materiales, uno por fila,
+// con los endpoints de la ficha. Si uno falla, se borra el gasto y queda
+// todo cargado para corregir.
 export default function AltaGasto() {
   const navegar = useNavigate()
 
@@ -53,7 +45,6 @@ export default function AltaGasto() {
   // tipo y la fecha de hoy, que no son valores vacíos.
   const [vacio] = useState(borradorVacio)
   const [borrador, setBorrador] = useState(vacio)
-  const [paso, setPaso] = useState('datos')
 
   // Todos los materiales del sistema, para el desplegable del modal.
   const [materiales, setMateriales] = useState([])
@@ -114,7 +105,7 @@ export default function AltaGasto() {
   // Mientras el alta no haya creado el registro, cualquier navegación que
   // salga de esta pantalla se frena y pregunta: Cancelar, el breadcrumb, el
   // menú lateral y el Atrás del navegador pasan todos por acá. Después de
-  // crear, la navegación a la ficha nueva no tiene que preguntar, y la del
+  // crear, la navegación al listado no tiene que preguntar, y la del
   // cierre de sesión tampoco: la sesión ya no está.
   const saltearBloqueo = useRef(false)
   const bloqueo = useBlocker(
@@ -142,28 +133,13 @@ export default function AltaGasto() {
     return ''
   }
 
-  // Para salir de Datos hacia adelante tiene que estar completo: así Crear
-  // no falla por el paso 1 estando en el 2. Volver a Datos no revisa nada.
-  function irAlPaso(nuevo) {
-    if (paso === 'datos' && nuevo !== 'datos') {
-      const falta = faltaEnDatos()
-      if (falta) {
-        setError(falta)
-        return
-      }
-    }
-    setError('')
-    setErrorMateriales('')
-    setPaso(nuevo)
-  }
-
   // Cancelar y el enlace de arriba quieren decir "no lo crees". Navegan al
   // listado, y el bloqueo de arriba es el que pregunta.
   function salir() {
     navegar(`${BASE_GESTION}/gastos`)
   }
 
-  // Con el gasto creado a medias, el último botón lleva a su ficha: no se
+  // Con el gasto creado a medias, el botón principal lleva a su ficha: no se
   // sale sin crear, así que no se pregunta.
   function irAlCreado() {
     saltearBloqueo.current = true
@@ -203,9 +179,18 @@ export default function AltaGasto() {
   }
 
 
-  // El botón del último paso. Un gasto de materiales sin filas se puede
-  // crear, pero nace en $0, así que antes se pregunta.
+  // "Crear gasto": primero revisa los datos. Un gasto de materiales sin
+  // filas se puede crear, pero nace en $0, así que antes se pregunta.
   function terminar() {
+    setErrorMateriales('')
+
+    const falta = faltaEnDatos()
+    if (falta) {
+      setError(falta)
+      return
+    }
+    setError('')
+
     if (borrador.tipo === 'MATERIALES' && borrador.materiales.length === 0) {
       setModalSinFilas(true)
       return
@@ -213,20 +198,10 @@ export default function AltaGasto() {
     crear()
   }
 
-  // La cadena de creación. Se anota en qué paso está cada llamada para
-  // volver ahí si falla.
+  // La cadena de creación. Se anota en qué parte está cada llamada para
+  // mostrar el error al lado de lo que falló.
   async function crear() {
     setModalSinFilas(false)
-
-    const falta = faltaEnDatos()
-    if (falta) {
-      setError(falta)
-      setPaso('datos')
-      return
-    }
-
-    setError('')
-    setErrorMateriales('')
     setCreando(true)
 
     const esDeMateriales = borrador.tipo === 'MATERIALES'
@@ -263,9 +238,11 @@ export default function AltaGasto() {
       }
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
-      // formulario lleno de lo que ya se creó. Sin bloqueo: se va a lo creado.
+      // formulario lleno de lo que ya se creó. Sin bloqueo: se vuelve al
+      // listado, que muestra el aviso que le llega en el state, como en
+      // pedidos.
       saltearBloqueo.current = true
-      navegar(`${BASE_GESTION}/gastos/${id}`, { replace: true })
+      navegar(`${BASE_GESTION}/gastos`, { replace: true, state: { creado: id } })
     } catch (err) {
       let mensaje = `No se pudo crear el gasto: ${mensajeDeError(err)}`
 
@@ -286,7 +263,6 @@ export default function AltaGasto() {
       // fila, en el formulario si fue el gasto.
       if (enPaso === 'materiales') setErrorMateriales(mensaje)
       else setError(mensaje)
-      setPaso(enPaso)
     } finally {
       setCreando(false)
       setAvance('')
@@ -295,8 +271,6 @@ export default function AltaGasto() {
 
 
   // Derivados, calculados en cada dibujo.
-
-  const pasos = borrador.tipo === 'MATERIALES' ? [PASO_DATOS, PASO_MATERIALES] : [PASO_DATOS]
 
   const monto = montoEnMemoria(borrador)
 
@@ -357,30 +331,24 @@ export default function AltaGasto() {
         </p>
       </div>
 
-      {/* Con un solo paso la barra es ruido: aparece al elegir Materiales. */}
-      {pasos.length > 1 && <BarraDePasos pasos={pasos} pasoActual={paso} conAnchoMaximo />}
+      <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
+        <DatosDelGasto
+          borrador={borrador}
+          onCambiar={(cambio) => {
+            setError('')
+            setBorrador({ ...borrador, ...cambio })
+          }}
+          // Antes de crear el tipo es libre: el candado es para un gasto
+          // guardado como de materiales.
+          tipoBloqueado={false}
+          montoCalculado={monto}
+          error={error}
+        />
 
-      {paso === 'datos' && (
-        <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
-          <DatosDelGasto
-            borrador={borrador}
-            onCambiar={(cambio) => {
-              setError('')
-              setBorrador({ ...borrador, ...cambio })
-            }}
-            // Antes de crear el tipo es libre: el candado es para un gasto
-            // guardado como de materiales.
-            tipoBloqueado={false}
-            montoCalculado={monto}
-            error={error}
-          />
-        </div>
-      )}
-
-      {paso === 'materiales' && (
-        <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
-          {/* Sin onAlta ni onAltaTodos: la disponibilidad se marca desde la
-              ficha, cuando el gasto ya existe. */}
+        {/* La tabla aparece con el tipo Materiales, como en la ficha. Sin
+            onAlta ni onAltaTodos: la disponibilidad se marca desde la
+            ficha, cuando el gasto ya existe. */}
+        {borrador.tipo === 'MATERIALES' && (
           <MaterialesDelGasto
             gasto={gastoEnMemoria}
             quedanPorAgregar={disponibles.length > 0}
@@ -389,19 +357,51 @@ export default function AltaGasto() {
             onEditar={(fila) => setModalMaterial(fila)}
             onQuitar={quitarFila}
           />
-        </div>
-      )}
+        )}
 
-      <PieDelRecorrido
-        pasos={pasos}
-        paso={paso}
-        onIr={irAlPaso}
-        onCancelar={salir}
-        onTerminar={creadoAMedias ? irAlCreado : terminar}
-        textoTerminar={creadoAMedias ? 'Ir al gasto' : 'Crear gasto'}
-        ocupado={creando}
-        textoOcupado={avance}
-      />
+        {/* El pie del formulario, como el de la ficha pero para crear:
+            Cancelar quiere decir "no lo crees", y el bloqueo pregunta. Con
+            el gasto creado a medias, el botón principal lleva a su ficha. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+          <button
+            onClick={salir}
+            disabled={creando}
+            style={{
+              padding: '10px 18px',
+              border: '1px solid #EBE0E2',
+              background: 'white',
+              color: '#8C5A66',
+              borderRadius: 6,
+              cursor: creando ? 'default' : 'pointer',
+              opacity: creando ? 0.5 : undefined,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            Cancelar
+          </button>
+
+          <button
+            onClick={creadoAMedias ? irAlCreado : terminar}
+            disabled={creando}
+            style={{
+              padding: '10px 20px',
+              border: 0,
+              background: '#8C5A66',
+              color: 'white',
+              borderRadius: 6,
+              cursor: creando ? 'default' : 'pointer',
+              opacity: creando ? 0.7 : undefined,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            {creando ? avance : creadoAMedias ? 'Ir al gasto' : 'Crear gasto'}
+          </button>
+        </div>
+      </div>
 
       {modalMaterial && (
         <ModalMaterial

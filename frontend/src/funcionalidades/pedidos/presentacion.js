@@ -98,8 +98,6 @@ export const MEDIOS = [
 ]
 
 
-// A los cuántos días de secado la pieza pasa a estar marcada para revisar.
-export const DIAS_AVISO_SECADO = 3
 
 // Qué parte de lo que falta cobrar propone el modal como seña. Sin pagos,
 // lo que falta es el total, así que la primera seña es la mitad del pedido.
@@ -282,22 +280,17 @@ export function contenido(pedido) {
 // Devuelve null en Terminado, que es cuando el diseño no lo muestra: la
 // pieza ya está hecha y no hay nada que vigilar.
 //
-// Una que lleva demasiado en Secado se marca en rojo: el secado tiene un
-// tiempo, y pasado ese tiempo lo que corresponde es ir a fijarse si ya está
-// para pintar.
+// Antes una pieza con 3 días o más en Secado salía en rojo con "· revisar";
+// la usuaria pidió sacarlo.
 export function diasEnEtapa(productoDelPedido, hoyIso = hoy()) {
   if (productoDelPedido.estado === 'TERMINADO') return null
 
   const cuantos = dias(productoDelPedido.fecha_cambio_estado, hoyIso)
-  const demorada = productoDelPedido.estado === 'SECADO' && cuantos >= DIAS_AVISO_SECADO
 
   const texto =
     cuantos === 0 ? 'desde hoy' : cuantos === 1 ? 'desde ayer' : `hace ${cuantos} días`
 
-  return {
-    texto: demorada ? `${texto} · revisar` : texto,
-    color: demorada ? '#C0442F' : '#B08791',
-  }
+  return { texto, color: '#B08791' }
 }
 
 
@@ -351,11 +344,11 @@ export function lineaEnMemoria(id, datos, delCatalogo) {
 
 // Qué falta elegir de la forma de entrega del borrador, o '' si está
 // completa. 'ENVIO' es el paso intermedio del árbol: eligió envío pero no
-// quién lo paga, y no es un valor del backend, así que nunca viaja.
+// quién lo realiza, y no es un valor del backend, así que nunca viaja.
 // Lo usan el alta (en Siguiente) y la ficha (en Guardar).
 export function faltaFormaEntrega(forma) {
   if (forma === '') return 'Elegí la forma de entrega: retiro o envío.'
-  if (forma === 'ENVIO') return 'Elegí quién paga el envío.'
+  if (forma === 'ENVIO') return 'Elegí quién realiza el envío.'
   return ''
 }
 

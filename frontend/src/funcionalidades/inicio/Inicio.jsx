@@ -15,6 +15,7 @@ import {
   COLOR_ETAPA,
   ETAPAS,
   ICONO_FLECHA,
+  ICONO_MATERIALES,
   ICONO_NUEVO,
   chipSaldo,
   diasEnEtapa,
@@ -321,7 +322,10 @@ function Vacio({ titulo, texto, conIcono = false, conBorde = false }) {
 // terminados, del más avanzado al que recién empieza, como los manda el
 // backend. El selector de etapa es el mismo de la pestaña de productos de
 // la ficha, y el "desde" también, con el hoy del servidor.
-function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa }) {
+//
+// MATERIALES lleva el botón que antes estaba en la tabla de productos del
+// pedido: en el taller es donde hace falta saber qué lleva cada pieza.
+function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerMateriales }) {
   if (productos.length === 0) {
     return (
       <Vacio
@@ -333,14 +337,15 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa }) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', minWidth: 720, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+      <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ background: '#F0E2E4' }}>
-            <th style={{ ...estiloTh, width: '34%', padding: '10px 20px' }}>PRODUCTO</th>
-            <th style={{ ...estiloTh, width: '10%', textAlign: 'center' }}>CANT.</th>
-            <th style={{ ...estiloTh, width: '12%' }}>PEDIDO</th>
-            <th style={{ ...estiloTh, width: '26%' }}>ETAPA</th>
-            <th style={{ ...estiloTh, width: '18%', padding: '10px 20px' }}>DESDE</th>
+            <th style={{ ...estiloTh, width: '27%', padding: '10px 20px' }}>PRODUCTO</th>
+            <th style={{ ...estiloTh, width: '8%', textAlign: 'center' }}>CANT.</th>
+            <th style={{ ...estiloTh, width: '10%' }}>PEDIDO</th>
+            <th style={{ ...estiloTh, width: '20%' }}>ETAPA</th>
+            <th style={{ ...estiloTh, width: '14%' }}>DESDE</th>
+            <th style={{ ...estiloTh, width: '21%', padding: '10px 20px', textAlign: 'center' }}>MATERIALES</th>
           </tr>
         </thead>
 
@@ -399,15 +404,46 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa }) {
                 </td>
 
                 <td
-                  className="celda-desde"
                   style={{
-                    padding: '12px 20px',
+                    padding: '12px 8px',
                     whiteSpace: 'nowrap',
                     fontSize: 14,
                     color: desde ? desde.color : '#857078',
                   }}
                 >
                   {desde ? desde.texto : ''}
+                </td>
+
+                {/* No aparece si la pieza no tiene materiales cargados:
+                    llevaría a una pantalla filtrada sin nada que mostrar. */}
+                <td style={{ padding: '9px 20px', textAlign: 'center' }}>
+                  {p.producto_tiene_materiales && (
+                    <button
+                      onClick={() => onVerMateriales(p.producto)}
+                      title={`Ver los materiales de ${p.producto_nombre}`}
+                      className="btn-reponer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '8px 12px',
+                        border: '1px solid #EBE0E2',
+                        background: 'white',
+                        color: '#8C5A66',
+                        borderRadius: 5,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        fontFamily: QUICKSAND,
+                        fontWeight: 600,
+                        fontSize: 13,
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" style={{ flexShrink: 0 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_MATERIALES} />
+                      </svg>
+                      Ver/Editar Materiales
+                    </button>
+                  )}
                 </td>
               </tr>
             )
@@ -768,6 +804,7 @@ export default function Inicio() {
               hoy={datos.hoy}
               onVerPedido={verPedido}
               onCambiarEtapa={cambiarEtapa}
+              onVerMateriales={(producto) => navegar(`${BASE_GESTION}/materiales?producto=${producto}`)}
             />
             <Pie
               texto={textoVerTodos(
