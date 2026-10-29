@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { listarPedidos, registrarCobro, urlComprobante } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
@@ -33,6 +33,7 @@ import { listarClientes } from '../clientes/api'
 import BotonAccion from '../../componentes/BotonAccion'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
+import ModalAviso from '../../componentes/ModalAviso'
 import ChipSinContenido from '../../componentes/ChipSinContenido'
 import { BASE_GESTION } from '../../constantes'
 
@@ -556,6 +557,7 @@ function EstadoVacio({ onNuevo }) {
 
 export default function Pedidos() {
   const navegar = useNavigate()
+  const ubicacion = useLocation()
   const [parametros] = useSearchParams()
   const [pedidos, setPedidos] = useState([])
   const [clientes, setClientes] = useState([])
@@ -578,6 +580,10 @@ export default function Pedidos() {
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
 
+  // El número del pedido que el alta acaba de crear: llega en el state de la
+  // navegación y abre el modal de aviso. Se lee al montar.
+  const [creado, setCreado] = useState(() => ubicacion.state?.creado ?? null)
+
   // Una sola carga al montar. El buscador filtra sobre estos datos, así que
   // no vuelve a pedir nada y tampoco lleva debounce.
   useEffect(() => {
@@ -591,6 +597,14 @@ export default function Pedidos() {
     listarClientes()
       .then((res) => setClientes(res.data))
       .catch(() => {})
+  }, [])
+
+  // Ya leído, el state se borra, así el aviso no reaparece al recargar ni al
+  // volver con Atrás.
+  useEffect(() => {
+    if (!ubicacion.state?.creado) return
+    navegar(`${ubicacion.pathname}${ubicacion.search}`, { replace: true, state: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function recargar() {
@@ -971,6 +985,14 @@ export default function Pedidos() {
           enviando={enviandoCobro}
           onCerrar={cerrarCobro}
           onGuardar={(_, datos) => guardarCobro(datos)}
+        />
+      )}
+
+      {creado && (
+        <ModalAviso
+          titulo="Pedido creado"
+          texto={`El pedido #${creado} quedó creado y ya aparece en el listado.`}
+          onCerrar={() => setCreado(null)}
         />
       )}
 

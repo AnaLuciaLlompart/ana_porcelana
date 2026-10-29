@@ -163,7 +163,7 @@ export default function AltaProducto() {
   // Mientras el alta no haya creado el registro, cualquier navegación que
   // salga de esta pantalla se frena y pregunta: Cancelar, el breadcrumb, el
   // menú lateral y el Atrás del navegador pasan todos por acá. Después de
-  // crear, la navegación a la ficha nueva no tiene que preguntar, y la del
+  // crear, la navegación al listado no tiene que preguntar, y la del
   // cierre de sesión tampoco: la sesión ya no está.
   const saltearBloqueo = useRef(false)
   const bloqueo = useBlocker(
@@ -363,9 +363,10 @@ export default function AltaProducto() {
       }
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
-      // formulario lleno de lo que ya se creó. Sin bloqueo: se va a lo creado.
+      // formulario lleno de lo que ya se creó. Sin bloqueo: se vuelve al
+      // listado, que muestra el aviso que le llega en el state.
       saltearBloqueo.current = true
-      navegar(`${BASE_GESTION}/productos/${id}`, { replace: true })
+      navegar(`${BASE_GESTION}/productos`, { replace: true, state: { creado: borrador.nombre.trim() } })
     } catch (err) {
       let mensaje = `No se pudo crear el producto: ${mensajeDeError(err)}`
 

@@ -627,7 +627,8 @@ cuando es de materiales, porque el serializer lo descarta y los
 validadores de campo corren antes. Mientras tanto los tres botones del
 pie están apagados y el principal muestra el avance ("Subiendo foto 2 de
 5…", "Agregando productos (1 de 2)…", "Guardando materiales (1 de 2)…").
-Al terminar navega a la ficha nueva con `replace`. Si un POST hijo falla,
+Al terminar navega con `replace`; adónde, se cuenta en el párrafo que
+sigue. Si un POST hijo falla,
 se hace el DELETE del registro (borra en cascada lo que se alcanzó a
 guardar) y se vuelve al paso del ítem con "No se pudo crear el …: <mensaje
 del backend>", con el borrador entero para corregir y volver a tocar
@@ -643,6 +644,25 @@ se arregla desde la ficha. Se eligió esto y no un endpoint anidado con
 valiendo, y cada regla (duplicados, achicado de la imagen, precio
 congelado, `_revisar_cobro`, `_recalcular_monto`) sigue con una sola
 puerta.
+
+**Después de crear, productos y pedidos vuelven al listado con un modal
+de aviso** (corrección del tutor del 28/10/2026, A8-b y A9). Antes
+navegaban a la ficha nueva; el tutor pidió confirmar la creación y volver
+al listado. `crear()` navega a `/gestion/productos` o `/gestion/pedidos`
+con `state: { creado: <nombre> }` o `{ creado: <id> }`: el `state` de la
+navegación no se ve en la dirección, y viaja el dato, no el texto, que lo
+arma cada listado. El listado lo lee al montar en el inicializador de
+`useState` y abre `ModalAviso` ("Producto creado" / «Aros de Luna» quedó
+creado y ya aparece en el listado.; "Pedido creado" / El pedido #N quedó
+creado…); un efecto borra el `state` con un `navegar` a la misma dirección
+con `replace`, porque el navegador lo conserva al recargar y el modal
+reaparecería. Es un modal y no el aviso flotante porque, al cambiar de
+pantalla, el aviso de 2,6 segundos abajo pasaba desapercibido (pedido de
+la usuaria); la excepción al criterio de Clientes es la misma que la
+bajada automática del pedido: el efecto de crear queda en otra pantalla.
+"Ir al producto" / "Ir al pedido" del registro a medias siguen yendo a la
+ficha, y el alta de gastos sigue navegando a la ficha nueva: el tutor no
+lo pidió.
 
 **Ningún paso es obligatorio.** La barra marca hecho lo que está antes del
 actual, y "Siguiente" en Datos hace las mismas comprobaciones que la ficha
@@ -681,14 +701,15 @@ navegación que cambie de ruta y la deja esperando; el modal se dibuja con
 repone la dirección, también después de un Atrás) y "Salir sin crear" a
 `proceed()`. Así Cancelar y el breadcrumb (que solo navegan al listado), el
 menú lateral y el Atrás del navegador pasan todos por el mismo lugar. No
-frena dos navegaciones: la de la ficha recién creada (y la de "Ir al …"
-con el registro a medias), con el ref `saltearBloqueo`, y la del login,
+frena dos navegaciones: la de después de crear (al listado en productos y
+pedidos, a la ficha en gastos, y la de "Ir al …" con el registro a
+medias), con el ref `saltearBloqueo`, y la del login,
 porque al cerrar sesión desde un alta la sesión ya no está. `useBlocker`
 exige un data router: por eso `rutas.jsx` usa `createBrowserRouter` (ver
 Rutas, en Catálogo público). Un router admite un solo bloqueo a la vez, y
 las tres altas nunca están montadas juntas.
 
-**Tres componentes compartidos en `componentes/`.** `BarraDePasos({ pasos,
+**Cuatro componentes compartidos en `componentes/`.** `BarraDePasos({ pasos,
 pasoActual, conAnchoMaximo })` es la fila de pestañas con el número del
 paso en el globito; los pasos son botones apagados, así les llega la regla
 `.fila-pestanas > button` de pantalla chica, y `conAnchoMaximo` le pone el
@@ -704,7 +725,11 @@ y la acción en rosa, copiado de los modales de eliminar sin la llamada a la
 API; no sabe de navegación ni de API, quien lo abre decide qué pasa al
 confirmar. Lo usan las tres altas para salir sin crear y para crear sin el
 contenido principal, y las fichas de pedido y de gasto para quitar el
-último producto o material. Las dos `PestanaDatos` y `DatosDelGasto` reciben `enRecorrido`,
+último producto o material. `ModalAviso({ titulo, texto, onCerrar })` es
+su hermano para avisar algo que ya pasó: un tilde verde, el texto y un
+solo botón, Aceptar, sin Cancelar porque no pregunta nada; capa 100, porque
+se abre sobre un listado. Lo usan los listados de productos y pedidos
+después de crear. Las dos `PestanaDatos` y `DatosDelGasto` reciben `enRecorrido`,
 que quiere decir una sola cosa: no dibujar su pie, porque los botones los
 pone `PieDelRecorrido`.
 
@@ -1758,9 +1783,9 @@ dice.
 - `fila-pestanas`: la fila de pestañas de la ficha de producto y la
   `BarraDePasos` de las tres altas; se desliza de lado, con las pestañas
   sin partirse y menos padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 27
-  modales (`ModalConfirmar` cuenta uno, aunque se dibuje en varios
-  lugares); 8px de aire y hasta 96vh de alto.
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 28
+  modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
+  se dibujen en varios lugares); 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
   ModalAgregarProducto y ModalEditarProductoDelPedido, la grilla
   Descripción / Paso a paso de PestanaDatos de producto y las dos columnas

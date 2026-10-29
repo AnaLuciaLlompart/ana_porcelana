@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { listarProductos, reactivarProducto } from './api'
 import BotonAccion from '../../componentes/BotonAccion'
+import ModalAviso from '../../componentes/ModalAviso'
 import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import TarjetaProducto from './TarjetaProducto'
@@ -282,6 +283,7 @@ function SinResultados() {
 
 export default function Productos() {
   const navegar = useNavigate()
+  const ubicacion = useLocation()
   const [parametros] = useSearchParams()
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -300,6 +302,10 @@ export default function Productos() {
   const [filtros, setFiltros] = useState(FILTROS_VACIOS)
   const [filtrosAbierto, setFiltrosAbierto] = useState(false)
   const [categorias, setCategorias] = useState([])
+
+  // El nombre del producto que el alta acaba de crear: llega en el state de
+  // la navegación y abre el modal de aviso. Se lee al montar.
+  const [creado, setCreado] = useState(() => ubicacion.state?.creado ?? null)
 
   // Para el link "Ver productos" de una categoría: /productos?categoria=3
   const seccionBajas = useRef(null)
@@ -373,6 +379,13 @@ export default function Productos() {
   }, [productos, categorias])
 
 
+  // Ya leído, el state se borra, así el aviso no reaparece al recargar ni al
+  // volver con Atrás.
+  useEffect(() => {
+    if (!ubicacion.state?.creado) return
+    navegar(`${ubicacion.pathname}${ubicacion.search}`, { replace: true, state: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
 
   function recargar() {
@@ -1042,6 +1055,14 @@ export default function Productos() {
             // campos los recalcula el backend en cada consulta.
             recargar()
           }}
+        />
+      )}
+
+      {creado && (
+        <ModalAviso
+          titulo="Producto creado"
+          texto={`«${creado}» quedó creado y ya aparece en el listado.`}
+          onCerrar={() => setCreado(null)}
         />
       )}
     </div>

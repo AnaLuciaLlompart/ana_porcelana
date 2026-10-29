@@ -1,0 +1,120 @@
+const ICONO_TILDE = 'M5 13l4 4L19 7'
+
+
+// El modal que avisa algo que ya pasó: un texto y Aceptar. Es hermano de
+// ModalConfirmar, sin Cancelar porque no pregunta nada. Lo usan los listados
+// de Productos y Pedidos para confirmar que el alta creó el registro: el
+// aviso flotante se perdía con el cambio de pantalla.
+export default function ModalAviso({ titulo, texto, onCerrar }) {
+  return (
+    <div
+      className="modal-fondo"
+      onClick={onCerrar}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(61,50,56,.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        zIndex: 100,
+      }}
+    >
+      <div
+        className="modal-caja"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'white',
+          width: '100%',
+          maxWidth: 480,
+          borderRadius: 10,
+          overflow: 'hidden',
+          boxShadow: '0 20px 50px rgba(61,50,56,.25)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            background: '#8C5A66',
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 19,
+              color: 'white',
+            }}
+          >
+            {titulo}
+          </h2>
+
+          <button
+            onClick={onCerrar}
+            style={{
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: 0,
+              background: 'transparent',
+              borderRadius: 5,
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '22px 24px' }}>
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#4E8C6A"
+            strokeWidth="2.2"
+            style={{ flexShrink: 0 }}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_TILDE} />
+          </svg>
+          <p style={{ margin: 0, fontSize: 16, color: '#3D3238', textWrap: 'pretty' }}>{texto}</p>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            padding: '16px 24px',
+            borderTop: '1px solid #EBE0E2',
+          }}
+        >
+          <button
+            onClick={onCerrar}
+            style={{
+              padding: '10px 18px',
+              border: 0,
+              background: '#8C5A66',
+              color: 'white',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            Aceptar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
