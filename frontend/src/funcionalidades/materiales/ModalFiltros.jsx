@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FILTROS_VACIOS, candidatos } from './filtros'
+import { FILTROS_VACIOS } from './filtros'
 
 
 const DISPONIBILIDADES = [
@@ -57,9 +57,7 @@ function Chip({ label, activo, onClick }) {
 
 export default function ModalFiltros({
   filtros,
-  materiales,
   productos,
-  busqueda,
   onCerrar,
   onAplicar,
 }) {
@@ -77,12 +75,6 @@ export default function ModalFiltros({
   // El texto del buscador de productos es aparte del borrador: no es un
   // filtro, es la forma de encontrar el producto que sí lo es.
   const [buscaProducto, setBuscaProducto] = useState('')
-
-  // El contador en vivo: la MISMA función que usa la pantalla para armar la
-  // lista, pero con el borrador en vez de los filtros aplicados. Incluye el
-  // texto del buscador, porque si no diría un número distinto del que se va
-  // a ver al aplicar.
-  const coinciden = candidatos(materiales, borrador, busqueda, productos).length
 
   const elegido = productos.find((p) => p.id === borrador.producto)
 
@@ -327,17 +319,15 @@ export default function ModalFiltros({
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            // Sin el contador de los que coinciden (se sacó con D3: el
+            // filtrado está en el backend), los botones van a la derecha.
+            justifyContent: 'flex-end',
             gap: 12,
             padding: '16px 24px',
             flexShrink: 0,
             borderTop: '1px solid #EBE0E2',
           }}
         >
-          <span style={{ fontSize: 14, color: '#857078' }}>
-            {coinciden === 1 ? '1 material coincide' : `${coinciden} materiales coinciden`}
-          </span>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
               onClick={() => {

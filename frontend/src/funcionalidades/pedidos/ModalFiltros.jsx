@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FILTROS_VACIOS, OPCIONES_ENTREGA, PASO, candidatos, totalMaximo } from './filtros'
+import { FILTROS_VACIOS, OPCIONES_ENTREGA, PASO, topeDelTotal } from './filtros'
 import {
   ESTADOS,
   OPCIONES_SALDO,
@@ -51,9 +51,8 @@ function Chip({ label, activo, onClick }) {
 
 export default function ModalFiltros({
   filtros,
-  pedidos,
+  totalMaximo,
   clientes,
-  busqueda,
   onCerrar,
   onAplicar,
 }) {
@@ -68,18 +67,12 @@ export default function ModalFiltros({
   // El único camino por el que el borrador sale de acá es APLICAR.
   const [borrador, setBorrador] = useState(filtros)
 
-  // El contador en vivo: la MISMA función que usa la pantalla para armar la
-  // lista, pero con el borrador en vez de los filtros aplicados. Incluye el
-  // texto del buscador, porque si no diría un número distinto del que se va
-  // a ver al aplicar.
-  const coinciden = candidatos(pedidos, borrador, busqueda).length
-
   // Vacío significa "sin límite", y en el deslizador eso se dibuja en el
   // extremo que corresponda.
   const desdeValor = borrador.desde === '' ? TOTAL_MIN : Number(borrador.desde)
   // El tope del deslizador sale de los pedidos cargados: llega hasta el
   // más caro. Así "sin límite" se dibuja en un extremo que existe.
-  const tope = totalMaximo(pedidos)
+  const tope = topeDelTotal(totalMaximo)
 
   const hastaValor = borrador.hasta === '' ? tope : Number(borrador.hasta)
 
@@ -365,17 +358,15 @@ export default function ModalFiltros({
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            // Sin el contador de los que coinciden (se sacó con D3: el
+            // filtrado está en el backend), los botones van a la derecha.
+            justifyContent: 'flex-end',
             gap: 12,
             padding: '16px 24px',
             flexShrink: 0,
             borderTop: '1px solid #EBE0E2',
           }}
         >
-          <span style={{ fontSize: 14, color: '#857078' }}>
-            {coinciden === 1 ? '1 pedido coincide' : `${coinciden} pedidos coinciden`}
-          </span>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
               onClick={() => setBorrador(FILTROS_VACIOS)}

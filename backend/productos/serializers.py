@@ -287,3 +287,18 @@ class ProductoDetalleSerializer(ProductoListaSerializer):
             'materiales_usados',
             'imagenes',
         ]
+
+
+class ResumenDeProductosSerializer(serializers.Serializer):
+    """La línea de arriba del listado de productos y el rango del deslizador (CU18).
+
+    De solo salida, como los resúmenes de Pedidos y Gastos: los precios
+    salen como texto con dos decimales.
+    """
+
+    activos = serializers.IntegerField()
+    de_baja = serializers.IntegerField()
+    por_categoria = serializers.IntegerField()
+    visibles_en_catalogo = serializers.IntegerField()
+    precio_minimo = serializers.DecimalField(max_digits=10, decimal_places=2)
+    precio_maximo = serializers.DecimalField(max_digits=10, decimal_places=2)

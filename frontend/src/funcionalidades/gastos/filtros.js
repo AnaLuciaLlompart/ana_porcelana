@@ -21,41 +21,35 @@ export const FILTROS_VACIOS = {
 }
 
 
-// La lista lista para mostrar. Cada criterio vacío no filtra nada.
-export function candidatos(gastos, filtros, busqueda = '') {
-  const texto = busqueda.trim().toLowerCase()
+// Los parámetros de GET /api/gastos/ (corrección D3): el filtrado, la
+// búsqueda y el orden los hace el backend, en GastoViewSet._filtrar(). Acá
+// solo se traducen los filtros de la pantalla a los nombres de la URL, igual
+// que en Pedidos. Cada criterio vacío no viaja. Sin pagina ni porPagina
+// sirven también para el resumen, que suma lo filtrado.
+//
+// Va en un URLSearchParams porque el tipo se repite (?tipo=OTRO&tipo=…).
+export function parametrosDelListado({ filtros, busqueda, orden, pagina, porPagina }) {
+  const parametros = new URLSearchParams()
 
-  return gastos.filter((g) => {
-    if (texto) {
-      // Se busca por lo que dice el buscador: descripción, tipo o material.
-      // El tipo es el tipo_display, que es lo que la usuaria lee en la
-      // tabla, no el código. El número va con el numeral adelante, así que
-      // buscar "#18" y buscar "18" encuentran los dos.
-      const materiales = g.materiales.map((m) => m.material_nombre).join(' ')
-      const buscable = `#${g.id} ${g.tipo_display} ${g.descripcion} ${materiales}`
+  if (pagina) parametros.append('pagina', pagina)
+  if (porPagina) parametros.append('por_pagina', porPagina)
 
-      if (!buscable.toLowerCase().includes(texto)) return false
-    }
+  const texto = busqueda.trim()
+  if (texto) parametros.append('busqueda', texto)
 
-    if (filtros.tipos.length > 0 && !filtros.tipos.includes(g.tipo)) return false
+  filtros.tipos.forEach((tipo) => parametros.append('tipo', tipo))
+  if (filtros.desdeFecha !== '') parametros.append('fecha_desde', filtros.desdeFecha)
+  if (filtros.hastaFecha !== '') parametros.append('fecha_hasta', filtros.hastaFecha)
+  if (filtros.desde !== '') parametros.append('monto_desde', filtros.desde)
+  if (filtros.hasta !== '') parametros.append('monto_hasta', filtros.hasta)
 
-    // Las fechas se comparan como texto y no como Date. En formato ISO eso
-    // funciona, porque el año va primero y todos los campos tienen el mismo
-    // largo: '2026-09-08' es menor que '2026-09-09'.
-    if (filtros.desdeFecha !== '' && g.fecha < filtros.desdeFecha) return false
-    if (filtros.hastaFecha !== '' && g.fecha > filtros.hastaFecha) return false
+  // La columna GASTO se ordena por número, que en el backend se llama así.
+  if (orden?.campo) {
+    const clave = orden.campo === 'id' ? 'numero' : orden.campo
+    parametros.append('orden', orden.dir === 'desc' ? `-${clave}` : clave)
+  }
 
-    // El monto llega como TEXTO ("42300.00"): DRF serializa así los Decimal
-    // para que no pierdan precisión al pasar por el número de JavaScript.
-    // Hay que convertirlo para compararlo con los valores de los
-    // deslizadores.
-    const monto = Number(g.monto)
-
-    if (filtros.desde !== '' && monto < Number(filtros.desde)) return false
-    if (filtros.hasta !== '' && monto > Number(filtros.hasta)) return false
-
-    return true
-  })
+  return parametros
 }
 
 
@@ -79,10 +73,10 @@ export function contarFiltros(filtros) {
 // El piso no se calcula: queda fijo en 0.
 export const PASO = 1000
 
-export function montoMaximo(gastos) {
-  // El 0 de adelante hace que Math.max no devuelva -Infinity cuando todavía
-  // no hay ningún gasto.
-  const mayor = Math.max(0, ...gastos.map((g) => Number(g.monto)))
+// Recibe el monto más alto, que manda el backend en el resumen del listado
+// (monto_maximo, como texto).
+export function topeDelMonto(montoMaximo) {
+  const mayor = Number(montoMaximo)
   const tope = Math.ceil(mayor / PASO) * PASO
 
   // Sin gastos, o con todos en cero, el tope caería en 0: un deslizador sin

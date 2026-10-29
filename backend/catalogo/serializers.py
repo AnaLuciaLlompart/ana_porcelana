@@ -42,6 +42,34 @@ class CategoriaCatalogoSerializer(serializers.ModelSerializer):
         ]
 
 
+class CategoriaConCantidadSerializer(serializers.ModelSerializer):
+    """Una categoría del filtro y del árbol, con cuántos productos visibles tiene (CU64).
+
+    Es la del endpoint de categorías. La cantidad antes la contaba el
+    navegador sobre la lista entera de productos; con el listado de a 20
+    (corrección D3) la cuenta la base, en ListaDeCategoriasView. No va en
+    CategoriaCatalogoSerializer porque ese dibuja también las categorías de
+    cada producto, y ahí la cantidad no corresponde. Hereda del serializer
+    público y escribe sus fields enteros, como el detalle del producto.
+    """
+
+    tipo_display = serializers.CharField(
+        source='get_tipo_display',
+        read_only=True,
+    )
+    cantidad = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Categoria
+        fields = [
+            'id',
+            'nombre',
+            'tipo',
+            'tipo_display',
+            'cantidad',
+        ]
+
+
 class ImagenCatalogoSerializer(serializers.ModelSerializer):
     """Una imagen de la pieza terminada (CU65).
 

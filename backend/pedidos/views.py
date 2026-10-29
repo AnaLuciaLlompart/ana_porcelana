@@ -1,9 +1,17 @@
+from datetime import timedelta
+from decimal import Decimal
+
+from django.db.models import Case, Exists, Max, OuterRef, Q, Value, When
 from django.http import FileResponse
 from django.utils import timezone
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ParseError
 from rest_framework.response import Response
 
+from config.listados import leer_importe, ordenar
+from config.paginacion import PaginacionDeListado
+from inicio.views import DIAS_ENTREGAS_PROXIMAS
 from productos.models import Producto
 
 from .comprobante import generar_comprobante
@@ -15,6 +23,7 @@ from .serializers import (
     PedidoListaSerializer,
     ProductoDelPedidoModificarSerializer,
     ProductoDelPedidoSerializer,
+    ResumenDePedidosSerializer,
 )
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
@@ -82,6 +91,47 @@ def _revisar_estado(pedido, estado):
     return f'No se puede marcar el pedido como {etiqueta}: {detalle}.'
 
 
+# ---------------------------------------------------------------------
+# El listado filtrado, ordenado y paginado en la base (corrección D3)
+# ---------------------------------------------------------------------
+
+def condicion_de_entrega(entrega, hoy):
+    """La condición de 'atrasados' o 'proximos', lista para un .filter() (CU41).
+
+    Es la misma regla que usa inicio/views.py para las dos tarjetas de
+    Inicio, escrita para la base: si cambia una, cambia la otra. Un pedido
+    Entregado no está atrasado ni se va a entregar. Atrasado es el que
+    tiene la fecha estimada antes de hoy; próximo, el que la tiene entre
+    hoy y el último día de la ventana, los dos inclusive. Uno sin fecha
+    estimada no cumple ninguna de las dos: en SQL, comparar NULL con una
+    fecha nunca da verdadero.
+    """
+    sin_entregar = ~Q(estado=Pedido.Estado.ENTREGADO)
+
+    if entrega == 'atrasados':
+        return sin_entregar & Q(fecha_entrega_estimada__lt=hoy)
+
+    ultimo_dia = hoy + timedelta(days=DIAS_ENTREGAS_PROXIMAS - 1)
+    return sin_entregar & Q(fecha_entrega_estimada__gte=hoy, fecha_entrega_estimada__lte=ultimo_dia)
+
+
+# Las columnas por las que se puede ordenar el listado: ?orden=total, o
+# ?orden=-total para al revés. Cada una es la lista de criterios, en orden.
+# Son los nombres de las anotaciones de con_totales() y de _filtrar(), y
+# repiten lo que hacía la tabla en el navegador: ENTREGA manda los
+# entregados al final y, dentro de cada grupo, los que no tienen fecha;
+# ESTADO va en el orden del trabajo y no en el alfabético.
+ORDENES = {
+    'numero': ['id'],
+    'cliente': ['cliente__instagram'],
+    'contenido': ['cantidad_productos_calculada'],
+    'entrega': ['entregado', 'fecha_entrega_estimada'],
+    'estado': ['orden_estado'],
+    'total': ['total_calculado'],
+    'saldo': ['saldo_calculado'],
+}
+
+
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
 # no están escritas acá: las hereda el ModelViewSet de DRF. La
 # correspondencia es esta, para no tener que deducirla:
@@ -113,13 +163,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
     - el comprobante de compra, en /comprobante/ (CU60)
     """
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-
-    # Se busca por los datos del cliente y no por los del pedido: el
-    # buscador de la pantalla dice "Buscar por cliente", que es como la
-    # emprendedora encuentra un encargo.
-    search_fields = ['cliente__instagram', 'cliente__nombre', 'cliente__apellido']
-    ordering_fields = ['fecha_pedido', 'fecha_entrega_estimada', 'estado']
+    # El listado se pagina (corrección D3): una página por pedido, con los
+    # filtros y el orden resueltos en la base por _filtrar(). Reemplaza al
+    # SearchFilter y al OrderingFilter de DRF, que no sabían filtrar por
+    # entrega, saldo ni total.
+    pagination_class = PaginacionDeListado
 
     # -----------------------------------------------------------------
     # Dos serializers según la acción
@@ -159,9 +207,144 @@ class PedidoViewSet(viewsets.ModelViewSet):
         queryset = Pedido.objects.select_related('cliente')
 
         if self.action == 'list':
-            return queryset.prefetch_related('productos__producto', 'cobros')
+            queryset = Pedido.objects.con_totales().select_related('cliente')
+            return self._filtrar(queryset.prefetch_related('productos__producto', 'cobros'))
 
         return queryset.prefetch_related('productos__producto__materiales', 'cobros')
+
+    def _filtrar(self, queryset):
+        """Aplica al listado los filtros, la búsqueda y el orden de la URL (CU41).
+
+        Antes el listado traía todos los pedidos y el navegador hacía todo
+        esto; ahora lo hace la base y viaja solo la página que se mira
+        (corrección D3). Los parámetros son los del modal de filtros y el
+        buscador de la pantalla:
+
+          busqueda=texto           número, instagram, nombre o apellido del
+                                   cliente, o nombre de un producto
+          cliente=id               uno solo
+          estado=LISTO             se puede repetir: cualquiera de los elegidos
+          entrega=atrasados        o proximos
+          saldo=pendiente          o al_dia; se puede repetir, y cada uno saca
+                                   lo que no cumple, como en la pantalla
+          total_desde, total_hasta los extremos del rango, inclusive
+          orden=total              una clave de ORDENES; con '-', al revés
+
+        Un valor que no se entiende responde 400 con un detail que dice
+        cuál, en vez de ignorarlo en silencio: un filtro mal escrito que no
+        filtra mostraría una lista que parece correcta y no lo es.
+        """
+        parametros = self.request.query_params
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            # Exists y no un filtro sobre productos__producto__nombre: con
+            # un JOIN, un pedido con dos productos que coinciden saldría
+            # dos veces.
+            tiene_el_producto = Exists(
+                ProductoDelPedido.objects.filter(
+                    pedido=OuterRef('pk'),
+                    producto__nombre__icontains=texto,
+                )
+            )
+            condicion = (
+                Q(cliente__instagram__icontains=texto)
+                | Q(cliente__nombre__icontains=texto)
+                | Q(cliente__apellido__icontains=texto)
+                | Q(tiene_el_producto)
+            )
+            # "43" y "#43" encuentran el pedido 43.
+            numero = texto.lstrip('#')
+            if numero.isdigit():
+                condicion |= Q(id=int(numero))
+            queryset = queryset.filter(condicion)
+
+        cliente = parametros.get('cliente')
+        if cliente:
+            if not cliente.isdigit():
+                raise ParseError('El cliente tiene que ser un número.')
+            queryset = queryset.filter(cliente_id=int(cliente))
+
+        estados = parametros.getlist('estado')
+        if estados:
+            if any(estado not in Pedido.Estado.values for estado in estados):
+                raise ParseError('Uno de los estados no existe.')
+            queryset = queryset.filter(estado__in=estados)
+
+        entrega = parametros.get('entrega')
+        if entrega:
+            if entrega not in ('atrasados', 'proximos'):
+                raise ParseError('La entrega tiene que ser atrasados o proximos.')
+            queryset = queryset.filter(condicion_de_entrega(entrega, timezone.localdate()))
+
+        saldos = parametros.getlist('saldo')
+        if any(saldo not in ('pendiente', 'al_dia') for saldo in saldos):
+            raise ParseError('El saldo tiene que ser pendiente o al_dia.')
+        # "Al día" incluye a los que pagaron de más, como esta_al_dia.
+        if 'pendiente' in saldos:
+            queryset = queryset.filter(saldo_calculado__gt=0)
+        if 'al_dia' in saldos:
+            queryset = queryset.filter(saldo_calculado__lte=0)
+
+        total_desde = leer_importe(parametros, 'total_desde')
+        if total_desde is not None:
+            queryset = queryset.filter(total_calculado__gte=total_desde)
+
+        total_hasta = leer_importe(parametros, 'total_hasta')
+        if total_hasta is not None:
+            queryset = queryset.filter(total_calculado__lte=total_hasta)
+
+        # Las dos columnas que no son campos ni sumas: el grupo de los
+        # entregados, para ENTREGA, y el número de cada estado, para ESTADO.
+        queryset = queryset.annotate(
+            entregado=Case(
+                When(estado=Pedido.Estado.ENTREGADO, then=Value(1)),
+                default=Value(0),
+            ),
+            orden_estado=Case(
+                When(estado=Pedido.Estado.PENDIENTE, then=Value(0)),
+                When(estado=Pedido.Estado.EN_PRODUCCION, then=Value(1)),
+                When(estado=Pedido.Estado.LISTO, then=Value(2)),
+                default=Value(3),
+            ),
+        )
+
+        # Sin orden elegido queda el del modelo: los más nuevos primero.
+        return ordenar(queryset, parametros, ORDENES, ['-fecha_pedido', '-id'])
+
+    # -----------------------------------------------------------------
+    # Los números del encabezado del listado
+    # -----------------------------------------------------------------
+
+    @action(detail=False, methods=['get'])
+    def resumen(self, request):
+        """Los números de arriba del listado de pedidos. Es parte de CU41.
+
+        Antes la pantalla los contaba sobre la lista entera; con el
+        listado paginado (corrección D3) ya no la tiene, así que los pide
+        acá. Se cuentan sobre TODOS los pedidos y no sobre los filtrados:
+        dicen cómo viene el trabajo, no qué se está mirando.
+
+        - activos: los que no están Entregados
+        - atrasados: con la misma regla que el filtro de entrega
+        - con_saldo: los que deben algo
+        - total_maximo: el total más alto, para el tope del deslizador del
+          filtro por total
+
+        Son cuatro consultas, siempre las mismas.
+        """
+        hoy = timezone.localdate()
+        con_totales = Pedido.objects.con_totales()
+
+        datos = {
+            'activos': Pedido.objects.exclude(estado=Pedido.Estado.ENTREGADO).count(),
+            'atrasados': Pedido.objects.filter(condicion_de_entrega('atrasados', hoy)).count(),
+            'con_saldo': con_totales.filter(saldo_calculado__gt=0).count(),
+            # Sin pedidos, Max devuelve None: el tope arranca en cero.
+            'total_maximo': con_totales.aggregate(maximo=Max('total_calculado'))['maximo'] or Decimal('0'),
+        }
+
+        return Response(ResumenDePedidosSerializer(datos).data)
 
     # -----------------------------------------------------------------
     # El estado del pedido, que es parte de CU42

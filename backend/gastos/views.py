@@ -1,9 +1,13 @@
 from decimal import Decimal
 
-from rest_framework import viewsets, filters, status
+from django.db.models import Case, Count, Exists, Max, OuterRef, Q, Sum, Value, When
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ParseError
 from rest_framework.response import Response
 
+from config.listados import leer_fecha, leer_importe, ordenar
+from config.paginacion import PaginacionDeListado
 from materiales.models import Material
 
 from .models import Gasto, MaterialDelGasto
@@ -11,9 +15,22 @@ from .serializers import (
     GastoSerializer,
     MaterialDelGastoModificarSerializer,
     MaterialDelGastoSerializer,
+    ResumenDeGastosSerializer,
 )
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
+
+
+# Las columnas por las que se puede ordenar el listado (?orden=monto, o
+# ?orden=-monto para al revés). TIPO va por la etiqueta que se lee en la
+# tabla y no por el código: Materiales, Otro, Publicidad.
+ORDENES = {
+    'numero': ['id'],
+    'tipo': ['orden_tipo'],
+    'fecha': ['fecha'],
+    'descripcion': ['descripcion'],
+    'monto': ['monto'],
+}
 
 
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
@@ -53,13 +70,116 @@ class GastoViewSet(viewsets.ModelViewSet):
     queryset = Gasto.objects.prefetch_related('materiales__material')
     serializer_class = GastoSerializer
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    # El listado se pagina con ?pagina= (corrección D3), con los filtros y
+    # el orden resueltos en la base por _filtrar(). Reemplaza al
+    # SearchFilter y al OrderingFilter de DRF.
+    pagination_class = PaginacionDeListado
 
-    # Lo que dice el buscador de la pantalla: por descripción, tipo o
-    # material. El tercero salta dos tablas, de la fila del gasto al
-    # material comprado.
-    search_fields = ['descripcion', 'tipo', 'materiales__material__nombre']
-    ordering_fields = ['fecha', 'monto', 'tipo']
+    def get_queryset(self):
+        """En el listado, los filtros y el orden de la URL; en lo demás, sin filtrar."""
+        queryset = super().get_queryset()
+
+        if self.action == 'list':
+            return self._filtrar(queryset)
+
+        return queryset
+
+    def _filtrar(self, queryset, con_orden=True):
+        """Aplica al listado los filtros, la búsqueda y el orden de la URL (CU53).
+
+        Son los del modal de filtros y el buscador de la pantalla:
+
+          busqueda=texto             número, descripción, tipo o nombre de un
+                                     material comprado
+          tipo=PUBLICIDAD            se puede repetir: cualquiera de los elegidos
+          fecha_desde, fecha_hasta   el período, AAAA-MM-DD, inclusive
+          monto_desde, monto_hasta   el rango de monto, inclusive
+          orden=monto                una clave de ORDENES; con '-', al revés
+
+        El resumen usa los mismos filtros sin el orden (con_orden=False),
+        porque suma lo que se está mirando.
+        """
+        parametros = self.request.query_params
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            # El tipo se busca por la etiqueta que se lee en la tabla
+            # ("publi" encuentra Publicidad), no por el código.
+            tipos = [valor for valor, etiqueta in Gasto.Tipo.choices if texto.lower() in etiqueta.lower()]
+            # Exists y no un filtro sobre la relación: con un JOIN, un gasto
+            # con dos materiales que coinciden saldría dos veces, y el
+            # resumen los sumaría dos veces.
+            compro_el_material = Exists(
+                MaterialDelGasto.objects.filter(gasto=OuterRef('pk'), material__nombre__icontains=texto)
+            )
+            condicion = Q(descripcion__icontains=texto) | Q(tipo__in=tipos) | Q(compro_el_material)
+            # "18" y "#18" encuentran el gasto 18.
+            numero = texto.lstrip('#')
+            if numero.isdigit():
+                condicion |= Q(id=int(numero))
+            queryset = queryset.filter(condicion)
+
+        tipos = parametros.getlist('tipo')
+        if tipos:
+            if any(tipo not in Gasto.Tipo.values for tipo in tipos):
+                raise ParseError('Uno de los tipos no existe.')
+            queryset = queryset.filter(tipo__in=tipos)
+
+        fecha_desde = leer_fecha(parametros, 'fecha_desde')
+        if fecha_desde is not None:
+            queryset = queryset.filter(fecha__gte=fecha_desde)
+
+        fecha_hasta = leer_fecha(parametros, 'fecha_hasta')
+        if fecha_hasta is not None:
+            queryset = queryset.filter(fecha__lte=fecha_hasta)
+
+        monto_desde = leer_importe(parametros, 'monto_desde')
+        if monto_desde is not None:
+            queryset = queryset.filter(monto__gte=monto_desde)
+
+        monto_hasta = leer_importe(parametros, 'monto_hasta')
+        if monto_hasta is not None:
+            queryset = queryset.filter(monto__lte=monto_hasta)
+
+        if not con_orden:
+            return queryset
+
+        queryset = queryset.annotate(
+            orden_tipo=Case(
+                When(tipo=Gasto.Tipo.MATERIALES, then=Value(0)),
+                When(tipo=Gasto.Tipo.OTRO, then=Value(1)),
+                default=Value(2),
+            ),
+        )
+        # Sin orden elegido queda el del modelo: los más nuevos primero.
+        return ordenar(queryset, parametros, ORDENES, ['-fecha', '-id'])
+
+    @action(detail=False, methods=['get'])
+    def resumen(self, request):
+        """La línea de arriba del listado y el tope del deslizador. Es parte de CU53.
+
+        A diferencia del de Pedidos, el resumen cuenta sobre lo FILTRADO:
+        dice cuánto suma lo que se está mirando, porque filtrar por período
+        o por tipo es justamente la forma de preguntar cuánto se gastó. Por
+        eso recibe los mismos filtros que el listado.
+
+        monto_maximo, en cambio, es sobre TODOS los gastos: es el tope del
+        deslizador de monto, que tiene que alcanzar al gasto más caro haya
+        el filtro que haya.
+
+        Son dos consultas, siempre las mismas.
+        """
+        filtrados = self._filtrar(Gasto.objects.all(), con_orden=False)
+        cuentas = filtrados.aggregate(cantidad=Count('id'), monto_total=Sum('monto'))
+
+        datos = {
+            'cantidad': cuentas['cantidad'],
+            # Sin gastos, Sum y Max devuelven None: cero.
+            'monto_total': cuentas['monto_total'] or Decimal('0'),
+            'monto_maximo': Gasto.objects.aggregate(maximo=Max('monto'))['maximo'] or Decimal('0'),
+        }
+
+        return Response(ResumenDeGastosSerializer(datos).data)
 
     # -----------------------------------------------------------------
     # La regla del monto, que es parte de CU52 y CU54

@@ -668,7 +668,7 @@ Es un solo formulario (ver "La ficha de pedido es un solo formulario", en
 Patrón a seguir).
 
 **Los cobros van en un modal, `ModalCobros`** (A6, adelantado en A7). Lo
-abre "Cobros" en el ⋯ del listado. Envuelve a `PestanaCobros` sin modificarla (sigue compartida con el paso
+abre el $ (Cobros) de la fila del listado. Envuelve a `PestanaCobros` sin modificarla (sigue compartida con el paso
 Cobros del alta) y abre `ModalCobro` encima, capas 100 y 110, para
 registrar y editar. No sabe quién lo abrió: recibe el pedido completo,
 llama a `registrarCobro`, `modificarCobro` y `borrarCobro`, que devuelven
@@ -678,7 +678,8 @@ registrado"; editar y quitar no avisan) lo muestra quien lo abrió.
 `ModalCobro` queda abierto mientras viaja el cobro y el error del backend
 se ve adentro (props `error` y `enviando`, la segunda apaga Registrar para
 que un doble clic no cobre dos veces); el de quitar, arriba de la lista.
-En A7 lo abría un botón en la cabecera de la ficha; desde A1, el ⋯.
+En A7 lo abría un botón en la cabecera de la ficha; en A1, el ⋯; hoy, el $
+de la fila.
 
 **El error de los productos va pegado a su tabla.** `PestanaProductos`
 recibe una prop opcional `error` (`errorProductos` en la ficha), copiada
@@ -724,7 +725,7 @@ y de gasto pasaron a ser un solo formulario, la usuaria decidió que sus
 altas fueran iguales: las tarjetas apiladas (Datos y Productos del
 pedido; Datos y, si el tipo es Materiales, Materiales del gasto) y un pie
 Cancelar / Crear, sin pasos. El alta de pedido además dejó de tener
-cobros: se registran después, desde el ⋯ del listado. El alta de producto
+cobros: se registran después, desde el $ de la fila del listado. El alta de producto
 quedó por pasos, también por decisión de la usuaria: es la más larga
 (datos, materiales, fotos y categorías) y el tutor no la objetó.
 

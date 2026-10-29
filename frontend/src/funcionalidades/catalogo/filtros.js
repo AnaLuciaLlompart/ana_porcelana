@@ -4,9 +4,9 @@
 // una dirección con filtros se puede copiar, abrir en otra pestaña y
 // sobrevive a recargar la página.
 //
-// Acá están las funciones que leen y escriben esa dirección y las que
-// filtran. Ninguna pide nada al servidor: todas trabajan sobre las listas
-// que el layout ya cargó.
+// Acá están las funciones que leen y escriben esa dirección y la que arma
+// los parámetros de cada página: desde la corrección D3, el filtrado lo
+// hace el backend.
 
 
 // El orden en que se muestran los dos grupos: primero por tipo de
@@ -15,21 +15,15 @@
 const ORDEN_DE_GRUPOS = ['TIPO', 'TEMATICA']
 
 
-// Arma los grupos del árbol y de los filtros. Cada categoría sale con su
-// cantidad de productos, contada sobre la lista completa; las que no
+// Arma los grupos del árbol y de los filtros. Cada categoría trae su
+// cantidad de productos visibles, que cuenta el backend sobre todos (desde
+// la corrección D3 el navegador ya no tiene la lista entera); las que no
 // tienen ninguno no salen, y un grupo que queda vacío tampoco.
 //
 // El título de cada grupo es el tipo_display que manda el backend ("Tipo
 // de accesorio", "Temática"): acá no se traduce ningún código.
-export function agruparCategorias(categorias, productos) {
-  const conCantidad = categorias
-    .map((categoria) => ({
-      ...categoria,
-      cantidad: productos.filter((producto) =>
-        producto.categorias.some((c) => c.id === categoria.id)
-      ).length,
-    }))
-    .filter((categoria) => categoria.cantidad > 0)
+export function agruparCategorias(categorias) {
+  const conCantidad = categorias.filter((categoria) => categoria.cantidad > 0)
 
   return ORDEN_DE_GRUPOS
     .map((tipo) => conCantidad.filter((categoria) => categoria.tipo === tipo))
@@ -80,33 +74,27 @@ export function alternarFiltro(idsElegidos, id) {
 }
 
 
-// O dentro de un grupo, Y entre grupos: con Aros, Dijes y Harry Potter
-// elegidos quedan los aros y los dijes que sean de Harry Potter.
-export function filtrarProductos(productos, grupos, idsElegidos) {
-  return productos.filter((producto) => {
-    const idsDelProducto = producto.categorias.map((c) => c.id)
+// Los parámetros de una página del listado (corrección D3): el backend
+// filtra, busca y ordena, y devuelve de a 20. Las categorías van una por
+// parámetro (?categoria=3&categoria=7) y el backend aplica la regla de
+// siempre: O dentro de un grupo, Y entre grupos. Va en un URLSearchParams
+// porque la categoría se repite.
+export function parametrosDelCatalogo({ idsElegidos, orden, busqueda, pagina }) {
+  const parametros = new URLSearchParams()
 
-    return grupos.every((grupo) => {
-      const elegidasDelGrupo = grupo.categorias.filter((c) => idsElegidos.includes(c.id))
+  parametros.append('pagina', pagina)
+  parametros.append('orden', orden)
+  idsElegidos.forEach((id) => parametros.append('categoria', id))
+  if (busqueda.trim() !== '') parametros.append('busqueda', busqueda.trim())
 
-      // Un grupo sin nada elegido no filtra.
-      if (elegidasDelGrupo.length === 0) return true
-
-      return elegidasDelGrupo.some((c) => idsDelProducto.includes(c.id))
-    })
-  })
+  return parametros
 }
 
 
 // El orden de los productos del listado (CU63). Como los filtros, vive en
 // la dirección: ?orden=precio-desc. Si falta o trae otra cosa, vale el de
-// por defecto, que no se escribe para que la dirección quede limpia.
-//
-// El orden se aplica SIEMPRE acá, también el de por defecto, aunque el
-// backend ya mande los productos por nombre: PostgreSQL ordena con la
-// intercalación de la base y localeCompare con la del español, y pueden
-// diferir en tildes o mayúsculas. Con una sola autoridad, A–Z y Z–A son
-// espejo exacto.
+// por defecto, que no se escribe para que la dirección quede limpia. Lo
+// aplica el backend, con los mismos cuatro valores.
 export const ORDENES = [
   { valor: 'nombre-asc', label: 'Nombre A–Z' },
   { valor: 'nombre-desc', label: 'Nombre Z–A' },
@@ -130,32 +118,9 @@ export function escribirOrden(orden) {
 }
 
 
-// Devuelve una copia ordenada: sort() ordena en el lugar y la lista que
-// llega no es nuestra. El precio viaja como texto ("1500.00"), por eso
-// Number(): como texto, "900.00" iría después de "1500.00". Dos productos
-// con el mismo precio quedan como venían, que es por nombre.
-export function ordenarProductos(productos, orden) {
-  const [campo, direccion] = orden.split('-')
-  const signo = direccion === 'asc' ? 1 : -1
-
-  return productos.slice().sort((x, y) => {
-    if (campo === 'precio') return (Number(x.precio_actual) - Number(y.precio_actual)) * signo
-    return x.nombre.localeCompare(y.nombre, 'es') * signo
-  })
-}
-
-
 // La búsqueda por texto del listado. Como los filtros y el orden, vive en
 // la dirección: ?busqueda=aros. Es "contiene", sin distinguir mayúsculas
-// ni acentos, en el nombre o la descripción.
-//
-// "jose" encuentra "José": NFD separa cada letra acentuada en la letra y
-// su acento, y el rango ̀-ͯ son justamente los acentos, que se
-// quitan antes de comparar en minúscula. Es sinAcentos de
-// componentes/SelectorBuscable.jsx, que no la exporta.
-function normalizar(texto) {
-  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-}
+// ni acentos, en el nombre o la descripción, y la hace el backend.
 
 
 // LEE la búsqueda de la dirección: el texto tal cual, o vacío.
@@ -167,18 +132,4 @@ export function leerBusqueda(parametros) {
 // ESCRIBE la búsqueda: un texto en blanco no va a la dirección.
 export function escribirBusqueda(busqueda) {
   return busqueda.trim() === '' ? {} : { busqueda }
-}
-
-
-// Los productos cuyo nombre o descripción contienen el texto. Sin texto,
-// todos.
-export function buscarProductos(productos, busqueda) {
-  const texto = normalizar(busqueda.trim())
-  if (texto === '') return productos
-
-  return productos.filter(
-    (producto) =>
-      normalizar(producto.nombre).includes(texto) ||
-      normalizar(producto.descripcion ?? '').includes(texto)
-  )
 }

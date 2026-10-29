@@ -226,3 +226,70 @@ class RendimientoDelListado(PruebaSinSesion):
         with self.assertNumQueries(3):
             respuesta = self.client.get(LISTA)
         self.assertEqual(len(respuesta.data), 3)
+
+
+class ListadoEnLaBase(PruebaConSesion):
+    """El listado se filtra, se ordena y se pagina en la base (CU53, corrección D3)."""
+
+    def setUp(self):
+        super().setUp()
+        self.porcelana = Material.objects.create(nombre='Porcelana fría')
+        self.de_materiales = Gasto.objects.create(tipo=Gasto.Tipo.MATERIALES, fecha='2026-09-10')
+        MaterialDelGasto.objects.create(
+            gasto=self.de_materiales, material=self.porcelana, cantidad=2, precio_unitario='3000.00',
+        )
+        self.de_materiales.monto = '6000.00'
+        self.de_materiales.save()
+        self.publicidad = Gasto.objects.create(
+            tipo=Gasto.Tipo.PUBLICIDAD, monto='1500.00', fecha='2026-10-05', descripcion='Instagram',
+        )
+
+    def ids(self, parametros):
+        """Los ids de la primera página que devuelve el listado con esos parámetros."""
+        respuesta = self.client.get(LISTA, {'pagina': 1, **parametros})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        return [gasto['id'] for gasto in respuesta.data['results']]
+
+    def test_el_listado_viene_paginado(self):
+        """CU53: con ?pagina= y por_pagina=12, 13 gastos dan 12 y el count; sin pagina, la lista entera."""
+        for _ in range(11):
+            Gasto.objects.create(tipo=Gasto.Tipo.OTRO, monto='100.00')
+
+        respuesta = self.client.get(LISTA, {'pagina': 1})
+        self.assertEqual(respuesta.data['count'], 13)
+        self.assertEqual(len(respuesta.data['results']), 12)
+
+        self.assertEqual(len(self.client.get(LISTA).data), 13)
+
+    def test_filtra_por_tipo_periodo_y_monto(self):
+        """CU53: tipo, período y rango de monto dejan solo los que cumplen, con los extremos incluidos."""
+        self.assertEqual(self.ids({'tipo': 'PUBLICIDAD'}), [self.publicidad.id])
+        self.assertEqual(self.ids({'fecha_desde': '2026-10-05'}), [self.publicidad.id])
+        self.assertEqual(self.ids({'fecha_hasta': '2026-09-10'}), [self.de_materiales.id])
+        self.assertEqual(self.ids({'monto_desde': '6000'}), [self.de_materiales.id])
+
+    def test_busca_por_material_y_por_tipo(self):
+        """CU53: la búsqueda encuentra por el nombre de un material comprado y por la etiqueta del tipo."""
+        self.assertEqual(self.ids({'busqueda': 'porcelana'}), [self.de_materiales.id])
+        self.assertEqual(self.ids({'busqueda': 'publi'}), [self.publicidad.id])
+
+    def test_ordena_por_monto(self):
+        """CU53: orden=monto pone primero el más barato y orden=-monto el más caro."""
+        self.assertEqual(self.ids({'orden': 'monto'}), [self.publicidad.id, self.de_materiales.id])
+        self.assertEqual(self.ids({'orden': '-monto'}), [self.de_materiales.id, self.publicidad.id])
+
+    def test_una_fecha_mal_escrita_da_400(self):
+        """CU53: una fecha que no es AAAA-MM-DD responde 400 con mensaje; una bien escrita pasa."""
+        respuesta = self.client.get(LISTA, {'pagina': 1, 'fecha_desde': '05/10/2026'})
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'fecha_desde tiene que ser una fecha AAAA-MM-DD.')
+
+        self.assertEqual(self.ids({'fecha_desde': '2026-10-05'}), [self.publicidad.id])
+
+    def test_el_resumen_suma_lo_filtrado(self):
+        """CU53: cantidad y monto total sobre lo filtrado; el monto máximo, sobre todos."""
+        respuesta = self.client.get(f'{LISTA}resumen/', {'tipo': 'PUBLICIDAD'})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data, {
+            'cantidad': 1, 'monto_total': '1500.00', 'monto_maximo': '6000.00',
+        })

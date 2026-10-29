@@ -1,4 +1,5 @@
-from rest_framework import viewsets, filters, status
+from django.db.models import Q
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -18,9 +19,19 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['nombre', 'descripcion']
-    ordering_fields = ['nombre', 'tipo', 'estado']
+    # La búsqueda se hace en la base (corrección D3), pero el listado no se
+    # pagina: son pocas decenas, repartidas en dos secciones de tarjetas y
+    # la de las dadas de baja, y partir cada sección en páginas no ayuda a
+    # leerlas (decidido por la usuaria). Reemplaza al SearchFilter de DRF.
+    def get_queryset(self):
+        """En el listado, la búsqueda de la URL (CU12): ?busqueda= en el nombre o la descripción."""
+        queryset = super().get_queryset()
+
+        texto = self.request.query_params.get('busqueda', '').strip()
+        if self.action == 'list' and texto:
+            queryset = queryset.filter(Q(nombre__icontains=texto) | Q(descripcion__icontains=texto))
+
+        return queryset
 
     # -----------------------------------------------------------------
     # Sobreescribo update, ya que no puedo modificar categorias dadas de baja

@@ -245,3 +245,74 @@ class BorrarImagen(PruebaConSesion):
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertFalse(ImagenProducto.objects.filter(pk=imagen.pk).exists())
         self.assertFalse(os.path.exists(ruta))
+
+
+class ListadoEnLaBase(PruebaConSesion):
+    """El listado se filtra, se ordena y se pagina en la base (CU18, corrección D3)."""
+
+    def setUp(self):
+        super().setUp()
+        self.aros = Categoria.objects.create(nombre='Aros', tipo=Categoria.Tipo.TIPO)
+        self.vieja = Categoria.objects.create(
+            nombre='Navidad', tipo=Categoria.Tipo.TEMATICA, estado=Categoria.Estado.BAJA,
+        )
+        self.barato = Producto.objects.create(
+            nombre='Aros Luna', precio_actual='3000.00', dificultad=Producto.Dificultad.BAJA,
+        )
+        self.barato.categorias.add(self.aros)
+        self.caro = Producto.objects.create(
+            nombre='Collar Sol', precio_actual='9000.00', dificultad=Producto.Dificultad.ALTA,
+            es_personalizado=True,
+        )
+        self.de_baja = Producto.objects.create(
+            nombre='Dije viejo', precio_actual='1000.00', dificultad=Producto.Dificultad.MEDIA,
+            estado=Producto.Estado.BAJA,
+        )
+        # Activo, pero con una categoría de baja: va a la sección de abajo.
+        self.navidad = Producto.objects.create(
+            nombre='Aros Navidad', precio_actual='4000.00', dificultad=Producto.Dificultad.MEDIA,
+        )
+        self.navidad.categorias.add(self.vieja)
+
+    def ids(self, parametros):
+        """Los ids de la primera página que devuelve el listado con esos parámetros."""
+        respuesta = self.client.get(LISTA, {'pagina': 1, **parametros})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        return [producto['id'] for producto in respuesta.data['results']]
+
+    def test_la_grilla_deja_afuera_a_los_de_una_categoria_de_baja(self):
+        """CU18: estado=ACTIVO trae los activos sin categorías de baja; con BAJA, los de baja y esos."""
+        self.assertEqual(self.ids({'estado': 'ACTIVO'}), [self.barato.id, self.caro.id])
+        self.assertEqual(self.ids({'estado': 'BAJA'}), [self.navidad.id, self.de_baja.id])
+
+    def test_sin_estado_devuelve_todos_para_los_desplegables(self):
+        """CU18: sin ?pagina= ni ?estado= el listado devuelve los cuatro productos."""
+        self.assertEqual(len(self.client.get(LISTA).data), 4)
+
+    def test_filtra_por_categoria_tipo_y_precio(self):
+        """CU18: categoría, tipo y rango de precio dejan solo los que cumplen."""
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'categoria': self.aros.id}), [self.barato.id])
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'tipo': 'personalizado'}), [self.caro.id])
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'precio_desde': '5000'}), [self.caro.id])
+
+    def test_ordena_por_dificultad_en_su_orden_logico(self):
+        """CU18: orden=-dificultad pone primero la alta; orden=precio, el más barato."""
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'orden': '-dificultad'}), [self.caro.id, self.barato.id])
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'orden': 'precio'}), [self.barato.id, self.caro.id])
+
+    def test_un_tipo_que_no_existe_da_400(self):
+        """CU18: responde 400 con mensaje; uno que existe pasa."""
+        respuesta = self.client.get(LISTA, {'pagina': 1, 'tipo': 'regalo'})
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'El tipo tiene que ser personalizado o catalogo.')
+
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'tipo': 'catalogo'}), [self.barato.id])
+
+    def test_el_resumen_cuenta_sobre_todos_los_productos(self):
+        """CU18: activos en la grilla, los dos números de la sección de bajas, visibles en el catálogo y el rango de precios."""
+        respuesta = self.client.get(f'{LISTA}resumen/')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data, {
+            'activos': 2, 'de_baja': 1, 'por_categoria': 1, 'visibles_en_catalogo': 1,
+            'precio_minimo': '1000.00', 'precio_maximo': '9000.00',
+        })

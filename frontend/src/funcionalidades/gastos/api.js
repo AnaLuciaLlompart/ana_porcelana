@@ -24,6 +24,13 @@ export function listarGastos(params = {}) {
   return cliente.get('/gastos/', { params })
 }
 
+// Cuántos gastos hay con los filtros puestos, cuánto suman y el monto más
+// alto de todos. No es un CU propio: es parte de CU53, porque el listado
+// paginado ya no trae todos los gastos para sumarlos.
+export function resumenDeGastos(params = {}) {
+  return cliente.get('/gastos/resumen/', { params })
+}
+
 export function obtenerGasto(id) {
   return cliente.get(`/gastos/${id}/`)
 }

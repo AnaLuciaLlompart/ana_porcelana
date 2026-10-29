@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { listarProductos, reactivarProducto } from './api'
+import { listarProductos, reactivarProducto, resumenDeProductos } from './api'
 import BotonAccion from '../../componentes/BotonAccion'
 import ModalAviso from '../../componentes/ModalAviso'
 import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
-import Paginacion, { paginar } from '../../componentes/Paginacion'
+import Paginacion from '../../componentes/Paginacion'
 import TarjetaProducto from './TarjetaProducto'
 import SeccionBajas from './SeccionBajas'
 import ModalBajaProducto from './ModalBajaProducto'
@@ -12,7 +12,7 @@ import ModalEliminarProducto from './ModalEliminarProducto'
 import ModalVerProducto from './ModalVerProducto'
 import ModalReactivarCategoria from './ModalReactivarCategoria'
 import ModalFiltros from './ModalFiltros'
-import { FILTROS_VACIOS, candidatos, contarFiltros, rangoDePrecios } from './filtros'
+import { FILTROS_VACIOS, contarFiltros, parametrosDelListado, rangoDePrecios } from './filtros'
 
 // Segundo import que cruza de funcionalidad, con el mismo criterio que el
 // modal de reactivar: el endpoint de categorías vive en su carpeta y ahí se
@@ -38,10 +38,6 @@ import {
 } from './presentacion'
 import { BASE_GESTION } from '../../constantes'
 
-
-// Para ordenar por dificultad hay que decir el orden a mano: alfabéticamente
-// daría ALTA, BAJA, MEDIA, que no significa nada.
-const ORDEN_DIFICULTAD = { BAJA: 0, MEDIA: 1, ALTA: 2 }
 
 const ORDENES = [
   { valor: '', label: 'Sin ordenar' },
@@ -303,15 +299,29 @@ export default function Productos() {
   const navegar = useNavigate()
   const ubicacion = useLocation()
   const [parametros] = useSearchParams()
+  // La página de la grilla que mandó el backend y cuántos productos hay en
+  // total con los filtros puestos (el count de la paginación).
   const [productos, setProductos] = useState([])
+  const [total, setTotal] = useState(0)
+  // Los de la sección de abajo, enteros: los dados de baja y los activos
+  // con una categoría de baja (corrección D3: se piden aparte).
+  const [bajas, setBajas] = useState([])
+  // Los números del encabezado y el rango de precios, de /productos/resumen/.
+  const [resumenDatos, setResumenDatos] = useState(null)
+  // Solo la primera carga, como en Pedidos.
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  // Lo que se escribe en el buscador, y lo que se manda 300 ms después de
+  // la última tecla (debounce).
   const [busqueda, setBusqueda] = useState('')
+  const [busquedaEnviada, setBusquedaEnviada] = useState('')
   const [vista, setVista] = useState('grid')
   const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
   const [sortBy, setSortBy] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
+  // Sube en uno cada vez que hay que volver a pedir las listas.
+  const [version, setVersion] = useState(0)
   const [bajasAbierto, setBajasAbierto] = useState(false)
   const [catsColapsadas, setCatsColapsadas] = useState([])
   const [productoDandoBaja, setProductoDandoBaja] = useState(null)
@@ -367,11 +377,6 @@ export default function Productos() {
 
 
   useEffect(() => {
-    listarProductos()
-      .then((res) => setProductos(res.data))
-      .catch(() => setError('No se pudieron cargar los productos.'))
-      .finally(() => setCargando(false))
-
     // Las categorías se piden acá y no adentro del modal porque hacen falta
     // también afuera: el filtro guarda ids, y los chips de arriba de la
     // grilla tienen que mostrar el nombre de cada una.
@@ -385,6 +390,71 @@ export default function Productos() {
   }, [])
 
 
+  // El debounce del buscador, como en Pedidos: 300 ms después de la última
+  // tecla se manda el texto y se vuelve a la página 1.
+  useEffect(() => {
+    const espera = setTimeout(() => {
+      setBusquedaEnviada(busqueda)
+      setPagina(1)
+    }, 300)
+    return () => clearTimeout(espera)
+  }, [busqueda])
+
+  // La página de la grilla, cada vez que cambia algo de lo que la define. Si
+  // llegan dos respuestas fuera de orden, vigente descarta la vieja.
+  useEffect(() => {
+    let vigente = true
+    const orden = { campo: sortBy, dir: sortDir }
+    const parametros = parametrosDelListado({ filtros, busqueda: busquedaEnviada, orden, pagina, porPagina })
+
+    listarProductos(parametros)
+      .then((res) => {
+        if (!vigente) return
+        setProductos(res.data.results)
+        setTotal(res.data.count)
+        setError('')
+      })
+      .catch((err) => {
+        if (!vigente) return
+        // Una página que ya no existe responde 404: se vuelve a la anterior.
+        if (err.response?.status === 404 && pagina > 1) {
+          setPagina(pagina - 1)
+          return
+        }
+        setError('No se pudieron cargar los productos.')
+      })
+      .finally(() => {
+        if (vigente) setCargando(false)
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [filtros, busquedaEnviada, sortBy, sortDir, pagina, porPagina, version])
+
+  // La sección de abajo, entera y sin los filtros, como antes: con
+  // estado=BAJA el backend devuelve los dados de baja y, además, todos los
+  // que tienen una categoría de baja. Acá se separan en los dos bloques. Se
+  // pide recién al abrir la sección, que arranca cerrada: mientras tanto el
+  // botón muestra los dos números del resumen, y la entrada a la pantalla
+  // no espera una lista que nadie está mirando.
+  useEffect(() => {
+    if (!bajasAbierto) return
+
+    listarProductos({ estado: 'BAJA' })
+      .then((res) => setBajas(res.data))
+      .catch(() => {})
+  }, [bajasAbierto, version])
+
+  // El resumen cuenta sobre todos los productos: se pide al entrar y
+  // después de cada cambio.
+  useEffect(() => {
+    resumenDeProductos()
+      .then((res) => setResumenDatos(res.data))
+      .catch(() => {})
+  }, [version])
+
+
   // Deslizar hasta la sección es lo único que no se puede hacer en el
   // callback: ahí la sección todavía no está en la pantalla. Este efecto no
   // toca estado, solo el DOM, y se apaga solo con la marca.
@@ -396,7 +466,7 @@ export default function Productos() {
     // Depende también de categorias: la marca la pone el callback de las
     // categorías, y si los productos llegaron antes, este efecto ya había
     // corrido sin verla.
-  }, [productos, categorias])
+  }, [bajas, categorias])
 
 
   // Ya leído, el state se borra, así el aviso no reaparece al recargar ni al
@@ -408,12 +478,15 @@ export default function Productos() {
   }, [])
 
 
+  // Vuelve a pedir la página, la sección de abajo y el resumen.
   function recargar() {
-    setCargando(true)
-    listarProductos()
-      .then((res) => setProductos(res.data))
-      .catch(() => setError('No se pudieron cargar los productos.'))
-      .finally(() => setCargando(false))
+    setVersion((v) => v + 1)
+  }
+
+  // Cambiar los filtros vuelve a la página 1.
+  function cambiarFiltros(nuevos) {
+    setFiltros(nuevos)
+    setPagina(1)
   }
 
   async function cambiarEstado(producto, accion) {
@@ -436,31 +509,30 @@ export default function Productos() {
   // Derivados: se calculan en cada render a partir del estado y no se
   // guardan. Los campos visible_en_catalogo, oculto_por_categoria y
   // categorias_de_baja vienen ya resueltos del backend.
-  const activos = productos.filter((p) => p.estado === 'ACTIVO')
-  const deBaja = productos.filter((p) => p.estado === 'BAJA')
-
-  // Un producto activo con una categoría de baja NO va a la grilla: sale
-  // solo en la sección de abajo, agrupado bajo su categoría. Así ningún
-  // producto aparece en dos lugares a la vez.
-  const porCategoria = activos.filter((p) => p.categorias_de_baja.length > 0)
-  const enGrilla = activos.filter((p) => p.categorias_de_baja.length === 0)
-
-  const publicables = activos.filter((p) => p.visible_en_catalogo).length
-
-  // enGrilla se usa solo para la línea de resumen, que cuenta los activos
-  // sin importar los filtros: tiene que seguir diciendo la verdad aunque la
-  // grilla esté filtrada.
   //
-  // La grilla sale de candidatos(), que además del buscador aplica los
-  // filtros y respeta el criterio de estado: sin elegir nada, los activos.
-  const filtrados = candidatos(productos, filtros, busqueda)
+  // La sección de abajo sale de la lista aparte (bajas): los dados de baja
+  // por un lado y, por el otro, los activos con una categoría de baja, que
+  // NO van a la grilla: salen solo acá, agrupados bajo su categoría. Así
+  // ningún producto aparece en dos lugares a la vez.
+  const deBaja = bajas.filter((p) => p.estado === 'BAJA')
+  const porCategoria = bajas.filter((p) => p.estado === 'ACTIVO')
 
   const cantidadFiltros = contarFiltros(filtros)
+
+  // Sin productos de ningún tipo: la grilla vino vacía sin filtros ni
+  // búsqueda, y el resumen dice que tampoco hay en la sección de abajo.
+  const moduloVacio =
+    !cargando &&
+    resumenDatos !== null &&
+    total === 0 &&
+    resumenDatos.de_baja + resumenDatos.por_categoria === 0 &&
+    cantidadFiltros === 0 &&
+    busquedaEnviada.trim() === ''
 
   // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo:
   // saca su valor del criterio al que pertenece y deja el resto igual.
   function quitarDe(campo, valor) {
-    setFiltros({ ...filtros, [campo]: filtros[campo].filter((v) => v !== valor) })
+    cambiarFiltros({ ...filtros, [campo]: filtros[campo].filter((v) => v !== valor) })
   }
 
   const chips = []
@@ -497,32 +569,20 @@ export default function Productos() {
   )
 
   if (filtros.desde !== null || filtros.hasta !== null) {
-    const rango = rangoDePrecios(productos)
+    const rango = rangoDePrecios(resumenDatos)
     chips.push({
       clave: 'precio',
       label: `${formatearPrecio(filtros.desde === null ? rango.min : filtros.desde)} – ${formatearPrecio(
         filtros.hasta === null ? rango.max : filtros.hasta
       )}`,
-      onQuitar: () => setFiltros({ ...filtros, desde: null, hasta: null }),
+      onQuitar: () => cambiarFiltros({ ...filtros, desde: null, hasta: null }),
     })
   }
 
-  const ordenados = !sortBy
-    ? filtrados
-    : filtrados.slice().sort((x, y) => {
-        const dir = sortDir === 'asc' ? 1 : -1
-
-        if (sortBy === 'nombre') return x.nombre.localeCompare(y.nombre, 'es') * dir
-        if (sortBy === 'precio') return (Number(x.precio_actual) - Number(y.precio_actual)) * dir
-        if (sortBy === 'dificultad') {
-          return (ORDEN_DIFICULTAD[x.dificultad] - ORDEN_DIFICULTAD[y.dificultad]) * dir
-        }
-        return (x.categorias.length - y.categorias.length) * dir
-      })
-
-  // La paginación se aplica a las dos vistas, porque las dos dibujan la
-  // misma lista.
-  const { visibles, paginaActual, totalPaginas, desde } = paginar(ordenados, porPagina, pagina)
+  // El pie de páginas de las dos vistas, que dibujan la misma página. El
+  // orden y el corte ya vienen hechos del backend (corrección D3).
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
+  const desde = (pagina - 1) * porPagina
 
   // El árbol de bajas por categoría se arma con las categorías que ya
   // vienen adentro de cada producto, en categorias_de_baja: llegan
@@ -610,7 +670,8 @@ export default function Productos() {
       </div>
 
       <p style={{ margin: '0 0 24px', fontSize: 15, color: '#857078' }}>
-        {`${enGrilla.length} productos activos · ${publicables} visibles en el catálogo público`}
+        {resumenDatos &&
+          `${resumenDatos.activos} productos activos · ${resumenDatos.visibles_en_catalogo} visibles en el catálogo público`}
       </p>
 
 
@@ -618,11 +679,11 @@ export default function Productos() {
       {cargando && <p style={{ color: '#857078' }}>Cargando…</p>}
 
 
-      {!cargando && productos.length === 0 && (
+      {moduloVacio && (
         <EstadoVacio onNuevo={() => navegar(`${BASE_GESTION}/productos/nuevo`)} />
       )}
 
-      {!cargando && productos.length > 0 && (
+      {!cargando && !moduloVacio && (
         <>
           <div
             className="barra-herramientas"
@@ -825,7 +886,7 @@ export default function Productos() {
               ))}
 
               <button
-                onClick={() => setFiltros(FILTROS_VACIOS)}
+                onClick={() => cambiarFiltros(FILTROS_VACIOS)}
                 style={{
                   padding: '6px 12px',
                   border: 0,
@@ -850,11 +911,11 @@ export default function Productos() {
                 gap: 18,
               }}
             >
-              {visibles.map((p) => (
+              {productos.map((p) => (
                 <TarjetaProducto key={p.id} producto={p} acciones={acciones} />
               ))}
 
-              {visibles.length === 0 && <SinResultados />}
+              {productos.length === 0 && <SinResultados />}
             </div>
           )}
 
@@ -868,10 +929,10 @@ export default function Productos() {
               }}
             >
               <Paginacion
-                total={ordenados.length}
+                total={total}
                 desde={desde}
                 porPagina={porPagina}
-                pagina={paginaActual}
+                pagina={pagina}
                 totalPaginas={totalPaginas}
                 onPorPagina={(n) => {
                   setPorPagina(n)
@@ -966,11 +1027,11 @@ export default function Productos() {
                 </thead>
 
                 <tbody>
-                  {visibles.map((p) => (
+                  {productos.map((p) => (
                     <FilaProducto key={p.id} producto={p} acciones={acciones} />
                   ))}
 
-                  {visibles.length === 0 && (
+                  {productos.length === 0 && (
                     <tr style={{ borderTop: '1px solid #EBE0E2' }}>
                       <td colSpan="6" style={{ padding: 32, textAlign: 'center', fontSize: 15, color: '#857078' }}>
                         Ningún producto coincide con esos filtros.
@@ -981,10 +1042,10 @@ export default function Productos() {
               </table>
 
               <Paginacion
-                total={ordenados.length}
+                total={total}
                 desde={desde}
                 porPagina={porPagina}
-                pagina={paginaActual}
+                pagina={pagina}
                 totalPaginas={totalPaginas}
                 onPorPagina={(n) => {
                   setPorPagina(n)
@@ -1001,6 +1062,8 @@ export default function Productos() {
           <SeccionBajas
             deBaja={deBaja}
             grupos={grupos}
+            cantidadDeBaja={resumenDatos ? resumenDatos.de_baja : 0}
+            cantidadPorCategoria={resumenDatos ? resumenDatos.por_categoria : 0}
             abierto={bajasAbierto}
             onToggle={() => setBajasAbierto((v) => !v)}
             colapsadas={catsColapsadas}
@@ -1053,14 +1116,13 @@ export default function Productos() {
       {filtrosAbierto && (
         <ModalFiltros
           filtros={filtros}
-          productos={productos}
-          busqueda={busqueda}
+          resumen={resumenDatos}
           // Solo las activas: filtrar por una categoría de baja no tendría
           // sentido, porque sus productos no están en la grilla.
           categorias={categorias.filter((c) => c.estado === 'ACTIVO')}
           onCerrar={() => setFiltrosAbierto(false)}
           onAplicar={(borrador) => {
-            setFiltros(borrador)
+            cambiarFiltros(borrador)
             setFiltrosAbierto(false)
           }}
         />

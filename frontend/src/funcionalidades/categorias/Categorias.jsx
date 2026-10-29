@@ -308,6 +308,14 @@ export default function Categorias() {
   // pedidos y gastos.
   const [aviso, setAviso] = useState(null)
   const [busqueda, setBusqueda] = useState('')
+  // Lo que se manda al backend 300 ms después de la última tecla
+  // (debounce), y las categorías que encontró (corrección D3). La lista
+  // entera, categorias, se sigue pidiendo: son pocas, y de ella salen los
+  // números de las pestañas, que cuentan todas y no lo buscado.
+  const [busquedaEnviada, setBusquedaEnviada] = useState('')
+  const [encontradas, setEncontradas] = useState(null)
+  // Sube en uno cada vez que hay que volver a pedir las listas.
+  const [version, setVersion] = useState(0)
   const [tab, setTab] = useState('Todas')
   const [tipoInicial, setTipoInicial] = useState('TIPO')
 
@@ -316,15 +324,40 @@ export default function Categorias() {
       .then((res) => setCategorias(res.data))
       .catch(() => setError('No se pudieron cargar las categorías.'))
       .finally(() => setCargando(false))
-  }, [])
+  }, [version])
+
+  // El debounce del buscador, como en Pedidos.
+  useEffect(() => {
+    const espera = setTimeout(() => setBusquedaEnviada(busqueda), 300)
+    return () => clearTimeout(espera)
+  }, [busqueda])
+
+  // Con algo escrito, las categorías que coinciden las busca el backend. Sin
+  // nada, no hace falta pedir: son todas. Si llegan dos respuestas fuera de
+  // orden, vigente descarta la vieja.
+  useEffect(() => {
+    const texto = busquedaEnviada.trim()
+    if (!texto) {
+      setEncontradas(null)
+      return
+    }
+
+    let vigente = true
+    listarCategorias({ busqueda: texto })
+      .then((res) => {
+        if (vigente) setEncontradas(res.data)
+      })
+      .catch(() => setError('No se pudieron buscar las categorías.'))
+
+    return () => {
+      vigente = false
+    }
+  }, [busquedaEnviada, version])
 
 
+  // Vuelve a pedir la lista entera y, si hay búsqueda, la de encontradas.
   function recargar() {
-    setCargando(true)
-    listarCategorias()
-      .then((res) => setCategorias(res.data))
-      .catch(() => setError('No se pudieron cargar las categorías.'))
-      .finally(() => setCargando(false))
+    setVersion((v) => v + 1)
   }
 
   async function cambiarEstado(categoria, accion) {
@@ -345,11 +378,7 @@ export default function Categorias() {
 
   //en estas constantes guardo las listas que cumplen con los filtros
   // se llaman derivados, son constantes que se calculan a partir del estado (por eso no se guardan)
-  const texto = busqueda.trim().toLowerCase()
-
-  const coincide = (c) => !texto || c.nombre.toLowerCase().includes(texto) || c.descripcion.toLowerCase().includes(texto)
-
-  const filtradas = categorias.filter(coincide)
+  const filtradas = encontradas ?? categorias
 
   const activas = filtradas.filter((c) => c.estado === 'ACTIVO')
   const deBaja = filtradas.filter((c) => c.estado === 'BAJA')

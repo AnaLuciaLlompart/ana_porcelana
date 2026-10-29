@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { listarClientes } from './api'
+import { listarClientes, resumenDeClientes } from './api'
 import ModalCliente from './ModalCliente'
 import ModalVerCliente from './ModalVerCliente'
 import ModalEliminarCliente from './ModalEliminarCliente'
 import BotonAccion from '../../componentes/BotonAccion'
 import ChipFiltro from '../../componentes/ChipFiltro'
 import ModalAviso from '../../componentes/ModalAviso'
-import Paginacion, { paginar } from '../../componentes/Paginacion'
+import Paginacion from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: la
@@ -126,49 +126,25 @@ function Acciones({ cliente, onVer, onEditar, onCopiar, onEliminar }) {
 }
 
 
-function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
-  // Arranca por ÚLTIMO descendente, que es el orden del diseño: lo primero
-  // que se quiere ver es quién encargó hace poco.
-  const [orden, setOrden] = useState({ campo: 'ultimo', dir: 'desc' })
-  const [porPagina, setPorPagina] = useState(12)
-  const [pagina, setPagina] = useState(1)
-
-  // Alterna asc/desc, o empieza en asc si es una columna nueva.
-  function ordenarPor(campo) {
-    setOrden((o) =>
-      o.campo === campo
-        ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' }
-        : { campo, dir: 'asc' }
-    )
-    setPagina(1)
-  }
-
-  // Se copia con [...] para no modificar el arreglo original. La tabla
-  // siempre tiene una columna elegida: arranca por ÚLTIMO.
-  const ordenados = [...clientes].sort((a, b) => {
-    let cmp = 0
-    if (orden.campo === 'instagram') {
-      cmp = a.instagram.localeCompare(b.instagram, 'es')
-    } else if (orden.campo === 'nombre') {
-      // Por nombre y apellido juntos, para que dos Sofías queden ordenadas
-      // entre sí por el apellido y no por el orden en que se cargaron.
-      cmp = `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`, 'es')
-    } else if (orden.campo === 'pedidos') {
-      cmp = a.cantidad_pedidos - b.cantidad_pedidos
-    } else if (orden.campo === 'ultimo') {
-      // Las fechas se comparan como texto: en formato ISO eso ordena bien,
-      // porque el año va primero y todos los campos miden lo mismo. El
-      // cliente sin pedidos usa la cadena vacía, que queda antes que
-      // cualquier fecha y por eso termina al final en descendente.
-      cmp = (a.ultimo_pedido || '').localeCompare(b.ultimo_pedido || '')
-    } else if (orden.campo === 'saldo') {
-      cmp = Number(a.saldo) - Number(b.saldo)
-    }
-
-    return orden.dir === 'asc' ? cmp : -cmp
-  })
-
-  const { visibles, paginaActual, totalPaginas, desde } = paginar(ordenados, porPagina, pagina)
+// La tabla dibuja la página que mandó el backend: el orden, los filtros y
+// el corte de la página ya vienen hechos (corrección D3), como en Pedidos.
+function Tabla({
+  clientes,
+  total,
+  cargando,
+  orden,
+  pagina,
+  porPagina,
+  onOrdenar,
+  onPagina,
+  onPorPagina,
+  onVer,
+  onEditar,
+  onCopiar,
+  onEliminar,
+}) {
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
+  const desde = (pagina - 1) * porPagina
 
   return (
     <div
@@ -186,14 +162,14 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               campo="instagram"
               etiqueta="@USUARIO"
               orden={orden}
-              onClick={ordenarPor}
+              onClick={onOrdenar}
               ancho="17%"
             />
             <EncabezadoOrdenable
               campo="nombre"
               etiqueta="CLIENTE"
               orden={orden}
-              onClick={ordenarPor}
+              onClick={onOrdenar}
               centrado
               ancho="21%"
             />
@@ -201,7 +177,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               campo="pedidos"
               etiqueta="PEDIDOS"
               orden={orden}
-              onClick={ordenarPor}
+              onClick={onOrdenar}
               centrado
               ancho="11%"
             />
@@ -209,7 +185,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               campo="ultimo"
               etiqueta="ÚLTIMO"
               orden={orden}
-              onClick={ordenarPor}
+              onClick={onOrdenar}
               centrado
               ancho="14%"
             />
@@ -217,7 +193,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
               campo="saldo"
               etiqueta="SALDO"
               orden={orden}
-              onClick={ordenarPor}
+              onClick={onOrdenar}
               centrado
               ancho="15%"
             />
@@ -235,7 +211,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
           )}
 
           {!cargando &&
-            visibles.map((c) => {
+            clientes.map((c) => {
               const chip = chipSaldo(c.saldo)
 
               return (
@@ -348,7 +324,7 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
         </tbody>
       </table>
 
-      {!cargando && ordenados.length === 0 && (
+      {!cargando && total === 0 && (
         <div style={{ padding: 48, textAlign: 'center', borderTop: '1px solid #EBE0E2' }}>
           <p
             style={{
@@ -368,16 +344,13 @@ function Tabla({ clientes, cargando, onVer, onEditar, onCopiar, onEliminar }) {
       )}
 
       <Paginacion
-        total={ordenados.length}
+        total={total}
         desde={desde}
         porPagina={porPagina}
-        pagina={paginaActual}
+        pagina={pagina}
         totalPaginas={totalPaginas}
-        onPorPagina={(n) => {
-          setPorPagina(n)
-          setPagina(1)
-        }}
-        onPagina={setPagina}
+        onPorPagina={onPorPagina}
+        onPagina={onPagina}
       />
     </div>
   )
@@ -466,12 +439,28 @@ function EstadoVacio({ onNuevo }) {
 // Pantalla de Clientes
 
 export default function Clientes() {
+  // La página que mandó el backend y cuántos clientes hay con los filtros
+  // puestos (el count de la paginación).
   const [clientes, setClientes] = useState([])
+  const [total, setTotal] = useState(0)
+  // El total de clientes y los números de los chips, de /clientes/resumen/.
+  const [resumenDatos, setResumenDatos] = useState(null)
+  // Solo la primera carga, como en Pedidos.
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  // Lo que se escribe en el buscador, y lo que se manda 300 ms después de
+  // la última tecla (debounce).
   const [busqueda, setBusqueda] = useState('')
+  const [busquedaEnviada, setBusquedaEnviada] = useState('')
   const [soloEnCurso, setSoloEnCurso] = useState(false)
   const [soloConSaldo, setSoloConSaldo] = useState(false)
+  // Arranca por ÚLTIMO descendente, que es el orden del diseño: lo primero
+  // que se quiere ver es quién encargó hace poco.
+  const [orden, setOrden] = useState({ campo: 'ultimo', dir: 'desc' })
+  const [pagina, setPagina] = useState(1)
+  const [porPagina, setPorPagina] = useState(12)
+  // Sube en uno cada vez que hay que volver a pedir la misma página.
+  const [version, setVersion] = useState(0)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [clienteEditando, setClienteEditando] = useState(null)
   const [clienteViendo, setClienteViendo] = useState(null)
@@ -482,21 +471,75 @@ export default function Clientes() {
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
 
-  // Un solo pedido al montar. El buscador filtra sobre estos datos, así que
-  // no lleva debounce: no hay ningún pedido que esperar.
+  // El debounce del buscador, como en Pedidos: 300 ms después de la última
+  // tecla se manda el texto y se vuelve a la página 1.
   useEffect(() => {
-    listarClientes()
-      .then((res) => setClientes(res.data))
-      .catch(() => setError('No se pudieron cargar los clientes.'))
-      .finally(() => setCargando(false))
-  }, [])
+    const espera = setTimeout(() => {
+      setBusquedaEnviada(busqueda)
+      setPagina(1)
+    }, 300)
+    return () => clearTimeout(espera)
+  }, [busqueda])
 
+  // La página del listado, cada vez que cambia algo de lo que la define. Si
+  // llegan dos respuestas fuera de orden, vigente descarta la vieja.
+  useEffect(() => {
+    let vigente = true
+
+    const parametros = { pagina, por_pagina: porPagina }
+    const texto = busquedaEnviada.trim()
+    if (texto) parametros.busqueda = texto
+    if (soloEnCurso) parametros.en_curso = 'si'
+    if (soloConSaldo) parametros.con_saldo = 'si'
+    parametros.orden = orden.dir === 'desc' ? `-${orden.campo}` : orden.campo
+
+    listarClientes(parametros)
+      .then((res) => {
+        if (!vigente) return
+        setClientes(res.data.results)
+        setTotal(res.data.count)
+        setError('')
+      })
+      .catch((err) => {
+        if (!vigente) return
+        // Una página que ya no existe (se eliminó el último cliente de la
+        // última página) responde 404: se vuelve a la anterior.
+        if (err.response?.status === 404 && pagina > 1) {
+          setPagina(pagina - 1)
+          return
+        }
+        setError('No se pudieron cargar los clientes.')
+      })
+      .finally(() => {
+        if (vigente) setCargando(false)
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [busquedaEnviada, soloEnCurso, soloConSaldo, orden, pagina, porPagina, version])
+
+  // El resumen cuenta sobre todos los clientes, así que no depende de los
+  // filtros: se pide al entrar y después de cada cambio.
+  useEffect(() => {
+    resumenDeClientes()
+      .then((res) => setResumenDatos(res.data))
+      .catch(() => {})
+  }, [version])
+
+  // Vuelve a pedir la página que se está mirando y el resumen.
   function recargar() {
-    setCargando(true)
-    listarClientes()
-      .then((res) => setClientes(res.data))
-      .catch(() => setError('No se pudieron cargar los clientes.'))
-      .finally(() => setCargando(false))
+    setVersion((v) => v + 1)
+  }
+
+  // Alterna asc/desc, o empieza en asc si es una columna nueva.
+  function ordenarPor(campo) {
+    setOrden((o) =>
+      o.campo === campo
+        ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' }
+        : { campo, dir: 'asc' }
+    )
+    setPagina(1)
   }
 
   function mostrarToast(texto) {
@@ -518,36 +561,23 @@ export default function Clientes() {
     }
   }
 
-  // Derivado: no se guarda en estado porque se calcula de clientes.
-  // Se le saca el '@' inicial con el mismo criterio que el modelo del
-  // backend, que guarda el usuario sin arroba: si no, buscar "@sofi" no
-  // encontraría a "sofi.delgado".
-  const texto = busqueda.trim().replace(/^@/, '').toLowerCase()
+  // Los números vienen del backend (/clientes/resumen/), contados sobre
+  // TODOS los clientes y no sobre los filtrados: dicen cómo viene el
+  // trabajo, no qué se está mirando. Son también los de los globitos de los
+  // chips.
+  const cantidadClientes = resumenDatos ? resumenDatos.clientes : 0
+  const conPedidosEnCurso = resumenDatos ? resumenDatos.con_pedidos_en_curso : 0
+  const conSaldo = resumenDatos ? resumenDatos.con_saldo : 0
 
-  const filtrados = clientes.filter((c) => {
-    if (
-      texto &&
-      !`${c.instagram} ${c.nombre} ${c.apellido} ${c.email}`.toLowerCase().includes(texto)
-    ) {
-      return false
-    }
+  const resumen = !resumenDatos
+    ? ''
+    : `${cantidadClientes} ${cantidadClientes === 1 ? 'cliente' : 'clientes'}` +
+      (conPedidosEnCurso > 0 ? ` · ${conPedidosEnCurso} con pedidos en curso` : '') +
+      (conSaldo > 0 ? ` · ${conSaldo} con saldo pendiente` : '')
 
-    if (soloEnCurso && c.pedidos_en_curso === 0) return false
-    if (soloConSaldo && Number(c.saldo) <= 0) return false
-
-    return true
-  })
-
-  // Cuentan sobre TODOS los clientes y no sobre los filtrados: dicen cómo
-  // viene el trabajo, no qué se está mirando. Son también los números de
-  // los globitos de los chips.
-  const conPedidosEnCurso = clientes.filter((c) => c.pedidos_en_curso > 0).length
-  const conSaldo = clientes.filter((c) => Number(c.saldo) > 0).length
-
-  const resumen =
-    `${clientes.length} ${clientes.length === 1 ? 'cliente' : 'clientes'}` +
-    (conPedidosEnCurso > 0 ? ` · ${conPedidosEnCurso} con pedidos en curso` : '') +
-    (conSaldo > 0 ? ` · ${conSaldo} con saldo pendiente` : '')
+  // Sin clientes de ningún tipo. Se mira el resumen, que cuenta todos, y no
+  // la página, que con un filtro puesto puede venir vacía.
+  const moduloVacio = !cargando && resumenDatos !== null && cantidadClientes === 0
 
   // Propiedades comunes de las cuatro acciones de la fila
   const acciones = {
@@ -610,7 +640,7 @@ export default function Clientes() {
         <p style={{ color: '#C0442F', marginBottom: 16 }}>{error}</p>
       )}
 
-      {!cargando && clientes.length === 0 ? (
+      {moduloVacio ? (
         <EstadoVacio onNuevo={() => setModalAbierto(true)} />
       ) : (
         <>
@@ -653,18 +683,38 @@ export default function Clientes() {
                 label="Con saldo pendiente"
                 cuenta={conSaldo}
                 activo={soloConSaldo}
-                onClick={() => setSoloConSaldo((v) => !v)}
+                onClick={() => {
+                  setSoloConSaldo((v) => !v)
+                  setPagina(1)
+                }}
               />
               <ChipFiltro
                 label="Con pedidos en curso"
                 cuenta={conPedidosEnCurso}
                 activo={soloEnCurso}
-                onClick={() => setSoloEnCurso((v) => !v)}
+                onClick={() => {
+                  setSoloEnCurso((v) => !v)
+                  setPagina(1)
+                }}
               />
             </div>
           </div>
 
-          <Tabla clientes={filtrados} cargando={cargando} {...acciones} />
+          <Tabla
+            clientes={clientes}
+            total={total}
+            cargando={cargando}
+            orden={orden}
+            pagina={pagina}
+            porPagina={porPagina}
+            onOrdenar={ordenarPor}
+            onPagina={setPagina}
+            onPorPagina={(n) => {
+              setPorPagina(n)
+              setPagina(1)
+            }}
+            {...acciones}
+          />
         </>
       )}
 

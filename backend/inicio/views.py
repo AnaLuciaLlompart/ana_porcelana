@@ -1,7 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import F
+from django.db.models import F, Sum
 from django.utils import timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -75,19 +75,16 @@ def resumen_de_hoy(request):
     # El orden es el de la tabla de próximas entregas: por fecha estimada
     # ascendente, con los pedidos sin fecha al final (nulls_last) y el id
     # para desempatar. order_by reemplaza el ordering del modelo.
-    pedidos = list(
-        Pedido.objects
-        .select_related('cliente')
-        .prefetch_related('productos', 'cobros')
-        .order_by(F('fecha_entrega_estimada').asc(nulls_last=True), 'id')
-    )
+    con_totales = Pedido.objects.con_totales()
 
     # Un pedido Entregado no está atrasado ni se va a entregar: queda
     # afuera de todo lo que sigue, salvo de la deuda.
-    sin_entregar = [
-        pedido for pedido in pedidos
-        if pedido.estado != Pedido.Estado.ENTREGADO
-    ]
+    sin_entregar = list(
+        con_totales
+        .exclude(estado=Pedido.Estado.ENTREGADO)
+        .select_related('cliente')
+        .order_by(F('fecha_entrega_estimada').asc(nulls_last=True), 'id')
+    )
 
     # Los que tienen fecha estimada y ya pasó. El "is not None" va
     # explícito porque None no se puede comparar con una fecha, y un
@@ -111,9 +108,10 @@ def resumen_de_hoy(request):
     # a favor no compensa lo que debe otro cliente. La semilla
     # Decimal('0') es por lo mismo que en Pedido.subtotal: sin pedidos
     # con saldo, sum() devolvería el entero 0.
-    deuda = sum(
-        (pedido.saldo for pedido in pedidos if pedido.saldo > 0),
-        Decimal('0'),
+    deuda = (
+        con_totales.filter(saldo_calculado__gt=0)
+        .aggregate(suma=Sum('saldo_calculado'))['suma']
+        or Decimal('0')
     )
 
     # -----------------------------------------------------------------

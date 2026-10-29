@@ -70,3 +70,21 @@ class EliminarCategoria(PruebaConSesion):
         visitante = APIClient()
         visibles = [p['id'] for p in visitante.get('/api/catalogo/productos/').data]
         self.assertIn(producto.id, visibles)
+
+
+class BusquedaEnLaBase(PruebaConSesion):
+    """El buscador de categorías consulta a la base (CU12, corrección D3)."""
+
+    def test_busca_por_nombre_o_descripcion_sin_paginar(self):
+        """CU12: ?busqueda= encuentra por nombre y por descripción, y la respuesta es la lista entera, sin páginas."""
+        aros = Categoria.objects.create(nombre='Aros', tipo=Categoria.Tipo.TIPO)
+        harry = Categoria.objects.create(
+            nombre='Harry Potter', tipo=Categoria.Tipo.TEMATICA, descripcion='Hogwarts y sus casas',
+        )
+
+        respuesta = self.client.get(LISTA, {'busqueda': 'hogwarts'})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual([c['id'] for c in respuesta.data], [harry.id])
+
+        respuesta = self.client.get(LISTA, {'busqueda': 'aro'})
+        self.assertEqual([c['id'] for c in respuesta.data], [aros.id])

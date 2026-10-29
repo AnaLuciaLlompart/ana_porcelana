@@ -317,6 +317,21 @@ class PedidoListaSerializer(serializers.ModelSerializer):
         return max(cobros, key=lambda cobro: (cobro.fecha, cobro.id)).id
 
 
+class ResumenDePedidosSerializer(serializers.Serializer):
+    """Los números del encabezado del listado de pedidos (CU41).
+
+    De solo salida, como FinanzasDelPeriodoSerializer: no hay modelo
+    detrás, y pasar por un serializer es lo que hace que total_maximo
+    salga como texto con dos decimales, igual que los demás importes. Un
+    Decimal crudo en un Response lo convierte DRF a float.
+    """
+
+    activos = serializers.IntegerField()
+    atrasados = serializers.IntegerField()
+    con_saldo = serializers.IntegerField()
+    total_maximo = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
 class PedidoDetalleSerializer(PedidoListaSerializer):
     """Ficha completa de un pedido (CU40, CU42).
 

@@ -40,6 +40,7 @@ class PedidoPorEntregarSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     saldo = serializers.DecimalField(
+        source='saldo_calculado',
         max_digits=12,
         decimal_places=2,
         read_only=True,

@@ -164,3 +164,16 @@ class GastoSerializer(serializers.ModelSerializer):
             )
 
         return datos
+
+
+class ResumenDeGastosSerializer(serializers.Serializer):
+    """La línea de arriba del listado de gastos y el tope del deslizador (CU53).
+
+    De solo salida, como ResumenDePedidosSerializer: pasar por un
+    serializer es lo que hace que los importes salgan como texto con dos
+    decimales.
+    """
+
+    cantidad = serializers.IntegerField()
+    monto_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    monto_maximo = serializers.DecimalField(max_digits=12, decimal_places=2)

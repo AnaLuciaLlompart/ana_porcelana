@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ICONO_TIPO, ICONO_TEMA, formatearPrecio } from './presentacion'
-import { FILTROS_VACIOS, candidatos, rangoDePrecios } from './filtros'
+import { FILTROS_VACIOS, rangoDePrecios } from './filtros'
 
 
 const ESTADOS = [
@@ -67,8 +67,7 @@ function Chip({ label, activo, onClick }) {
 
 export default function ModalFiltros({
   filtros,
-  productos,
-  busqueda,
+  resumen,
   categorias,
   onCerrar,
   onAplicar,
@@ -84,15 +83,9 @@ export default function ModalFiltros({
   // El único camino por el que el borrador sale de acá es APLICAR.
   const [borrador, setBorrador] = useState(filtros)
 
-  const rango = rangoDePrecios(productos)
+  const rango = rangoDePrecios(resumen)
   const desdeValor = borrador.desde === null ? rango.min : borrador.desde
   const hastaValor = borrador.hasta === null ? rango.max : borrador.hasta
-
-  // El contador en vivo: la MISMA función que usa la pantalla para armar la
-  // grilla, pero con el borrador en vez de los filtros aplicados. Incluye el
-  // texto del buscador, porque si no diría un número distinto del que se va
-  // a ver al aplicar.
-  const coinciden = candidatos(productos, borrador, busqueda).length
 
   // Marca o desmarca un valor dentro de uno de los criterios de lista.
   function alternar(campo, valor) {
@@ -357,17 +350,15 @@ export default function ModalFiltros({
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            // Sin el contador de los que coinciden (se sacó con D3: el
+            // filtrado está en el backend), los botones van a la derecha.
+            justifyContent: 'flex-end',
             gap: 12,
             padding: '16px 24px',
             flexShrink: 0,
             borderTop: '1px solid #EBE0E2',
           }}
         >
-          <span style={{ fontSize: 14, color: '#857078' }}>
-            {coinciden === 1 ? '1 producto coincide' : `${coinciden} productos coinciden`}
-          </span>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
               onClick={() => setBorrador(FILTROS_VACIOS)}

@@ -154,3 +154,50 @@ class ImagenDelMaterial(PruebaConSesion):
             self._subir(png_bomba()),
             'El archivo adjunto o bien no es una imagen o bien está dañado.',
         )
+
+
+class ListadoEnLaBase(PruebaConSesion):
+    """El listado se filtra, se ordena y se pagina en la base (CU05, corrección D3)."""
+
+    def setUp(self):
+        super().setUp()
+        self.porcelana = Material.objects.create(nombre='Porcelana', disponibilidad=Material.Disponibilidad.BAJA)
+        self.barniz = Material.objects.create(nombre='Barniz', disponibilidad=Material.Disponibilidad.ALTA)
+        self.viejo = Material.objects.create(nombre='Acrílico viejo', estado=Material.Estado.DISCONTINUADO)
+        producto = Producto.objects.create(
+            nombre='Aros Hedwig', precio_actual='5000.00', dificultad=Producto.Dificultad.MEDIA,
+        )
+        MaterialProducto.objects.create(producto=producto, material=self.porcelana, cantidad='media plancha')
+        self.producto = producto
+
+    def ids(self, parametros):
+        """Los ids de la primera página que devuelve el listado con esos parámetros."""
+        respuesta = self.client.get(LISTA, {'pagina': 1, **parametros})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        return [material['id'] for material in respuesta.data['results']]
+
+    def test_filtra_por_estado_disponibilidad_y_producto(self):
+        """CU05: estado, disponibilidad y el producto que los usa dejan solo los que cumplen."""
+        self.assertEqual(self.ids({'estado': 'DISCONTINUADO'}), [self.viejo.id])
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'disponibilidad': 'BAJA'}), [self.porcelana.id])
+        self.assertEqual(self.ids({'producto': self.producto.id}), [self.porcelana.id])
+
+    def test_ordena_por_disponibilidad_en_su_orden_logico(self):
+        """CU05: orden=disponibilidad va de Alta a Baja, no alfabético."""
+        self.assertEqual(
+            self.ids({'estado': 'ACTIVO', 'orden': 'disponibilidad'}),
+            [self.barniz.id, self.porcelana.id],
+        )
+
+    def test_sin_pagina_devuelve_todos_para_los_desplegables(self):
+        """CU05: sin ?pagina= el listado devuelve la lista entera, activos y discontinuados."""
+        respuesta = self.client.get(LISTA)
+        self.assertEqual(len(respuesta.data), 3)
+
+    def test_una_disponibilidad_que_no_existe_da_400(self):
+        """CU05: responde 400 con mensaje; una que existe pasa."""
+        respuesta = self.client.get(LISTA, {'pagina': 1, 'disponibilidad': 'NULA'})
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'Una de las disponibilidades no existe.')
+
+        self.assertEqual(self.ids({'estado': 'ACTIVO', 'disponibilidad': 'ALTA'}), [self.barniz.id])

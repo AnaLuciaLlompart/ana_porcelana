@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { listarGastos } from './api'
+import { listarGastos, resumenDeGastos } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarGasto from './ModalEliminarGasto'
 import ModalVerGasto from './ModalVerGasto'
-import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
+import { FILTROS_VACIOS, contarFiltros, parametrosDelListado } from './filtros'
 import {
   ICONO_BORRAR,
   ICONO_BUSCAR,
@@ -21,7 +21,7 @@ import {
 import BotonAccion from '../../componentes/BotonAccion'
 import ChipSinContenido from '../../componentes/ChipSinContenido'
 import ModalAviso from '../../componentes/ModalAviso'
-import Paginacion, { paginar } from '../../componentes/Paginacion'
+import Paginacion from '../../componentes/Paginacion'
 import { BASE_GESTION } from '../../constantes'
 
 
@@ -179,50 +179,24 @@ function SinResultados() {
 }
 
 
-function Tabla({ gastos, cargando, onVer, onEditar, onEliminar }) {
-  const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
-  const [porPagina, setPorPagina] = useState(12)
-  const [pagina, setPagina] = useState(1)
-
-  // Alterna asc/desc, o empieza en asc si es una columna nueva.
-  function ordenarPor(campo) {
-    setOrden((o) =>
-      o.campo === campo
-        ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' }
-        : { campo, dir: 'asc' }
-    )
-    setPagina(1)
-  }
-
-  // Se copia con [...] para no modificar el arreglo original. Sin columna
-  // elegida no se ordena nada: las filas quedan como las mandó el backend,
-  // que es por fecha descendente, los gastos más nuevos arriba.
-  const ordenados = [...gastos].sort((a, b) => {
-    if (!orden.campo) return 0
-
-    let cmp = 0
-    if (orden.campo === 'id') {
-      cmp = a.id - b.id
-    } else if (orden.campo === 'tipo') {
-      // Por la etiqueta y no por el código, que es lo que se lee en la
-      // columna.
-      cmp = a.tipo_display.localeCompare(b.tipo_display, 'es')
-    } else if (orden.campo === 'fecha') {
-      // Las fechas se comparan como texto: en formato ISO eso ordena bien,
-      // porque el año va primero y todos los campos miden lo mismo.
-      cmp = a.fecha.localeCompare(b.fecha)
-    } else if (orden.campo === 'descripcion') {
-      cmp = a.descripcion.localeCompare(b.descripcion, 'es')
-    } else if (orden.campo === 'monto') {
-      // El monto viene como texto, así que se convierte: comparándolo como
-      // texto, "9000" quedaría después de "15500".
-      cmp = Number(a.monto) - Number(b.monto)
-    }
-
-    return orden.dir === 'asc' ? cmp : -cmp
-  })
-
-  const { visibles, paginaActual, totalPaginas, desde } = paginar(ordenados, porPagina, pagina)
+// La tabla dibuja la página que mandó el backend: el orden, los filtros y
+// el corte de la página ya vienen hechos (corrección D3), como en Pedidos.
+function Tabla({
+  gastos,
+  total,
+  cargando,
+  orden,
+  pagina,
+  porPagina,
+  onOrdenar,
+  onPagina,
+  onPorPagina,
+  onVer,
+  onEditar,
+  onEliminar,
+}) {
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
+  const desde = (pagina - 1) * porPagina
 
   return (
     <div
@@ -249,7 +223,7 @@ function Tabla({ gastos, cargando, onVer, onEditar, onEliminar }) {
                 campo={col.campo}
                 etiqueta={col.label}
                 orden={orden}
-                onClick={ordenarPor}
+                onClick={onOrdenar}
                 justify={col.justify}
                 ancho={col.ancho}
               />
@@ -270,7 +244,7 @@ function Tabla({ gastos, cargando, onVer, onEditar, onEliminar }) {
           )}
 
           {!cargando &&
-            visibles.map((g) => (
+            gastos.map((g) => (
               <tr key={g.id} style={{ borderTop: '1px solid #EBE0E2' }}>
                 <td style={estiloTd}>
                   <button
@@ -344,19 +318,16 @@ function Tabla({ gastos, cargando, onVer, onEditar, onEliminar }) {
         </tbody>
       </table>
 
-      {!cargando && ordenados.length === 0 && <SinResultados />}
+      {!cargando && total === 0 && <SinResultados />}
 
       <Paginacion
-        total={ordenados.length}
+        total={total}
         desde={desde}
         porPagina={porPagina}
-        pagina={paginaActual}
+        pagina={pagina}
         totalPaginas={totalPaginas}
-        onPorPagina={(n) => {
-          setPorPagina(n)
-          setPagina(1)
-        }}
-        onPagina={setPagina}
+        onPorPagina={onPorPagina}
+        onPagina={onPagina}
       />
     </div>
   )
@@ -448,10 +419,24 @@ function EstadoVacio({ onNuevo }) {
 export default function Gastos() {
   const navegar = useNavigate()
   const ubicacion = useLocation()
+  // La página que mandó el backend y cuántos gastos hay con los filtros
+  // puestos (el count de la paginación).
   const [gastos, setGastos] = useState([])
+  const [total, setTotal] = useState(0)
+  // Cuánto suman los filtrados y el monto más alto, de /gastos/resumen/.
+  const [resumenDatos, setResumenDatos] = useState(null)
+  // Solo la primera carga, como en Pedidos.
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  // Lo que se escribe en el buscador, y lo que se manda 300 ms después de
+  // la última tecla (debounce).
   const [busqueda, setBusqueda] = useState('')
+  const [busquedaEnviada, setBusquedaEnviada] = useState('')
+  const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
+  const [pagina, setPagina] = useState(1)
+  const [porPagina, setPorPagina] = useState(12)
+  // Sube en uno cada vez que hay que volver a pedir la misma página.
+  const [version, setVersion] = useState(0)
   const [filtros, setFiltros] = useState(FILTROS_VACIOS)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [gastoEliminando, setGastoEliminando] = useState(null)
@@ -461,14 +446,63 @@ export default function Gastos() {
   // navegación el gasto que crearon o guardaron. Se lee al montar.
   const [aviso, setAviso] = useState(() => avisoDeLaNavegacion(ubicacion.state))
 
-  // Una sola carga al montar. El buscador filtra sobre estos datos, así que
-  // no vuelve a pedir nada y tampoco lleva debounce.
+  // El debounce del buscador, como en Pedidos: 300 ms después de la última
+  // tecla se manda el texto y se vuelve a la página 1.
   useEffect(() => {
-    listarGastos()
-      .then((res) => setGastos(res.data))
-      .catch(() => setError('No se pudieron cargar los gastos.'))
-      .finally(() => setCargando(false))
-  }, [])
+    const espera = setTimeout(() => {
+      setBusquedaEnviada(busqueda)
+      setPagina(1)
+    }, 300)
+    return () => clearTimeout(espera)
+  }, [busqueda])
+
+  // La página del listado, cada vez que cambia algo de lo que la define. Si
+  // llegan dos respuestas fuera de orden, vigente descarta la vieja.
+  useEffect(() => {
+    let vigente = true
+    const parametros = parametrosDelListado({ filtros, busqueda: busquedaEnviada, orden, pagina, porPagina })
+
+    listarGastos(parametros)
+      .then((res) => {
+        if (!vigente) return
+        setGastos(res.data.results)
+        setTotal(res.data.count)
+        setError('')
+      })
+      .catch((err) => {
+        if (!vigente) return
+        // Una página que ya no existe (se eliminó el último gasto de la
+        // última página) responde 404: se vuelve a la anterior.
+        if (err.response?.status === 404 && pagina > 1) {
+          setPagina(pagina - 1)
+          return
+        }
+        setError('No se pudieron cargar los gastos.')
+      })
+      .finally(() => {
+        if (vigente) setCargando(false)
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [filtros, busquedaEnviada, orden, pagina, porPagina, version])
+
+  // El resumen suma lo FILTRADO, así que va con los mismos filtros y la
+  // misma búsqueda, sin la página ni el orden.
+  useEffect(() => {
+    let vigente = true
+
+    resumenDeGastos(parametrosDelListado({ filtros, busqueda: busquedaEnviada }))
+      .then((res) => {
+        if (vigente) setResumenDatos(res.data)
+      })
+      .catch(() => {})
+
+    return () => {
+      vigente = false
+    }
+  }, [filtros, busquedaEnviada, version])
 
   // Ya leído, el state se borra, así el aviso no reaparece al recargar ni al
   // volver con Atrás.
@@ -478,12 +512,25 @@ export default function Gastos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Vuelve a pedir la página que se está mirando y el resumen.
   function recargar() {
-    setCargando(true)
-    listarGastos()
-      .then((res) => setGastos(res.data))
-      .catch(() => setError('No se pudieron cargar los gastos.'))
-      .finally(() => setCargando(false))
+    setVersion((v) => v + 1)
+  }
+
+  // Cambiar los filtros o el orden vuelve a la página 1.
+  function cambiarFiltros(nuevos) {
+    setFiltros(nuevos)
+    setPagina(1)
+  }
+
+  // Alterna asc/desc, o empieza en asc si es una columna nueva.
+  function ordenarPor(campo) {
+    setOrden((o) =>
+      o.campo === campo
+        ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' }
+        : { campo, dir: 'asc' }
+    )
+    setPagina(1)
   }
 
   // El alta es otra pantalla, como en Productos y Pedidos.
@@ -495,24 +542,25 @@ export default function Gastos() {
     navegar(`${BASE_GESTION}/gastos/${gasto.id}`)
   }
 
-  // Derivados: no se guardan en estado porque se calculan de gastos.
-  const filtrados = candidatos(gastos, filtros, busqueda)
+  const cantFiltros = contarFiltros(filtros)
 
-  // El monto llega como texto, así que se convierte antes de sumar.
-  const total = filtrados.reduce((suma, g) => suma + Number(g.monto), 0)
+  // Sin gastos de ningún tipo: la respuesta vino vacía sin filtros ni
+  // búsqueda. Con filtros y vacía es "ningún gasto coincide", otra cosa.
+  const moduloVacio = !cargando && total === 0 && cantFiltros === 0 && busquedaEnviada.trim() === ''
 
   // La línea de abajo del título. A DIFERENCIA de Pedidos y de Clientes,
   // cuenta sobre los FILTRADOS y no sobre todos: allá el resumen dice cómo
   // viene el trabajo, acá dice cuánto suma lo que se está mirando. Filtrar
   // por período o por tipo es justamente la forma de preguntar cuánto se
   // gastó en ese período o en ese tipo.
-  const resumen =
-    gastos.length === 0
-      ? 'Acá vas a ver todo lo que sale del emprendimiento.'
-      : `${filtrados.length} ${filtrados.length === 1 ? 'gasto' : 'gastos'}` +
-        ` · ${formatearPrecio(total)} en total`
-
-  const cantFiltros = contarFiltros(filtros)
+  // Los números vienen del backend (/gastos/resumen/).
+  let resumen = ''
+  if (moduloVacio) {
+    resumen = 'Acá vas a ver todo lo que sale del emprendimiento.'
+  } else if (resumenDatos) {
+    const { cantidad, monto_total: montoTotal } = resumenDatos
+    resumen = `${cantidad} ${cantidad === 1 ? 'gasto' : 'gastos'} · ${formatearPrecio(montoTotal)} en total`
+  }
 
   // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo.
   const chips = []
@@ -524,7 +572,7 @@ export default function Gastos() {
       clave: `tipo-${valor}`,
       label: tipo.label,
       onQuitar: () =>
-        setFiltros({ ...filtros, tipos: filtros.tipos.filter((v) => v !== valor) }),
+        cambiarFiltros({ ...filtros, tipos: filtros.tipos.filter((v) => v !== valor) }),
     })
   })
 
@@ -539,7 +587,7 @@ export default function Gastos() {
     chips.push({
       clave: 'periodo',
       label,
-      onQuitar: () => setFiltros({ ...filtros, desdeFecha: '', hastaFecha: '' }),
+      onQuitar: () => cambiarFiltros({ ...filtros, desdeFecha: '', hastaFecha: '' }),
     })
   }
 
@@ -554,11 +602,9 @@ export default function Gastos() {
     chips.push({
       clave: 'monto',
       label,
-      onQuitar: () => setFiltros({ ...filtros, desde: '', hasta: '' }),
+      onQuitar: () => cambiarFiltros({ ...filtros, desde: '', hasta: '' }),
     })
   }
-
-  const moduloVacio = !cargando && gastos.length === 0
 
   return (
     <div>
@@ -739,7 +785,7 @@ export default function Gastos() {
               ))}
 
               <button
-                onClick={() => setFiltros(FILTROS_VACIOS)}
+                onClick={() => cambiarFiltros(FILTROS_VACIOS)}
                 style={{
                   padding: '6px 12px',
                   border: 0,
@@ -756,8 +802,18 @@ export default function Gastos() {
           )}
 
           <Tabla
-            gastos={filtrados}
+            gastos={gastos}
+            total={total}
             cargando={cargando}
+            orden={orden}
+            pagina={pagina}
+            porPagina={porPagina}
+            onOrdenar={ordenarPor}
+            onPagina={setPagina}
+            onPorPagina={(n) => {
+              setPorPagina(n)
+              setPagina(1)
+            }}
             onVer={(g) => setGastoViendo(g)}
             onEditar={verGasto}
             onEliminar={(g) => setGastoEliminando(g)}
@@ -768,11 +824,10 @@ export default function Gastos() {
       {filtrosAbiertos && (
         <ModalFiltros
           filtros={filtros}
-          gastos={gastos}
-          busqueda={busqueda}
+          montoMaximo={resumenDatos ? resumenDatos.monto_maximo : '0'}
           onCerrar={() => setFiltrosAbiertos(false)}
           onAplicar={(nuevos) => {
-            setFiltros(nuevos)
+            cambiarFiltros(nuevos)
             setFiltrosAbiertos(false)
           }}
         />

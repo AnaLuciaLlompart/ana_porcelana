@@ -19,68 +19,41 @@ export const FILTROS_VACIOS = {
 }
 
 
-// Los productos entre los que se filtra. Dos reglas que no dependen de lo
-// que haya elegido la usuaria:
+// Los parámetros de GET /api/productos/ para una página de la grilla
+// (corrección D3): el filtrado, la búsqueda y el orden los hace el backend,
+// en ProductoViewSet._filtrar(), igual que en Pedidos.
 //
-// 1. Los que tienen una categoría de baja quedan siempre afuera: van en la
-//    sección de dados de baja, agrupados bajo su categoría.
-// 2. Sin filtro de estado se muestran solo los activos. Elegir "Dados de
-//    baja" es lo que trae también a los otros.
-function candidatosPorEstado(productos, filtros) {
-  return productos.filter((p) => {
-    // Con "Dados de baja" elegido, los que tienen una categoría de baja
-    // entran a la grilla: la sección de abajo se esconde con ese filtro, y
-    // si no, no se verían en ningún lado.
-    if (p.categorias_de_baja.length > 0) return filtros.estados.includes('BAJA')
-
-    if (filtros.estados.length === 0) return p.estado === 'ACTIVO'
-
-    return filtros.estados.includes(p.estado)
-  })
-}
-
-
-// ¿Este producto pasa los criterios elegidos?
+// El estado siempre viaja: sin filtro de estado, la grilla muestra solo los
+// activos, y con estado el backend aplica la regla de las categorías de
+// baja (esos productos van a la sección de abajo, salvo que se elija "Dados
+// de baja"). Sin estado, el backend devolvería todos los productos.
 //
-// Cada criterio vacío no filtra nada. El campo es_personalizado viene ya
-// resuelto del backend: acá no se recalcula ninguna regla de negocio, solo
-// se compara.
-export function aplicaFiltros(producto, filtros) {
-  if (
-    filtros.categorias.length > 0 &&
-    !producto.categorias.some((c) => filtros.categorias.includes(c.id))
-  ) {
-    return false
-  }
+// Va en un URLSearchParams porque varios criterios se repiten
+// (?categoria=3&categoria=7).
+export function parametrosDelListado({ filtros, busqueda, orden, pagina, porPagina }) {
+  const parametros = new URLSearchParams()
 
-  if (
-    filtros.dificultades.length > 0 &&
-    !filtros.dificultades.includes(producto.dificultad)
-  ) {
-    return false
-  }
+  parametros.append('pagina', pagina)
+  parametros.append('por_pagina', porPagina)
 
-  const precio = Number(producto.precio_actual)
-  if (filtros.desde !== null && precio < filtros.desde) return false
-  if (filtros.hasta !== null && precio > filtros.hasta) return false
+  const texto = busqueda.trim()
+  if (texto) parametros.append('busqueda', texto)
 
-  if (filtros.tipo.length > 0) {
-    const etiqueta = producto.es_personalizado ? 'Personalizado' : 'En catálogo'
-    if (!filtros.tipo.includes(etiqueta)) return false
-  }
+  const estados = filtros.estados.length > 0 ? filtros.estados : ['ACTIVO']
+  estados.forEach((estado) => parametros.append('estado', estado))
 
-  return true
-}
-
-
-// La lista lista para mostrar: primero se recorta por estado, después se
-// aplican los criterios, y al final el texto del buscador.
-export function candidatos(productos, filtros, busqueda = '') {
-  const texto = busqueda.trim().toLowerCase()
-
-  return candidatosPorEstado(productos, filtros).filter(
-    (p) => p.nombre.toLowerCase().includes(texto) && aplicaFiltros(p, filtros)
+  filtros.categorias.forEach((id) => parametros.append('categoria', id))
+  filtros.dificultades.forEach((valor) => parametros.append('dificultad', valor))
+  // El modal guarda la etiqueta que muestra; el backend espera la clave.
+  filtros.tipo.forEach((etiqueta) =>
+    parametros.append('tipo', etiqueta === 'Personalizado' ? 'personalizado' : 'catalogo')
   )
+  if (filtros.desde !== null) parametros.append('precio_desde', filtros.desde)
+  if (filtros.hasta !== null) parametros.append('precio_hasta', filtros.hasta)
+
+  if (orden.campo) parametros.append('orden', orden.dir === 'desc' ? `-${orden.campo}` : orden.campo)
+
+  return parametros
 }
 
 
@@ -103,12 +76,14 @@ export function contarFiltros(filtros) {
 // el deslizador siempre alcance a la pieza más cara.
 const PASO = 500
 
-export function rangoDePrecios(productos) {
-  if (productos.length === 0) return { min: 0, max: PASO }
+// Recibe el resumen del listado, que trae el precio más bajo y el más alto
+// de todos los productos (precio_minimo y precio_maximo, como texto), o
+// null mientras no llegó.
+export function rangoDePrecios(resumen) {
+  if (!resumen) return { min: 0, max: PASO }
 
-  const precios = productos.map((p) => Number(p.precio_actual))
-  const min = Math.floor(Math.min(...precios) / PASO) * PASO
-  const max = Math.ceil(Math.max(...precios) / PASO) * PASO
+  const min = Math.floor(Number(resumen.precio_minimo) / PASO) * PASO
+  const max = Math.ceil(Number(resumen.precio_maximo) / PASO) * PASO
 
   // Si todos valen lo mismo, min y max caerían en el número: un deslizador
   // sin recorrido. Se le da un paso de aire.

@@ -9,9 +9,6 @@
 // El filtro por saldo del prototipo NO está: depende de Cobros, que es el
 // módulo siguiente.
 
-import { hoy } from './presentacion'
-
-
 // Cuántos días abarca "próximos", contando hoy: hoy, mañana y pasado. Tiene
 // que ser el mismo número que DIAS_ENTREGAS_PROXIMAS en
 // backend/inicio/views.py, que es con el que cuenta la tarjeta de Inicio: si
@@ -36,9 +33,10 @@ export const OPCIONES_ENTREGA = [
 // se carga un pedido más caro, y el texto del modal mentiría.
 export const PASO = 1000
 
-export function totalMaximo(pedidos) {
-  // El 0 de adelante hace que Math.max no devuelva -Infinity sin pedidos.
-  const mayor = Math.max(0, ...pedidos.map((p) => Number(p.total)))
+// Recibe el total más alto, que manda el backend en el resumen del listado
+// (total_maximo, como texto).
+export function topeDelTotal(totalMaximo) {
+  const mayor = Number(totalMaximo)
   const tope = Math.ceil(mayor / PASO) * PASO
 
   // Sin pedidos, o con todos en cero, el tope caería en 0: un deslizador
@@ -64,87 +62,38 @@ export const FILTROS_VACIOS = {
 }
 
 
-// La fecha de hoy más N días, en ISO y en hora local. Se arma a mano con
-// getFullYear, getMonth y getDate, igual que hoy() en presentacion.js, y no
-// con toISOString(), que pasa a UTC y después de las 21 devolvería el día
-// siguiente. setDate se encarga solo del cambio de mes y de año.
-function hoyMasDias(cantidad) {
-  const fecha = new Date()
-  fecha.setDate(fecha.getDate() + cantidad)
+// Los parámetros de GET /api/pedidos/ para una página del listado
+// (corrección D3): el filtrado, la búsqueda, el orden y la paginación los
+// hace el backend, en PedidoViewSet._filtrar(). Acá solo se traducen los
+// filtros de la pantalla a los nombres de la URL. Cada criterio vacío no
+// viaja.
+//
+// Va en un URLSearchParams y no en un objeto común porque estado y saldo se
+// repiten (?estado=LISTO&estado=PENDIENTE): con un arreglo en un objeto,
+// Axios escribiría estado[]=, que Django no lee como la misma clave.
+export function parametrosDelListado({ filtros, busqueda, orden, pagina, porPagina }) {
+  const parametros = new URLSearchParams()
 
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0')
-  const dia = String(fecha.getDate()).padStart(2, '0')
+  parametros.append('pagina', pagina)
+  parametros.append('por_pagina', porPagina)
 
-  return `${fecha.getFullYear()}-${mes}-${dia}`
-}
+  const texto = busqueda.trim()
+  if (texto) parametros.append('busqueda', texto)
 
+  if (filtros.cliente !== null) parametros.append('cliente', filtros.cliente)
+  filtros.estados.forEach((estado) => parametros.append('estado', estado))
+  if (filtros.entrega !== null) parametros.append('entrega', filtros.entrega.toLowerCase())
+  filtros.saldo.forEach((saldo) => parametros.append('saldo', saldo.toLowerCase()))
+  if (filtros.desde !== '') parametros.append('total_desde', filtros.desde)
+  if (filtros.hasta !== '') parametros.append('total_hasta', filtros.hasta)
 
-// El filtro de ENTREGA. Es la MISMA regla que usa backend/inicio/views.py
-// para las dos tarjetas de Inicio, escrita para el navegador: si cambia
-// una, cambia la otra. Un pedido Entregado no está atrasado ni se va a
-// entregar, y uno sin fecha estimada tampoco: los dos quedan afuera de las
-// dos opciones. Atrasado es el que tiene la fecha estimada antes de hoy;
-// próximo, el que la tiene entre hoy y el último día de la ventana, los dos
-// inclusive. Las fechas se comparan como texto en ISO, como hace atraso()
-// en presentacion.js.
-function cumpleEntrega(pedido, entrega, hoyIso, ultimoDia) {
-  const estimada = pedido.fecha_entrega_estimada
+  // La columna PEDIDO se ordena por número, que en el backend se llama así.
+  if (orden.campo) {
+    const clave = orden.campo === 'id' ? 'numero' : orden.campo
+    parametros.append('orden', orden.dir === 'desc' ? `-${clave}` : clave)
+  }
 
-  if (pedido.estado === 'ENTREGADO') return false
-  if (!estimada) return false
-
-  if (entrega === 'ATRASADOS') return estimada < hoyIso
-
-  return hoyIso <= estimada && estimada <= ultimoDia
-}
-
-
-// La lista lista para mostrar. Cada criterio vacío no filtra nada.
-export function candidatos(pedidos, filtros, busqueda = '') {
-  const texto = busqueda.trim().toLowerCase()
-
-  // Hoy y el último día de "próximos" se calculan una vez por llamada, no
-  // una vez por pedido.
-  const hoyIso = hoy()
-  const ultimoDia = hoyMasDias(DIAS_ENTREGAS_PROXIMAS - 1)
-
-  return pedidos.filter((p) => {
-    if (texto) {
-      // El número va con el numeral adelante, así que buscar "#43" y
-      // buscar "43" encuentran los dos.
-      const buscable = `#${p.id} ${p.cliente_instagram} ${p.cliente_nombre} ${p.productos_nombres.join(' ')}`
-
-      if (!buscable.toLowerCase().includes(texto)) return false
-    }
-
-    if (filtros.cliente !== null && p.cliente !== filtros.cliente) return false
-
-    if (filtros.estados.length > 0 && !filtros.estados.includes(p.estado)) return false
-
-    if (filtros.entrega !== null && !cumpleEntrega(p, filtros.entrega, hoyIso, ultimoDia)) return false
-
-    // Las dos opciones del saldo son EXCLUSIONES, no una unión: cada una
-    // saca lo que no cumple. Por eso marcar las dos no devuelve nada, que
-    // es lo que hace el diseño.
-    //
-    // "Al día" incluye a los que pagaron de más: el que abonó de sobra
-    // tampoco debe nada.
-    const saldo = Number(p.saldo)
-
-    if (filtros.saldo.includes('PENDIENTE') && saldo <= 0) return false
-    if (filtros.saldo.includes('AL_DIA') && saldo > 0) return false
-
-    // El total llega como TEXTO ("15500.00"): DRF serializa así los Decimal
-    // para que no pierdan precisión al pasar por el número de JavaScript.
-    // Hay que convertirlo para compararlo con los valores de los
-    // deslizadores.
-    const total = Number(p.total)
-
-    if (filtros.desde !== '' && total < Number(filtros.desde)) return false
-    if (filtros.hasta !== '' && total > Number(filtros.hasta)) return false
-
-    return true
-  })
+  return parametros
 }
 
 

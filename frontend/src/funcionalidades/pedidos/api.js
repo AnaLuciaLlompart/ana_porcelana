@@ -24,6 +24,13 @@ export function listarPedidos(params = {}) {
   return cliente.get('/pedidos/', { params })
 }
 
+// Los números del encabezado del listado y el total más alto. No es un CU
+// propio: es parte de CU41, porque el listado paginado ya no trae todos los
+// pedidos para contarlos.
+export function resumenDePedidos() {
+  return cliente.get('/pedidos/resumen/')
+}
+
 export function obtenerPedido(id) {
   return cliente.get(`/pedidos/${id}/`)
 }

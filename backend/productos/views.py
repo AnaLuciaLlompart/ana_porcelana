@@ -1,10 +1,17 @@
-from rest_framework import viewsets, filters, status
+from decimal import Decimal
+
+from django.db.models import Case, Count, Exists, Max, Min, OuterRef, Q, Subquery, Value, When
+from django.db.models.functions import Coalesce
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ParseError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from categorias.models import Categoria
 from categorias.serializers import CategoriaSerializer
+from config.listados import leer_importe, ordenar
+from config.paginacion import PaginacionDeListado
 from materiales.models import Material
 
 from .models import MaterialProducto, Producto
@@ -15,9 +22,26 @@ from .serializers import (
     MaterialProductoSerializer,
     ProductoDetalleSerializer,
     ProductoListaSerializer,
+    ResumenDeProductosSerializer,
 )
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
+
+
+# Las columnas por las que se puede ordenar el listado (?orden=precio, o
+# ?orden=-precio para al revés). Son las del desplegable de orden y las de
+# la tabla. Dificultad va en su orden lógico, Baja, Media, Alta, y no en el
+# alfabético.
+ORDENES = {
+    'nombre': ['nombre'],
+    'precio': ['precio_actual'],
+    'dificultad': ['orden_dificultad'],
+    'categorias': ['cantidad_categorias'],
+}
+
+# Los dos valores del filtro "Tipo" del modal, con lo que es_personalizado
+# tiene que valer para cada uno.
+TIPOS = {'personalizado': True, 'catalogo': False}
 
 
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
@@ -49,9 +73,12 @@ class ProductoViewSet(viewsets.ModelViewSet):
     - sus imágenes, en /imagenes/ (CU32 a CU35)
     """
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['nombre', 'descripcion']
-    ordering_fields = ['nombre', 'precio_actual', 'dificultad', 'estado']
+    # El listado se pagina con ?pagina= (corrección D3), con los filtros y
+    # el orden resueltos en la base por _filtrar(). Sin ?pagina= y sin
+    # filtros sigue devolviendo todos: así lo piden los desplegables de
+    # productos de un pedido y el alta de producto, que revisa que el
+    # nombre no exista. Reemplaza al SearchFilter y al OrderingFilter.
+    pagination_class = PaginacionDeListado
 
     # Los tres formatos en los que puede llegar el cuerpo de un pedido.
     # JSON es el de siempre; los otros dos hacen falta para subir
@@ -104,11 +131,11 @@ class ProductoViewSet(viewsets.ModelViewSet):
         queryset = Producto.objects.all()
 
         if self.action == 'list':
-            return queryset.prefetch_related(
+            return self._filtrar(queryset.prefetch_related(
                 'categorias',
                 'materiales',
                 'imagenes',
-            )
+            ))
 
         return queryset.prefetch_related(
             'categorias',
@@ -116,6 +143,142 @@ class ProductoViewSet(viewsets.ModelViewSet):
             'imagenes',
             'materiales_usados__material',
         )
+
+    def _filtrar(self, queryset):
+        """Aplica al listado los filtros, la búsqueda y el orden de la URL (CU18).
+
+          busqueda=texto           nombre del producto
+          estado=ACTIVO            se puede repetir; ver abajo
+          categoria=id             se puede repetir: los que tienen alguna
+          dificultad=MEDIA         se puede repetir
+          tipo=personalizado       o catalogo; se puede repetir
+          precio_desde, precio_hasta   el rango de precio, inclusive
+          orden=precio             una clave de ORDENES; con '-', al revés
+
+        El estado tiene una regla más, la misma que tenía la grilla: un
+        producto con una categoría de baja no va a la grilla, va a la
+        sección de bajas agrupado bajo su categoría. Así que con ?estado=
+        quedan los de esos estados SIN categorías de baja, y si entre los
+        estados está BAJA, también los que tienen una categoría de baja,
+        sea cual sea su estado: con "Dados de baja" elegido la sección de
+        abajo se esconde, y si no, no se verían en ningún lado. La grilla
+        sin filtro de estado pide estado=ACTIVO.
+
+        Sin ?estado= no se filtra por estado: son todos los productos, que
+        es lo que necesitan los desplegables.
+        """
+        parametros = self.request.query_params
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            queryset = queryset.filter(nombre__icontains=texto)
+
+        estados = parametros.getlist('estado')
+        if estados:
+            if any(estado not in Producto.Estado.values for estado in estados):
+                raise ParseError('Uno de los estados no existe.')
+            # Exists y no un filtro sobre categorias__estado: con un JOIN,
+            # un producto con dos categorías de baja saldría dos veces.
+            tiene_categoria_de_baja = Exists(
+                Producto.categorias.through.objects.filter(
+                    producto=OuterRef('pk'), categoria__estado=Categoria.Estado.BAJA,
+                )
+            )
+            condicion = Q(estado__in=estados) & ~Q(tiene_categoria_de_baja)
+            if Producto.Estado.BAJA in estados:
+                condicion |= Q(tiene_categoria_de_baja)
+            queryset = queryset.filter(condicion)
+
+        categorias = parametros.getlist('categoria')
+        if categorias:
+            if not all(categoria.isdigit() for categoria in categorias):
+                raise ParseError('Las categorías tienen que ser números.')
+            queryset = queryset.filter(Exists(
+                Producto.categorias.through.objects.filter(
+                    producto=OuterRef('pk'), categoria_id__in=[int(c) for c in categorias],
+                )
+            ))
+
+        dificultades = parametros.getlist('dificultad')
+        if dificultades:
+            if any(valor not in Producto.Dificultad.values for valor in dificultades):
+                raise ParseError('Una de las dificultades no existe.')
+            queryset = queryset.filter(dificultad__in=dificultades)
+
+        tipos = parametros.getlist('tipo')
+        if tipos:
+            if any(tipo not in TIPOS for tipo in tipos):
+                raise ParseError('El tipo tiene que ser personalizado o catalogo.')
+            queryset = queryset.filter(es_personalizado__in=[TIPOS[tipo] for tipo in tipos])
+
+        precio_desde = leer_importe(parametros, 'precio_desde')
+        if precio_desde is not None:
+            queryset = queryset.filter(precio_actual__gte=precio_desde)
+
+        precio_hasta = leer_importe(parametros, 'precio_hasta')
+        if precio_hasta is not None:
+            queryset = queryset.filter(precio_actual__lte=precio_hasta)
+
+        cuenta_categorias = (
+            Producto.categorias.through.objects
+            .filter(producto=OuterRef('pk'))
+            .order_by()
+            .values('producto')
+            .annotate(cuenta=Count('id'))
+            .values('cuenta')
+        )
+        queryset = queryset.annotate(
+            orden_dificultad=Case(
+                When(dificultad=Producto.Dificultad.BAJA, then=Value(0)),
+                When(dificultad=Producto.Dificultad.MEDIA, then=Value(1)),
+                default=Value(2),
+            ),
+            cantidad_categorias=Coalesce(Subquery(cuenta_categorias), 0),
+        )
+        # Sin orden elegido queda el del modelo, por nombre.
+        return ordenar(queryset, parametros, ORDENES, ['nombre', 'id'])
+
+    # -----------------------------------------------------------------
+    # Los números del encabezado del listado
+    # -----------------------------------------------------------------
+
+    @action(detail=False, methods=['get'])
+    def resumen(self, request):
+        """La línea de arriba del listado y el rango del deslizador de precio. Es parte de CU18.
+
+        Cuentan sobre TODOS los productos, no sobre los filtrados:
+
+        - activos: los activos que están en la grilla, es decir, sin una
+          categoría de baja (los otros van en la sección de abajo)
+        - visibles_en_catalogo: los que hoy se ven en el catálogo público
+        - precio_minimo y precio_maximo: los extremos del deslizador, que
+          tienen que alcanzar a la pieza más barata y a la más cara
+        - de_baja y por_categoria: los dos números del botón de la sección
+          de dados de baja, que arranca cerrada; la lista se pide recién al
+          abrirla (con ?estado=BAJA), así no demora la entrada
+
+        Son cinco consultas, siempre las mismas.
+        """
+        tiene_categoria_de_baja = Exists(
+            Producto.categorias.through.objects.filter(
+                producto=OuterRef('pk'), categoria__estado=Categoria.Estado.BAJA,
+            )
+        )
+        precios = Producto.objects.aggregate(minimo=Min('precio_actual'), maximo=Max('precio_actual'))
+
+        datos = {
+            'activos': Producto.objects.filter(estado=Producto.Estado.ACTIVO)
+                                       .exclude(tiene_categoria_de_baja).count(),
+            'de_baja': Producto.objects.filter(estado=Producto.Estado.BAJA).count(),
+            'por_categoria': Producto.objects.filter(estado=Producto.Estado.ACTIVO)
+                                             .filter(tiene_categoria_de_baja).count(),
+            'visibles_en_catalogo': Producto.objects.visibles_en_catalogo().count(),
+            # Sin productos, Min y Max devuelven None: cero.
+            'precio_minimo': precios['minimo'] or Decimal('0'),
+            'precio_maximo': precios['maximo'] or Decimal('0'),
+        }
+
+        return Response(ResumenDeProductosSerializer(datos).data)
 
     # -----------------------------------------------------------------
     # Sobreescribo update, ya que no puedo modificar productos de baja

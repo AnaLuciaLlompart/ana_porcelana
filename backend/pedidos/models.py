@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from clientes.models import Cliente
@@ -10,6 +11,93 @@ from productos.models import Producto
 # =====================================================================
 # PEDIDOS  ·  CU40 a CU51
 # =====================================================================
+
+
+class PedidoManager(models.Manager):
+    """El manager de Pedido: lo que queda en Pedido.objects.
+
+    Como ProductoManager, hace todo lo que hace el manager de siempre y le
+    suma una consulta con nombre propio.
+    """
+
+    def con_totales(self):
+        """Los pedidos con su total, su saldo y su cantidad de productos calculados por la base.
+
+        Son las mismas cuentas que las propiedades total y saldo de
+        Pedido, escritas para que las resuelva PostgreSQL: el listado
+        filtra y ordena por total y por saldo (corrección D3), y la base
+        no puede filtrar por algo que solo existe en Python. Las dos
+        tienen que decir lo mismo: si cambia una, cambia la otra. Una
+        prueba de pedidos/tests.py compara las dos.
+
+        Cada suma va en su propia subconsulta y no con un Sum sobre la
+        relación: con los productos y los cobros en la misma consulta, el
+        JOIN repetiría cada producto una vez por cobro y al revés, y los
+        totales saldrían multiplicados.
+
+        Se llaman total_calculado y saldo_calculado, y no total y saldo,
+        porque esos nombres ya son propiedades del modelo y Django no deja
+        anotar con el nombre de una propiedad.
+        """
+        # max_digits=12, como el total y el saldo del serializer: suman
+        # varias filas y pueden pasarse de los diez dígitos de un precio.
+        importe = models.DecimalField(max_digits=12, decimal_places=2)
+        cero = models.Value(Decimal('0'), output_field=importe)
+
+        # Las tres subconsultas devuelven una fila por pedido: filtran por
+        # el pedido de afuera (OuterRef) y agrupan por pedido. El
+        # order_by() vacío saca el ordering del modelo, que no hace falta
+        # para sumar. ProductoDelPedido y Cobro se definen más abajo, pero
+        # para cuando alguien llama a este método el archivo ya se cargó.
+        suma_productos = (
+            ProductoDelPedido.objects
+            .filter(pedido=models.OuterRef('pk'))
+            .order_by()
+            .values('pedido')
+            .annotate(suma=models.Sum(models.F('precio') * models.F('cantidad'), output_field=importe))
+            .values('suma')
+        )
+        suma_cobros = (
+            Cobro.objects
+            .filter(pedido=models.OuterRef('pk'))
+            .order_by()
+            .values('pedido')
+            .annotate(suma=models.Sum('monto'))
+            .values('suma')
+        )
+        cuenta_productos = (
+            ProductoDelPedido.objects
+            .filter(pedido=models.OuterRef('pk'))
+            .order_by()
+            .values('pedido')
+            .annotate(cuenta=models.Count('id'))
+            .values('cuenta')
+        )
+
+        # El envío entra al total solo si está a cargo del emprendimiento y
+        # tiene costo cargado: la misma regla que costo_envio_a_cobrar.
+        envio = models.Case(
+            models.When(
+                forma_entrega=Pedido.FormaEntrega.MIO,
+                costo_entrega__isnull=False,
+                then=models.F('costo_entrega'),
+            ),
+            default=cero,
+            output_field=importe,
+        )
+
+        # Coalesce cambia por cero el NULL de la subconsulta de un pedido
+        # sin productos o sin cobros, como el Decimal('0') de semilla de
+        # las propiedades.
+        return (
+            self.annotate(
+                subtotal_calculado=Coalesce(models.Subquery(suma_productos, output_field=importe), cero),
+                cobrado_calculado=Coalesce(models.Subquery(suma_cobros, output_field=importe), cero),
+                cantidad_productos_calculada=Coalesce(models.Subquery(cuenta_productos), 0),
+            )
+            .annotate(total_calculado=models.F('subtotal_calculado') + envio)
+            .annotate(saldo_calculado=models.F('total_calculado') - models.F('cobrado_calculado'))
+        )
 
 
 class Pedido(models.Model):
@@ -132,6 +220,10 @@ class Pedido(models.Model):
         verbose_name='costo de entrega',
         help_text='Opcional. Se cobra cuando el envío está a cargo mío.',
     )
+
+    # Pedido.objects sigue haciendo todo lo de siempre y además tiene
+    # con_totales(). No genera migración, como el de Producto.
+    objects = PedidoManager()
 
     # -----------------------------------------------------------------
     # Metadatos: configuración de la TABLA, no de los datos

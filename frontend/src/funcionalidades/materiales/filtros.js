@@ -15,54 +15,34 @@ export const FILTROS_VACIOS = {
 }
 
 
-// Los ids de los materiales que usa el producto elegido.
+// Los parámetros de GET /api/materiales/ para una de las dos listas de la
+// pantalla (corrección D3): el filtrado, la búsqueda y el orden los hace el
+// backend, en MaterialViewSet._filtrar(), igual que en Pedidos.
 //
-// Devuelve null cuando no hay ninguno elegido, que significa "no filtres
-// por esto". Un producto sin materiales devuelve el arreglo vacío, que sí
-// filtra: no hay ningún material que mostrar, y esa es la respuesta
-// correcta.
-function materialesDelProducto(productos, id) {
-  if (id === null) return null
+// estado es el de la lista que se pide: ACTIVO para la de arriba, que se
+// pagina, y DISCONTINUADO para la sección colapsable, que viene entera.
+// Devuelve null cuando el filtro de estado de la pantalla deja esa lista
+// vacía (con solo "Discontinuado" marcado, la de arriba no tiene nada que
+// pedir).
+export function parametrosDelListado({ filtros, busqueda, orden, estado, pagina, porPagina }) {
+  if (filtros.estados.length > 0 && !filtros.estados.includes(estado)) return null
 
-  const producto = productos.find((p) => p.id === id)
+  const parametros = new URLSearchParams()
 
-  return producto ? producto.materiales : null
-}
+  if (pagina) parametros.append('pagina', pagina)
+  if (porPagina) parametros.append('por_pagina', porPagina)
 
+  parametros.append('estado', estado)
 
-// La lista lista para mostrar. Cada criterio vacío no filtra nada.
-//
-// Ojo: acá NO va la regla de Productos de "sin filtro de estado, solo los
-// activos". Materiales muestra los activos arriba y los discontinuados en
-// la sección colapsable, y ese reparto lo hace la pantalla después.
-export function candidatos(materiales, filtros, busqueda = '', productos = []) {
-  const texto = busqueda.trim().toLowerCase()
-  const ids = materialesDelProducto(productos, filtros.producto)
+  const texto = busqueda.trim()
+  if (texto) parametros.append('busqueda', texto)
 
-  return materiales.filter((m) => {
-    if (
-      texto &&
-      !m.nombre.toLowerCase().includes(texto) &&
-      !m.descripcion.toLowerCase().includes(texto)
-    ) {
-      return false
-    }
+  filtros.disponibilidades.forEach((valor) => parametros.append('disponibilidad', valor))
+  if (filtros.producto !== null) parametros.append('producto', filtros.producto)
 
-    if (
-      filtros.disponibilidades.length > 0 &&
-      !filtros.disponibilidades.includes(m.disponibilidad)
-    ) {
-      return false
-    }
+  if (orden.campo) parametros.append('orden', orden.dir === 'desc' ? `-${orden.campo}` : orden.campo)
 
-    if (filtros.estados.length > 0 && !filtros.estados.includes(m.estado)) {
-      return false
-    }
-
-    if (ids !== null && !ids.includes(m.id)) return false
-
-    return true
-  })
+  return parametros
 }
 
 

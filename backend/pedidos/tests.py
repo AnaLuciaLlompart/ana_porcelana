@@ -1,3 +1,6 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
@@ -251,15 +254,15 @@ class UltimoCobroDelListado(PruebaDePedido):
 
     def test_el_listado_trae_el_cobro_mas_reciente(self):
         """CU60: sin cobros ultimo_cobro es None; con dos, el de fecha mayor aunque se haya cargado antes."""
-        respuesta = self.client.get(LISTA)
-        self.assertIsNone(respuesta.data[0]['ultimo_cobro'])
+        respuesta = self.client.get(LISTA, {'pagina': 1})
+        self.assertIsNone(respuesta.data['results'][0]['ultimo_cobro'])
 
         self.agregar_pieza()
         nuevo = Cobro.objects.create(pedido=self.pedido, monto='1000.00', fecha='2026-10-20')
         Cobro.objects.create(pedido=self.pedido, monto='1000.00', fecha='2026-10-01')
 
-        respuesta = self.client.get(LISTA)
-        self.assertEqual(respuesta.data[0]['ultimo_cobro'], nuevo.id)
+        respuesta = self.client.get(LISTA, {'pagina': 1})
+        self.assertEqual(respuesta.data['results'][0]['ultimo_cobro'], nuevo.id)
 
 
 class ComprobanteDeUnCobro(PruebaDePedido):
@@ -299,10 +302,12 @@ class RendimientoDelListado(PruebaSinSesion):
         self.client.force_authenticate(get_user_model().objects.create_user(USUARIA))
 
     def test_el_listado_hace_una_cantidad_fija_de_consultas(self):
-        """CU41: con tres pedidos con productos y cobros, el listado hace 4 consultas.
+        """CU41: con tres pedidos con productos y cobros, el listado hace 5 consultas.
 
-        Pedidos con su cliente (un JOIN por select_related), productos
-        del pedido, los productos de esas líneas y los cobros.
+        El COUNT de la paginación, los pedidos de la página con su cliente
+        (un JOIN por select_related) y sus totales (subconsultas de la misma
+        consulta), productos del pedido, los productos de esas líneas y los
+        cobros.
         """
         cliente = Cliente.objects.create(instagram='sofi.delgado', nombre='Sofía')
         producto = Producto.objects.create(
@@ -317,6 +322,124 @@ class RendimientoDelListado(PruebaSinSesion):
                 )
             Cobro.objects.create(pedido=pedido, monto='1000.00')
 
-        with self.assertNumQueries(4):
-            respuesta = self.client.get(LISTA)
-        self.assertEqual(len(respuesta.data), 3)
+        with self.assertNumQueries(5):
+            respuesta = self.client.get(LISTA, {'pagina': 1})
+        self.assertEqual(len(respuesta.data['results']), 3)
+
+
+class ListadoEnLaBase(PruebaDePedido):
+    """El listado se filtra, se ordena y se pagina en la base (CU41, corrección D3)."""
+
+    def ids(self, parametros):
+        """Los ids de la primera página que devuelve el listado con esos parámetros."""
+        respuesta = self.client.get(LISTA, {'pagina': 1, **parametros})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        return [pedido['id'] for pedido in respuesta.data['results']]
+
+    def test_el_listado_viene_paginado(self):
+        """CU41: con ?pagina= devuelve 12 de 13 y el count; con por_pagina=24, los 13; sin pagina, la lista entera."""
+        for _ in range(12):
+            Pedido.objects.create(cliente=self.cliente)
+
+        respuesta = self.client.get(LISTA, {'pagina': 1})
+        self.assertEqual(respuesta.data['count'], 13)
+        self.assertEqual(len(respuesta.data['results']), 12)
+        self.assertIsNotNone(respuesta.data['next'])
+
+        respuesta = self.client.get(LISTA, {'pagina': 1, 'por_pagina': 24})
+        self.assertEqual(len(respuesta.data['results']), 13)
+        self.assertIsNone(respuesta.data['next'])
+
+        # Sin ?pagina= viaja la lista entera, que es lo que piden los
+        # desplegables de los formularios.
+        respuesta = self.client.get(LISTA)
+        self.assertEqual(len(respuesta.data), 13)
+
+    def test_el_total_y_el_saldo_de_la_base_son_los_de_las_propiedades(self):
+        """CU41: con_totales() da el mismo total y saldo que las propiedades, con y sin envío a cobrar."""
+        self.agregar_pieza(cantidad=2)
+        self.pedido.forma_entrega = Pedido.FormaEntrega.MIO
+        self.pedido.costo_entrega = Decimal('1500.00')
+        self.pedido.save()
+        Cobro.objects.create(pedido=self.pedido, monto='3000.00')
+
+        # El envío a cargo del cliente no suma, y un pedido vacío vale cero.
+        Pedido.objects.create(
+            cliente=self.cliente, forma_entrega=Pedido.FormaEntrega.CLIENTE,
+            costo_entrega=Decimal('900.00'),
+        )
+
+        for pedido in Pedido.objects.con_totales().prefetch_related('productos', 'cobros'):
+            self.assertEqual(pedido.total_calculado, pedido.total)
+            self.assertEqual(pedido.saldo_calculado, pedido.saldo)
+
+    def test_filtra_por_saldo_y_por_total(self):
+        """CU41: saldo=pendiente deja el que debe y al_dia el que no; el rango de total incluye los extremos."""
+        self.agregar_pieza()
+        pagado = Pedido.objects.create(cliente=self.cliente)
+        ProductoDelPedido.objects.create(pedido=pagado, producto=self.producto, precio='5000.00', cantidad=2)
+        Cobro.objects.create(pedido=pagado, monto='10000.00')
+
+        self.assertEqual(self.ids({'saldo': 'pendiente'}), [self.pedido.id])
+        self.assertEqual(self.ids({'saldo': 'al_dia'}), [pagado.id])
+        self.assertEqual(self.ids({'total_desde': '10000'}), [pagado.id])
+        self.assertEqual(self.ids({'total_hasta': '5000'}), [self.pedido.id])
+
+    def test_filtra_por_entrega(self):
+        """CU41: atrasados y proximos dejan afuera a los entregados y a los que no tienen fecha."""
+        hoy = timezone.localdate()
+        self.pedido.fecha_entrega_estimada = hoy - timedelta(days=1)
+        self.pedido.save()
+        proximo = Pedido.objects.create(cliente=self.cliente, fecha_entrega_estimada=hoy)
+        Pedido.objects.create(
+            cliente=self.cliente, fecha_entrega_estimada=hoy - timedelta(days=1),
+            estado=Pedido.Estado.ENTREGADO,
+        )
+        Pedido.objects.create(cliente=self.cliente)
+
+        self.assertEqual(self.ids({'entrega': 'atrasados'}), [self.pedido.id])
+        self.assertEqual(self.ids({'entrega': 'proximos'}), [proximo.id])
+
+    def test_busca_por_numero_cliente_y_producto(self):
+        """CU41: la búsqueda encuentra por número con o sin #, por instagram y por nombre de producto."""
+        self.agregar_pieza()
+        otra = Cliente.objects.create(instagram='mica.luna', nombre='Micaela')
+        otro = Pedido.objects.create(cliente=otra)
+
+        self.assertEqual(self.ids({'busqueda': f'#{otro.id}'}), [otro.id])
+        self.assertEqual(self.ids({'busqueda': 'mica'}), [otro.id])
+        self.assertEqual(self.ids({'busqueda': 'hedwig'}), [self.pedido.id])
+
+    def test_ordena_por_saldo_y_por_estado(self):
+        """CU41: orden=-saldo pone primero al que más debe; orden=estado sigue el orden del trabajo."""
+        self.agregar_pieza()
+        listo = Pedido.objects.create(cliente=self.cliente, estado=Pedido.Estado.LISTO)
+        ProductoDelPedido.objects.create(pedido=listo, producto=self.producto, precio='5000.00', cantidad=3)
+
+        self.assertEqual(self.ids({'orden': '-saldo'}), [listo.id, self.pedido.id])
+        self.assertEqual(self.ids({'orden': 'estado'}), [self.pedido.id, listo.id])
+
+    def test_un_parametro_invalido_da_400(self):
+        """CU41: un estado o un orden que no existen responden 400 con mensaje; uno válido pasa."""
+        respuesta = self.client.get(LISTA, {'estado': 'PERDIDO'})
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'Uno de los estados no existe.')
+
+        respuesta = self.client.get(LISTA, {'orden': 'color'})
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'No se puede ordenar por esa columna.')
+
+        self.assertEqual(self.ids({'estado': 'PENDIENTE'}), [self.pedido.id])
+
+    def test_el_resumen_cuenta_sobre_todos_los_pedidos(self):
+        """CU41: activos, atrasados, con saldo y el total más alto, sin mirar los filtros."""
+        self.agregar_pieza(cantidad=2)
+        self.pedido.fecha_entrega_estimada = timezone.localdate() - timedelta(days=1)
+        self.pedido.save()
+        Pedido.objects.create(cliente=self.cliente, estado=Pedido.Estado.ENTREGADO)
+
+        respuesta = self.client.get(f'{LISTA}resumen/', {'estado': 'ENTREGADO'})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data, {
+            'activos': 1, 'atrasados': 1, 'con_saldo': 1, 'total_maximo': '10000.00',
+        })

@@ -21,6 +21,13 @@ export function listarProductos(params = {}) {
   return cliente.get('/productos/', { params })
 }
 
+// Los activos de la grilla, los visibles en el catálogo y el rango de
+// precios. No es un CU propio: es parte de CU18, porque el listado paginado
+// ya no trae todos los productos para contarlos.
+export function resumenDeProductos() {
+  return cliente.get('/productos/resumen/')
+}
+
 export function obtenerProducto(id) {
   return cliente.get(`/productos/${id}/`)
 }

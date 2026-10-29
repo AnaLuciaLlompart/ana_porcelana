@@ -1,9 +1,24 @@
-from rest_framework import viewsets, filters, status
+from django.db.models import Case, Q, Value, When
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ParseError
 from rest_framework.response import Response
+
+from config.listados import ordenar
+from config.paginacion import PaginacionDeListado
 
 from .models import Material
 from .serializers import MaterialSerializer
+
+
+# Las columnas por las que se puede ordenar el listado (?orden=nombre, o
+# ?orden=-nombre para al revés). Disponibilidad y estado van en su orden
+# lógico y no en el alfabético: Alta, Media, Baja; Activo, Discontinuado.
+ORDENES = {
+    'nombre': ['nombre'],
+    'disponibilidad': ['orden_disponibilidad'],
+    'estado': ['orden_estado'],
+}
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model, verifica permisos
 
@@ -19,11 +34,75 @@ class MaterialViewSet(viewsets.ModelViewSet): # ModelViewSet es la clase que ya 
     """
 
     queryset = Material.objects.all()
-    serializer_class = MaterialSerializer 
+    serializer_class = MaterialSerializer
 
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['nombre', 'descripcion']
-    ordering_fields = ['nombre', 'disponibilidad', 'estado']
+    # El listado se pagina con ?pagina= (corrección D3), con los filtros y
+    # el orden resueltos en la base por _filtrar(). Sin ?pagina= sigue
+    # devolviendo todos: así lo piden los desplegables de materiales de un
+    # producto y de un gasto. Reemplaza al SearchFilter y al OrderingFilter.
+    pagination_class = PaginacionDeListado
+
+    def get_queryset(self):
+        """En el listado, los filtros y el orden de la URL; en lo demás, sin filtrar."""
+        queryset = super().get_queryset()
+
+        if self.action == 'list':
+            return self._filtrar(queryset)
+
+        return queryset
+
+    def _filtrar(self, queryset):
+        """Aplica al listado los filtros, la búsqueda y el orden de la URL (CU05).
+
+          busqueda=texto           nombre o descripción
+          disponibilidad=BAJA      se puede repetir: cualquiera de las elegidas
+          estado=ACTIVO            se puede repetir; la pantalla pide los
+                                   activos para la lista y los discontinuados
+                                   aparte, para su sección
+          producto=id              los materiales que usa ese producto
+          orden=nombre             una clave de ORDENES; con '-', al revés
+        """
+        parametros = self.request.query_params
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            queryset = queryset.filter(Q(nombre__icontains=texto) | Q(descripcion__icontains=texto))
+
+        disponibilidades = parametros.getlist('disponibilidad')
+        if disponibilidades:
+            if any(valor not in Material.Disponibilidad.values for valor in disponibilidades):
+                raise ParseError('Una de las disponibilidades no existe.')
+            queryset = queryset.filter(disponibilidad__in=disponibilidades)
+
+        estados = parametros.getlist('estado')
+        if estados:
+            if any(valor not in Material.Estado.values for valor in estados):
+                raise ParseError('Uno de los estados no existe.')
+            queryset = queryset.filter(estado__in=estados)
+
+        producto = parametros.get('producto')
+        if producto:
+            if not producto.isdigit():
+                raise ParseError('El producto tiene que ser un número.')
+            # productos es la relación de muchos a muchos con Producto, a
+            # través de MaterialProducto. Un material está una sola vez por
+            # producto (la UniqueConstraint de MaterialProducto), así que el
+            # JOIN no repite filas.
+            queryset = queryset.filter(productos__id=int(producto))
+
+        queryset = queryset.annotate(
+            orden_disponibilidad=Case(
+                When(disponibilidad=Material.Disponibilidad.ALTA, then=Value(0)),
+                When(disponibilidad=Material.Disponibilidad.MEDIA, then=Value(1)),
+                default=Value(2),
+            ),
+            orden_estado=Case(
+                When(estado=Material.Estado.ACTIVO, then=Value(0)),
+                default=Value(1),
+            ),
+        )
+        # Sin orden elegido queda el del modelo, por nombre.
+        return ordenar(queryset, parametros, ORDENES, ['nombre', 'id'])
 
 
     # ----------------------------------------------------------------

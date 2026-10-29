@@ -183,7 +183,10 @@ export default function LayoutPublico() {
   const ubicacion = useLocation()
   const [parametros] = useSearchParams()
 
-  const [productos, setProductos] = useState([])
+  // Los productos de "Mi selección", no los del catálogo entero: desde la
+  // corrección D3 el listado pide los suyos de a 16, y acá solo hacen falta
+  // los elegidos, para el contador, la selección y el mensaje.
+  const [productosDeLaSeleccion, setProductosDeLaSeleccion] = useState([])
   const [categorias, setCategorias] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -217,16 +220,13 @@ export default function LayoutPublico() {
     cambiarFavicon(FAVICON_CATALOGO)
   }, [])
 
-  // El catálogo se carga UNA vez, acá, y no en cada pantalla: el listado y
-  // el árbol de categorías del encabezado usan las mismas dos listas.
-  // Promise.all espera a las dos juntas, así no hay un momento con los
-  // productos ya cargados y las categorías todavía no.
+  // Las categorías se cargan UNA vez, acá, y no en cada pantalla: el
+  // listado, el árbol del encabezado y el pie usan la misma lista, que trae
+  // la cantidad de productos de cada una. Los productos del listado los pide
+  // el listado, de a 16 (corrección D3).
   useEffect(() => {
-    Promise.all([listarProductosDelCatalogo(), listarCategoriasDelCatalogo()])
-      .then(([resProductos, resCategorias]) => {
-        setProductos(resProductos.data)
-        setCategorias(resCategorias.data)
-      })
+    listarCategoriasDelCatalogo()
+      .then((res) => setCategorias(res.data))
       .catch(() => setError('No se pudo cargar el catálogo.'))
       .finally(() => setCargando(false))
   }, [])
@@ -236,6 +236,33 @@ export default function LayoutPublico() {
   useEffect(() => {
     guardarSeleccion(cantidades, aclaraciones)
   }, [cantidades, aclaraciones])
+
+  // Los productos de la selección se piden por id (?ids=3,7,12), y solo
+  // cuando cambia QUÉ productos hay elegidos: cambiar una cantidad no pide
+  // nada. Un id que dejó de ser visible no vuelve en la respuesta, así que
+  // desaparece de la selección solo, como antes.
+  const idsDeLaSeleccion = Object.keys(cantidades)
+    .filter((id) => cantidades[id] > 0)
+    .sort()
+    .join(',')
+
+  useEffect(() => {
+    if (idsDeLaSeleccion === '') {
+      setProductosDeLaSeleccion([])
+      return
+    }
+
+    let vigente = true
+    listarProductosDelCatalogo({ ids: idsDeLaSeleccion })
+      .then((res) => {
+        if (vigente) setProductosDeLaSeleccion(res.data)
+      })
+      .catch(() => {})
+
+    return () => {
+      vigente = false
+    }
+  }, [idsDeLaSeleccion])
 
   // Al cambiar de pantalla se vuelve arriba, como el ir() del diseño. Sin
   // esto, al abrir un producto desde el final del listado el detalle
@@ -266,7 +293,7 @@ export default function LayoutPublico() {
   }, [algoAbierto])
 
   // Derivados: se calculan en cada dibujo y no se guardan en estado.
-  const grupos = agruparCategorias(categorias, productos)
+  const grupos = agruparCategorias(categorias)
   const enCatalogo = ubicacion.pathname === '/'
   const enProductos = enCatalogo || ubicacion.pathname.startsWith('/productos/')
   const enComoPedir = ubicacion.pathname === '/como-hacer-un-pedido'
@@ -281,7 +308,7 @@ export default function LayoutPublico() {
   // Los ítems de la selección con su producto, y cuántas piezas suman. Se
   // calculan acá porque el encabezado necesita el contador; el total va en
   // el contexto, para la pantalla de la selección.
-  const items = itemsDeLaSeleccion(cantidades, productos)
+  const items = itemsDeLaSeleccion(cantidades, productosDeLaSeleccion)
   const piezas = cantidadTotal(items)
 
   // Lo que pasa al elegir algo del árbol o tocar el logo: se cierra lo que
@@ -667,7 +694,6 @@ export default function LayoutPublico() {
         {!cargando && !error && (
           <Outlet
             context={{
-              productos,
               grupos,
               esEscritorio,
               seleccion: {

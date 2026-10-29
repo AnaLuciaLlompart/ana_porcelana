@@ -22,6 +22,11 @@ import {
 export default function SeccionBajas({
   deBaja,
   grupos,
+  // Los dos números del botón, que vienen del resumen del listado: con la
+  // sección cerrada la lista todavía no se pidió (corrección D3), así que
+  // no se pueden contar acá.
+  cantidadDeBaja,
+  cantidadPorCategoria,
   abierto,
   onToggle,
   colapsadas,
@@ -31,10 +36,6 @@ export default function SeccionBajas({
   onReactivarProducto,
   onReactivarCategoria,
 }) {
-  // Productos DISTINTOS: uno con dos categorías de baja está en dos grupos
-  // y es un solo producto.
-  const cantidadPorCategoria = new Set(grupos.flatMap((g) => g.productos.map((p) => p.id))).size
-
   return (
     <section style={{ marginTop: 34 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
@@ -73,7 +74,7 @@ export default function SeccionBajas({
             fontSize: 14,
           }}
         >
-          {`${deBaja.length} por el producto · ${cantidadPorCategoria} por su categoría`}
+          {`${cantidadDeBaja} por el producto · ${cantidadPorCategoria} por su categoría`}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path
               strokeLinecap="round"

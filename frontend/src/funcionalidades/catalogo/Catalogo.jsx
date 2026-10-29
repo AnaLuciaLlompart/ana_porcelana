@@ -1,35 +1,45 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
+import { listarProductosDelCatalogo } from './api'
 import CajaMensaje from './CajaMensaje'
 import FiltrosCatalogo from './FiltrosCatalogo'
 import TarjetaCatalogo from './TarjetaCatalogo'
 import {
   alternarFiltro,
-  buscarProductos,
   escribirBusqueda,
   escribirFiltros,
   escribirOrden,
-  filtrarProductos,
   leerBusqueda,
   leerFiltros,
   leerOrden,
   ORDENES,
-  ordenarProductos,
+  parametrosDelCatalogo,
 } from './filtros'
 import { ICONO_CERRAR, ICONO_CORAZON, ICONO_FILTROS, ICONO_LUPA, QUICKSAND, textoPiezas } from './presentacion'
 
 // El listado del catálogo público: CU63 (visualizar el catálogo) y CU64
 // (filtrar por categoría).
 //
-// Esta pantalla no le pide nada al servidor. Los productos y las
-// categorías los cargó el layout una sola vez y llegan por
-// useOutletContext; el filtrado es local, sobre esa lista.
+// Los productos se piden de a 20 al backend, que filtra, busca y ordena
+// (corrección D3); "Cargar más" suma los 20 siguientes. Las categorías, con
+// su cantidad de productos, las cargó el layout y llegan por
+// useOutletContext.
 
 export default function Catalogo() {
-  const { productos, grupos, esEscritorio } = useOutletContext()
+  const { grupos, esEscritorio } = useOutletContext()
   const ubicacion = useLocation()
   const [parametros, setParametros] = useSearchParams()
   const [filtrosAbierto, setFiltrosAbierto] = useState(false)
+
+  // Lo que ya llegó del backend: los productos de las páginas pedidas, uno
+  // detrás del otro, cuántos hay en total con los filtros puestos y cuál es
+  // la última página pedida.
+  const [productos, setProductos] = useState([])
+  const [total, setTotal] = useState(0)
+  const [pagina, setPagina] = useState(1)
+  const [cargando, setCargando] = useState(true)
+  const [cargandoMas, setCargandoMas] = useState(false)
+  const [error, setError] = useState('')
 
   // Derivados: se calculan en cada dibujo a partir de la dirección y de
   // las listas, y no se guardan en estado. La dirección es la única que
@@ -37,11 +47,64 @@ export default function Catalogo() {
   const idsElegidos = leerFiltros(parametros, grupos)
   const orden = leerOrden(parametros)
   const busqueda = leerBusqueda(parametros)
-  const filtrados = ordenarProductos(
-    buscarProductos(filtrarProductos(productos, grupos, idsElegidos), busqueda),
-    orden
-  )
   const hayBusqueda = busqueda.trim() !== ''
+
+  // La búsqueda se escribe en la dirección con cada letra, pero al backend
+  // se manda 300 ms después de la última (debounce), para no pedir una
+  // página por letra.
+  const [busquedaEnviada, setBusquedaEnviada] = useState(busqueda)
+  useEffect(() => {
+    const espera = setTimeout(() => setBusquedaEnviada(busqueda), 300)
+    return () => clearTimeout(espera)
+  }, [busqueda])
+
+  // La primera página, cada vez que cambian los filtros, el orden o la
+  // búsqueda: lo que se había cargado deja de valer y se vuelve a empezar.
+  // Los ids van como texto para que el efecto compare valores y no la lista
+  // nueva de cada dibujo. Si llegan dos respuestas fuera de orden, vigente
+  // descarta la vieja.
+  const claveDeFiltros = idsElegidos.join(',')
+  useEffect(() => {
+    let vigente = true
+    const ids = claveDeFiltros === '' ? [] : claveDeFiltros.split(',')
+
+    listarProductosDelCatalogo(parametrosDelCatalogo({ idsElegidos: ids, orden, busqueda: busquedaEnviada, pagina: 1 }))
+      .then((res) => {
+        if (!vigente) return
+        setProductos(res.data.results)
+        setTotal(res.data.count)
+        setPagina(1)
+        setError('')
+      })
+      .catch(() => {
+        if (vigente) setError('No se pudo cargar el catálogo.')
+      })
+      .finally(() => {
+        if (vigente) setCargando(false)
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [claveDeFiltros, orden, busquedaEnviada])
+
+  // "Cargar más": la página siguiente, que se suma debajo de las que ya
+  // están.
+  function cargarMas() {
+    setCargandoMas(true)
+    listarProductosDelCatalogo(parametrosDelCatalogo({ idsElegidos, orden, busqueda: busquedaEnviada, pagina: pagina + 1 }))
+      .then((res) => {
+        setProductos((anteriores) => [...anteriores, ...res.data.results])
+        setTotal(res.data.count)
+        setPagina(pagina + 1)
+      })
+      .catch(() => setError('No se pudieron cargar más productos.'))
+      .finally(() => setCargandoMas(false))
+  }
+
+  // Sin productos de ningún tipo: el catálogo está vacío, no es que los
+  // filtros no encontraron nada.
+  const catalogoVacio = !cargando && total === 0 && idsElegidos.length === 0 && busquedaEnviada.trim() === ''
 
   // El panel de filtros solo existe en celular. Si la ventana pasa a
   // escritorio con el panel abierto, filtrosAbierto queda en true pero no
@@ -224,7 +287,7 @@ export default function Catalogo() {
               Filtrar a la derecha, los tres con el mismo alto, borde, radio
               y letra. En escritorio es una sola fila, con el buscador a la
               izquierda y "Ordenar por" con el desplegable a la derecha. */}
-          {productos.length > 0 && (
+          {!catalogoVacio && (
             <>
               <div
                 style={{
@@ -347,14 +410,35 @@ export default function Catalogo() {
             </>
           )}
 
-          {productos.length === 0 && (
+          {cargando && (
+            <p style={{ margin: 0, fontSize: 15, color: '#64727A' }}>Cargando…</p>
+          )}
+
+          {error && (
+            <p
+              role="alert"
+              style={{
+                margin: '0 0 12px',
+                padding: '14px 16px',
+                background: '#FAEAE8',
+                border: '1px solid #F0C4BC',
+                borderRadius: 8,
+                fontSize: 15,
+                color: '#C0442F',
+              }}
+            >
+              {error}
+            </p>
+          )}
+
+          {catalogoVacio && (
             <CajaMensaje titulo="Todavía no hay productos en el catálogo." />
           )}
 
           {/* Sin resultados por la búsqueda, la salida limpia solo la
               búsqueda y deja los filtros; sin resultados por los filtros,
               lleva a todo el catálogo. */}
-          {productos.length > 0 && filtrados.length === 0 && hayBusqueda && (
+          {!cargando && !catalogoVacio && total === 0 && hayBusqueda && (
             <CajaMensaje
               titulo="No encontramos productos con ese nombre"
               texto={
@@ -367,7 +451,7 @@ export default function Catalogo() {
             />
           )}
 
-          {productos.length > 0 && filtrados.length === 0 && !hayBusqueda && (
+          {!cargando && !catalogoVacio && total === 0 && !hayBusqueda && (
             <CajaMensaje
               titulo="No hay piezas en esta categoría"
               texto="Probá con otra combinación o mirá todo el catálogo."
@@ -376,7 +460,7 @@ export default function Catalogo() {
             />
           )}
 
-          {filtrados.length > 0 && (
+          {productos.length > 0 && (
             <div
               style={{
                 display: 'grid',
@@ -387,7 +471,7 @@ export default function Catalogo() {
               {/* La posición es sobre la lista ya filtrada y ordenada: las
                   primeras son las que se ven al entrar, sea cual sea el
                   filtro, y son las que cargan su foto sin esperar. */}
-              {filtrados.map((producto, indice) => (
+              {productos.map((producto, indice) => (
                 <TarjetaCatalogo
                   key={producto.id}
                   producto={producto}
@@ -395,6 +479,33 @@ export default function Catalogo() {
                   indice={indice}
                 />
               ))}
+            </div>
+          )}
+
+          {/* De a 20: mientras queden productos sin mostrar, el botón trae
+              los siguientes. Es un botón y no un enlace porque no cambia la
+              dirección. */}
+          {productos.length > 0 && productos.length < total && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 20 }}>
+              <button
+                onClick={cargarMas}
+                disabled={cargandoMas}
+                className="catalogo-suave"
+                style={{
+                  minHeight: 44,
+                  padding: '0 24px',
+                  border: '1px solid #E0E8EB',
+                  background: 'white',
+                  color: '#557385',
+                  borderRadius: 6,
+                  cursor: cargandoMas ? 'default' : 'pointer',
+                  fontFamily: QUICKSAND,
+                  fontWeight: 600,
+                  fontSize: 16,
+                }}
+              >
+                {cargandoMas ? 'Cargando…' : 'Cargar más'}
+              </button>
             </div>
           )}
         </div>
@@ -483,7 +594,7 @@ export default function Catalogo() {
                   fontSize: 16,
                 }}
               >
-                {filtrados.length === 0 ? 'Sin resultados' : `Ver ${textoPiezas(filtrados.length)}`}
+                {total === 0 ? 'Sin resultados' : `Ver ${textoPiezas(total)}`}
               </button>
             </div>
           </div>

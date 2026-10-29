@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FILTROS_VACIOS, PASO, candidatos, montoMaximo } from './filtros'
+import { FILTROS_VACIOS, PASO, topeDelMonto } from './filtros'
 import { TIPOS, formatearPrecio } from './presentacion'
 
 
@@ -56,7 +56,7 @@ function Chip({ label, activo, onClick }) {
 }
 
 
-export default function ModalFiltros({ filtros, gastos, busqueda, onCerrar, onAplicar }) {
+export default function ModalFiltros({ filtros, montoMaximo, onCerrar, onAplicar }) {
   // El BORRADOR vive acá, no en la pantalla.
   //
   // Solo existe mientras el modal está abierto: marcar opciones no cambia
@@ -68,15 +68,9 @@ export default function ModalFiltros({ filtros, gastos, busqueda, onCerrar, onAp
   // El único camino por el que el borrador sale de acá es APLICAR.
   const [borrador, setBorrador] = useState(filtros)
 
-  // El contador en vivo: la MISMA función que usa la pantalla para armar la
-  // lista, pero con el borrador en vez de los filtros aplicados. Incluye el
-  // texto del buscador, porque si no diría un número distinto del que se va
-  // a ver al aplicar.
-  const coinciden = candidatos(gastos, borrador, busqueda).length
-
   // El tope de los deslizadores sale de los gastos cargados: llega hasta el
   // más caro. El piso es siempre 0.
-  const tope = montoMaximo(gastos)
+  const tope = topeDelMonto(montoMaximo)
 
   // Vacío significa "sin límite", y en el deslizador eso se dibuja en el
   // extremo que corresponda.
@@ -309,17 +303,15 @@ export default function ModalFiltros({ filtros, gastos, busqueda, onCerrar, onAp
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            // Sin el contador de los que coinciden (se sacó con D3: el
+            // filtrado está en el backend), los botones van a la derecha.
+            justifyContent: 'flex-end',
             gap: 12,
             padding: '16px 24px',
             flexShrink: 0,
             borderTop: '1px solid #EBE0E2',
           }}
         >
-          <span style={{ fontSize: 14, color: '#857078' }}>
-            {coinciden === 1 ? '1 gasto coincide' : `${coinciden} gastos coinciden`}
-          </span>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
               onClick={() => setBorrador(FILTROS_VACIOS)}

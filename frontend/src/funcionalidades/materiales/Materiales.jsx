@@ -6,7 +6,7 @@ import ModalVerMaterial from './ModalVerMaterial'
 import ModalDiscontinuarMaterial from './ModalDiscontinuarMaterial'
 import ModalEliminarMaterial from './ModalEliminarMaterial'
 import ModalFiltros from './ModalFiltros'
-import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
+import { FILTROS_VACIOS, contarFiltros, parametrosDelListado } from './filtros'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
 // endpoint pertenece a esa app y ahí se queda. Acá hacen falta los productos
@@ -15,7 +15,7 @@ import { listarProductos } from '../productos/api'
 
 import BotonAccion from '../../componentes/BotonAccion'
 import ModalAviso from '../../componentes/ModalAviso'
-import Paginacion, { paginar } from '../../componentes/Paginacion'
+import Paginacion from '../../componentes/Paginacion'
 
 
 // Colores de cada valor
@@ -60,10 +60,6 @@ const ICONO_MATERIAL = 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-
 // Iconos del conmutador de vista
 const ICONO_LISTA = 'M4 6h16M4 12h16M4 18h16'
 const ICONO_GRID = 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z'
-
-// Orden lógico de los valores, no alfabético
-const ORDEN_DISPONIBILIDAD = { ALTA: 0, MEDIA: 1, BAJA: 2 }
-const ORDEN_ESTADO = { ACTIVO: 0, DISCONTINUADO: 1 }
 
 // Lo que se ve cuando todavía no hay ningún material cargado. Es distinto
 // de "ningún material coincide": ahí hay materiales y no los encontró ni la
@@ -306,38 +302,29 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, centrado }) {
   )
 }
 
-function Tabla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
-  const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
-  const [porPagina, setPorPagina] = useState(12)
-  const [pagina, setPagina] = useState(1)
+// El pie de páginas de una lista paginada en el backend (corrección D3).
+// paginacion es { total, pagina, porPagina, onPagina, onPorPagina }.
+function PieDePaginas({ paginacion, borde }) {
+  const { total, pagina, porPagina, onPagina, onPorPagina } = paginacion
 
-  // Alterna asc/desc, o empieza en asc si es una columna nueva.
-  function ordenarPor(campo) {
-    setOrden((o) =>
-      o.campo === campo
-        ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' }
-        : { campo, dir: 'asc' }
-    )
-    setPagina(1)
-  }
+  return (
+    <Paginacion
+      total={total}
+      desde={(pagina - 1) * porPagina}
+      porPagina={porPagina}
+      pagina={pagina}
+      totalPaginas={Math.max(1, Math.ceil(total / porPagina))}
+      onPorPagina={onPorPagina}
+      onPagina={onPagina}
+      borde={borde}
+    />
+  )
+}
 
-  // Se copia con [...] para no modificar el arreglo original.
-  const ordenados = [...materiales].sort((a, b) => {
-    if (!orden.campo) return 0
-
-    let cmp = 0
-    if (orden.campo === 'nombre') {
-      cmp = a.nombre.localeCompare(b.nombre, 'es')
-    } else if (orden.campo === 'disponibilidad') {
-      cmp = ORDEN_DISPONIBILIDAD[a.disponibilidad] - ORDEN_DISPONIBILIDAD[b.disponibilidad]
-    } else if (orden.campo === 'estado') {
-      cmp = ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado]
-    }
-
-    return orden.dir === 'asc' ? cmp : -cmp
-  })
-
-  const { visibles, paginaActual, totalPaginas, desde } = paginar(ordenados, porPagina, pagina)
+// La tabla dibuja lo que mandó el backend, ya filtrado y ordenado. Con
+// paginacion lleva el pie de páginas: es la lista de los activos. Sin ella
+// es la sección de discontinuados, que viene entera.
+function Tabla({ materiales, cargando, orden, onOrdenar, paginacion, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
 
   return (
     <div
@@ -351,9 +338,9 @@ function Tabla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinu
       <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
         <thead style={{ background: '#F0E2E4' }}>
           <tr>
-            <EncabezadoOrdenable campo="nombre" etiqueta="MATERIAL" orden={orden} onClick={ordenarPor} />
-            <EncabezadoOrdenable campo="disponibilidad" etiqueta="DISPONIBILIDAD" orden={orden} onClick={ordenarPor} centrado />
-            <EncabezadoOrdenable campo="estado" etiqueta="ESTADO" orden={orden} onClick={ordenarPor} centrado />
+            <EncabezadoOrdenable campo="nombre" etiqueta="MATERIAL" orden={orden} onClick={onOrdenar} />
+            <EncabezadoOrdenable campo="disponibilidad" etiqueta="DISPONIBILIDAD" orden={orden} onClick={onOrdenar} centrado />
+            <EncabezadoOrdenable campo="estado" etiqueta="ESTADO" orden={orden} onClick={onOrdenar} centrado />
             <th style={{ ...estiloTh, textAlign: 'center' }}>ACCIONES</th>
           </tr>
         </thead>
@@ -368,7 +355,7 @@ function Tabla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinu
           )}
 
           {!cargando &&
-            visibles.map((m) => (
+            materiales.map((m) => (
               <tr key={m.id} style={{ borderTop: '1px solid #EBE0E2' }}>
                 <td style={estiloTd}>{m.nombre}</td>
                 <td style={{ ...estiloTd, textAlign: 'center' }}>
@@ -396,35 +383,16 @@ function Tabla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinu
         </tbody>
       </table>
 
-      {!cargando && visibles.length === 0 && <SinResultados />}
+      {!cargando && materiales.length === 0 && <SinResultados />}
 
-      <Paginacion
-        total={ordenados.length}
-        desde={desde}
-        porPagina={porPagina}
-        pagina={paginaActual}
-        totalPaginas={totalPaginas}
-        onPorPagina={(n) => {
-          setPorPagina(n)
-          setPagina(1)
-        }}
-        onPagina={setPagina}
-      />
+      {paginacion && <PieDePaginas paginacion={paginacion} />}
     </div>
   )
 }
 
 
-function Grilla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
-  // Su propia paginación, separada de la de la tabla. Los hooks van antes
-  // que los return de arriba: React exige que se llamen siempre, en el
-  // mismo orden, y uno adentro de un if no se llamaría en todos los
-  // renders.
-  const [porPagina, setPorPagina] = useState(12)
-  const [pagina, setPagina] = useState(1)
-
-  const { visibles, paginaActual, totalPaginas, desde } = paginar(materiales, porPagina, pagina)
-
+// La grilla, igual que la tabla: con paginacion lleva el pie de páginas.
+function Grilla({ materiales, cargando, paginacion, onVer, onEditar, onEliminar, onDiscontinuar, onReactivar }) {
   if (cargando) {
     return <p style={{ color: '#857078' }}>Cargando…</p>
   }
@@ -442,7 +410,7 @@ function Grilla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontin
         gap: 18,
       }}
     >
-      {visibles.map((m) => (
+      {materiales.map((m) => (
         <div
           key={m.id}
           style={{
@@ -530,28 +498,18 @@ function Grilla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontin
       ))}
     </div>
 
-    <div
-      style={{
-        background: 'white',
-        border: '1px solid #EBE0E2',
-        borderRadius: 8,
-        marginTop: 16,
-      }}
-    >
-      <Paginacion
-        total={materiales.length}
-        desde={desde}
-        porPagina={porPagina}
-        pagina={paginaActual}
-        totalPaginas={totalPaginas}
-        onPorPagina={(n) => {
-          setPorPagina(n)
-          setPagina(1)
+    {paginacion && (
+      <div
+        style={{
+          background: 'white',
+          border: '1px solid #EBE0E2',
+          borderRadius: 8,
+          marginTop: 16,
         }}
-        onPagina={setPagina}
-        borde={false}
-      />
-    </div>
+      >
+        <PieDePaginas paginacion={paginacion} borde={false} />
+      </div>
+    )}
     </>
   )
 }
@@ -680,10 +638,26 @@ function AvisoReponer({ materiales, onReponer }) {
 
 export default function Materiales() {
   const [parametros] = useSearchParams()
+  // Las tres listas que pide la pantalla (corrección D3): la página de los
+  // activos, con cuántos hay en total; los discontinuados, enteros, para su
+  // sección; y los que hay que reponer, para el aviso de arriba, que no
+  // depende de los filtros.
   const [materiales, setMateriales] = useState([])
+  const [total, setTotal] = useState(0)
+  const [discontinuados, setDiscontinuados] = useState([])
+  const [porReponer, setPorReponer] = useState([])
+  // Solo la primera carga, como en Pedidos.
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  // Lo que se escribe en el buscador, y lo que se manda 300 ms después de
+  // la última tecla (debounce).
   const [busqueda, setBusqueda] = useState('')
+  const [busquedaEnviada, setBusquedaEnviada] = useState('')
+  const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
+  const [pagina, setPagina] = useState(1)
+  const [porPagina, setPorPagina] = useState(12)
+  // Sube en uno cada vez que hay que volver a pedir las listas.
+  const [version, setVersion] = useState(0)
   const [discAbierto, setDiscAbierto] = useState(false)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [materialEditando, setMaterialEditando] = useState(null)
@@ -694,53 +668,142 @@ export default function Materiales() {
   // pedidos y gastos.
   const [aviso, setAviso] = useState(null)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
-  const [filtros, setFiltros] = useState(FILTROS_VACIOS)
+  // El link a los materiales de un producto llega como
+  // /materiales?producto=7: el filtro arranca con ese producto. Se lee una
+  // sola vez, al montar, así que no pisa lo que la usuaria toque después.
+  const [filtros, setFiltros] = useState(() => {
+    const producto = parametros.get('producto')
+    return producto && /^\d+$/.test(producto)
+      ? { ...FILTROS_VACIOS, producto: Number(producto) }
+      : FILTROS_VACIOS
+  })
   const [productos, setProductos] = useState([])
   const [vista, setVista] = useState('grid')
 
 
-  // El link a los materiales de un producto llega como /materiales?producto=7.
-  //
-  // Se llama una sola vez, desde la carga inicial, así que no puede pisar lo
-  // que la usuaria toque después.
-  function aplicarProductoDeLaUrl(lista) {
-    const pedido = parametros.get('producto')
-    if (!pedido) return
+  // Los productos son para el filtro "aparece en el producto" (la lista del
+  // modal y el nombre del chip). Se piden recién al abrir el modal, o al
+  // entrar si se llegó con ?producto=, para no demorar la primera página,
+  // como los clientes en Pedidos.
+  function cargarProductos() {
+    if (productos.length > 0) return
 
-    const producto = lista.find((p) => String(p.id) === pedido)
-
-    // Un id que no existe se ignora: la pantalla abre normal.
-    if (!producto) return
-
-    setFiltros({ ...FILTROS_VACIOS, producto: producto.id })
+    listarProductos()
+      .then((res) => setProductos(res.data))
+      .catch(() => {})
   }
 
-
-  // Una sola carga al montar. El buscador filtra sobre estos datos, así que
-  // no vuelve a pedir nada y tampoco lleva debounce.
   useEffect(() => {
-    listarMateriales()
-      .then((res) => setMateriales(res.data))
-      .catch(() => setError('No se pudieron cargar los materiales.'))
-      .finally(() => setCargando(false))
-
-    // Los productos son para el filtro "aparece en el producto". Cada uno
-    // trae los ids de sus materiales, así que elegir uno no pide nada más.
-    listarProductos()
-      .then((res) => {
-        setProductos(res.data)
-        aplicarProductoDeLaUrl(res.data)
-      })
-      .catch(() => {})
+    if (filtros.producto !== null) cargarProductos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  function abrirFiltros() {
+    setFiltrosAbiertos(true)
+    cargarProductos()
+  }
 
+  // El debounce del buscador, como en Pedidos: 300 ms después de la última
+  // tecla se manda el texto y se vuelve a la página 1.
+  useEffect(() => {
+    const espera = setTimeout(() => {
+      setBusquedaEnviada(busqueda)
+      setPagina(1)
+    }, 300)
+    return () => clearTimeout(espera)
+  }, [busqueda])
+
+  // La página de los activos, cada vez que cambia algo de lo que la define.
+  // Si llegan dos respuestas fuera de orden, vigente descarta la vieja.
+  useEffect(() => {
+    let vigente = true
+    const pedido = parametrosDelListado({
+      filtros, busqueda: busquedaEnviada, orden, estado: 'ACTIVO', pagina, porPagina,
+    })
+
+    // Con solo "Discontinuado" en el filtro de estado no hay activos que
+    // pedir.
+    if (pedido === null) {
+      setMateriales([])
+      setTotal(0)
+      setCargando(false)
+      return
+    }
+
+    listarMateriales(pedido)
+      .then((res) => {
+        if (!vigente) return
+        setMateriales(res.data.results)
+        setTotal(res.data.count)
+        setError('')
+      })
+      .catch((err) => {
+        if (!vigente) return
+        // Una página que ya no existe responde 404: se vuelve a la anterior.
+        if (err.response?.status === 404 && pagina > 1) {
+          setPagina(pagina - 1)
+          return
+        }
+        setError('No se pudieron cargar los materiales.')
+      })
+      .finally(() => {
+        if (vigente) setCargando(false)
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [filtros, busquedaEnviada, orden, pagina, porPagina, version])
+
+  // Los discontinuados, enteros: son pocos y su sección está colapsada. Con
+  // los mismos filtros y la misma búsqueda que la lista de arriba.
+  useEffect(() => {
+    let vigente = true
+    const pedido = parametrosDelListado({ filtros, busqueda: busquedaEnviada, orden, estado: 'DISCONTINUADO' })
+
+    if (pedido === null) {
+      setDiscontinuados([])
+      return
+    }
+
+    listarMateriales(pedido)
+      .then((res) => {
+        if (vigente) setDiscontinuados(res.data)
+      })
+      .catch(() => {})
+
+    return () => {
+      vigente = false
+    }
+  }, [filtros, busquedaEnviada, orden, version])
+
+  // Los que hay que reponer, para el aviso de arriba: todos los activos en
+  // disponibilidad Baja, sin mirar los filtros.
+  useEffect(() => {
+    listarMateriales({ estado: 'ACTIVO', disponibilidad: 'BAJA' })
+      .then((res) => setPorReponer(res.data))
+      .catch(() => {})
+  }, [version])
+
+  // Vuelve a pedir las tres listas.
   function recargar() {
-    setCargando(true)
-    listarMateriales()
-      .then((res) => setMateriales(res.data))
-      .catch(() => setError('No se pudieron cargar los materiales.'))
-      .finally(() => setCargando(false))
+    setVersion((v) => v + 1)
+  }
+
+  // Cambiar los filtros o el orden vuelve a la página 1.
+  function cambiarFiltros(nuevos) {
+    setFiltros(nuevos)
+    setPagina(1)
+  }
+
+  // Alterna asc/desc, o empieza en asc si es una columna nueva.
+  function ordenarPor(campo) {
+    setOrden((o) =>
+      o.campo === campo
+        ? { campo, dir: o.dir === 'asc' ? 'desc' : 'asc' }
+        : { campo, dir: 'asc' }
+    )
+    setPagina(1)
   }
 
   // Cambia el estado de un material y refresca la lista
@@ -753,14 +816,19 @@ export default function Materiales() {
     }
   }
 
-  // Derivados: no se guardan en estado porque se calculan de materiales.
-  const filtrados = candidatos(materiales, filtros, busqueda, productos)
-
-  const activos = filtrados.filter((m) => m.estado === 'ACTIVO')
-  const discontinuados = filtrados.filter((m) => m.estado === 'DISCONTINUADO')
-  const porReponer = materiales.filter((m) => m.estado === 'ACTIVO' && m.disponibilidad === 'BAJA')
-
   const cantFiltros = contarFiltros(filtros)
+
+  // Lo que necesitan la tabla y la grilla de los activos para su pie.
+  const paginacion = {
+    total,
+    pagina,
+    porPagina,
+    onPagina: setPagina,
+    onPorPagina: (n) => {
+      setPorPagina(n)
+      setPagina(1)
+    },
+  }
 
   // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo.
   const chips = []
@@ -770,7 +838,7 @@ export default function Materiales() {
       clave: `disp-${d}`,
       label: { ALTA: 'Alta', MEDIA: 'Media', BAJA: 'Baja' }[d],
       onQuitar: () =>
-        setFiltros({
+        cambiarFiltros({
           ...filtros,
           disponibilidades: filtros.disponibilidades.filter((v) => v !== d),
         }),
@@ -782,7 +850,7 @@ export default function Materiales() {
       clave: `estado-${e}`,
       label: e === 'ACTIVO' ? 'Activo' : 'Discontinuado',
       onQuitar: () =>
-        setFiltros({ ...filtros, estados: filtros.estados.filter((v) => v !== e) }),
+        cambiarFiltros({ ...filtros, estados: filtros.estados.filter((v) => v !== e) }),
     })
   )
 
@@ -794,11 +862,14 @@ export default function Materiales() {
     chips.push({
       clave: 'producto',
       label: `Aparece en “${productoFiltrado.nombre}”`,
-      onQuitar: () => setFiltros({ ...filtros, producto: null }),
+      onQuitar: () => cambiarFiltros({ ...filtros, producto: null }),
     })
   }
 
-  const moduloVacio = !cargando && materiales.length === 0
+  // Sin materiales de ningún tipo: las dos listas vinieron vacías sin
+  // filtros ni búsqueda.
+  const moduloVacio =
+    !cargando && total === 0 && discontinuados.length === 0 && cantFiltros === 0 && busquedaEnviada.trim() === ''
 
   // Propiedades comunes a la tabla y la grilla
   const accionesComunes = {
@@ -904,7 +975,7 @@ export default function Materiales() {
 
         <button
           className="boton-filtros"
-          onClick={() => setFiltrosAbiertos(true)}
+          onClick={abrirFiltros}
           style={{
             marginLeft: 'auto',
             display: 'flex',
@@ -1029,7 +1100,7 @@ export default function Materiales() {
           ))}
 
           <button
-            onClick={() => setFiltros(FILTROS_VACIOS)}
+            onClick={() => cambiarFiltros(FILTROS_VACIOS)}
             style={{
               padding: '6px 12px',
               border: 0,
@@ -1046,9 +1117,16 @@ export default function Materiales() {
       )}
 
       {vista === 'lista' ? (
-        <Tabla materiales={activos} cargando={cargando} {...accionesComunes} />
+        <Tabla
+          materiales={materiales}
+          cargando={cargando}
+          orden={orden}
+          onOrdenar={ordenarPor}
+          paginacion={paginacion}
+          {...accionesComunes}
+        />
       ) : (
-        <Grilla materiales={activos} cargando={cargando} {...accionesComunes} />
+        <Grilla materiales={materiales} cargando={cargando} paginacion={paginacion} {...accionesComunes} />
       )}
 
       {discontinuados.length > 0 && (
@@ -1093,7 +1171,13 @@ export default function Materiales() {
           {discAbierto && (
             <div style={{ marginTop: 12 }}>
               {vista === 'lista' ? (
-                <Tabla materiales={discontinuados} cargando={false} {...accionesComunes} />
+                <Tabla
+                  materiales={discontinuados}
+                  cargando={false}
+                  orden={orden}
+                  onOrdenar={ordenarPor}
+                  {...accionesComunes}
+                />
               ) : (
                 <Grilla materiales={discontinuados} cargando={false} {...accionesComunes} />
               )}
@@ -1137,12 +1221,10 @@ export default function Materiales() {
       {filtrosAbiertos && (
         <ModalFiltros
           filtros={filtros}
-          materiales={materiales}
           productos={productos}
-          busqueda={busqueda}
           onCerrar={() => setFiltrosAbiertos(false)}
           onAplicar={(nuevos) => {
-            setFiltros(nuevos)
+            cambiarFiltros(nuevos)
             setFiltrosAbiertos(false)
           }}
         />

@@ -118,3 +118,14 @@ class ClienteSerializer(serializers.ModelSerializer):
         que usa el pedido.
         """
         return self._saldo(obj) <= 0
+
+
+class ResumenDeClientesSerializer(serializers.Serializer):
+    """La línea de arriba del listado de clientes y los números de sus dos chips (CU37).
+
+    De solo salida, como los resúmenes de Pedidos y Gastos.
+    """
+
+    clientes = serializers.IntegerField()
+    con_pedidos_en_curso = serializers.IntegerField()
+    con_saldo = serializers.IntegerField()
