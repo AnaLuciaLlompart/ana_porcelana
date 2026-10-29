@@ -557,24 +557,26 @@ no se ve en el celular, sin productos la lista vacía de cobros lo
 dice, y la frase de la seña sale solo con el botón encendido. Desde que el
 alta de pedido no tiene cobros, se evalúa solo sobre pedidos guardados.
 
-**La fila del listado: ojo, lápiz, Cambiar estado y ⋯** (corrección del
-tutor del 28/10/2026, A1; el orden de los dos últimos lo eligió la
-usuaria). Cuatro iconos por fila, y lo menos usado va en el ⋯
-(`MenuMasAcciones`, en `componentes/`): Cobros, Último comprobante y
-Eliminar, este en rojo. El ojo (`onVer`) abre `ModalVerPedido`, de solo
+**La fila del listado: ojo, lápiz, $ (Cobros) y ⋯** (corrección del
+tutor del 28/10/2026, A1, con los cambios que pidió la usuaria). Cuatro
+iconos por fila, y lo menos usado va en el ⋯ (`MenuMasAcciones`, en
+`componentes/`): Último comprobante y Eliminar, este en rojo. El estado no
+es un icono: se cambia en su columna (ver "El estado se cambia en la
+columna ESTADO"). El ojo (`onVer`) abre `ModalVerPedido`, de solo
 lectura, que pide la ficha al abrirse (el listado no trae productos ni
 cobros) con los tres estados adentro, y muestra los chips de estado y de
 saldo, los datos, los productos con su etapa, los cobros, total y
 cobrado; su Editar lleva a la ficha. El lápiz y el número (`onEditar`)
-abren la ficha. Cambiar estado abre `ModalEstado`. Cobros pide el pedido
-completo, abre `ModalCobros` y al cerrarlo recarga el listado, porque el
-saldo pudo cambiar y con un filtro de saldo la fila puede irse. Salieron
-de la fila el $ de Registrar cobro y su `ModalCobro` suelto (ahora solo lo
-abre `ModalCobros`) y el comprobante del pedido. ACCIONES sigue en 19%
-(178px en el mínimo de 940), porque siguen siendo cuatro botones; ese
-19% salió en su momento de PEDIDO (de 10 a 8), CLIENTE (de 16 a 10) y
-antes CONTENIDO (de 14 a 12): a 384px todavía se lee la primera palabra
-antes del "+N".
+abren la ficha. El $ (Cobros) pide el pedido completo, abre `ModalCobros`
+y al cerrarlo recarga el listado, porque el saldo pudo cambiar y con un
+filtro de saldo la fila puede irse; abre `ModalCobros` y no un
+`ModalCobro` suelto, que ahora solo abre `ModalCobros`. Salió de la fila
+el comprobante del pedido. ACCIONES sigue en 19% (178px en el mínimo de
+940), porque siguen siendo cuatro botones; ese 19% salió en su momento de
+PEDIDO (de 10 a 8), CLIENTE (de 16 a 10) y antes CONTENIDO (de 14 a 12):
+a 384px todavía se lee la primera palabra antes del "+N". Con el selector
+de estado, ESTADO pasó de 13 a 15% a costa de CLIENTE (de 10 a 9) y
+ENTREGA (de 12 a 11).
 
 **El ⋯ es `MenuMasAcciones({ items })`.** Cada ítem es `{ texto, icono,
 onClick }` y puede llevar `deshabilitado` con su `motivo` en el title, y
@@ -598,14 +600,22 @@ el material de `ModalMaterial` del gasto (pedido de la usuaria: la lista
 corría los campos de abajo). El de `ModalAgregarMaterial` de producto
 sigue en el flujo, también por decisión de la usuaria.
 
-**Cambiar estado es un modal, `ModalEstado`.** Son los cuatro botones que
-antes estaban en la tarjeta de estado de la ficha, con la clase
-`botones-estado` (2 por 2 en celular). Tocar uno llama a `cambiar_estado`;
-si el backend lo rechaza (Listo con piezas sin terminar), el error se ve
-adentro y el modal queda abierto; si sale bien, se cierra, avisa "Pedido
-listo" (o el que sea) y recarga el listado. El estado sigue siendo una
-acción instantánea y no un campo del formulario (ver "Formulario o
-acción" en Patrón a seguir).
+**El estado se cambia en la columna ESTADO, con un selector** (pedido de
+la usuaria; antes era un icono de dos flechas que abría `ModalEstado`, ya
+borrado, con los cuatro estados como botones). Es un `<select>` como el
+de la etapa de una pieza en Inicio: elegir otro estado llama a
+`cambiar_estado` al instante. El backend devuelve el pedido completo, que
+trae todos los campos del listado, y con eso se reemplaza solo esa fila,
+sin recargar la tabla; avisa "Pedido listo" (o el que sea) con el aviso
+flotante. Si el backend lo rechaza (Listo con piezas sin terminar), el
+motivo va en `ModalAviso` con `error` (triángulo rojo, "No se pudo
+cambiar el estado"), que se ve esté donde esté la fila, y el selector
+vuelve solo al estado anterior porque muestra lo que dice el backend. Va
+neutro, como el de etapa, salvo Entregado, en verde
+(`colorSelectorEstado`, en `Pedidos.jsx`); `COLOR_ESTADO` sigue pintando
+el chip de la ficha y del modal Ver. El estado sigue siendo una acción
+instantánea y no un campo del formulario (ver "Formulario o acción" en
+Patrón a seguir).
 
 **Último comprobante (CU60)** abre en otra pestaña el comprobante de pago
 del cobro más reciente: `PedidoListaSerializer` trae `ultimo_cobro`, su
@@ -1856,9 +1866,8 @@ tarjeta.
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
-`#8C5A66`), Registrar cobro (signo $ en un círculo, `#8C5A66`), Comprobante
-(hoja con la punta doblada, `#8C5A66`), Cambiar estado (dos flechas en
-círculo, `#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar
+`#8C5A66`), Cobros (signo $ en un círculo, `#8C5A66`), Comprobante
+(hoja con la punta doblada, `#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar
 (tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`), Más acciones (tres
 puntos, `#8C5A66`).
 
@@ -1869,7 +1878,8 @@ Productos (ojo, lápiz, dar de baja, papelera) y Gastos (ojo, lápiz,
 papelera) entran sin él.
 
 **Lápiz donde se puede modificar, ojo donde solo se mira.** La acción que
-abre una ficha editable se llama "Ver y editar" y lleva el lápiz: en los
+abre una ficha editable se llama "Editar" (antes "Ver y editar"; desde
+que existe el ojo, ver es otra acción) y lleva el lápiz: en los
 listados de Productos (grilla, tabla y el bloque "Baja por su categoría",
 cuyos productos están activos), Pedidos y Gastos. El ojo queda para lo
 que se abre en solo lectura: los modales Ver de Materiales, Clientes,
@@ -2012,7 +2022,7 @@ dice.
 - `fila-pestanas`: la `BarraDePasos` del alta de producto (la ficha ya no
   tiene pestañas: es un acordeón); se desliza de lado, con los pasos sin
   partirse y menos padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 32
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 31
   modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
   se dibujen en varios lugares); 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
@@ -2023,8 +2033,6 @@ dice.
   'subgrid'`), así las cajas arrancan a la misma altura aunque una
   etiqueta se parta; en PestanaCategorias la línea del medio es un
   elemento de la grilla, que con una columna queda horizontal.
-- `botones-estado`: los cuatro botones de `ModalEstado`, el Cambiar estado del pedido;
-  grilla de 2 por 2, todos del mismo ancho.
 - `paneles-finanzas` y `cobros-dos-columnas`: la grilla INGRESOS / GASTOS
   de Finanzas y la grilla lista + resumen de `PestanaCobros` (en
   `ModalCobros`); una columna.

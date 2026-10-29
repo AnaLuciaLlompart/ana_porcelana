@@ -22,7 +22,7 @@ export const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 
 
 export const ICONO_VER = 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
 
-// El lápiz de "Ver y editar", el mismo de Categorías, Clientes, Materiales,
+// El lápiz de "Editar", el mismo de Categorías, Clientes, Materiales,
 // Pedidos y Gastos. El ojo de arriba queda para lo que solo se mira: la
 // ficha de un producto de baja.
 export const ICONO_EDITAR = 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
@@ -166,11 +166,11 @@ export function textoMeta(producto) {
 }
 
 // Los cuatro botones de un producto activo, en la grilla y en la tabla. Ver
-// abre el modal de solo lectura; Ver y editar, la ficha.
+// abre el modal de solo lectura; Editar, la ficha.
 export function accionesDe(producto, { onVer, onEditar, onDarDeBaja, onEliminar }) {
   return [
     { title: 'Ver', icono: ICONO_VER, color: '#8C5A66', hover: '#F0E2E4', onClick: () => onVer(producto) },
-    { title: 'Ver y editar', icono: ICONO_EDITAR, color: '#8C5A66', hover: '#F0E2E4', onClick: () => onEditar(producto) },
+    { title: 'Editar', icono: ICONO_EDITAR, color: '#8C5A66', hover: '#F0E2E4', onClick: () => onEditar(producto) },
     { title: 'Dar de baja', icono: ICONO_BAJA, color: '#D9A441', hover: '#FDF3E0', onClick: () => onDarDeBaja(producto) },
     { title: 'Eliminar', icono: ICONO_BORRAR, color: '#C0442F', hover: '#FAEAE8', onClick: () => onEliminar(producto) },
   ]

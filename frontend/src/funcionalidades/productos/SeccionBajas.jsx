@@ -422,7 +422,7 @@ export default function SeccionBajas({
                               edita. */}
                           <BotonAccion
                             onClick={() => onEditar(producto)}
-                            titulo="Ver y editar"
+                            titulo="Editar"
                             color="#8C5A66"
                             hover="#F0E2E4"
                             icono={ICONO_EDITAR}

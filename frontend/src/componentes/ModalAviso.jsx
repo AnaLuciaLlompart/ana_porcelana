@@ -1,12 +1,15 @@
 const ICONO_TILDE = 'M5 13l4 4L19 7'
+const ICONO_ALERTA = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
 
 
 // El modal que avisa algo que ya pasó: un texto y Aceptar. Es hermano de
 // ModalConfirmar, sin Cancelar porque no pregunta nada, y más angosto que
 // los otros modales porque solo lleva una frase. Lo usan los seis listados
 // (productos, pedidos, gastos, materiales, clientes y categorías) para
-// confirmar el alta y la edición.
-export default function ModalAviso({ titulo, texto, onCerrar }) {
+// confirmar el alta y la edición. Con error, el tilde verde pasa a ser un
+// triángulo rojo: lo usa el listado de pedidos cuando el backend rechaza un
+// cambio de estado, para que el motivo se vea esté donde esté la fila.
+export default function ModalAviso({ titulo, texto, onCerrar, error = false }) {
   return (
     <div
       className="modal-fondo"
@@ -81,11 +84,11 @@ export default function ModalAviso({ titulo, texto, onCerrar }) {
             height="22"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#4E8C6A"
-            strokeWidth="2.2"
+            stroke={error ? '#C0442F' : '#4E8C6A'}
+            strokeWidth={error ? 2 : 2.2}
             style={{ flexShrink: 0 }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_TILDE} />
+            <path strokeLinecap="round" strokeLinejoin="round" d={error ? ICONO_ALERTA : ICONO_TILDE} />
           </svg>
           <p style={{ margin: 0, fontSize: 15, color: '#3D3238', textWrap: 'pretty' }}>{texto}</p>
         </div>

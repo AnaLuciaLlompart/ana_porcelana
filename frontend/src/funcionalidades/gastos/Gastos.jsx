@@ -125,7 +125,7 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 
 
 // Los tres botones de la fila. Ver abre el gasto en un modal de solo
-// lectura; Ver y editar abre la ficha del gasto, igual que el número de la
+// lectura; Editar abre la ficha del gasto, igual que el número de la
 // primera columna.
 function Acciones({ gasto, onVer, onEditar, onEliminar }) {
   return (
@@ -139,7 +139,7 @@ function Acciones({ gasto, onVer, onEditar, onEliminar }) {
       />
       <BotonAccion
         onClick={() => onEditar(gasto)}
-        titulo="Ver y editar"
+        titulo="Editar"
         color="#8C5A66"
         hover="#F0E2E4"
         icono={ICONO_EDITAR}

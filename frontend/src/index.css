@@ -295,17 +295,6 @@ button:not(:disabled):hover {
   }
 }
 
-/* Pantalla chica, el modal Cambiar estado del pedido: los cuatro botones
-   pasan a una grilla de 2 por 2, todos del mismo ancho y a todo el ancho del
-   modal. El !important pisa el display flex que está en línea; el texto
-   no se parte porque los botones ya llevan whiteSpace nowrap en línea. */
-@media (max-width: 768px) {
-  .botones-estado {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 /* Pantalla grande, de 1440px para arriba. Las fichas y las pantallas que
    miden ANCHO_MAXIMO (1140, en constantes.js) se estiran a 1400; y la
    pestaña Datos de Producto se

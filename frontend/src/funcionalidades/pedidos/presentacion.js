@@ -109,8 +109,6 @@ export const ICONO_NUEVO = 'M12 4v16m8-8H4'
 // El ojo de Ver en el listado, el mismo de Productos.
 export const ICONO_VER = 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
 
-// Las dos flechas en círculo de "Cambiar estado", en el ⋯ del listado.
-export const ICONO_ESTADO = 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
 
 export const ICONO_BUSCAR = 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
 

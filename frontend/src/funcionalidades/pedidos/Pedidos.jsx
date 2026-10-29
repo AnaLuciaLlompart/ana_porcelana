@@ -1,20 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { listarPedidos, obtenerPedido, urlComprobanteDeCobro } from './api'
+import { cambiarEstadoPedido, listarPedidos, obtenerPedido, urlComprobanteDeCobro } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
 import ModalCobros from './ModalCobros'
-import ModalEstado from './ModalEstado'
 import ModalVerPedido from './ModalVerPedido'
 import { FILTROS_VACIOS, OPCIONES_ENTREGA, candidatos, contarFiltros, leerFiltrosDeLaUrl } from './filtros'
 import {
+  COLOR_ESTADO,
   ESTADOS,
   ICONO_BORRAR,
   ICONO_BUSCAR,
   ICONO_COBRO,
   ICONO_COMPROBANTE,
   ICONO_EDITAR,
-  ICONO_ESTADO,
   ICONO_FILTROS,
   ICONO_NUEVO,
   ICONO_PEDIDOS,
@@ -65,10 +64,10 @@ const estiloTd = {
 // suspensivos. Suman 100 con el 19 de ACCIONES.
 const COLS = [
   { campo: 'id', label: 'PEDIDO', ancho: '8%', justify: 'flex-start' },
-  { campo: 'cliente', label: 'CLIENTE', ancho: '10%', justify: 'flex-start' },
+  { campo: 'cliente', label: 'CLIENTE', ancho: '9%', justify: 'flex-start' },
   { campo: 'contenido', label: 'CONTENIDO', ancho: '12%', justify: 'flex-start' },
-  { campo: 'entrega', label: 'ENTREGA', ancho: '12%', justify: 'center' },
-  { campo: 'estado', label: 'ESTADO', ancho: '13%', justify: 'center' },
+  { campo: 'entrega', label: 'ENTREGA', ancho: '11%', justify: 'center' },
+  { campo: 'estado', label: 'ESTADO', ancho: '15%', justify: 'center' },
   { campo: 'total', label: 'TOTAL', ancho: '10%', justify: 'flex-end' },
   { campo: 'saldo', label: 'SALDO', ancho: '16%', justify: 'center' },
 ]
@@ -139,14 +138,21 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 }
 
 
+// Los colores del selector de ESTADO de la fila: los mismos de Entregado en
+// COLOR_ESTADO, y para los otros tres los neutros del selector de etapa.
+function colorSelectorEstado(estado) {
+  if (estado === 'ENTREGADO') return COLOR_ESTADO.ENTREGADO
+  return { color: '#3D3238', fondo: 'white', borde: '#EBE0E2' }
+}
+
+
 // Los cuatro botones de la fila. Ver abre el pedido en un modal de solo
-// lectura; Ver y editar, la ficha, igual que el número de la primera
-// columna; Cambiar estado, el modal de los cuatro estados. Lo que no entra
-// va en el ⋯: los cobros, el comprobante del último pago, que se abre en
-// otra pestaña, y eliminar.
-function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onEstado }) {
+// lectura; Editar, la ficha, igual que el número de la primera columna;
+// Cobros, el modal de los cobros. El estado se cambia en su propia columna,
+// con el selector. Lo que no entra va en el ⋯: el comprobante del último
+// pago, que se abre en otra pestaña, y eliminar.
+function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros }) {
   const masAcciones = [
-    { texto: 'Cobros', icono: ICONO_COBRO, onClick: () => onCobros(pedido) },
     {
       texto: 'Último comprobante',
       icono: ICONO_COMPROBANTE,
@@ -169,17 +175,17 @@ function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onEstado }) {
       />
       <BotonAccion
         onClick={() => onEditar(pedido)}
-        titulo="Ver y editar"
+        titulo="Editar"
         color="#8C5A66"
         hover="#F0E2E4"
         icono={ICONO_EDITAR}
       />
       <BotonAccion
-        onClick={() => onEstado(pedido)}
-        titulo="Cambiar estado"
+        onClick={() => onCobros(pedido)}
+        titulo="Cobros"
         color="#8C5A66"
         hover="#F0E2E4"
-        icono={ICONO_ESTADO}
+        icono={ICONO_COBRO}
       />
       <MenuMasAcciones items={masAcciones} />
     </div>
@@ -210,7 +216,7 @@ function SinResultados() {
 }
 
 
-function Tabla({ pedidos, cargando, onVer, onEditar, onEliminar, onCobros, onEstado }) {
+function Tabla({ pedidos, cargando, onVer, onEditar, onEliminar, onCobros, onCambiarEstado }) {
   const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
   const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
@@ -386,30 +392,38 @@ function Tabla({ pedidos, cargando, onVer, onEditar, onEliminar, onCobros, onEst
                     <span style={{ whiteSpace: 'nowrap', fontSize: 15 }}>{entregaTexto(p)}</span>
                   </td>
 
-                  {/* Solo Entregado lleva chip, como en el diseño: es el
-                      estado que cierra el pedido. Los otros tres son etapas
-                      del camino y van como texto. */}
-                  <td style={{ ...estiloTd, textAlign: 'center' }}>
-                    {p.estado === 'ENTREGADO' ? (
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          whiteSpace: 'nowrap',
-                          fontFamily: "'Quicksand', sans-serif",
-                          fontWeight: 600,
-                          fontSize: 14,
-                          borderRadius: 20,
-                          padding: '5px 11px',
-                          border: '1px solid #4E8C6A',
-                          background: '#E8F5EF',
-                          color: '#4E8C6A',
-                        }}
-                      >
-                        {p.estado_display}
-                      </span>
-                    ) : (
-                      <span style={{ whiteSpace: 'nowrap', fontSize: 15 }}>{p.estado_display}</span>
-                    )}
+                  {/* El estado se cambia acá mismo, como la etapa de una
+                      pieza en Inicio: elegir otro lo aplica al instante. El
+                      selector muestra lo que dice el backend, así que si lo
+                      rechaza vuelve solo al estado que tenía. Va neutro,
+                      como el de etapa, salvo Entregado, que es el que
+                      cierra el pedido y va en verde. */}
+                  <td style={{ ...estiloTd, padding: '9px 8px', textAlign: 'center' }}>
+                    <select
+                      value={p.estado}
+                      onChange={(e) => onCambiarEstado(p, e.target.value)}
+                      title="Cambiar estado"
+                      style={{
+                        width: '100%',
+                        maxWidth: 160,
+                        padding: '8px 6px',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        fontFamily: "'Quicksand', sans-serif",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        border: `1px solid ${colorSelectorEstado(p.estado).borde}`,
+                        background: colorSelectorEstado(p.estado).fondo,
+                        color: colorSelectorEstado(p.estado).color,
+                      }}
+                    >
+                      {ESTADOS.map((e) => (
+                        <option key={e.valor} value={e.valor}>
+                          {e.label}
+                        </option>
+                      ))}
+                    </select>
                   </td>
 
                   <td
@@ -450,7 +464,6 @@ function Tabla({ pedidos, cargando, onVer, onEditar, onEliminar, onCobros, onEst
                       onEditar={onEditar}
                       onEliminar={onEliminar}
                       onCobros={onCobros}
-                      onEstado={onEstado}
                     />
                   </td>
                 </tr>
@@ -605,7 +618,8 @@ export default function Pedidos() {
   // con sus cobros, que el listado no trae: se pide al abrir.
   const [pedidoViendo, setPedidoViendo] = useState(null)
   const [pedidoCobros, setPedidoCobros] = useState(null)
-  const [pedidoEstado, setPedidoEstado] = useState(null)
+  // El motivo por el que el backend rechazó un cambio de estado, o ''.
+  const [errorEstado, setErrorEstado] = useState('')
 
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
@@ -660,6 +674,21 @@ export default function Pedidos() {
     // aviso viejo apagaría el nuevo antes de tiempo.
     clearTimeout(temporizador.current)
     temporizador.current = setTimeout(() => setToast(''), 2600)
+  }
+
+  // El selector de ESTADO de la fila (CU42). Llama a cambiar_estado, que
+  // devuelve el pedido completo, y con eso se reemplaza solo esa fila: no
+  // hace falta recargar la tabla. Si el backend lo rechaza (Listo con piezas
+  // sin terminar), el motivo va en un modal, que se ve esté donde esté la
+  // fila, y el selector queda como estaba, porque la fila no cambió.
+  async function cambiarEstado(pedido, valor) {
+    try {
+      const res = await cambiarEstadoPedido(pedido.id, valor)
+      setPedidos((lista) => lista.map((p) => (p.id === pedido.id ? res.data : p)))
+      mostrarToast(`Pedido ${res.data.estado_display.toLowerCase()}`)
+    } catch (err) {
+      setErrorEstado(err.response?.data?.detail || 'No se pudo cambiar el estado.')
+    }
   }
 
   // ModalCobros necesita la lista de cobros, que el listado no trae.
@@ -958,7 +987,7 @@ export default function Pedidos() {
             onEditar={verPedido}
             onEliminar={(p) => setPedidoEliminando(p)}
             onCobros={abrirCobros}
-            onEstado={(p) => setPedidoEstado(p)}
+            onCambiarEstado={cambiarEstado}
           />
         </>
       )}
@@ -1007,23 +1036,20 @@ export default function Pedidos() {
         />
       )}
 
-      {pedidoEstado && (
-        <ModalEstado
-          pedido={pedidoEstado}
-          onCerrar={() => setPedidoEstado(null)}
-          onCambiado={(_, aviso) => {
-            setPedidoEstado(null)
-            mostrarToast(aviso)
-            recargar()
-          }}
-        />
-      )}
-
       {aviso && (
         <ModalAviso
           titulo={aviso.titulo}
           texto={aviso.texto}
           onCerrar={() => setAviso(null)}
+        />
+      )}
+
+      {errorEstado && (
+        <ModalAviso
+          error
+          titulo="No se pudo cambiar el estado"
+          texto={errorEstado}
+          onCerrar={() => setErrorEstado('')}
         />
       )}
 
