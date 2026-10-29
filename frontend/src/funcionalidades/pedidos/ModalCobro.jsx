@@ -78,10 +78,10 @@ export default function ModalCobro({
   enviando = false,
 }) {
   // error y enviando son opcionales: sin ellos el modal se dibuja como
-  // siempre, que es como lo usa la ficha, que lo cierra antes de llamar a
-  // la API. El listado lo deja abierto mientras viaja el cobro: enviando
-  // apaga Registrar para que un doble clic no cobre dos veces, y error
-  // muestra el rechazo del servidor.
+  // siempre, y quien lo abre lo cierra antes de llamar a la API.
+  // ModalCobros y el listado lo dejan abierto mientras viaja el cobro:
+  // enviando apaga Registrar para que un doble clic no cobre dos veces, y
+  // error muestra el rechazo del servidor.
   const editando = Boolean(cobro)
 
   // El saldo llega como texto y se compara contra cero, así que se

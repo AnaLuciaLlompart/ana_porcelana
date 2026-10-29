@@ -8,9 +8,6 @@ import {
   agregarProductoAlPedido,
   modificarProductoDelPedido,
   quitarProductoDelPedido,
-  registrarCobro,
-  modificarCobro,
-  borrarCobro,
 } from './api'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
@@ -26,14 +23,13 @@ import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
-import PestanaCobros from './PestanaCobros'
 import ModalAgregarProducto from './ModalAgregarProducto'
 import ModalEditarProductoDelPedido from './ModalEditarProductoDelPedido'
-import ModalCobro from './ModalCobro'
+import ModalCobros from './ModalCobros'
 import {
   COLOR_ESTADO,
   ESTADOS,
-  ICONO_ALERTA,
+  ICONO_COBRO,
   ICONO_FLECHA,
   chipSaldo,
 } from './presentacion'
@@ -78,13 +74,6 @@ function mensajeDeError(err) {
 }
 
 
-const PESTANAS = [
-  { id: 'datos', label: 'Datos' },
-  { id: 'productos', label: 'Productos del pedido' },
-  { id: 'cobros', label: 'Cobros' },
-]
-
-
 // La ficha de un pedido que ya existe (/pedidos/:id). El alta vive aparte,
 // en AltaPedido: junta todo en memoria y lo crea al final.
 export default function DetallePedido() {
@@ -96,18 +85,20 @@ export default function DetallePedido() {
   const [error, setError] = useState('')
 
   // El error de los botones de estado va aparte del general, y no por
-  // capricho: en la pestaña Datos el error general se dibuja adentro del
+  // capricho: en la tarjeta Datos el error general se dibuja adentro del
   // formulario, arriba de Guardar. Un rechazo del botón Listo aparecería
   // allá abajo, lejos del botón que lo provocó y mezclado con los errores
   // del formulario. Este se muestra pegado a los botones.
   const [errorEstado, setErrorEstado] = useState('')
 
-  const [tab, setTab] = useState('datos')
+  // Por lo mismo, el de las operaciones sobre los productos se muestra
+  // pegado a su tabla.
+  const [errorProductos, setErrorProductos] = useState('')
 
   // El borrador de Datos vive ACÁ y no en PestanaDatos, al revés que el
-  // borrador del modal de filtros. El motivo es que tiene que sobrevivir al
-  // cambio de pestaña: si viviera en la pestaña, pasar a Productos la
-  // desmontaría y se perdería lo escrito.
+  // borrador del modal de filtros. El motivo es que la ficha también lo
+  // necesita: la cabecera lee el cliente del borrador, y hayCambios lo
+  // compara con lo guardado para el chip del breadcrumb.
   const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
 
@@ -116,10 +107,7 @@ export default function DetallePedido() {
   const [modalProducto, setModalProducto] = useState(false)
   const [productoEditando, setProductoEditando] = useState(null)
 
-  // null cuando está cerrado. Abierto guarda o bien el cobro que se está
-  // editando, o bien la cadena 'nuevo' para el alta: hacen falta los dos
-  // casos y null ya significa "cerrado".
-  const [modalCobro, setModalCobro] = useState(null)
+  const [modalCobros, setModalCobros] = useState(false)
 
   // El producto del pedido que se está por quitar cuando es el último: el
   // modal pregunta antes, y recién al confirmar se quita.
@@ -163,11 +151,12 @@ export default function DetallePedido() {
   // defecto es el general. Se le pasa una función igual que a las otras
   // funciones del proyecto que reciben la de la API.
   async function accionInmediata(llamada, textoToast, avisarError = setError) {
-    // Se limpian los dos y no solo el que va a usarse: si no, al hacer una
+    // Se limpian los tres y no solo el que va a usarse: si no, al hacer una
     // acción después de un error quedaría el cartel viejo colgado en la
     // pantalla, hablando de algo que ya pasó.
     setError('')
     setErrorEstado('')
+    setErrorProductos('')
 
     try {
       const res = await llamada()
@@ -197,11 +186,11 @@ export default function DetallePedido() {
 
 
   // El estado se cambia EN EL MOMENTO, a diferencia de los campos de la
-  // pestaña Datos, que esperan al botón de Guardar. Es un hecho consumado:
+  // tarjeta Datos, que esperan al botón de Guardar. Es un hecho consumado:
   // el pedido pasó a producción, no es un dato que se está editando.
   // La fecha de entrega real que el backend escribe al entregar —o borra al
   // salir de Entregado— no hay que copiarla a ningún lado: el campo de la
-  // pestaña la lee del pedido, y setPedido ya lo dejó actualizado.
+  // tarjeta Datos la lee del pedido, y setPedido ya lo dejó actualizado.
   function cambiarEstado(estado, label) {
     return accionInmediata(
       () => cambiarEstadoPedido(id, estado),
@@ -219,7 +208,7 @@ export default function DetallePedido() {
   //
   // Las tres devuelven el pedido completo, y por eso alcanza con la
   // respuesta para que se acomoden de una sola vez la tabla, el subtotal
-  // del pie, el resumen de la otra pestaña y el contador del globito.
+  // del pie y el chip del saldo de la cabecera.
 
   // Las tres se guardan el estado que el pedido tenía ANTES de la llamada,
   // porque es lo único con qué comparar el que vuelve para saber si el
@@ -230,7 +219,8 @@ export default function DetallePedido() {
     const estadoAntes = pedido.estado
     const actualizado = await accionInmediata(
       () => agregarProductoAlPedido(id, datos),
-      'Producto agregado'
+      'Producto agregado',
+      setErrorProductos
     )
 
     // Si el pedido bajó, este cartel pisa el de "Producto agregado", y está
@@ -242,7 +232,8 @@ export default function DetallePedido() {
     setProductoEditando(null)
     accionInmediata(
       () => modificarProductoDelPedido(id, productoDelPedido.id, datos),
-      'Producto actualizado'
+      'Producto actualizado',
+      setErrorProductos
     )
   }
 
@@ -252,7 +243,9 @@ export default function DetallePedido() {
     // que aparece si esta etapa fue para atrás y dejó al pedido incompleto.
     const estadoAntes = pedido.estado
     const actualizado = await accionInmediata(
-      () => modificarProductoDelPedido(id, productoDelPedido.id, { estado })
+      () => modificarProductoDelPedido(id, productoDelPedido.id, { estado }),
+      '',
+      setErrorProductos
     )
 
     avisarSiBajoSolo(estadoAntes, actualizado)
@@ -276,35 +269,12 @@ export default function DetallePedido() {
     // Si era la última, la pregunta ya se hizo antes de llegar acá.
     const estadoAntes = pedido.estado
     const actualizado = await accionInmediata(
-      () => quitarProductoDelPedido(id, productoDelPedido.id)
+      () => quitarProductoDelPedido(id, productoDelPedido.id),
+      '',
+      setErrorProductos
     )
 
     avisarSiBajoSolo(estadoAntes, actualizado)
-  }
-
-
-  // Los cobros van por el mismo camino: el pedido se cobra o no se
-  // cobra, no es un campo que se esté editando. Las tres devuelven el
-  // pedido completo, así que el resumen, el chip del encabezado y el
-  // contador de la pestaña se acomodan solos.
-
-  function guardarCobro(cobro, datos) {
-    setModalCobro(null)
-
-    // El mismo modal registra y edita: si trae un cobro, es una
-    // corrección.
-    if (cobro) {
-      accionInmediata(() => modificarCobro(id, cobro.id, datos))
-      return
-    }
-
-    accionInmediata(() => registrarCobro(id, datos), 'Cobro registrado')
-  }
-
-  function quitarCobro(cobro) {
-    // Sin aviso flotante: la fila desaparece de la lista y el saldo se
-    // mueve solo.
-    accionInmediata(() => borrarCobro(id, cobro.id))
   }
 
 
@@ -389,9 +359,6 @@ export default function DetallePedido() {
   const titulo = `Pedido #${pedido.id}`
 
   const chipDelSaldo = chipSaldo(pedido.saldo)
-
-  // Las cuentas de los globitos de las pestañas.
-  const CUENTAS = { productos: pedido.cantidad_productos, cobros: pedido.cobros.length }
 
   // Hay cambios si algún campo del borrador difiere de lo guardado. Es la
   // misma comparación que hacen las fichas de Gastos y de Productos.
@@ -488,11 +455,39 @@ export default function DetallePedido() {
             </span>
           </div>
         </div>
+
+        {/* Los cobros se manejan en un modal propio (CU48 a CU51). Siempre
+            encendido: adentro, Registrar cobro se apaga solo. */}
+        <button
+          onClick={() => setModalCobros(true)}
+          className="btn-reponer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+            padding: '10px 18px',
+            border: '1px solid #EBE0E2',
+            background: 'white',
+            color: '#8C5A66',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontFamily: "'Quicksand', sans-serif",
+            fontWeight: 600,
+            fontSize: 15,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_COBRO} />
+          </svg>
+          Cobros
+        </button>
       </div>
 
       {/* Diferencia deliberada con el prototipo: el estado es una acción
-          instantánea, así que va afuera del formulario, arriba de las
-          pestañas. */}
+          instantánea, así que va afuera del formulario, arriba de los
+          datos y los productos. */}
       <div
         className="ancho-pantalla"
         style={{
@@ -567,133 +562,30 @@ export default function DetallePedido() {
         )}
       </div>
 
-      {error && tab !== 'datos' && (
-        <div
-          className="ancho-pantalla"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '12px 18px',
-            marginBottom: 20,
-            maxWidth: ANCHO_MAXIMO,
-            background: '#FAEAE8',
-            border: '1px solid #f0b8b0',
-            borderRadius: 6,
-          }}
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#C0442F"
-            strokeWidth="2"
-            style={{ flexShrink: 0 }}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_ALERTA} />
-          </svg>
-          <span style={{ fontSize: 15, color: '#C0442F', textWrap: 'pretty' }}>{error}</span>
-        </div>
-      )}
-
-      <div
-        className="fila-pestanas ancho-pantalla"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          marginBottom: 20,
-          borderBottom: '1px solid #EBE0E2',
-          maxWidth: ANCHO_MAXIMO,
-        }}
-      >
-        {PESTANAS.map((p) => {
-          const activa = tab === p.id
-          const cuenta = CUENTAS[p.id]
-
-          return (
-            <button
-              key={p.id}
-              onClick={() => setTab(p.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                padding: '11px 18px',
-                border: 0,
-                borderBottom: `2px solid ${activa ? '#8C5A66' : 'transparent'}`,
-                background: 'transparent',
-                cursor: 'pointer',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-                color: activa ? '#8C5A66' : '#857078',
-              }}
-            >
-              {p.label}
-
-              {cuenta !== undefined && (
-                <span
-                  style={{
-                    minWidth: 20,
-                    height: 20,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0 6px',
-                    borderRadius: 10,
-                    background: activa ? '#8C5A66' : '#F0E2E4',
-                    color: activa ? 'white' : '#8C5A66',
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  {cuenta}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {tab === 'datos' && (
-        <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
-          <PestanaDatos
-            borrador={borrador}
-            // Va aparte del borrador porque no se edita.
-            fechaEntregaReal={pedido.fecha_entrega_real || ''}
-            onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-            hayCambios={hayCambios}
-            clientes={clientes}
-            onGuardar={guardarDatos}
-            onCancelar={descartar}
-            guardando={guardando}
-            error={error}
-          />
-
-        </div>
-      )}
-
-      {tab === 'cobros' && (
-        <PestanaCobros
-          pedido={pedido}
-          onRegistrar={() => setModalCobro('nuevo')}
-          onEditar={(cobro) => setModalCobro(cobro)}
-          onQuitar={quitarCobro}
+      <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
+        <PestanaDatos
+          borrador={borrador}
+          // Va aparte del borrador porque no se edita.
+          fechaEntregaReal={pedido.fecha_entrega_real || ''}
+          onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
+          hayCambios={hayCambios}
+          clientes={clientes}
+          onGuardar={guardarDatos}
+          onCancelar={descartar}
+          guardando={guardando}
+          error={error}
         />
-      )}
 
-      {tab === 'productos' && (
         <PestanaProductos
           productos={pedido.productos}
           subtotal={pedido.subtotal}
+          error={errorProductos}
           onAgregar={() => setModalProducto(true)}
           onEditar={(p) => setProductoEditando(p)}
           onCambiarEtapa={cambiarEtapa}
           onQuitar={quitarProducto}
         />
-      )}
+      </div>
 
       {modalProducto && (
         <ModalAgregarProducto
@@ -714,15 +606,15 @@ export default function DetallePedido() {
         />
       )}
 
-      {modalCobro && (
-        <ModalCobro
-          // 'nuevo' es el alta; cualquier otra cosa es el cobro que se
-          // está corrigiendo.
-          cobro={modalCobro === 'nuevo' ? null : modalCobro}
-          saldo={pedido.saldo}
-          hayCobros={pedido.cobros.length > 0}
-          onCerrar={() => setModalCobro(null)}
-          onGuardar={guardarCobro}
+      {modalCobros && (
+        <ModalCobros
+          pedido={pedido}
+          onCerrar={() => setModalCobros(false)}
+          // Solo el pedido: los cobros no tocan los datos del borrador.
+          onPedidoActualizado={(actualizado, aviso) => {
+            setPedido(actualizado)
+            if (aviso) mostrarToast(aviso)
+          }}
         />
       )}
 

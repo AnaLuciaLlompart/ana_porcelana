@@ -23,6 +23,17 @@ const estiloTh = {
   color: '#8C5A66',
 }
 
+const estiloCartelError = {
+  margin: 0,
+  padding: '10px 12px',
+  background: '#FAEAE8',
+  border: '1px solid #F0C4BC',
+  borderRadius: 6,
+  fontSize: 14,
+  color: '#C0442F',
+  textWrap: 'pretty',
+}
+
 
 // Una fila de la tabla: una pieza encargada, con su cantidad, su precio
 // congelado y en qué etapa productiva está.
@@ -201,6 +212,7 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
 export default function PestanaProductos({
   productos,
   subtotal,
+  error,
   onAgregar,
   onEditar,
   onCambiarEtapa,
@@ -265,6 +277,16 @@ export default function PestanaProductos({
           Agregar producto
         </button>
       </div>
+
+      {/* El error de agregar, editar, cambiar la etapa o quitar va acá,
+          pegado a la tabla, como en los materiales del gasto. */}
+      {error && (
+        <div style={{ padding: '14px 20px 0' }}>
+          <p role="alert" style={estiloCartelError}>
+            {error}
+          </p>
+        </div>
+      )}
 
       {/* DIFERENCIA DELIBERADA CON EL DISEÑO, decidida por la usuaria: el
           prototipo no tiene columna de acciones ni forma de editar un

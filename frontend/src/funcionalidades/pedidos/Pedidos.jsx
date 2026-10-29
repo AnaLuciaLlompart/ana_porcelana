@@ -136,7 +136,7 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 
 // Los cuatro botones de la fila. Ver y editar abre la ficha del pedido, igual
 // que el número de la primera columna; Registrar cobro abre el mismo modal
-// que la pestaña Cobros, sin entrar al pedido; Comprobante abre el PDF en
+// que los cobros de la ficha, sin entrar al pedido; Comprobante abre el PDF en
 // otra pestaña.
 function Acciones({ pedido, onVer, onCobrar, onComprobante, onEliminar }) {
   const motivo = motivoSinCobro(pedido)
