@@ -2,9 +2,10 @@ const ICONO_TILDE = 'M5 13l4 4L19 7'
 
 
 // El modal que avisa algo que ya pasó: un texto y Aceptar. Es hermano de
-// ModalConfirmar, sin Cancelar porque no pregunta nada. Lo usan los listados
-// de Productos y Pedidos para confirmar que el alta creó el registro: el
-// aviso flotante se perdía con el cambio de pantalla.
+// ModalConfirmar, sin Cancelar porque no pregunta nada, y más angosto que
+// los otros modales porque solo lleva una frase. Lo usan los seis listados
+// (productos, pedidos, gastos, materiales, clientes y categorías) para
+// confirmar el alta y la edición.
 export default function ModalAviso({ titulo, texto, onCerrar }) {
   return (
     <div
@@ -27,7 +28,7 @@ export default function ModalAviso({ titulo, texto, onCerrar }) {
         style={{
           background: 'white',
           width: '100%',
-          maxWidth: 480,
+          maxWidth: 380,
           borderRadius: 10,
           overflow: 'hidden',
           boxShadow: '0 20px 50px rgba(61,50,56,.25)',
@@ -38,7 +39,7 @@ export default function ModalAviso({ titulo, texto, onCerrar }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '16px 24px',
+            padding: '12px 20px',
             background: '#8C5A66',
           }}
         >
@@ -47,7 +48,7 @@ export default function ModalAviso({ titulo, texto, onCerrar }) {
               margin: 0,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
-              fontSize: 19,
+              fontSize: 17,
               color: 'white',
             }}
           >
@@ -74,7 +75,7 @@ export default function ModalAviso({ titulo, texto, onCerrar }) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '22px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '18px 20px' }}>
           <svg
             width="22"
             height="22"
@@ -86,14 +87,14 @@ export default function ModalAviso({ titulo, texto, onCerrar }) {
           >
             <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_TILDE} />
           </svg>
-          <p style={{ margin: 0, fontSize: 16, color: '#3D3238', textWrap: 'pretty' }}>{texto}</p>
+          <p style={{ margin: 0, fontSize: 15, color: '#3D3238', textWrap: 'pretty' }}>{texto}</p>
         </div>
 
         <div
           style={{
             display: 'flex',
             justifyContent: 'flex-end',
-            padding: '16px 24px',
+            padding: '12px 20px',
             borderTop: '1px solid #EBE0E2',
           }}
         >

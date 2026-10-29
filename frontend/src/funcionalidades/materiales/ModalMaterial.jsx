@@ -104,12 +104,11 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
     }
 
     try {
-      if (editando) {
-        await actualizarMaterial(material.id, datos, imagen, quitarImagen)
-      } else {
-        await crearMaterial(datos, imagen)
-      }
-      onGuardado()
+      const respuesta = editando
+        ? await actualizarMaterial(material.id, datos, imagen, quitarImagen)
+        : await crearMaterial(datos, imagen)
+      // El listado recibe el material guardado para avisarlo con su nombre.
+      onGuardado(respuesta.data)
     } catch (err) {
       setError(mensajeDeError(err))
     } finally {

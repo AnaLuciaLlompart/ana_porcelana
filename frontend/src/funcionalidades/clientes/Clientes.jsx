@@ -4,6 +4,7 @@ import ModalCliente from './ModalCliente'
 import ModalVerCliente from './ModalVerCliente'
 import ModalEliminarCliente from './ModalEliminarCliente'
 import BotonAccion from '../../componentes/BotonAccion'
+import ModalAviso from '../../componentes/ModalAviso'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
 
@@ -517,6 +518,9 @@ export default function Clientes() {
   const [clienteEditando, setClienteEditando] = useState(null)
   const [clienteViendo, setClienteViendo] = useState(null)
   const [clienteEliminando, setClienteEliminando] = useState(null)
+  // El modal "Cliente creado" o "Cambios guardados", como en productos,
+  // pedidos y gastos.
+  const [aviso, setAviso] = useState(null)
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
 
@@ -713,7 +717,15 @@ export default function Clientes() {
             setModalAbierto(false)
             setClienteEditando(null)
           }}
-          onGuardado={() => {
+          onGuardado={(guardado) => {
+            setAviso(
+              clienteEditando
+                ? { titulo: 'Cambios guardados', texto: `@${guardado.instagram} quedó guardado.` }
+                : {
+                    titulo: 'Cliente creado',
+                    texto: `@${guardado.instagram} quedó creado y ya aparece en el listado.`,
+                  }
+            )
             setModalAbierto(false)
             setClienteEditando(null)
             recargar()
@@ -747,6 +759,10 @@ export default function Clientes() {
             recargar()
           }}
         />
+      )}
+
+      {aviso && (
+        <ModalAviso titulo={aviso.titulo} texto={aviso.texto} onCerrar={() => setAviso(null)} />
       )}
 
       {toast && <Toast texto={toast} />}

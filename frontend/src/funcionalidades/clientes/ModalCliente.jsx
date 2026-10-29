@@ -120,12 +120,11 @@ export default function ModalCliente({ cliente, onCerrar, onGuardado }) {
     }
 
     try {
-      if (editando) {
-        await modificarCliente(cliente.id, limpios)
-      } else {
-        await crearCliente(limpios)
-      }
-      onGuardado()
+      const respuesta = editando
+        ? await modificarCliente(cliente.id, limpios)
+        : await crearCliente(limpios)
+      // El listado recibe el cliente guardado para avisarlo con su usuario.
+      onGuardado(respuesta.data)
     } catch (err) {
       const datosError = err.response?.data
 

@@ -14,6 +14,7 @@ import { FILTROS_VACIOS, candidatos, contarFiltros } from './filtros'
 import { listarProductos } from '../productos/api'
 
 import BotonAccion from '../../componentes/BotonAccion'
+import ModalAviso from '../../componentes/ModalAviso'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 
 
@@ -555,6 +556,12 @@ function Grilla({ materiales, cargando, onVer, onEditar, onEliminar, onDiscontin
   )
 }
 
+// Las filas miden siempre lo mismo para que la caja muestre cuatro justas:
+// de la quinta en adelante se ven deslizando dentro del aviso, sin empujar
+// la tabla hacia abajo.
+const FILAS_VISIBLES = 4
+const ALTO_FILA = 58
+
 function AvisoReponer({ materiales, onReponer }) {
   if (materiales.length === 0) return null
 
@@ -610,6 +617,7 @@ function AvisoReponer({ materiales, onReponer }) {
         </span>
       </div>
 
+      <div style={{ maxHeight: FILAS_VISIBLES * ALTO_FILA, overflowY: 'auto' }}>
       {materiales.map((m) => (
         <div
           key={m.id}
@@ -618,7 +626,8 @@ function AvisoReponer({ materiales, onReponer }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 16,
-            padding: '12px 18px',
+            height: ALTO_FILA,
+            padding: '0 18px',
             borderTop: '1px solid #EBE0E2',
           }}
         >
@@ -660,6 +669,7 @@ function AvisoReponer({ materiales, onReponer }) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   )
 }
@@ -680,6 +690,9 @@ export default function Materiales() {
   const [materialViendo, setMaterialViendo] = useState(null)
   const [materialDiscontinuando, setMaterialDiscontinuando] = useState(null)
   const [materialEliminando, setMaterialEliminando] = useState(null)
+  // El modal "Material creado" o "Cambios guardados", como en productos,
+  // pedidos y gastos.
+  const [aviso, setAviso] = useState(null)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [filtros, setFiltros] = useState(FILTROS_VACIOS)
   const [productos, setProductos] = useState([])
@@ -1098,7 +1111,15 @@ export default function Materiales() {
             setModalAbierto(false)
             setMaterialEditando(null)
           }}
-          onGuardado={() => {
+          onGuardado={(guardado) => {
+            setAviso(
+              materialEditando
+                ? { titulo: 'Cambios guardados', texto: `«${guardado.nombre}» quedó guardado.` }
+                : {
+                    titulo: 'Material creado',
+                    texto: `«${guardado.nombre}» quedó creado y ya aparece en el listado.`,
+                  }
+            )
             setModalAbierto(false)
             setMaterialEditando(null)
             recargar()
@@ -1149,6 +1170,9 @@ export default function Materiales() {
         />
       )}
 
+      {aviso && (
+        <ModalAviso titulo={aviso.titulo} texto={aviso.texto} onCerrar={() => setAviso(null)} />
+      )}
     </div>
   )
 }

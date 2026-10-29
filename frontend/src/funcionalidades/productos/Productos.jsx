@@ -282,6 +282,23 @@ function SinResultados() {
   )
 }
 
+// El título y el texto del modal de aviso, según lo que dejó en el state la
+// pantalla de la que se viene, o null si no dejó nada.
+function avisoDeLaNavegacion(state) {
+  if (state?.creado) {
+    return {
+      titulo: 'Producto creado',
+      texto: `«${state.creado}» quedó creado y ya aparece en el listado.`,
+    }
+  }
+
+  if (state?.guardado) {
+    return { titulo: 'Cambios guardados', texto: `«${state.guardado}» quedó guardado.` }
+  }
+
+  return null
+}
+
 export default function Productos() {
   const navegar = useNavigate()
   const ubicacion = useLocation()
@@ -305,9 +322,10 @@ export default function Productos() {
   const [filtrosAbierto, setFiltrosAbierto] = useState(false)
   const [categorias, setCategorias] = useState([])
 
-  // El nombre del producto que el alta acaba de crear: llega en el state de
-  // la navegación y abre el modal de aviso. Se lee al montar.
-  const [creado, setCreado] = useState(() => ubicacion.state?.creado ?? null)
+  // El modal de aviso de lo que pasó antes de llegar: el alta deja en el
+  // state de la navegación el nombre del producto que creó, y la ficha el
+  // del que guardó. Se lee al montar.
+  const [aviso, setAviso] = useState(() => avisoDeLaNavegacion(ubicacion.state))
 
   // Para el link "Ver productos" de una categoría: /productos?categoria=3
   const seccionBajas = useRef(null)
@@ -384,7 +402,7 @@ export default function Productos() {
   // Ya leído, el state se borra, así el aviso no reaparece al recargar ni al
   // volver con Atrás.
   useEffect(() => {
-    if (!ubicacion.state?.creado) return
+    if (!ubicacion.state) return
     navegar(`${ubicacion.pathname}${ubicacion.search}`, { replace: true, state: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -1070,12 +1088,8 @@ export default function Productos() {
         />
       )}
 
-      {creado && (
-        <ModalAviso
-          titulo="Producto creado"
-          texto={`«${creado}» quedó creado y ya aparece en el listado.`}
-          onCerrar={() => setCreado(null)}
-        />
+      {aviso && (
+        <ModalAviso titulo={aviso.titulo} texto={aviso.texto} onCerrar={() => setAviso(null)} />
       )}
     </div>
   )

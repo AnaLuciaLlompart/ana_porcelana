@@ -165,10 +165,9 @@ y en la pantalla su formulario ya está apagado.
 Revisadas todas las pantallas de la gestión (octubre de 2026), no queda
 otro control instantáneo dentro de un formulario con Guardar. El estado y
 los cobros del pedido son acciones, y desde A1 viven en la fila del
-listado. Las fichas de pedido y de gasto son un solo formulario, tablas
-incluidas, y no tienen acciones al instante. La ficha de
-producto no tiene ninguna acción fuera del formulario: Dar de baja y
-Reactivar se hacen desde el listado.
+listado. Las tres fichas (producto, pedido y gasto) son un solo
+formulario, tablas, fotos y categorías incluidas, y no tienen acciones al
+instante. Dar de baja y Reactivar un producto se hacen desde el listado.
 
 **La ficha de pedido es un solo formulario** (decidido por la usuaria
 junto con las correcciones del tutor del 28/10/2026; reemplaza, para el
@@ -190,28 +189,62 @@ Si todo sale bien, vuelve al listado, que muestra el modal "Cambios
 guardados" (y, si el backend bajó el pedido a En producción, lo dice).
 Salir con cambios sin guardar pregunta "Salir sin guardar" con el mismo
 `useBlocker` de las altas, solo cuando hay cambios, y el navegador avisa
-con `beforeunload`. La ficha de gasto funciona igual (ver Módulo Gastos);
-la de producto se iguala en A8-a.
+con `beforeunload`. La ficha de gasto funciona igual (ver Módulo Gastos),
+y la de producto también, en acordeón (ver el párrafo que sigue).
+
+**La ficha de producto es un acordeón con un solo Guardar** (corrección
+del tutor del 28/10/2026, A8-a: pidió un Guardar en vez de que cada
+pestaña guardara sola; el pedido era sobre la edición, y el alta sigue
+por pasos). Las cuatro secciones, DATOS, MATERIALES, IMÁGENES y
+CATEGORÍAS, van una debajo de la otra en `SeccionDesplegable`, local de
+`DetalleProducto.jsx`: un encabezado en `#F0E2E4` con franja `#8C5A66` a
+la izquierda, que abre y cierra la sección, y a la derecha su resumen ("5
+materiales", "1 foto"). Al entrar está abierta solo Datos
+(`ABIERTAS_AL_ENTRAR`). Si la sección tiene algo sin guardar, el
+encabezado dice "Cambios sin guardar" en rojo, solo el texto; si el
+producto usa un material discontinuado, el de Materiales lleva el mismo
+círculo ámbar de la miniatura del listado, con `avisoMateriales` en el
+title, calculado sobre el borrador. El acordeón lo eligió la usuaria en
+lugar de dejar las pestañas con un solo Guardar. Antes las pestañas
+Materiales, Imágenes y Categorías guardaban al instante, y Datos tenía su
+propio Guardar.
+
+Todo se edita sobre un borrador (datos, `materiales`, `imagenes` y
+`categorias`), con las mismas funciones en memoria del alta y los ids
+provisorios negativos. Guardar encadena: el PUT de los datos si
+cambiaron; quitar, cambiar la cantidad y asignar materiales; borrar fotos,
+modificar título u orden y subir las nuevas (cada grupo se renumera solo
+si su orden cambió o tiene fotos nuevas); sacar y agregar categorías. El
+botón muestra el avance ("Subiendo foto 2 de 5…"). Si algo falla, el
+error va en su sección, que se abre, con "Lo anterior quedó guardado.", y
+lo ya creado recibe su id real en el borrador, como en pedido y gasto.
+Descartar repone el borrador y vuelve a montar las secciones (`version`
+en su `key`), así los campos de cada fila también vuelven a lo guardado.
+Las vistas previas de las fotos nuevas se revocan al quitarlas, al
+descartar y al salir. Guardar valida nombre, precio y dificultad (y abre
+Datos si falta algo), pregunta "Guardar sin fotos" si el producto tenía
+fotos y el borrador no, y vuelve al listado con "Cambios guardados".
+`PestanaDatos` de productos ya no tiene pie ni la prop `enRecorrido`: el
+pie lo pone `PieDelRecorrido` en el alta y la ficha debajo de todo.
 
 **El pie de Datos es el mismo en las tres fichas** (producto, pedido y
 gasto): Descartar y Guardar siempre visibles, apagados mientras no haya
 cambios, con el motivo en el `title` ("No hay cambios que descartar" / "No
 hay cambios que guardar"); Guardar se apaga además mientras guarda.
 Descartar repone el borrador desde lo guardado y se queda en la ficha;
-para salir está el breadcrumb, que descarta sin preguntar, y el aviso
-mientras se está en la ficha es el chip "Cambios sin guardar" del
-breadcrumb, `ChipCambiosSinGuardar` en `componentes/`, que las tres dibujan
-con `hayCambios`. Las tres tarjetas de Datos reciben `hayCambios`. Antes
+para salir está el breadcrumb, y el aviso mientras se está en la ficha es
+el chip "Cambios sin guardar" del breadcrumb, `ChipCambiosSinGuardar` en
+`componentes/`, que las tres dibujan con `hayCambios`. Antes
 cada ficha tenía su pie (Producto y Pedido con Cancelar que salía al
 listado y nada apagado, Gasto con Descartar y Guardar solo con cambios) y
 solo Producto tenía el chip. Es una diferencia deliberada con los tres
 prototipos: en el de Productos el pie es CANCELAR (vuelve al listado, con
 un modal si hay cambios) y GUARDAR CAMBIOS, siempre visibles, y el chip
 existe; en los de Pedidos y Gastos el pie es Cancelar / Guardar y aparece
-solo con cambios, donde ese Cancelar descarta, y no hay chip. En las
-fichas de pedido y de gasto el pie va debajo de la tabla, Guardar vuelve
-al listado y salir con cambios pregunta (ver "La ficha de pedido es un
-solo formulario"); la de producto sigue como se describe acá hasta A8-a.
+solo con cambios, donde ese Cancelar descarta, y no hay chip. En las tres
+el pie va debajo de todo y no en la tarjeta de Datos, Guardar vuelve al
+listado y salir con cambios pregunta (ver "La ficha de pedido es un solo
+formulario").
 
 **Avisar, no prohibir, cuando falta el contenido principal.** Un pedido sin
 productos, un producto sin fotos y un gasto de materiales sin filas son
@@ -225,9 +258,10 @@ Pero se avisa, siempre con `ModalConfirmar` y una pregunta "¿… igual?":
 | "Crear gasto" de materiales sin filas | Crear sin materiales | Este gasto no tiene materiales cargados: se va a crear en $0. ¿Crear igual? | Crear igual |
 | "Guardar" un pedido que queda sin productos | Guardar sin productos | Este pedido va a quedar sin productos. ¿Guardar igual? | Guardar igual |
 | "Guardar" un gasto de materiales que queda sin filas | Guardar sin materiales | Este gasto va a quedar sin materiales: el monto queda en $0. ¿Guardar igual? | Guardar igual |
+| "Guardar" un producto que queda sin fotos | Guardar sin fotos | Este producto va a quedar sin fotos. ¿Guardar igual? | Guardar igual |
 
 En las altas lo decide `terminar()`, que llama a `crear()` directo si hay
-contenido; en las fichas de pedido y de gasto, `pedirGuardar()`, si
+contenido; en las tres fichas, `pedirGuardar()`, si
 tenían contenido guardado y el borrador ya no. Quitar filas en memoria no
 pregunta: la pregunta está al crear o al guardar. La
 acción va en rosa, no en rojo: es una confirmación, no un modal de
@@ -336,10 +370,11 @@ su ordenamiento, los dos chips de filtro, la línea de resumen, el
 recuento y el chip de saldo del modal Ver, y la rama bloqueada del modal
 Eliminar. La tabla ordena por ÚLTIMO descendente, como el prototipo.
 
-**El único aviso flotante del módulo es el de copiar el usuario.** Las
-otras acciones ya se confirman solas: se cierra el modal y la fila
-aparece, cambia o desaparece de la tabla. Copiar al portapapeles es la
-única acción sin efecto visible.
+**El único aviso flotante del módulo es el de copiar el usuario.** Copiar
+al portapapeles es la única acción sin efecto visible. El alta y la
+edición se confirman con `ModalAviso`, como en todos los listados (ver
+"Después de crear, las tres vuelven al listado con un modal de aviso");
+eliminar se confirma sola: la fila desaparece de la tabla.
 
 **Dos componentes compartidos:** `BotonAccion.jsx` y `Toast` viven en
 `componentes/`. Se movieron ahí cuando Clientes pasó a ser la segunda
@@ -748,7 +783,15 @@ aparece en el listado.; "Pedido creado" / "Gasto creado" con su número);
 un efecto borra el `state` con un `navegar` a la misma dirección con
 `replace`, porque el navegador lo conserva al recargar y el modal
 reaparecería. Las fichas de pedido y de gasto dejan `{ guardado: <id> }`
-al guardar, con el mismo mecanismo ("Cambios guardados"). Es un modal y
+al guardar, y la de producto `{ guardado: <nombre> }`, con el mismo
+mecanismo ("Cambios guardados"). Materiales, Clientes y Categorías, que
+dan de alta y editan en un modal sobre el listado, muestran el mismo
+`ModalAviso` sin navegación de por medio: `ModalMaterial`,
+`ModalCliente` y `ModalCategoria` le pasan a `onGuardado` el registro que
+devolvió el backend, y el listado elige "Material creado" / "Cliente
+creado" / "Categoría creada" o "Cambios guardados" según hubiera un
+registro en edición. El cliente se nombra con su usuario de Instagram
+(@sofi.delgado). Es un modal y
 no el aviso flotante porque, al cambiar de pantalla, el aviso de 2,6
 segundos abajo pasaba desapercibido (pedido de la usuaria); la excepción
 al criterio de Clientes es la misma que la bajada automática del pedido:
@@ -793,7 +836,7 @@ listado), el menú lateral y el Atrás del navegador pasan todos por el
 mismo lugar. No frena dos navegaciones: la de después de crear (al
 listado, y la de "Ir al …" con el registro a medias), con el ref
 `saltearBloqueo`, y la del login, porque al cerrar sesión desde un alta la
-sesión ya no está. Las fichas de pedido y de gasto usan el mismo bloqueo,
+sesión ya no está. Las tres fichas usan el mismo bloqueo,
 pero solo con cambios sin guardar ("Salir sin guardar"). `useBlocker`
 exige un data router: por eso `rutas.jsx` usa `createBrowserRouter` (ver
 Rutas, en Catálogo público). Un router admite un solo bloqueo a la vez, y
@@ -812,17 +855,18 @@ texto, textoAccion, onCerrar, onConfirmar })` es el patrón de modal con
 una pregunta, Cancelar y la acción en rosa, copiado de los modales de
 eliminar sin la llamada a la API; no sabe de navegación ni de API, quien
 lo abre decide qué pasa al confirmar. Lo usan las tres altas para salir
-sin crear y para crear sin el contenido principal, y las fichas de pedido
-y de gasto para salir sin guardar y para guardar sin el contenido
-principal. `ModalAviso({ titulo, texto, onCerrar })` es su hermano para
-avisar algo que ya pasó: un tilde verde, el texto y un solo botón,
-Aceptar, sin Cancelar porque no pregunta nada; capa 100, porque se abre
-sobre un listado. Lo usan los listados de productos, pedidos y gastos
-después de crear, y los de pedidos y gastos después de guardar la ficha.
-La `PestanaDatos` de pedidos y `DatosDelGasto` no tienen pie (el alta y la
-ficha lo ponen debajo de la tabla); la `PestanaDatos` de productos recibe
-`enRecorrido`, que quiere decir una sola cosa: no dibujar su pie, porque
-los botones los pone `PieDelRecorrido`.
+sin crear y para crear sin el contenido principal, y las tres fichas
+para salir sin guardar y para guardar sin el contenido principal.
+`ModalAviso({ titulo, texto, onCerrar })` es su hermano para avisar algo
+que ya pasó: un tilde verde, el texto y un solo botón, Aceptar, sin
+Cancelar porque no pregunta nada; capa 100, porque se abre sobre un
+listado. Es más angosto que los otros modales (380px, título a 17 y texto
+a 15), porque lleva una sola frase. Lo usan los seis listados con alta y
+edición (productos, pedidos, gastos, materiales, clientes y categorías)
+para confirmar las dos. Ninguna tarjeta de Datos tiene pie: la
+`PestanaDatos` de pedidos y `DatosDelGasto` lo tienen debajo de la tabla,
+y la `PestanaDatos` de productos, en el alta, en `PieDelRecorrido`, y en
+la ficha, debajo de todas las secciones.
 
 
 ---
@@ -1743,6 +1787,14 @@ mucho espacio en blanco.
 **Patrón de listado:** título + botón de alta a la derecha → buscador y
 filtros → tabla o grilla → sección colapsable de dados de baja al final.
 
+**El aviso de disponibilidad baja de Materiales muestra cuatro filas**
+(`AvisoReponer`, pedido de la usuaria): de la quinta en adelante se ven
+deslizando dentro del aviso, que así no empuja la tabla hacia abajo. Para
+que entren cuatro justas las filas miden siempre lo mismo
+(`FILAS_VISIBLES = 4`, `ALTO_FILA = 58`) y la caja de las filas tiene
+`maxHeight` de cuatro filas con `overflowY: 'auto'`; el título queda fijo
+arriba.
+
 **Patrón de modal:** cabecera `#8C5A66` con título blanco y cruz, cuerpo
 con campos apilados, pie con Cancelar y la acción principal. Fondo
 oscurecido que cierra al hacer clic, con `e.stopPropagation()` en la
@@ -1903,9 +1955,9 @@ dice.
   div del buscador; la barra se parte y el buscador ocupa su fila entera.
 - `boton-filtros`: el botón Filtros de Materiales, Productos, Pedidos y
   Gastos; crece hasta llenar su fila.
-- `fila-pestanas`: la fila de pestañas de la ficha de producto y la
-  `BarraDePasos` del alta de producto; se desliza de lado, con las pestañas
-  sin partirse y menos padding.
+- `fila-pestanas`: la `BarraDePasos` del alta de producto (la ficha ya no
+  tiene pestañas: es un acordeón); se desliza de lado, con los pasos sin
+  partirse y menos padding.
 - `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 32
   modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
   se dibujen en varios lugares); 8px de aire y hasta 96vh de alto.
@@ -1941,7 +1993,8 @@ dice.
   texto en vez de en tercios.
 - `ancho-pantalla`: todo elemento con `maxWidth: ANCHO_MAXIMO`; de 1440
   para arriba mide 1400.
-- `datos-producto`: el contenedor de la pestaña Datos de Producto; de 1440
+- `datos-producto`: el contenedor de la sección Datos de la ficha de
+  producto; de 1440
   para arriba, dos columnas (formulario y panel con la imagen). El panel
   mide lo que el formulario: lleva `contain: 'size'`, así no cuenta para
   el alto de la fila, y la grilla lo estira (`stretch`). La foto ocupa el

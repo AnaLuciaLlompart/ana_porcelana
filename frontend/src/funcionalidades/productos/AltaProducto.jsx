@@ -449,7 +449,6 @@ export default function AltaProducto() {
         <PestanaDatos
           borrador={borrador}
           onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-          enRecorrido
           error={error}
         />
       )}

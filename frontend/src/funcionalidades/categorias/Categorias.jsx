@@ -5,6 +5,7 @@ import ModalCategoria from './ModalCategoria'
 import ModalBajaCategoria from './ModalBajaCategoria'
 import ModalEliminarCategoria from './ModalEliminarCategoria'
 import BotonAccion from '../../componentes/BotonAccion'
+import ModalAviso from '../../componentes/ModalAviso'
 import { BASE_GESTION } from '../../constantes'
 
 
@@ -303,6 +304,9 @@ export default function Categorias() {
   const [categoriaEditando, setCategoriaEditando] = useState(null)
   const [categoriaDandoBaja, setCategoriaDandoBaja] = useState(null)
   const [categoriaEliminando, setCategoriaEliminando] = useState(null)
+  // El modal "Categoría creada" o "Cambios guardados", como en productos,
+  // pedidos y gastos.
+  const [aviso, setAviso] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [tab, setTab] = useState('Todas')
   const [tipoInicial, setTipoInicial] = useState('TIPO')
@@ -580,7 +584,15 @@ export default function Categorias() {
             setModalAbierto(false)
             setCategoriaEditando(null)
           }}
-          onGuardado={() => {
+          onGuardado={(guardada) => {
+            setAviso(
+              categoriaEditando
+                ? { titulo: 'Cambios guardados', texto: `«${guardada.nombre}» quedó guardada.` }
+                : {
+                    titulo: 'Categoría creada',
+                    texto: `«${guardada.nombre}» quedó creada y ya aparece en el listado.`,
+                  }
+            )
             setModalAbierto(false)
             setCategoriaEditando(null)
             recargar()
@@ -610,6 +622,9 @@ export default function Categorias() {
         />
       )}
 
+      {aviso && (
+        <ModalAviso titulo={aviso.titulo} texto={aviso.texto} onCerrar={() => setAviso(null)} />
+      )}
     </div>
   )
 

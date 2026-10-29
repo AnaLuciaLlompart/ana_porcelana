@@ -56,12 +56,11 @@ export default function ModalCategoria({ categoria, tipoInicial, onCerrar, onGua
     }
 
     try {
-      if (editando) {
-        await actualizarCategoria(categoria.id, datos)
-      } else {
-        await crearCategoria(datos)
-      }
-      onGuardado()
+      const respuesta = editando
+        ? await actualizarCategoria(categoria.id, datos)
+        : await crearCategoria(datos)
+      // El listado recibe la categoría guardada para avisarla con su nombre.
+      onGuardado(respuesta.data)
     } catch (err) {
       const datosError = err.response?.data
       setError(
