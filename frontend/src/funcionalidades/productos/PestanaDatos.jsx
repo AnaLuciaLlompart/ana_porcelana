@@ -79,6 +79,7 @@ export default function PestanaDatos({
             value={borrador.nombre}
             onChange={(e) => onCambiar({ nombre: e.target.value })}
             maxLength={80}
+            autoComplete="off"
             style={estiloCampo}
           />
         </div>

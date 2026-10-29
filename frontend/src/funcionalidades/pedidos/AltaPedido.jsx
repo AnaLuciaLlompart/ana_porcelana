@@ -504,7 +504,6 @@ export default function AltaPedido() {
             // Un pedido no nace entregado.
             fechaEntregaReal=""
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-            esAlta
             enRecorrido
             clientes={clientes}
             error={error}

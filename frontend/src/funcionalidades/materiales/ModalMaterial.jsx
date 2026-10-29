@@ -211,6 +211,7 @@ export default function ModalMaterial({ material, onCerrar, onGuardado }) {
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej: Arcilla polimérica blanca"
               maxLength={80}
+              autoComplete="off"
               style={estiloCampo}
             />
           </div>

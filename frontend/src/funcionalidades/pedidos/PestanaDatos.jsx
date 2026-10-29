@@ -1,4 +1,3 @@
-import { ICONO_BORRAR } from './presentacion'
 import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
@@ -83,13 +82,11 @@ export default function PestanaDatos({
   borrador,
   fechaEntregaReal,
   onCambiar,
-  esAlta,
   enRecorrido = false,
   hayCambios,
   clientes,
   onGuardar,
   onCancelar,
-  onEliminar,
   guardando,
   error,
 }) {
@@ -348,36 +345,6 @@ export default function PestanaDatos({
           )}
         </div>
       </div>
-
-      {/* Eliminar va fuera de la tarjeta, como en el diseño: no es uno más
-          de los campos del formulario. En un alta no hay nada que eliminar. */}
-      {!esAlta && (
-        <div>
-          <button
-            onClick={onEliminar}
-            className="btn-eliminar"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 16px',
-              border: '1px solid #EBE0E2',
-              background: 'white',
-              color: '#C0442F',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 14,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-              <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_BORRAR} />
-            </svg>
-            Eliminar pedido
-          </button>
-        </div>
-      )}
     </div>
   )
 }

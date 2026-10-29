@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   obtenerProducto,
   modificarProducto,
-  reactivarProducto,
   asignarMaterialAProducto,
   modificarCantidadDeMaterial,
   quitarMaterialDeProducto,
@@ -30,7 +29,6 @@ import PestanaMateriales from './PestanaMateriales'
 import PestanaCategorias from './PestanaCategorias'
 import PestanaImagenes from './PestanaImagenes'
 import ModalAgregarMaterial from './ModalAgregarMaterial'
-import ModalBajaProducto from './ModalBajaProducto'
 import {
   COLOR_DIFICULTAD,
   ICONO_IMAGEN,
@@ -269,7 +267,6 @@ export default function DetalleProducto() {
   const [materiales, setMateriales] = useState([])
 
   const [modalMaterial, setModalMaterial] = useState(false)
-  const [modalBaja, setModalBaja] = useState(false)
 
   // El error de las imágenes va aparte del general, y guarda EN QUÉ GRUPO
   // falló: { tipo, mensaje }. Se muestra arriba de la grilla de ese grupo,
@@ -545,30 +542,6 @@ export default function DetalleProducto() {
             <Chip texto={catalogo.texto} color={catalogo.color} fondo={catalogo.fondo} />
           </div>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-          <button
-            onClick={() =>
-              activo
-                ? setModalBaja(true)
-                : accionInmediata(() => reactivarProducto(id), 'Producto reactivado')
-            }
-            className="btn-reponer"
-            style={{
-              padding: '10px 16px',
-              border: '1px solid #EBE0E2',
-              background: 'white',
-              color: '#8C5A66',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            {activo ? 'Dar de baja' : 'Reactivar'}
-          </button>
-        </div>
       </div>
 
       {avisoOculto && (
@@ -803,16 +776,6 @@ export default function DetalleProducto() {
               `“${material.nombre}” agregado`
             )
           }}
-        />
-      )}
-
-      {modalBaja && (
-        <ModalBajaProducto
-          producto={producto}
-          onCerrar={() => setModalBaja(false)}
-          // Al darlo de baja se vuelve al listado, como en el prototipo: el
-          // producto queda de solo lectura y no tiene sentido quedarse acá.
-          onConfirmado={() => navegar(`${BASE_GESTION}/productos`)}
         />
       )}
 
