@@ -348,7 +348,7 @@ export function lineaEnMemoria(id, datos, delCatalogo) {
 // Lo usan el alta (en Siguiente) y la ficha (en Guardar).
 export function faltaFormaEntrega(forma) {
   if (forma === '') return 'Elegí la forma de entrega: retiro o envío.'
-  if (forma === 'ENVIO') return 'Elegí quién realiza el envío.'
+  if (forma === 'ENVIO') return 'Elegí quién está a cargo del envío.'
   return ''
 }
 

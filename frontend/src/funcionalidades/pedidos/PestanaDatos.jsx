@@ -161,7 +161,7 @@ export default function PestanaDatos({
               margin: 0,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
-              fontSize: 14,
+              fontSize: 17,
               color: '#8C5A66',
               letterSpacing: '.06em',
             }}
@@ -264,7 +264,7 @@ export default function PestanaDatos({
 
             {esEnvio && (
               <div>
-                <span style={estiloEtiqueta}>¿QUIÉN REALIZA EL ENVÍO? *</span>
+                <span style={estiloEtiqueta}>QUIÉN ESTÁ A CARGO DEL ENVÍO *</span>
                 <Desplegable
                   opciones={QUIEN_ENVIA}
                   valor={sabeQuienEnvia ? forma : ''}

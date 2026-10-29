@@ -478,14 +478,14 @@ quedarían con un valor que no existe.
 
 **Se elige en dos desplegables**, en `PestanaDatos`, igual en el alta y en
 la ficha: FORMA DE ENTREGA [Retiro | Envío] y, si es envío, al lado,
-"¿Quién realiza el envío?" [Yo | El cliente], que son `MIO` y `CLIENTE`.
+QUIÉN ESTÁ A CARGO DEL ENVÍO [Yo | El cliente], que son `MIO` y `CLIENTE`.
 La dirección aparece al elegir Envío; el costo, recién al elegir quién lo
 realiza, porque de eso depende su nota ("Se suma al total del pedido" /
 "Lo paga el cliente: no suma al total"). El borrador guarda `''` (sin
 elegir), `'ENVIO'` (el paso intermedio, que nunca viaja), `'RETIRO'`,
 `'MIO'` o `'CLIENTE'`; `faltaFormaEntrega` frena los dos primeros en
-Crear y en Guardar ("Elegí la forma de entrega…" / "Elegí quién realiza
-el envío."). El alta arranca sin elegir, con "Elegí…" en el desplegable:
+Crear y en Guardar ("Elegí la forma de entrega…" / "Elegí quién está a
+cargo del envío."). El alta arranca sin elegir, con "Elegí…" en el desplegable:
 con tres formas, cualquiera de entrada sería un dato guardado sin
 pensarlo. Lo pidió así la usuaria ("que quede como los demás", con los
 textos "Yo" y "El cliente"); antes fue un árbol de botones en el alta y un
@@ -500,8 +500,8 @@ unidades iguales.
 
 **El precio se congela** al registrar el producto del pedido.
 
-**Los materiales de cada pieza se ven desde Inicio.** En la tabla EN
-PRODUCCIÓN, la columna MATERIALES lleva "Ver/Editar Materiales", que
+**Los materiales de cada pieza se ven desde Inicio.** En la tabla
+PRODUCTOS EN ELABORACIÓN, la columna MATERIALES lleva "Ver/Editar Materiales", que
 enlaza a `/materiales?producto=X`, ya implementado en Materiales; no
 aparece si el producto no tiene materiales cargados. Antes estaba en la
 tabla de productos del pedido, y la usuaria lo movió: en el taller es
@@ -584,6 +584,17 @@ porque la tabla vive en una caja con `overflowX: auto` que recortaría una
 lista absoluta, y abre hacia arriba si abajo no entra. Se cierra con un
 clic afuera (capa invisible), con Escape y con cualquier scroll o cambio
 de tamaño, porque la lista fija no seguiría a la fila. Capas 92 y 93.
+
+**`SelectorBuscable` con `flotante` usa la misma técnica.** Sin esa prop,
+el panel con el buscador se abre en el flujo y empuja lo de abajo; con
+ella, va con `position: fixed`, calculado desde el campo
+(`posicionDebajo`), así no lo recorta el cuerpo con scroll de un modal ni
+corre los otros campos. A diferencia del ⋯, no se cierra al deslizar: se
+vuelve a ubicar con cada scroll o cambio de tamaño, porque en el celular
+abrir el teclado cambia el tamaño de la ventana y lo cerraría apenas se
+abre. La lista mide hasta 240px, o menos (mínimo 120) si abajo no hay
+lugar. Lo usan el cliente del pedido y el producto de "Agregar producto"
+(pedido de la usuaria: la lista corría los campos de abajo).
 
 **Cambiar estado es un modal, `ModalEstado`.** Son los cuatro botones que
 antes estaban en la tarjeta de estado de la ficha, con la clase
@@ -1762,7 +1773,7 @@ especificidad, y las reglas de pantalla chica de la sección Responsive.
 |---|---|
 | Rosa viejo profundo — barra lateral, botones principales, títulos | `#8C5A66` |
 | Rosa viejo medio — acentos, elementos activos | `#B08791` |
-| Rosa muy claro — encabezados de tabla, fondos suaves | `#F0E2E4` |
+| Rosa muy claro — encabezados de tabla de los listados, fondos suaves | `#F0E2E4` |
 | Fondo general | `#FAF7F7` |
 | Tarjetas, tablas, modales | `#FFFFFF` |
 | Texto principal | `#3D3238` |
@@ -1787,6 +1798,17 @@ mucho espacio en blanco.
 **Patrón de listado:** título + botón de alta a la derecha → buscador y
 filtros → tabla o grilla → sección colapsable de dados de baja al final.
 
+**Encabezados de tabla: con franja en los listados, sin franja dentro de
+una tarjeta** (pedido de la usuaria, por jerarquía). En un listado la
+tabla es la pantalla y lleva la franja `#F0E2E4` con los títulos de
+columna en `#8C5A66`. Cuando la tabla vive dentro de una tarjeta con su
+propio título (la de productos del pedido, la de materiales del gasto, las
+dos de Inicio), el encabezado va en el fondo general `#FAF7F7` con los
+títulos en gris `#857078`, y el título de la tarjeta o panel sube de 14 a
+17px: con la franja, los nombres de columna pesaban más que el título. Los
+modales Ver de pedido y de gasto y los encabezados del acordeón de la
+ficha de producto quedan como estaban (decidido por la usuaria).
+
 **El aviso de disponibilidad baja de Materiales muestra cuatro filas**
 (`AvisoReponer`, pedido de la usuaria): de la quinta en adelante se ven
 deslizando dentro del aviso, que así no empuja la tabla hacia abajo. Para
@@ -1796,14 +1818,16 @@ que entren cuatro justas las filas miden siempre lo mismo
 arriba.
 
 **Las tres listas de Inicio se deslizan** (corrección del tutor del
-28/10/2026, D2; se eligió scroll y no paginación): EN PRODUCCIÓN y
-PRÓXIMAS ENTREGAS muestran 8 filas y MATERIALES POR REPONER 6
+28/10/2026, D2; se eligió scroll y no paginación): PRODUCTOS EN
+ELABORACIÓN (antes EN PRODUCCIÓN, renombrada por la usuaria, que además
+evita confundirla con el estado En producción del pedido) y PRÓXIMAS
+ENTREGAS muestran 8 filas y MATERIALES POR REPONER 6
 (`FILAS_EN_PRODUCCION`, `FILAS_ENTREGAS`, `FILAS_MATERIALES`), y el resto
 se ve deslizando dentro de la tarjeta. Para eso `GET /api/inicio/` manda
 las tres listas enteras: antes las recortaba a esos mismos números
 (`MAXIMO_*`, ya borrados), y siguen siendo cinco consultas. Acá las filas
-no miden todas lo mismo (la descripción de una pieza o "Cobrar al
-entregar" las hacen más altas), así que el tope no es una cuenta fija
+no miden todas lo mismo (la descripción de una pieza o un nombre largo
+las hacen más altas), así que el tope no es una cuenta fija
 como en Materiales: `useAltoDeFilas(cantidad, selector, filas)`, en
 `Inicio.jsx`, mide dónde termina la última fila visible y devuelve ese
 alto para el `maxHeight` de la caja, o null si no hay más filas; un
@@ -1811,8 +1835,17 @@ alto para el `maxHeight` de la caja, o null si no hay más filas; un
 las filas. En las dos tablas los títulos quedan pegados arriba
 (`estiloThFijo`, `position: 'sticky'` con su propio fondo). El pie
 "Ver todos … (N …)" muestra el total cuando hay más filas que las
-visibles. El filtro por etapa de EN PRODUCCIÓN, la otra mitad de D2,
-queda pendiente.
+visibles.
+
+**PRODUCTOS EN ELABORACIÓN se filtra por etapa** (la otra mitad de D2).
+Entre el título y la tabla, `FiltroEtapas` dibuja Todas y un chip por
+etapa salvo Terminado, cada uno con cuántas piezas tiene; se elige una a
+la vez y el filtrado es local, porque las piezas ya vinieron enteras. Si
+la etapa elegida se queda sin piezas, la tabla dice "Ninguna pieza en …"
+en vez del vacío del taller. El pie no cambia con el filtro. Los chips son
+`ChipFiltro`, que salió de `Clientes.jsx` a `componentes/` al tener este
+segundo uso. PRÓXIMAS ENTREGAS ya no muestra "Cobrar al entregar" debajo
+del estado (pedido de la usuaria; diferencia con el prototipo).
 
 **Patrón de modal:** cabecera `#8C5A66` con título blanco y cruz, cuerpo
 con campos apilados, pie con Cancelar y la acción principal. Fondo
@@ -2003,7 +2036,8 @@ dice.
   fila, por mitades, y uno por fila si ni dos entran.
 - `fila-producto-baja` y `fila-categoria-baja`: las filas de la sección de
   bajas de Productos; dos y tres renglones.
-- `chips-filtro`: los dos chips de Clientes; se parten, a la izquierda.
+- `chips-filtro`: los dos chips de Clientes; se parten, a la izquierda
+  (los de etapa de Inicio ya se parten solos, con `flexWrap` en línea).
 - `toast`: el aviso flotante; hasta 16px de cada borde, centrado.
 - `pie-filtros`: el pie de los cuatro modales de filtros; contador arriba
   y los dos botones abajo por mitades.

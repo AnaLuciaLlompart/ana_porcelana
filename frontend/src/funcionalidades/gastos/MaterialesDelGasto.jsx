@@ -13,18 +13,21 @@ const estiloTituloTarjeta = {
   margin: 0,
   fontFamily: "'Quicksand', sans-serif",
   fontWeight: 600,
-  fontSize: 14,
+  fontSize: 17,
   color: '#8C5A66',
   letterSpacing: '.06em',
 }
 
+// Los títulos de columna van en gris sobre el fondo general, sin la franja
+// rosa de los listados: dentro de la ficha la tabla es parte de una tarjeta,
+// y el que manda es el título de la tarjeta, no los de las columnas.
 const estiloTh = {
   padding: '10px 8px',
   fontFamily: "'Quicksand', sans-serif",
   fontWeight: 600,
   fontSize: 13,
   letterSpacing: '.06em',
-  color: '#8C5A66',
+  color: '#857078',
 }
 
 const estiloCartelError = {
@@ -298,7 +301,7 @@ export default function MaterialesDelGasto({
               }}
             >
               <thead>
-                <tr style={{ background: '#F0E2E4' }}>
+                <tr style={{ background: '#FAF7F7' }}>
                   <th style={{ ...estiloTh, width: '24%', padding: '10px 20px', textAlign: 'left' }}>
                     MATERIAL
                   </th>

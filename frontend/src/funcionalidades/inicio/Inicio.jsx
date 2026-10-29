@@ -26,6 +26,7 @@ import { DIAS_ENTREGAS_PROXIMAS } from '../pedidos/filtros'
 import { formatearPrecio } from '../productos/presentacion'
 import { MESES_LARGOS } from '../finanzas/periodos'
 
+import ChipFiltro from '../../componentes/ChipFiltro'
 import Toast from '../../componentes/Toast'
 import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
@@ -54,11 +55,14 @@ const estiloTituloSeccion = {
   margin: 0,
   fontFamily: QUICKSAND,
   fontWeight: 600,
-  fontSize: 14,
+  fontSize: 17,
   letterSpacing: '.06em',
   color: '#8C5A66',
 }
 
+// Los títulos de columna van en gris sobre el fondo general, sin la franja
+// rosa de los listados, como en las fichas: el que manda es el título del
+// panel, no los de las columnas.
 const estiloTh = {
   padding: '10px 8px',
   textAlign: 'left',
@@ -67,7 +71,7 @@ const estiloTh = {
   fontWeight: 600,
   fontSize: 13,
   letterSpacing: '.06em',
-  color: '#8C5A66',
+  color: '#857078',
 }
 
 const estiloTd = {
@@ -318,6 +322,39 @@ function Vacio({ titulo, texto, conIcono = false, conBorde = false }) {
 }
 
 
+// Las etapas por las que se filtra EN PRODUCCIÓN: todas menos Terminado,
+// porque esas piezas ya no están en la tabla.
+const ETAPAS_EN_PRODUCCION = ETAPAS.filter((e) => e.valor !== 'TERMINADO')
+
+// Los chips de etapa arriba de EN PRODUCCIÓN: Todas y una por etapa, cada
+// una con cuántas piezas tiene. Se elige una sola a la vez, y el filtrado es
+// local: el backend ya mandó todas las piezas.
+function FiltroEtapas({ productos, etapa, onElegir }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 8,
+        padding: '12px 20px',
+        borderBottom: '1px solid #EBE0E2',
+      }}
+    >
+      <ChipFiltro label="Todas" cuenta={productos.length} activo={etapa === ''} onClick={() => onElegir('')} />
+      {ETAPAS_EN_PRODUCCION.map((e) => (
+        <ChipFiltro
+          key={e.valor}
+          label={e.label}
+          cuenta={productos.filter((p) => p.estado === e.valor).length}
+          activo={etapa === e.valor}
+          onClick={() => onElegir(e.valor)}
+        />
+      ))}
+    </div>
+  )
+}
+
+
 // Cuántas filas de cada lista se ven sin deslizar. El backend manda las
 // listas enteras, y las demás filas se ven deslizando dentro de la tarjeta.
 const FILAS_EN_PRODUCCION = 8
@@ -326,12 +363,12 @@ const FILAS_MATERIALES = 6
 
 // Los títulos de las dos tablas quedan pegados arriba al deslizar las
 // filas. Llevan su propio fondo porque el de la fila no los acompaña.
-const estiloThFijo = { ...estiloTh, position: 'sticky', top: 0, zIndex: 1, background: '#F0E2E4' }
+const estiloThFijo = { ...estiloTh, position: 'sticky', top: 0, zIndex: 1, background: '#FAF7F7' }
 
 // El alto que ocupan las primeras `cantidad` filas de una lista, para
 // usarlo de maxHeight en la caja que la envuelve; null si no hay más filas
-// que esas. Se mide porque las filas no miden todas lo mismo (una
-// descripción o un "Cobrar al entregar" las hace más altas). El
+// que esas. Se mide porque las filas no miden todas lo mismo (la
+// descripción de una pieza o un nombre largo las hace más altas). El
 // ResizeObserver vuelve a medir cuando el contenido cambia de tamaño: al
 // cambiar el ancho de la ventana, al cargar la tipografía o al cambiar las
 // filas. Devuelve la ref, que va en el elemento que contiene las filas.
@@ -385,7 +422,7 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
     <div style={{ overflow: 'auto', maxHeight: altoMaximo ?? undefined }}>
       <table ref={tabla} style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
-          <tr style={{ background: '#F0E2E4' }}>
+          <tr style={{ background: '#FAF7F7' }}>
             <th style={{ ...estiloThFijo, width: '27%', padding: '10px 20px' }}>PRODUCTO</th>
             <th style={{ ...estiloThFijo, width: '8%', textAlign: 'center' }}>CANT.</th>
             <th style={{ ...estiloThFijo, width: '10%' }}>PEDIDO</th>
@@ -522,7 +559,7 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
     <div style={{ overflow: 'auto', maxHeight: altoMaximo ?? undefined }}>
       <table ref={tabla} className="tabla-entregas" style={{ width: '100%', minWidth: 640, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
-          <tr style={{ background: '#F0E2E4' }}>
+          <tr style={{ background: '#FAF7F7' }}>
             <th style={{ ...estiloThFijo, width: '14%', padding: '10px 20px' }}>PEDIDO</th>
             <th style={{ ...estiloThFijo, width: '26%' }}>CLIENTE</th>
             <th style={{ ...estiloThFijo, width: '20%', textAlign: 'center' }}>ENTREGA</th>
@@ -534,7 +571,6 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
         <tbody>
           {pedidos.map((p) => {
             const chip = chipSaldo(p.saldo)
-            const cobrarAlEntregar = p.estado === 'LISTO' && Number(p.saldo) > 0
 
             return (
               <tr key={p.id} style={{ borderTop: '1px solid #EBE0E2' }}>
@@ -561,20 +597,7 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
                 </td>
 
                 <td style={{ ...estiloTd, textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  <p style={{ margin: 0, lineHeight: 1.3 }}>{p.estado_display}</p>
-                  {cobrarAlEntregar && (
-                    <p
-                      style={{
-                        margin: '3px 0 0',
-                        fontFamily: QUICKSAND,
-                        fontWeight: 600,
-                        fontSize: 12,
-                        color: '#8A6320',
-                      }}
-                    >
-                      Cobrar al entregar
-                    </p>
-                  )}
+                  {p.estado_display}
                 </td>
 
                 <td style={{ ...estiloTd, padding: '13px 20px', textAlign: 'center' }}>
@@ -674,6 +697,9 @@ export default function Inicio() {
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(true)
 
+  // La etapa elegida en EN PRODUCCIÓN; '' es Todas.
+  const [etapa, setEtapa] = useState('')
+
   const [toast, setToast] = useState('')
   const [hayDeshacer, setHayDeshacer] = useState(false)
   const temporizador = useRef(null)
@@ -772,6 +798,13 @@ export default function Inicio() {
   // "Cargando…" mientras no llegó.
   const subtitulo = cargando ? 'Cargando…' : datos ? fechaDelEncabezado(datos.hoy) : ''
 
+  // Las piezas de EN PRODUCCIÓN de la etapa elegida, o todas.
+  const enProduccionFiltrados = !datos
+    ? []
+    : etapa === ''
+      ? datos.en_produccion.productos
+      : datos.en_produccion.productos.filter((p) => p.estado === etapa)
+
   return (
     <div>
       {/* El encabezado se ve siempre, también cargando: el título y los
@@ -852,18 +885,30 @@ export default function Inicio() {
           </div>
 
           <Panel
-            titulo="EN PRODUCCIÓN"
+            titulo="PRODUCTOS EN ELABORACIÓN"
             nota="Se reordenan de la etapa más avanzada a la que recién empieza"
             className="ancho-pantalla"
             estilo={{ maxWidth: ANCHO_MAXIMO, marginBottom: 24 }}
           >
-            <TablaEnProduccion
-              productos={datos.en_produccion.productos}
-              hoy={datos.hoy}
-              onVerPedido={verPedido}
-              onCambiarEtapa={cambiarEtapa}
-              onVerMateriales={(producto) => navegar(`${BASE_GESTION}/materiales?producto=${producto}`)}
-            />
+            {datos.en_produccion.productos.length > 0 && (
+              <FiltroEtapas productos={datos.en_produccion.productos} etapa={etapa} onElegir={setEtapa} />
+            )}
+            {/* Si la etapa elegida se quedó sin piezas (se pasó la última a
+                otra), se dice eso y no "No tenés nada en el taller". */}
+            {datos.en_produccion.productos.length > 0 && enProduccionFiltrados.length === 0 ? (
+              <Vacio
+                titulo={`Ninguna pieza en ${ETAPAS.find((e) => e.valor === etapa).label}`}
+                texto="Elegí otra etapa para ver las demás piezas."
+              />
+            ) : (
+              <TablaEnProduccion
+                productos={enProduccionFiltrados}
+                hoy={datos.hoy}
+                onVerPedido={verPedido}
+                onCambiarEtapa={cambiarEtapa}
+                onVerMateriales={(producto) => navegar(`${BASE_GESTION}/materiales?producto=${producto}`)}
+              />
+            )}
             <Pie
               texto={textoVerTodos(
                 'Ver todos los pedidos',

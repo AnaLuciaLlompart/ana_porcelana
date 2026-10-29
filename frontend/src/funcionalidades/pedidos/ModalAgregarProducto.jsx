@@ -167,6 +167,7 @@ export default function ModalAgregarProducto({ productos, onCerrar, onAgregar })
               placeholder="Elegí un producto..."
               placeholderBusqueda="Buscar producto..."
               estiloCampo={estiloCampo(tocado && faltaProducto)}
+              flotante
             />
 
             {tocado && faltaProducto && (

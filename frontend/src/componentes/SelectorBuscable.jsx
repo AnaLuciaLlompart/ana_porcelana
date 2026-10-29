@@ -12,6 +12,22 @@ function sinAcentos(texto) {
 }
 
 
+// Con flotante, el panel va con position: fixed, calculado desde el campo,
+// como la lista del ⋯ (MenuMasAcciones): así no lo recorta el cuerpo con
+// scroll de un modal ni empuja lo que hay abajo. La lista mide hasta 240,
+// o menos si abajo no queda lugar en la pantalla (60 es el alto del
+// buscador del panel).
+function posicionDebajo(campo) {
+  const caja = campo.getBoundingClientRect()
+  return {
+    top: caja.bottom + 6,
+    left: caja.left,
+    width: caja.width,
+    altoLista: Math.max(120, Math.min(240, window.innerHeight - caja.bottom - 6 - 60 - 12)),
+  }
+}
+
+
 // Selector de una entidad con buscador. Se ve como un campo que muestra lo
 // elegido o un placeholder; al tocarlo se abre debajo un panel con una
 // entrada de búsqueda y la lista filtrada. Con siempreAbierto no hay campo:
@@ -48,6 +64,8 @@ export default function SelectorBuscable({
   const [abierto, setAbierto] = useState(siempreAbierto)
   const [busqueda, setBusqueda] = useState('')
   const [indiceActiva, setIndiceActiva] = useState(0)
+  // Solo con flotante: dónde se dibuja el panel y cuánto puede medir la lista.
+  const [posicion, setPosicion] = useState(null)
 
   const contenedor = useRef(null)
   const campo = useRef(null)
@@ -83,6 +101,25 @@ export default function SelectorBuscable({
     return () => document.removeEventListener('mousedown', alClicAfuera)
   }, [abierto, siempreAbierto])
 
+  // Mientras está abierto, el panel sigue al campo: si se desliza la página
+  // o el modal, o cambia el tamaño de la ventana (en el celular, al abrir el
+  // teclado), se vuelve a calcular. true: el scroll del cuerpo del modal no
+  // sube hasta window, así que se escucha en la fase de captura.
+  useEffect(() => {
+    if (!abierto || !flotante) return
+
+    function reubicar() {
+      setPosicion(posicionDebajo(campo.current))
+    }
+
+    window.addEventListener('scroll', reubicar, true)
+    window.addEventListener('resize', reubicar)
+    return () => {
+      window.removeEventListener('scroll', reubicar, true)
+      window.removeEventListener('resize', reubicar)
+    }
+  }, [abierto, flotante])
+
   // La fila activa por teclado se mantiene a la vista dentro de la lista.
   useEffect(() => {
     lista.current?.querySelector('[data-activa="true"]')?.scrollIntoView({ block: 'nearest' })
@@ -95,6 +132,7 @@ export default function SelectorBuscable({
 
     setBusqueda('')
     setIndiceActiva(indiceElegida === -1 ? 0 : indiceElegida)
+    if (flotante) setPosicion(posicionDebajo(campo.current))
     setAbierto(true)
   }
 
@@ -129,7 +167,7 @@ export default function SelectorBuscable({
   }
 
   return (
-    <div ref={contenedor} style={{ position: flotante ? 'relative' : undefined }}>
+    <div ref={contenedor}>
       {!siempreAbierto && (
         <button
           type="button"
@@ -183,7 +221,15 @@ export default function SelectorBuscable({
             // Con flotante el panel pinta encima de lo que sigue, del ancho del
             // campo, en vez de empujarlo. z-index 1: sobre los campos, y debajo
             // de todas las capas de Responsive del CLAUDE.md (90 en adelante).
-            ...(flotante && { position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1 }),
+            ...(flotante && {
+              position: 'fixed',
+              top: posicion.top,
+              left: posicion.left,
+              width: posicion.width,
+              marginTop: 0,
+              zIndex: 1,
+              boxShadow: '0 8px 24px rgba(61,50,56,.15)',
+            }),
           }}
         >
           <div style={{ padding: 10, borderBottom: '1px solid #EBE0E2' }}>
@@ -223,7 +269,7 @@ export default function SelectorBuscable({
             </div>
           </div>
 
-          <div ref={lista} style={{ maxHeight: 240, overflowY: 'auto' }}>
+          <div ref={lista} style={{ maxHeight: flotante ? posicion.altoLista : 240, overflowY: 'auto' }}>
             {filtradas.map((op, indice) => {
               const esElegida = elegida && String(op.valor) === String(elegida.valor)
               const esActiva = indice === indiceActiva

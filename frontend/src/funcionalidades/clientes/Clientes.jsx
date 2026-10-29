@@ -4,6 +4,7 @@ import ModalCliente from './ModalCliente'
 import ModalVerCliente from './ModalVerCliente'
 import ModalEliminarCliente from './ModalEliminarCliente'
 import BotonAccion from '../../componentes/BotonAccion'
+import ChipFiltro from '../../componentes/ChipFiltro'
 import ModalAviso from '../../componentes/ModalAviso'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
@@ -37,49 +38,6 @@ const estiloTd = {
   padding: 14,
   fontSize: 16,
   color: '#3D3238',
-}
-
-
-// Uno de los dos chips de filtro, con su contador al lado.
-function ChipFiltro({ label, cuenta, activo, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 7,
-        padding: '7px 15px',
-        borderRadius: 20,
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        fontFamily: "'Quicksand', sans-serif",
-        fontWeight: 600,
-        fontSize: 14,
-        border: activo ? '1px solid #8C5A66' : '1px solid #EBE0E2',
-        background: activo ? '#F0E2E4' : 'white',
-        color: activo ? '#8C5A66' : '#857078',
-      }}
-    >
-      {label}
-      <span
-        style={{
-          minWidth: 20,
-          height: 20,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 6px',
-          borderRadius: 10,
-          fontSize: 12,
-          background: activo ? '#8C5A66' : '#F5F0F1',
-          color: activo ? 'white' : '#857078',
-        }}
-      >
-        {cuenta}
-      </span>
-    </button>
-  )
 }
 
 

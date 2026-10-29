@@ -27,7 +27,7 @@ const estiloTituloTarjeta = {
   margin: 0,
   fontFamily: "'Quicksand', sans-serif",
   fontWeight: 600,
-  fontSize: 14,
+  fontSize: 17,
   color: '#8C5A66',
   letterSpacing: '.06em',
 }
