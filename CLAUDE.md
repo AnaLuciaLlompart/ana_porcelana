@@ -166,11 +166,33 @@ Revisadas todas las pantallas de la gestión (octubre de 2026), no queda
 otro control instantáneo dentro de un formulario con Guardar. En la misma
 pantalla que un formulario pero en una tarjeta aparte, y por eso dentro
 de la regla: la tabla de materiales de la ficha de gasto (Quitar, Alta y
-"Marcar todos en disponibilidad Alta"), y la tabla de productos de la
-ficha de pedido. El estado y los cobros del pedido son acciones, y desde
-A1 viven en la fila del listado. La ficha de producto no tiene ninguna
-acción fuera del formulario: Dar de baja y Reactivar se hacen desde el
-listado.
+"Marcar todos en disponibilidad Alta"). El estado y los cobros del pedido
+son acciones, y desde A1 viven en la fila del listado. La ficha de
+producto no tiene ninguna acción fuera del formulario: Dar de baja y
+Reactivar se hacen desde el listado.
+
+**La ficha de pedido es un solo formulario** (decidido por la usuaria
+junto con las correcciones del tutor del 28/10/2026; reemplaza, para el
+pedido, la decisión 10 de esas correcciones, que dejaba los productos
+como acciones). Datos y Productos del pedido se editan sobre un mismo
+borrador y se guardan con un único Guardar, abajo de todo; el pie salió
+de la tarjeta Datos. Agregar, editar, cambiar la etapa y quitar un
+producto escriben en el borrador, como en el alta (`lineaEnMemoria`, en
+`pedidos/presentacion.js`, la comparten los dos). Guardar es una cadena de
+los endpoints de siempre, como Crear en el alta: el PUT de los datos si
+cambiaron, y después quitar, modificar (solo lo que cambió) y agregar
+productos, con el PATCH de etapa de las piezas nuevas que no son
+Pendiente; el botón muestra el avance. No es atómico: si algo falla a
+mitad, lo anterior queda guardado, la ficha se queda con la última
+respuesta y cada pieza nueva ya creada recibe su id real en el borrador,
+así reintentar no duplica nada. El error de datos va en la tarjeta Datos;
+el de un producto, pegado a la tabla, con "Lo anterior quedó guardado.".
+Si todo sale bien, vuelve al listado, que muestra el modal "Cambios
+guardados" (y, si el backend bajó el pedido a En producción, lo dice).
+Salir con cambios sin guardar pregunta "Salir sin guardar" con el mismo
+`useBlocker` de las altas, solo cuando hay cambios, y el navegador avisa
+con `beforeunload`. Es la única ficha que vuelve al listado y pregunta al
+salir; la de gasto se iguala en su propio punto, y la de producto en A8-a.
 
 **El pie de Datos es el mismo en las tres fichas** (producto, pedido y
 gasto): Descartar y Guardar siempre visibles, apagados mientras no haya
@@ -187,7 +209,10 @@ solo Producto tenía el chip. Es una diferencia deliberada con los tres
 prototipos: en el de Productos el pie es CANCELAR (vuelve al listado, con
 un modal si hay cambios) y GUARDAR CAMBIOS, siempre visibles, y el chip
 existe; en los de Pedidos y Gastos el pie es Cancelar / Guardar y aparece
-solo con cambios, donde ese Cancelar descarta, y no hay chip.
+solo con cambios, donde ese Cancelar descarta, y no hay chip. En la
+ficha de pedido el pie va debajo de los productos, Guardar vuelve al
+listado y salir con cambios pregunta (ver "La ficha de pedido es un solo
+formulario").
 
 **Avisar, no prohibir, cuando falta el contenido principal.** Un pedido sin
 productos, un producto sin fotos y un gasto de materiales sin filas son
@@ -199,14 +224,15 @@ Pero se avisa, siempre con `ModalConfirmar` y una pregunta "¿… igual?":
 | "Crear pedido" sin productos | Crear sin productos | Este pedido no tiene productos cargados. ¿Crear igual? | Crear igual |
 | "Crear producto" sin fotos (de ningún grupo) | Crear sin fotos | Este producto no tiene fotos. ¿Crear igual? | Crear igual |
 | "Crear gasto" de materiales sin filas | Crear sin materiales | Este gasto no tiene materiales cargados: se va a crear en $0. ¿Crear igual? | Crear igual |
-| Quitar el último producto de un pedido | Quitar el último producto | Es el último producto del pedido. ¿Quitarlo igual? | Quitar igual |
+| "Guardar" un pedido que queda sin productos | Guardar sin productos | Este pedido va a quedar sin productos. ¿Guardar igual? | Guardar igual |
 | Quitar el último material de un gasto | Quitar el último material | Es el último material del gasto: el monto queda en $0. ¿Quitarlo igual? | Quitar igual |
 
 En las altas lo decide `terminar()`, que llama a `crear()` directo si hay
-contenido; en las fichas, `quitarProducto` / `quitarMaterial`, que guardan
-la fila en `productoAQuitar` / `filaAQuitar` si es la última y si no
-llaman a `quitarProductoAhora` / `quitarMaterialAhora`. Quitar filas en
-memoria dentro de un alta no pregunta: la pregunta está al crear. La
+contenido; en la ficha de pedido, `pedirGuardar()`, si el pedido tenía
+productos y el borrador ya no; en la de gasto, `quitarMaterial`, que
+guarda la fila en `filaAQuitar` si es la última y si no llama a
+`quitarMaterialAhora`. Quitar filas en memoria (en un alta o en la ficha
+de pedido) no pregunta: la pregunta está al crear o al guardar. La
 acción va en rosa, no en rojo: es una confirmación, no un modal de
 eliminar. En los listados el aviso es `ChipSinContenido` (en
 `componentes/`, con `texto` y `title`): "Sin materiales" en MONTO de
@@ -382,8 +408,9 @@ contradecirse. Solo baja el estado, nunca lo sube: terminar la última
 pieza no pasa el pedido a Listo, porque decidir que un encargo está para
 entregar es de la emprendedora.
 
-La bajada automática se avisa con un cartel flotante en la ficha, porque
-es un cambio que la usuaria no pidió. Es la excepción al criterio de
+La bajada automática se avisa, porque es un cambio que la usuaria no
+pidió: en el modal "Cambios guardados" del listado, después de guardar la
+ficha. Es la excepción al criterio de
 Clientes, donde el aviso flotante se reserva para las acciones sin efecto
 visible: acá el efecto se ve, pero nadie lo pidió, que es el otro motivo
 para avisar.
@@ -417,17 +444,19 @@ El modelo conserva el default `CLIENTE`, a diferencia de `Gasto.tipo`,
 porque los pedidos que se crean por ORM (pruebas y `cargar_datos_prueba`)
 quedarían con un valor que no existe.
 
-**Se elige como un árbol**, en `PestanaDatos`: [Retiro] [Envío] y, si es
+**En el alta se elige como un árbol**, en `PestanaDatos`: [Retiro] [Envío] y, si es
 envío, "¿Quién paga el envío?" [A cargo mío] [A cargo del cliente]. La
 dirección aparece al elegir Envío; el costo, recién al elegir quién paga,
 porque de eso depende su nota ("Se suma al total del pedido" / "Lo paga
 el cliente: no suma al total"). El borrador guarda `''` (sin elegir),
 `'ENVIO'` (el paso intermedio, que nunca viaja), `'RETIRO'`, `'MIO'` o
 `'CLIENTE'`; `faltaFormaEntrega` frena los dos primeros en Siguiente y en
-Guardar. El alta arranca sin elegir (prop `esAlta`, que deja el árbol
-siempre a la vista): con tres formas, cualquiera de entrada sería un dato
-guardado sin pensarlo. La ficha muestra la forma elegida y el botón
-"Cambiar forma de entrega", que despliega el árbol.
+Guardar. El alta arranca sin elegir (prop `esAlta`): con tres formas,
+cualquiera de entrada sería un dato guardado sin pensarlo. En la ficha es
+un `<select>` con las tres formas y el `estiloCampo` de los demás campos,
+pedido por la usuaria ("que quede como los demás"); reemplazó al botón
+"Cambiar forma de entrega" que desplegaba el árbol, que era lo que pedía
+el tutor.
 
 **No hay restricción de unicidad sobre (pedido, producto).** El mismo
 producto puede figurar en dos filas del mismo pedido si difieren en
@@ -561,14 +590,14 @@ estado, solo para leer, al lado del de saldo; cambia solo cuando el
 backend baja el pedido a En producción (ver "La bajada automática").
 
 **La ficha no tiene pestañas** (corrección del tutor del 28/10/2026, A7).
-Es como la de Gasto: la cabecera y, apiladas debajo, la tarjeta Datos con
-su pie Descartar / Guardar y la tabla de Productos del pedido. Antes eran
+Es como la de Gasto: la cabecera y, apiladas debajo, la tarjeta Datos, la
+tabla de Productos del pedido y el pie Descartar / Guardar. Antes eran
 tres pestañas (Datos, Productos del pedido y Cobros, las dos últimas con
 un globito de cantidad); el tutor pidió que el detalle del pedido sea del
 pedido y no de los cobros, que pasaron a un modal. Diferencia deliberada
 con el prototipo, que tiene las pestañas y el estado en "Datos y estado".
-Pendiente, decidido por la usuaria: la ficha va a ser un solo formulario,
-Datos y Productos con un único Guardar, en un punto propio antes de A8-a.
+Es un solo formulario (ver "La ficha de pedido es un solo formulario", en
+Patrón a seguir).
 
 **Los cobros van en un modal, `ModalCobros`** (A6, adelantado en A7). Lo
 abre "Cobros" en el ⋯ del listado. Envuelve a `PestanaCobros` sin modificarla (sigue compartida con el paso
@@ -585,11 +614,10 @@ En A7 lo abría un botón en la cabecera de la ficha; desde A1, el ⋯.
 
 **El error de los productos va pegado a su tabla.** `PestanaProductos`
 recibe una prop opcional `error` (`errorProductos` en la ficha), copiada
-de `MaterialesDelGasto` con `errorMateriales`: agregar, editar, cambiar la
-etapa y quitar muestran su rechazo entre la cabecera de la tarjeta y la
-tabla. El error general queda para el formulario de Datos. Antes iba en un
-cartel arriba de las pestañas que solo se veía fuera de Datos. El alta no
-pasa `error`.
+de `MaterialesDelGasto` con `errorMateriales`: si Guardar falla en un
+producto, el rechazo se ve entre la cabecera de la tarjeta y la tabla. El
+error de los datos queda en el formulario de Datos. El alta no pasa
+`error`.
 
 **Un pedido sin productos se marca, no se prohíbe.** En el listado,
 CONTENIDO muestra el chip "Sin productos" (`ChipSinContenido`, con el
@@ -599,13 +627,13 @@ sin mover ninguna columna: a 12px de letra y `padding: '3px 7px'`, como el
 "+N", mide 94px, y a 940 la celda deja 81 de contenido más 16 de padding
 derecho (medido en el navegador). Subir CONTENIDO no se pudo: ninguna
 columna tenía tres puntos de sobra a 940, y subir el mínimo daba scroll
-horizontal en una notebook de 1366. En la tabla de Productos vacía, debajo
-de los dos textos, va la aclaración "Este pedido no tiene productos: no se
-puede cobrar ni generar el comprobante hasta que agregues uno.", como la
-de la tabla vacía de materiales del gasto; se ve en la ficha y en el alta.
-Del segundo texto se sacó "Si el mismo modelo va en dos colores, cargalo
-dos veces.", que sí está en el prototipo: diferencia deliberada. Quitar el
-último producto pregunta (ver "Avisar, no prohibir" en Patrón a seguir).
+horizontal en una notebook de 1366. La tabla de Productos vacía dice
+"Todavía no hay productos" y "Sin productos no se puede cobrar el
+pedido.", en la ficha y en el alta; la usuaria pidió simplificarla, y
+salieron "Cargá cada producto con su cantidad…" y la aclaración del
+comprobante, que repetía el título (desde C5 el comprobante sale de un
+cobro). Guardar un pedido que queda sin productos pregunta (ver "Avisar,
+no prohibir" en Patrón a seguir).
 
 **El comprobante en PDF queda fuera.**
 
@@ -788,12 +816,16 @@ onCerrar, onConfirmar })` es el patrón de modal con una pregunta, Cancelar
 y la acción en rosa, copiado de los modales de eliminar sin la llamada a la
 API; no sabe de navegación ni de API, quien lo abre decide qué pasa al
 confirmar. Lo usan las tres altas para salir sin crear y para crear sin el
-contenido principal, y las fichas de pedido y de gasto para quitar el
-último producto o material. `ModalAviso({ titulo, texto, onCerrar })` es
+contenido principal, la ficha de pedido para salir sin guardar y para
+guardar sin productos, y la de gasto para quitar el último material.
+`ModalAviso({ titulo, texto, onCerrar })` es
 su hermano para avisar algo que ya pasó: un tilde verde, el texto y un
 solo botón, Aceptar, sin Cancelar porque no pregunta nada; capa 100, porque
 se abre sobre un listado. Lo usan los listados de productos y pedidos
-después de crear. Las dos `PestanaDatos` y `DatosDelGasto` reciben `enRecorrido`,
+después de crear, y el de pedidos después de guardar la ficha. La
+`PestanaDatos` de pedidos no tiene pie (lo pone el alta con
+`PieDelRecorrido` y la ficha debajo de los productos); la de productos y
+`DatosDelGasto` reciben `enRecorrido`,
 que quiere decir una sola cosa: no dibujar su pie, porque los botones los
 pone `PieDelRecorrido`.
 

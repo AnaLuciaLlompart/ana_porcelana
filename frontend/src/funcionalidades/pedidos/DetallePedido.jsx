@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 
 import {
   obtenerPedido,
@@ -16,7 +16,6 @@ import { listarClientes } from '../clientes/api'
 import { listarProductos } from '../productos/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
-import Toast from '../../componentes/Toast'
 import ChipCambiosSinGuardar from '../../componentes/ChipCambiosSinGuardar'
 import ModalConfirmar from '../../componentes/ModalConfirmar'
 
@@ -30,6 +29,8 @@ import {
   chipSaldo,
   datosDeEntrega,
   faltaFormaEntrega,
+  hoy,
+  lineaEnMemoria,
 } from './presentacion'
 
 
@@ -44,6 +45,9 @@ import {
 // afuera es lo que garantiza que no se pueda mandar. Es la misma garantía
 // estructural que usa ProductoDelPedidoModificarSerializer no teniendo el
 // campo producto.
+//
+// Los productos del pedido también están en el borrador: la ficha es un
+// solo formulario, y se guardan con el mismo Guardar que los datos.
 function borradorDe(pedido) {
   return {
     cliente: String(pedido.cliente),
@@ -52,7 +56,48 @@ function borradorDe(pedido) {
     forma_entrega: pedido.forma_entrega,
     direccion_entrega: pedido.direccion_entrega,
     costo_entrega: pedido.costo_entrega === null ? '' : String(Math.round(Number(pedido.costo_entrega))),
+    productos: pedido.productos,
   }
+}
+
+// Si algún dato del formulario difiere de lo guardado. Los productos van
+// aparte, en cambiosEnProductos.
+function datosCambiaron(borrador, original) {
+  return (
+    borrador.cliente !== original.cliente ||
+    borrador.fecha_pedido !== original.fecha_pedido ||
+    borrador.fecha_entrega_estimada !== original.fecha_entrega_estimada ||
+    borrador.forma_entrega !== original.forma_entrega ||
+    borrador.direccion_entrega !== original.direccion_entrega ||
+    borrador.costo_entrega !== original.costo_entrega
+  )
+}
+
+// Lo que hay que mandar para que lo guardado quede como el borrador: las
+// filas que se quitaron, las que cambiaron (solo con lo que cambió) y las
+// nuevas, que son las de id provisorio negativo.
+function cambiosEnProductos(guardados, enBorrador) {
+  const idsEnBorrador = enBorrador.map((linea) => linea.id)
+  const quitados = guardados.filter((g) => !idsEnBorrador.includes(g.id))
+  const nuevos = enBorrador.filter((linea) => linea.id < 0)
+
+  const modificados = []
+  for (const linea of enBorrador) {
+    const guardada = guardados.find((g) => g.id === linea.id)
+    if (!guardada) continue
+
+    // El precio llega del backend como texto con decimales ("5000.00") y
+    // del modal sin ellos ("5000"): se comparan como números.
+    const cambio = {}
+    if (linea.cantidad !== guardada.cantidad) cambio.cantidad = linea.cantidad
+    if (Number(linea.precio) !== Number(guardada.precio)) cambio.precio = linea.precio
+    if (linea.descripcion !== guardada.descripcion) cambio.descripcion = linea.descripcion
+    if (linea.estado !== guardada.estado) cambio.estado = linea.estado
+
+    if (Object.keys(cambio).length > 0) modificados.push({ linea, cambio })
+  }
+
+  return { quitados, modificados, nuevos }
 }
 
 
@@ -74,6 +119,11 @@ function mensajeDeError(err) {
 
 // La ficha de un pedido que ya existe (/pedidos/:id). El alta vive aparte,
 // en AltaPedido: junta todo en memoria y lo crea al final.
+//
+// Es un solo formulario: los datos y los productos del pedido se editan en
+// el borrador y se guardan juntos con Guardar, que al terminar vuelve al
+// listado con un modal de aviso. El estado y los cobros no están acá: son
+// acciones, y viven en la fila del listado.
 export default function DetallePedido() {
   const { id } = useParams()
   const navegar = useNavigate()
@@ -82,29 +132,32 @@ export default function DetallePedido() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
-  // El error de las operaciones sobre los productos va aparte del general y
-  // se muestra pegado a su tabla: el general se dibuja adentro del
-  // formulario de Datos, lejos de la tabla que lo provocó.
+  // Un error al guardar un producto va aparte del general y se muestra
+  // pegado a su tabla: el general se dibuja adentro del formulario de Datos,
+  // lejos de la fila que lo provocó.
   const [errorProductos, setErrorProductos] = useState('')
 
-  // El borrador de Datos vive ACÁ y no en PestanaDatos, al revés que el
-  // borrador del modal de filtros. El motivo es que la ficha también lo
-  // necesita: la cabecera lee el cliente del borrador, y hayCambios lo
-  // compara con lo guardado para el chip del breadcrumb.
+  // El borrador vive ACÁ y no en PestanaDatos, al revés que el borrador del
+  // modal de filtros. El motivo es que la ficha también lo necesita: la
+  // cabecera lee el cliente del borrador, la tabla de productos dibuja sus
+  // filas, y hayCambios lo compara con lo guardado para el chip del
+  // breadcrumb.
   const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
+  const [avance, setAvance] = useState('')
 
   const [clientes, setClientes] = useState([])
   const [productos, setProductos] = useState([])
   const [modalProducto, setModalProducto] = useState(false)
   const [productoEditando, setProductoEditando] = useState(null)
 
-  // El producto del pedido que se está por quitar cuando es el último: el
-  // modal pregunta antes, y recién al confirmar se quita.
-  const [productoAQuitar, setProductoAQuitar] = useState(null)
+  // Guardar un pedido que va a quedar sin productos se puede, pero antes se
+  // pregunta con el modal.
+  const [preguntarSinProductos, setPreguntarSinProductos] = useState(false)
 
-  const [toast, setToast] = useState('')
-  const temporizador = useRef(null)
+  // Los ids provisorios de los productos nuevos: negativos, para que nunca
+  // choquen con uno real.
+  const proximoId = useRef(-1)
 
   useEffect(() => {
     obtenerPedido(id)
@@ -123,181 +176,215 @@ export default function DetallePedido() {
   }, [id])
 
 
-  function mostrarToast(texto) {
-    setToast(texto)
-    // Se cancela el anterior: si no, al hacer dos acciones seguidas el
-    // temporizador de la primera apaga el cartel de la segunda antes de
-    // tiempo.
-    clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => setToast(''), 2600)
+  // Hay cambios si algún dato del borrador difiere de lo guardado, o si hay
+  // productos quitados, modificados o nuevos. Se calcula acá arriba, antes
+  // de los return de la carga, porque lo usan los dos avisos de salir, que
+  // son hooks y tienen que correr siempre.
+  const cambios = pedido && borrador ? cambiosEnProductos(pedido.productos, borrador.productos) : null
+  const hayCambios =
+    cambios !== null &&
+    (datosCambiaron(borrador, borradorDe(pedido)) ||
+      cambios.quitados.length + cambios.modificados.length + cambios.nuevos.length > 0)
+
+  // Con cambios sin guardar, recargar, cerrar la pestaña o escribir otra
+  // dirección muestra el cartel del navegador, como en las altas. Su texto
+  // no se puede cambiar.
+  useEffect(() => {
+    if (!hayCambios) return
+
+    function avisar(evento) {
+      evento.preventDefault()
+      evento.returnValue = ''
+    }
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [hayCambios])
+
+  // Y cualquier navegación dentro de la aplicación (el breadcrumb, el menú
+  // lateral, el Atrás, el botón de materiales de un producto) se frena y
+  // pregunta, con el mismo bloqueo de las altas. Sin cambios no hay nada
+  // que perder y no pregunta. Después de guardar no se frena, y la del
+  // cierre de sesión tampoco: la sesión ya no está.
+  const saltearBloqueo = useRef(false)
+  const bloqueo = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hayCambios &&
+      !saltearBloqueo.current &&
+      nextLocation.pathname !== currentLocation.pathname &&
+      nextLocation.pathname !== `${BASE_GESTION}/login`
+  )
+
+
+  // Las cuatro operaciones sobre los productos escriben en el borrador, como
+  // en el alta: nada viaja hasta Guardar.
+
+  function agregarProducto(datos) {
+    setModalProducto(false)
+    const delCatalogo = productos.find((p) => p.id === datos.producto)
+    const linea = lineaEnMemoria(proximoId.current, datos, delCatalogo)
+    proximoId.current -= 1
+    setBorrador({ ...borrador, productos: [...borrador.productos, linea] })
+  }
+
+  function cambiarLinea(linea, cambio) {
+    setBorrador({
+      ...borrador,
+      productos: borrador.productos.map((l) => (l.id === linea.id ? { ...l, ...cambio } : l)),
+    })
+  }
+
+  function editarProducto(linea, datos) {
+    setProductoEditando(null)
+    cambiarLinea(linea, { ...datos, subtotal: datos.cantidad * Number(datos.precio) })
+  }
+
+  function cambiarEtapa(linea, estado) {
+    cambiarLinea(linea, { estado, fecha_cambio_estado: hoy() })
+  }
+
+  // Quitar no pregunta: la pregunta, si el pedido queda sin productos, está
+  // al guardar.
+  function quitarProducto(linea) {
+    setBorrador({ ...borrador, productos: borrador.productos.filter((l) => l.id !== linea.id) })
   }
 
 
-  // El endpoint devuelve la ficha completa ya recalculada por el backend,
-  // así que se usa esa respuesta en vez de volver a pedir el pedido: es un
-  // viaje menos y no hay un momento con datos viejos.
-  //
-  // El tercer parámetro dice EN QUÉ CARTEL se muestra el error, y por
-  // defecto es el general. Se le pasa una función igual que a las otras
-  // funciones del proyecto que reciben la de la API.
-  async function accionInmediata(llamada, textoToast, avisarError = setError) {
-    // Se limpian los dos y no solo el que va a usarse: si no, al hacer una
-    // acción después de un error quedaría el cartel viejo colgado en la
-    // pantalla, hablando de algo que ya pasó.
+  // Guardar: primero revisa los datos y, si el pedido va a quedar sin
+  // productos, pregunta.
+  function pedirGuardar() {
     setError('')
     setErrorProductos('')
-
-    try {
-      const res = await llamada()
-      setPedido(res.data)
-      if (textoToast) mostrarToast(textoToast)
-      return res.data
-    } catch (err) {
-      avisarError(mensajeDeError(err))
-      return null
-    }
-  }
-
-
-  // El backend puede devolver el pedido en En producción sin que se le haya
-  // pedido: si una operación sobre los productos dejó piezas sin terminar,
-  // el pedido no puede seguir diciendo que está Listo y baja solo.
-  //
-  // El chip del encabezado ya cambia con la respuesta, pero es un cambio que
-  // la usuaria no pidió, así que además se avisa.
-  function avisarSiBajoSolo(estadoAntes, actualizado) {
-    if (!actualizado) return
-    if (actualizado.estado === estadoAntes) return
-    if (actualizado.estado !== 'EN_PRODUCCION') return
-
-    mostrarToast('El pedido volvió a En producción: quedaron piezas sin terminar')
-  }
-
-
-  // Las tres operaciones sobre los productos del pedido también son
-  // inmediatas: agregar una pieza al encargo es un hecho consumado, no un
-  // campo que se está editando, así que no hay botón de guardar.
-  //
-  // Las tres devuelven el pedido completo, y por eso alcanza con la
-  // respuesta para que se acomoden de una sola vez la tabla, el subtotal
-  // del pie y el chip del saldo de la cabecera.
-
-  // Las tres se guardan el estado que el pedido tenía ANTES de la llamada,
-  // porque es lo único con qué comparar el que vuelve para saber si el
-  // backend lo bajó solo.
-  async function agregarProducto(datos) {
-    setModalProducto(false)
-
-    const estadoAntes = pedido.estado
-    const actualizado = await accionInmediata(
-      () => agregarProductoAlPedido(id, datos),
-      'Producto agregado',
-      setErrorProductos
-    )
-
-    // Si el pedido bajó, este cartel pisa el de "Producto agregado", y está
-    // bien que lo pise: es lo más importante que pasó.
-    avisarSiBajoSolo(estadoAntes, actualizado)
-  }
-
-  function editarProducto(productoDelPedido, datos) {
-    setProductoEditando(null)
-    accionInmediata(
-      () => modificarProductoDelPedido(id, productoDelPedido.id, datos),
-      'Producto actualizado',
-      setErrorProductos
-    )
-  }
-
-  async function cambiarEtapa(productoDelPedido, estado) {
-    // Sin aviso flotante: el selector ya muestra la etapa nueva.
-    // El único cartel que puede salir es el de la vuelta a En producción,
-    // que aparece si esta etapa fue para atrás y dejó al pedido incompleto.
-    const estadoAntes = pedido.estado
-    const actualizado = await accionInmediata(
-      () => modificarProductoDelPedido(id, productoDelPedido.id, { estado }),
-      '',
-      setErrorProductos
-    )
-
-    avisarSiBajoSolo(estadoAntes, actualizado)
-  }
-
-  // Quitar el último producto deja el pedido sin contenido: se puede, pero
-  // antes se pregunta con el modal. Los demás se quitan directo.
-  function quitarProducto(productoDelPedido) {
-    if (pedido.productos.length === 1) {
-      setProductoAQuitar(productoDelPedido)
-      return
-    }
-    quitarProductoAhora(productoDelPedido)
-  }
-
-  async function quitarProductoAhora(productoDelPedido) {
-    setProductoAQuitar(null)
-
-    // Sin aviso flotante: la fila desaparece de la tabla.
-    // Salvo que quitar esta pieza haya bajado el pedido, que sí se avisa.
-    // Si era la última, la pregunta ya se hizo antes de llegar acá.
-    const estadoAntes = pedido.estado
-    const actualizado = await accionInmediata(
-      () => quitarProductoDelPedido(id, productoDelPedido.id),
-      '',
-      setErrorProductos
-    )
-
-    avisarSiBajoSolo(estadoAntes, actualizado)
-  }
-
-
-  // Devuelve el id del pedido si salió bien, o null si no.
-  async function guardarDatos() {
-    setError('')
 
     // Los dos que el backend exige. Se muestra el primero que falte: es un
     // formulario corto y una lista de errores sería más ruido que ayuda.
     if (!borrador.cliente) {
       setError('Elegí el cliente del pedido.')
-      return null
+      return
     }
     if (!borrador.fecha_pedido) {
       setError('La fecha del pedido es obligatoria.')
-      return null
+      return
     }
-    // Lo guardado siempre tiene una forma completa, pero el árbol puede
-    // quedar en "Envío" sin elegir quién lo paga.
     const faltaForma = faltaFormaEntrega(borrador.forma_entrega)
     if (faltaForma) {
       setError(faltaForma)
-      return null
+      return
     }
 
+    if (borrador.productos.length === 0 && pedido.productos.length > 0) {
+      setPreguntarSinProductos(true)
+      return
+    }
+
+    guardar()
+  }
+
+  // Guardar es una cadena de los endpoints que ya existen, como Crear en el
+  // alta: el PUT de los datos si cambiaron, y después quitar, modificar y
+  // agregar productos. No es atómico: si algo falla a mitad, lo anterior
+  // quedó guardado. Por eso, a medida que avanza, la ficha se queda con la
+  // última respuesta del backend, y cada producto nuevo que se crea recibe
+  // su id real en el borrador: volver a tocar Guardar sigue desde ahí, sin
+  // duplicar nada.
+  async function guardar() {
+    setPreguntarSinProductos(false)
     setGuardando(true)
 
-    // La entrega estimada y el costo viajan como null cuando están vacíos,
-    // no como cadena vacía: así están declarados en el modelo, y un '' haría
-    // fallar la validación del campo de fecha.
-    //
-    // La entrega real no viaja: no está en el borrador.
-    const datos = {
-      cliente: Number(borrador.cliente),
-      fecha_pedido: borrador.fecha_pedido,
-      fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
-      ...datosDeEntrega(borrador),
+    // El estado de antes, para saber al final si el backend lo bajó solo.
+    const estadoAntes = pedido.estado
+    let actual = pedido
+    let lineas = borrador.productos
+
+    if (datosCambiaron(borrador, borradorDe(pedido))) {
+      // La entrega estimada y el costo viajan como null cuando están vacíos,
+      // no como cadena vacía: así están declarados en el modelo, y un '' haría
+      // fallar la validación del campo de fecha.
+      //
+      // La entrega real no viaja: no está en el borrador.
+      const datos = {
+        cliente: Number(borrador.cliente),
+        fecha_pedido: borrador.fecha_pedido,
+        fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
+        ...datosDeEntrega(borrador),
+      }
+
+      try {
+        setAvance('Guardando datos…')
+        actual = (await modificarPedido(id, datos)).data
+      } catch (err) {
+        setError(mensajeDeError(err))
+        setGuardando(false)
+        setAvance('')
+        return
+      }
+    }
+
+    const { quitados, modificados, nuevos } = cambiosEnProductos(pedido.productos, lineas)
+    const total = quitados.length + modificados.length + nuevos.length
+    let hechos = 0
+    let enCurso = null
+
+    function contar(linea) {
+      enCurso = linea
+      hechos += 1
+      setAvance(`Guardando productos (${hechos} de ${total})…`)
     }
 
     try {
-      const res = await modificarPedido(id, datos)
-      setPedido(res.data)
-      setBorrador(borradorDe(res.data))
-      mostrarToast('Cambios guardados')
-      return res.data.id
+      for (const linea of quitados) {
+        contar(linea)
+        actual = (await quitarProductoDelPedido(id, linea.id)).data
+      }
+
+      for (const { linea, cambio } of modificados) {
+        contar(linea)
+        actual = (await modificarProductoDelPedido(id, linea.id, cambio)).data
+      }
+
+      for (const linea of nuevos) {
+        contar(linea)
+        const idsAntes = actual.productos.map((p) => p.id)
+        actual = (await agregarProductoAlPedido(id, {
+          producto: linea.producto,
+          cantidad: linea.cantidad,
+          precio: linea.precio,
+          descripcion: linea.descripcion,
+        })).data
+
+        // La fila creada es la que no estaba antes. Su id real reemplaza al
+        // provisorio en el borrador.
+        const creada = actual.productos.find((p) => !idsAntes.includes(p.id))
+        lineas = lineas.map((l) => (l.id === linea.id ? { ...l, id: creada.id } : l))
+
+        // Una pieza nace Pendiente y la etapa no se puede mandar al crearla:
+        // si se eligió otra, va con un PATCH, como en el alta.
+        if (linea.estado !== 'PENDIENTE') {
+          actual = (await modificarProductoDelPedido(id, creada.id, { estado: linea.estado })).data
+        }
+      }
     } catch (err) {
-      setError(mensajeDeError(err))
-      return null
-    } finally {
+      setErrorProductos(
+        `No se pudo guardar «${enCurso.producto_nombre}»: ${mensajeDeError(err)} ` +
+          'Lo anterior quedó guardado.'
+      )
+      setPedido(actual)
+      setBorrador({ ...borrador, productos: lineas })
       setGuardando(false)
+      setAvance('')
+      return
     }
+
+    // Todo guardado: se vuelve al listado, que avisa con un modal. Si el
+    // backend bajó el pedido a En producción (quedaron piezas sin
+    // terminar), el modal lo dice, porque es un cambio que nadie pidió.
+    // Sin bloqueo: ya no queda nada sin guardar.
+    saltearBloqueo.current = true
+    navegar(`${BASE_GESTION}/pedidos`, {
+      state: {
+        guardado: actual.id,
+        bajoAProduccion: actual.estado === 'EN_PRODUCCION' && estadoAntes !== 'EN_PRODUCCION',
+      },
+    })
   }
 
 
@@ -310,15 +397,16 @@ export default function DetallePedido() {
   }
 
 
-  // Salir descarta lo escrito sin preguntar, igual que en la ficha de
-  // Producto. El aviso mientras se está en la ficha es el chip del breadcrumb.
+  // Salir con cambios sin guardar pregunta: lo frena el bloqueo de arriba.
+  // El aviso mientras se está en la ficha es el chip del breadcrumb.
   function volver() {
     navegar(`${BASE_GESTION}/pedidos`)
   }
 
-  // Descartar repone el formulario desde el pedido guardado.
+  // Descartar repone el formulario, datos y productos, desde lo guardado.
   function descartar() {
     setError('')
+    setErrorProductos('')
     setBorrador(borradorDe(pedido))
   }
 
@@ -338,17 +426,9 @@ export default function DetallePedido() {
   const chipDelSaldo = chipSaldo(pedido.saldo)
   const colorEstado = COLOR_ESTADO[pedido.estado]
 
-  // Hay cambios si algún campo del borrador difiere de lo guardado. Es la
-  // misma comparación que hacen las fichas de Gastos y de Productos.
-  const original = borradorDe(pedido)
-
-  const hayCambios =
-    borrador.cliente !== original.cliente ||
-    borrador.fecha_pedido !== original.fecha_pedido ||
-    borrador.fecha_entrega_estimada !== original.fecha_entrega_estimada ||
-    borrador.forma_entrega !== original.forma_entrega ||
-    borrador.direccion_entrega !== original.direccion_entrega ||
-    borrador.costo_entrega !== original.costo_entrega
+  // El subtotal de la tabla sale del borrador, para que acompañe lo que se
+  // ve. Es la misma suma que hace el backend con las filas.
+  const subtotal = borrador.productos.reduce((suma, linea) => suma + Number(linea.subtotal), 0)
 
   return (
     <div>
@@ -416,7 +496,7 @@ export default function DetallePedido() {
           >
             <span>{subtitulo}</span>
 
-            {/* El estado se cambia desde el ⋯ del listado: acá solo se lee. */}
+            {/* El estado se cambia desde el listado: acá solo se lee. */}
             <span
               style={{
                 whiteSpace: 'nowrap',
@@ -458,23 +538,64 @@ export default function DetallePedido() {
           // Va aparte del borrador porque no se edita.
           fechaEntregaReal={pedido.fecha_entrega_real || ''}
           onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
-          hayCambios={hayCambios}
           clientes={clientes}
-          onGuardar={guardarDatos}
-          onCancelar={descartar}
-          guardando={guardando}
           error={error}
         />
 
         <PestanaProductos
-          productos={pedido.productos}
-          subtotal={pedido.subtotal}
+          productos={borrador.productos}
+          subtotal={subtotal}
           error={errorProductos}
           onAgregar={() => setModalProducto(true)}
           onEditar={(p) => setProductoEditando(p)}
           onCambiarEtapa={cambiarEtapa}
           onQuitar={quitarProducto}
         />
+
+        {/* El pie del formulario, debajo de todo: un solo Guardar para los
+            datos y los productos. Sin cambios los dos se apagan, con el
+            motivo en el title, como todo botón apagado por una regla. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+          <button
+            onClick={descartar}
+            disabled={!hayCambios || guardando}
+            title={hayCambios ? undefined : 'No hay cambios que descartar'}
+            style={{
+              padding: '10px 18px',
+              border: '1px solid #EBE0E2',
+              background: 'white',
+              color: '#8C5A66',
+              borderRadius: 6,
+              cursor: hayCambios && !guardando ? 'pointer' : 'default',
+              opacity: hayCambios && !guardando ? undefined : 0.5,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            Descartar
+          </button>
+
+          <button
+            onClick={pedirGuardar}
+            disabled={!hayCambios || guardando}
+            title={hayCambios ? undefined : 'No hay cambios que guardar'}
+            style={{
+              padding: '10px 20px',
+              border: 0,
+              background: '#8C5A66',
+              color: 'white',
+              borderRadius: 6,
+              cursor: hayCambios && !guardando ? 'pointer' : 'default',
+              opacity: guardando ? 0.7 : hayCambios ? undefined : 0.5,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            {guardando ? avance || 'Guardando…' : 'Guardar'}
+          </button>
+        </div>
       </div>
 
       {modalProducto && (
@@ -496,17 +617,27 @@ export default function DetallePedido() {
         />
       )}
 
-      {productoAQuitar && (
+      {/* La navegación frenada espera acá: Cancelar la deja sin efecto y el
+          router repone la dirección; "Salir sin guardar" la deja seguir. */}
+      {bloqueo.state === 'blocked' && (
         <ModalConfirmar
-          titulo="Quitar el último producto"
-          texto="Es el último producto del pedido. ¿Quitarlo igual?"
-          textoAccion="Quitar igual"
-          onCerrar={() => setProductoAQuitar(null)}
-          onConfirmar={() => quitarProductoAhora(productoAQuitar)}
+          titulo="Salir sin guardar"
+          texto="Se pierden los cambios que no guardaste. ¿Salir sin guardar?"
+          textoAccion="Salir sin guardar"
+          onCerrar={() => bloqueo.reset()}
+          onConfirmar={() => bloqueo.proceed()}
         />
       )}
 
-      {toast && <Toast texto={toast} />}
+      {preguntarSinProductos && (
+        <ModalConfirmar
+          titulo="Guardar sin productos"
+          texto="Este pedido va a quedar sin productos. ¿Guardar igual?"
+          textoAccion="Guardar igual"
+          onCerrar={() => setPreguntarSinProductos(false)}
+          onConfirmar={guardar}
+        />
+      )}
     </div>
   )
 }

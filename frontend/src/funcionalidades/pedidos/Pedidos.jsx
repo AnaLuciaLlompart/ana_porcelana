@@ -558,6 +558,31 @@ function EstadoVacio({ onNuevo }) {
 }
 
 
+// El título y el texto del modal de aviso, según lo que dejó en el state la
+// pantalla de la que se viene, o null si no dejó nada. Si al guardar el
+// backend bajó el pedido a En producción, el modal lo dice: es un cambio que
+// nadie pidió, y el aviso flotante se perdería al cambiar de pantalla.
+function avisoDeLaNavegacion(state) {
+  if (state?.creado) {
+    return {
+      titulo: 'Pedido creado',
+      texto: `El pedido #${state.creado} quedó creado y ya aparece en el listado.`,
+    }
+  }
+
+  if (state?.guardado) {
+    return {
+      titulo: 'Cambios guardados',
+      texto:
+        `El pedido #${state.guardado} quedó guardado.` +
+        (state.bajoAProduccion ? ' Volvió a En producción porque quedaron piezas sin terminar.' : ''),
+    }
+  }
+
+  return null
+}
+
+
 // Pantalla de Pedidos
 
 export default function Pedidos() {
@@ -585,9 +610,10 @@ export default function Pedidos() {
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
 
-  // El número del pedido que el alta acaba de crear: llega en el state de la
-  // navegación y abre el modal de aviso. Se lee al montar.
-  const [creado, setCreado] = useState(() => ubicacion.state?.creado ?? null)
+  // El modal de aviso de lo que pasó antes de llegar: el alta deja en el
+  // state de la navegación el pedido que creó, y la ficha el que guardó. Se
+  // lee al montar.
+  const [aviso, setAviso] = useState(() => avisoDeLaNavegacion(ubicacion.state))
 
   // Una sola carga al montar. El buscador filtra sobre estos datos, así que
   // no vuelve a pedir nada y tampoco lleva debounce.
@@ -607,7 +633,7 @@ export default function Pedidos() {
   // Ya leído, el state se borra, así el aviso no reaparece al recargar ni al
   // volver con Atrás.
   useEffect(() => {
-    if (!ubicacion.state?.creado) return
+    if (!ubicacion.state) return
     navegar(`${ubicacion.pathname}${ubicacion.search}`, { replace: true, state: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -993,11 +1019,11 @@ export default function Pedidos() {
         />
       )}
 
-      {creado && (
+      {aviso && (
         <ModalAviso
-          titulo="Pedido creado"
-          texto={`El pedido #${creado} quedó creado y ya aparece en el listado.`}
-          onCerrar={() => setCreado(null)}
+          titulo={aviso.titulo}
+          texto={aviso.texto}
+          onCerrar={() => setAviso(null)}
         />
       )}
 

@@ -367,18 +367,10 @@ export default function PestanaProductos({
               color: '#3D3238',
             }}
           >
-            El pedido no tiene productos todavía
+            Todavía no hay productos
           </p>
           <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
-            Cargá cada producto con su cantidad y el precio que acordaron.
-          </p>
-
-          {/* La aclaración, como la de la tabla vacía de materiales del
-              gasto: sin productos el pedido no se puede cobrar ni tiene
-              comprobante. Se ve en la ficha y en el alta. */}
-          <p style={{ margin: '10px 0 0', fontSize: 13, color: '#B08791', textWrap: 'pretty' }}>
-            Este pedido no tiene productos: no se puede cobrar ni generar el
-            comprobante hasta que agregues uno.
+            Sin productos no se puede cobrar el pedido.
           </p>
         </div>
       )}

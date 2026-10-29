@@ -328,6 +328,27 @@ export function motivoSinCobro(pedido) {
 }
 
 
+// Una pieza nueva en memoria, con la misma forma que las que devuelve el
+// backend, que es lo que la tabla sabe dibujar. El modal manda producto,
+// cantidad, precio y descripción; el nombre y si tiene materiales salen del
+// catálogo. Nace Pendiente. La usan el alta y la ficha, que guardan todo
+// junto al final; el id es provisorio y negativo.
+export function lineaEnMemoria(id, datos, delCatalogo) {
+  return {
+    id,
+    producto: datos.producto,
+    producto_nombre: delCatalogo.nombre,
+    producto_tiene_materiales: delCatalogo.cantidad_materiales > 0,
+    precio: datos.precio,
+    cantidad: datos.cantidad,
+    subtotal: datos.cantidad * Number(datos.precio),
+    descripcion: datos.descripcion,
+    estado: 'PENDIENTE',
+    fecha_cambio_estado: hoy(),
+  }
+}
+
+
 // Qué falta elegir de la forma de entrega del borrador, o '' si está
 // completa. 'ENVIO' es el paso intermedio del árbol: eligió envío pero no
 // quién lo paga, y no es un valor del backend, así que nunca viaja.

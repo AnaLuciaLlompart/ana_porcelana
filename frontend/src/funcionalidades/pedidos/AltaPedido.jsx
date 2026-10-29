@@ -33,6 +33,7 @@ import {
   datosDeEntrega,
   faltaFormaEntrega,
   hoy,
+  lineaEnMemoria,
 } from './presentacion'
 
 
@@ -250,23 +251,11 @@ export default function AltaPedido() {
   // la misma forma que los que devuelve el backend, que es lo que las
   // pestañas saben dibujar.
 
-  // El modal manda producto, cantidad, precio y descripcion; el nombre y si
-  // tiene materiales salen del catálogo. Una pieza nueva nace Pendiente.
+  // La pieza nueva la arma lineaEnMemoria, compartida con la ficha.
   function agregarProducto(datos) {
     setModalProducto(false)
     const delCatalogo = productos.find((p) => p.id === datos.producto)
-    const linea = {
-      id: nuevoId(),
-      producto: datos.producto,
-      producto_nombre: delCatalogo.nombre,
-      producto_tiene_materiales: delCatalogo.cantidad_materiales > 0,
-      precio: datos.precio,
-      cantidad: datos.cantidad,
-      subtotal: datos.cantidad * Number(datos.precio),
-      descripcion: datos.descripcion,
-      estado: 'PENDIENTE',
-      fecha_cambio_estado: hoy(),
-    }
+    const linea = lineaEnMemoria(nuevoId(), datos, delCatalogo)
     setBorrador({ ...borrador, productos: [...borrador.productos, linea] })
   }
 
@@ -516,7 +505,6 @@ export default function AltaPedido() {
             fechaEntregaReal=""
             onCambiar={(cambio) => setBorrador({ ...borrador, ...cambio })}
             esAlta
-            enRecorrido
             clientes={clientes}
             error={error}
           />

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
@@ -14,8 +13,9 @@ const QUIEN_PAGA = [
   { valor: 'CLIENTE', label: 'A cargo del cliente' },
 ]
 
-// Los textos de la forma ya elegida, para la ficha. Son las etiquetas del
-// backend, pero salen de acá porque se muestra el borrador, no lo guardado.
+// Las tres formas con sus textos, para el desplegable de la ficha. Son las
+// etiquetas del backend, escritas acá porque la lista tiene que existir
+// para elegir, como TIPOS en Gastos.
 const FORMAS = {
   RETIRO: 'Retiro',
   MIO: 'Envío a cargo mío',
@@ -121,28 +121,20 @@ function Segmentos({ opciones, activo, onElegir }) {
 }
 
 
-// enRecorrido es true en el alta por pasos: ahí la pestaña no dibuja su pie,
-// porque los botones los pone PieDelRecorrido. Por defecto false, que es la
-// ficha, con Descartar y Guardar apagados mientras no haya cambios.
+// La tarjeta de los datos del pedido, sin pie: en el alta los botones los
+// pone PieDelRecorrido, y en la ficha el pie va debajo de los productos,
+// porque datos y productos se guardan juntos.
 //
-// esAlta deja el árbol de la forma de entrega siempre a la vista. En la
-// ficha se muestra la forma elegida y el botón "Cambiar forma de entrega".
+// esAlta elige la forma de entrega con el árbol de botones. En la ficha es
+// un desplegable con las tres formas, como los demás campos.
 export default function PestanaDatos({
   borrador,
   fechaEntregaReal,
   onCambiar,
   esAlta = false,
-  enRecorrido = false,
-  hayCambios,
   clientes,
-  onGuardar,
-  onCancelar,
-  guardando,
   error,
 }) {
-  const [cambiandoForma, setCambiandoForma] = useState(false)
-  const mostrarArbol = esAlta || cambiandoForma
-
   const forma = borrador.forma_entrega
   const esEnvio = forma === 'ENVIO' || forma === 'MIO' || forma === 'CLIENTE'
 
@@ -284,7 +276,7 @@ export default function PestanaDatos({
             <div>
               <span style={estiloEtiqueta}>FORMA DE ENTREGA *</span>
 
-              {mostrarArbol ? (
+              {esAlta ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <Segmentos
                     opciones={PRIMER_NIVEL}
@@ -304,27 +296,17 @@ export default function PestanaDatos({
                   )}
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 15, color: '#3D3238' }}>{FORMAS[forma]}</span>
-
-                  <button
-                    onClick={() => setCambiandoForma(true)}
-                    className="btn-reponer"
-                    style={{
-                      padding: '8px 14px',
-                      border: '1px solid #8C5A66',
-                      background: 'white',
-                      color: '#8C5A66',
-                      borderRadius: 5,
-                      cursor: 'pointer',
-                      fontFamily: "'Quicksand', sans-serif",
-                      fontWeight: 600,
-                      fontSize: 14,
-                    }}
-                  >
-                    Cambiar forma de entrega
-                  </button>
-                </div>
+                <select
+                  value={forma}
+                  onChange={(e) => onCambiar({ forma_entrega: e.target.value })}
+                  style={{ ...estiloCampo, cursor: 'pointer' }}
+                >
+                  {Object.entries(FORMAS).map(([valor, texto]) => (
+                    <option key={valor} value={valor}>
+                      {texto}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
 
@@ -375,60 +357,6 @@ export default function PestanaDatos({
             >
               {error}
             </p>
-          )}
-
-          {!enRecorrido && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: 12,
-              paddingTop: 2,
-            }}
-          >
-            {/* Sin cambios los dos se apagan, con el motivo en el title,
-                como todo botón apagado por una regla. */}
-            <button
-              onClick={onCancelar}
-              disabled={!hayCambios}
-              title={hayCambios ? undefined : 'No hay cambios que descartar'}
-              style={{
-                padding: '10px 18px',
-                border: '1px solid #EBE0E2',
-                background: 'white',
-                color: '#8C5A66',
-                borderRadius: 6,
-                cursor: hayCambios ? 'pointer' : 'default',
-                opacity: hayCambios ? undefined : 0.5,
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-              }}
-            >
-              Descartar
-            </button>
-
-            <button
-              onClick={onGuardar}
-              disabled={!hayCambios || guardando}
-              title={hayCambios ? undefined : 'No hay cambios que guardar'}
-              style={{
-                padding: '10px 20px',
-                border: 0,
-                background: '#8C5A66',
-                color: 'white',
-                borderRadius: 6,
-                cursor: hayCambios && !guardando ? 'pointer' : 'default',
-                opacity: guardando ? 0.7 : hayCambios ? undefined : 0.5,
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-              }}
-            >
-              {guardando ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
           )}
         </div>
       </div>
