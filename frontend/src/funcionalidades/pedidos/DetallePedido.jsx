@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   obtenerPedido,
   modificarPedido,
-  cambiarEstadoPedido,
   agregarProductoAlPedido,
   modificarProductoDelPedido,
   quitarProductoDelPedido,
@@ -25,11 +24,8 @@ import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
 import ModalAgregarProducto from './ModalAgregarProducto'
 import ModalEditarProductoDelPedido from './ModalEditarProductoDelPedido'
-import ModalCobros from './ModalCobros'
 import {
   COLOR_ESTADO,
-  ESTADOS,
-  ICONO_COBRO,
   ICONO_FLECHA,
   chipSaldo,
   datosDeEntrega,
@@ -86,15 +82,9 @@ export default function DetallePedido() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
-  // El error de los botones de estado va aparte del general, y no por
-  // capricho: en la tarjeta Datos el error general se dibuja adentro del
-  // formulario, arriba de Guardar. Un rechazo del botón Listo aparecería
-  // allá abajo, lejos del botón que lo provocó y mezclado con los errores
-  // del formulario. Este se muestra pegado a los botones.
-  const [errorEstado, setErrorEstado] = useState('')
-
-  // Por lo mismo, el de las operaciones sobre los productos se muestra
-  // pegado a su tabla.
+  // El error de las operaciones sobre los productos va aparte del general y
+  // se muestra pegado a su tabla: el general se dibuja adentro del
+  // formulario de Datos, lejos de la tabla que lo provocó.
   const [errorProductos, setErrorProductos] = useState('')
 
   // El borrador de Datos vive ACÁ y no en PestanaDatos, al revés que el
@@ -108,8 +98,6 @@ export default function DetallePedido() {
   const [productos, setProductos] = useState([])
   const [modalProducto, setModalProducto] = useState(false)
   const [productoEditando, setProductoEditando] = useState(null)
-
-  const [modalCobros, setModalCobros] = useState(false)
 
   // El producto del pedido que se está por quitar cuando es el último: el
   // modal pregunta antes, y recién al confirmar se quita.
@@ -153,11 +141,10 @@ export default function DetallePedido() {
   // defecto es el general. Se le pasa una función igual que a las otras
   // funciones del proyecto que reciben la de la API.
   async function accionInmediata(llamada, textoToast, avisarError = setError) {
-    // Se limpian los tres y no solo el que va a usarse: si no, al hacer una
+    // Se limpian los dos y no solo el que va a usarse: si no, al hacer una
     // acción después de un error quedaría el cartel viejo colgado en la
     // pantalla, hablando de algo que ya pasó.
     setError('')
-    setErrorEstado('')
     setErrorProductos('')
 
     try {
@@ -176,31 +163,14 @@ export default function DetallePedido() {
   // pedido: si una operación sobre los productos dejó piezas sin terminar,
   // el pedido no puede seguir diciendo que está Listo y baja solo.
   //
-  // El chip del encabezado y el botón resaltado ya cambian con la respuesta,
-  // pero es un cambio que la usuaria no pidió, así que además se avisa.
+  // El chip del encabezado ya cambia con la respuesta, pero es un cambio que
+  // la usuaria no pidió, así que además se avisa.
   function avisarSiBajoSolo(estadoAntes, actualizado) {
     if (!actualizado) return
     if (actualizado.estado === estadoAntes) return
     if (actualizado.estado !== 'EN_PRODUCCION') return
 
     mostrarToast('El pedido volvió a En producción: quedaron piezas sin terminar')
-  }
-
-
-  // El estado se cambia EN EL MOMENTO, a diferencia de los campos de la
-  // tarjeta Datos, que esperan al botón de Guardar. Es un hecho consumado:
-  // el pedido pasó a producción, no es un dato que se está editando.
-  // La fecha de entrega real que el backend escribe al entregar —o borra al
-  // salir de Entregado— no hay que copiarla a ningún lado: el campo de la
-  // tarjeta Datos la lee del pedido, y setPedido ya lo dejó actualizado.
-  function cambiarEstado(estado, label) {
-    return accionInmediata(
-      () => cambiarEstadoPedido(id, estado),
-      `Pedido ${label.toLowerCase()}`,
-      // El rechazo se muestra en la tarjeta del estado, no en el
-      // formulario: es ahí donde está el botón que se tocó.
-      setErrorEstado
-    )
   }
 
 
@@ -366,6 +336,7 @@ export default function DetallePedido() {
   const titulo = `Pedido #${pedido.id}`
 
   const chipDelSaldo = chipSaldo(pedido.saldo)
+  const colorEstado = COLOR_ESTADO[pedido.estado]
 
   // Hay cambios si algún campo del borrador difiere de lo guardado. Es la
   // misma comparación que hacen las fichas de Gastos y de Productos.
@@ -445,6 +416,23 @@ export default function DetallePedido() {
           >
             <span>{subtitulo}</span>
 
+            {/* El estado se cambia desde el ⋯ del listado: acá solo se lee. */}
+            <span
+              style={{
+                whiteSpace: 'nowrap',
+                fontFamily: "'Quicksand', sans-serif",
+                fontWeight: 600,
+                fontSize: 14,
+                borderRadius: 20,
+                padding: '5px 12px',
+                border: `1px solid ${colorEstado.borde}`,
+                background: colorEstado.fondo,
+                color: colorEstado.color,
+              }}
+            >
+              {pedido.estado_display}
+            </span>
+
             <span
               style={{
                 whiteSpace: 'nowrap',
@@ -462,111 +450,6 @@ export default function DetallePedido() {
             </span>
           </div>
         </div>
-
-        {/* Los cobros se manejan en un modal propio (CU48 a CU51). Siempre
-            encendido: adentro, Registrar cobro se apaga solo. */}
-        <button
-          onClick={() => setModalCobros(true)}
-          className="btn-reponer"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-            padding: '10px 18px',
-            border: '1px solid #EBE0E2',
-            background: 'white',
-            color: '#8C5A66',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 15,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-            <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_COBRO} />
-          </svg>
-          Cobros
-        </button>
-      </div>
-
-      {/* Diferencia deliberada con el prototipo: el estado es una acción
-          instantánea, así que va afuera del formulario, arriba de los
-          datos y los productos. */}
-      <div
-        className="ancho-pantalla"
-        style={{
-          background: 'white',
-          border: '1px solid #EBE0E2',
-          borderRadius: 8,
-          padding: 20,
-          marginBottom: 20,
-          maxWidth: ANCHO_MAXIMO,
-        }}
-      >
-        <h2
-          style={{
-            margin: '0 0 10px',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 14,
-            color: '#8C5A66',
-            letterSpacing: '.06em',
-          }}
-        >
-          ESTADO DEL PEDIDO
-        </h2>
-
-        <div className="botones-estado" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {ESTADOS.map((e) => {
-            const activo = pedido.estado === e.valor
-            const solido = COLOR_ESTADO[e.valor].solido
-
-            return (
-              <button
-                key={e.valor}
-                onClick={() => cambiarEstado(e.valor, e.label)}
-                style={{
-                  padding: '9px 16px',
-                  borderRadius: 5,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  fontFamily: "'Quicksand', sans-serif",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  border: activo ? `1px solid ${solido}` : '1px solid #EBE0E2',
-                  background: activo ? solido : 'white',
-                  color: activo ? 'white' : '#857078',
-                }}
-              >
-                {e.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Debajo de los botones y no arriba: se lee después de haber
-            tocado el que lo provocó. Es el mismo recuadro del
-            formulario, para que un error se vea siempre igual. */}
-        {errorEstado && (
-          <p
-            role="alert"
-            style={{
-              margin: '12px 0 0',
-              padding: '10px 12px',
-              background: '#FAEAE8',
-              border: '1px solid #F0C4BC',
-              borderRadius: 6,
-              fontSize: 14,
-              color: '#C0442F',
-              textWrap: 'pretty',
-            }}
-          >
-            {errorEstado}
-          </p>
-        )}
       </div>
 
       <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
@@ -610,18 +493,6 @@ export default function DetallePedido() {
           productoDelPedido={productoEditando}
           onCerrar={() => setProductoEditando(null)}
           onGuardar={editarProducto}
-        />
-      )}
-
-      {modalCobros && (
-        <ModalCobros
-          pedido={pedido}
-          onCerrar={() => setModalCobros(false)}
-          // Solo el pedido: los cobros no tocan los datos del borrador.
-          onPedidoActualizado={(actualizado, aviso) => {
-            setPedido(actualizado)
-            if (aviso) mostrarToast(aviso)
-          }}
         />
       )}
 

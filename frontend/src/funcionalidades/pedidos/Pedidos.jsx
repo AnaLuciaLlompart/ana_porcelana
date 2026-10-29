@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { listarPedidos, registrarCobro, urlComprobante } from './api'
+import { listarPedidos, obtenerPedido, urlComprobanteDeCobro } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
-import ModalCobro from './ModalCobro'
+import ModalCobros from './ModalCobros'
+import ModalEstado from './ModalEstado'
+import ModalVerPedido from './ModalVerPedido'
 import { FILTROS_VACIOS, OPCIONES_ENTREGA, candidatos, contarFiltros, leerFiltrosDeLaUrl } from './filtros'
 import {
   ESTADOS,
@@ -12,9 +14,11 @@ import {
   ICONO_COBRO,
   ICONO_COMPROBANTE,
   ICONO_EDITAR,
+  ICONO_ESTADO,
   ICONO_FILTROS,
   ICONO_NUEVO,
   ICONO_PEDIDOS,
+  ICONO_VER,
   OPCIONES_SALDO,
   atraso,
   chipSaldo,
@@ -22,7 +26,6 @@ import {
   entregaTexto,
   entregaTitle,
   formatearPrecio,
-  motivoSinCobro,
 } from './presentacion'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
@@ -31,6 +34,7 @@ import {
 import { listarClientes } from '../clientes/api'
 
 import BotonAccion from '../../componentes/BotonAccion'
+import MenuMasAcciones from '../../componentes/MenuMasAcciones'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
 import ModalAviso from '../../componentes/ModalAviso'
@@ -135,49 +139,49 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 }
 
 
-// Los cuatro botones de la fila. Ver y editar abre la ficha del pedido, igual
-// que el número de la primera columna; Registrar cobro abre el mismo modal
-// que los cobros de la ficha, sin entrar al pedido; Comprobante abre el PDF en
-// otra pestaña.
-function Acciones({ pedido, onVer, onCobrar, onComprobante, onEliminar }) {
-  const motivo = motivoSinCobro(pedido)
-  const motivoComprobante =
-    pedido.cantidad_productos === 0
-      ? 'Agregá productos al pedido para generar el comprobante'
-      : ''
+// Los cuatro botones de la fila. Ver abre el pedido en un modal de solo
+// lectura; Ver y editar, la ficha, igual que el número de la primera
+// columna; Cambiar estado, el modal de los cuatro estados. Lo que no entra
+// va en el ⋯: los cobros, el comprobante del último pago, que se abre en
+// otra pestaña, y eliminar.
+function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onEstado }) {
+  const masAcciones = [
+    { texto: 'Cobros', icono: ICONO_COBRO, onClick: () => onCobros(pedido) },
+    {
+      texto: 'Último comprobante',
+      icono: ICONO_COMPROBANTE,
+      onClick: () =>
+        window.open(urlComprobanteDeCobro(pedido.id, pedido.ultimo_cobro), '_blank', 'noopener,noreferrer'),
+      deshabilitado: pedido.ultimo_cobro === null,
+      motivo: 'Este pedido todavía no tiene cobros',
+    },
+    { texto: 'Eliminar', icono: ICONO_BORRAR, color: '#C0442F', onClick: () => onEliminar(pedido) },
+  ]
 
   return (
     <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       <BotonAccion
         onClick={() => onVer(pedido)}
+        titulo="Ver"
+        color="#8C5A66"
+        hover="#F0E2E4"
+        icono={ICONO_VER}
+      />
+      <BotonAccion
+        onClick={() => onEditar(pedido)}
         titulo="Ver y editar"
         color="#8C5A66"
         hover="#F0E2E4"
         icono={ICONO_EDITAR}
       />
       <BotonAccion
-        onClick={() => onCobrar(pedido)}
-        titulo={motivo || 'Registrar cobro'}
+        onClick={() => onEstado(pedido)}
+        titulo="Cambiar estado"
         color="#8C5A66"
         hover="#F0E2E4"
-        icono={ICONO_COBRO}
-        deshabilitado={motivo !== ''}
+        icono={ICONO_ESTADO}
       />
-      <BotonAccion
-        onClick={() => onComprobante(pedido)}
-        titulo={motivoComprobante || 'Generar comprobante en PDF'}
-        color="#8C5A66"
-        hover="#F0E2E4"
-        icono={ICONO_COMPROBANTE}
-        deshabilitado={motivoComprobante !== ''}
-      />
-      <BotonAccion
-        onClick={() => onEliminar(pedido)}
-        titulo="Eliminar"
-        color="#C0442F"
-        hover="#FAEAE8"
-        icono={ICONO_BORRAR}
-      />
+      <MenuMasAcciones items={masAcciones} />
     </div>
   )
 }
@@ -206,7 +210,7 @@ function SinResultados() {
 }
 
 
-function Tabla({ pedidos, cargando, onVer, onCobrar, onComprobante, onEliminar }) {
+function Tabla({ pedidos, cargando, onVer, onEditar, onEliminar, onCobros, onEstado }) {
   const [orden, setOrden] = useState({ campo: null, dir: 'asc' })
   const [porPagina, setPorPagina] = useState(12)
   const [pagina, setPagina] = useState(1)
@@ -305,7 +309,7 @@ function Tabla({ pedidos, cargando, onVer, onCobrar, onComprobante, onEliminar }
                 <tr key={p.id} style={{ borderTop: '1px solid #EBE0E2' }}>
                   <td style={estiloTd}>
                     <button
-                      onClick={() => onVer(p)}
+                      onClick={() => onEditar(p)}
                       className="btn-usuario"
                       style={{
                         border: 0,
@@ -443,9 +447,10 @@ function Tabla({ pedidos, cargando, onVer, onCobrar, onComprobante, onEliminar }
                     <Acciones
                       pedido={p}
                       onVer={onVer}
-                      onCobrar={onCobrar}
-                      onComprobante={onComprobante}
+                      onEditar={onEditar}
                       onEliminar={onEliminar}
+                      onCobros={onCobros}
+                      onEstado={onEstado}
                     />
                   </td>
                 </tr>
@@ -571,11 +576,11 @@ export default function Pedidos() {
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [pedidoEliminando, setPedidoEliminando] = useState(null)
 
-  // Registrar cobro desde la fila: el pedido del modal abierto, el error que
-  // devolvió el servidor y si el cobro está viajando.
-  const [pedidoCobrando, setPedidoCobrando] = useState(null)
-  const [errorCobro, setErrorCobro] = useState('')
-  const [enviandoCobro, setEnviandoCobro] = useState(false)
+  // Los modales que abren el ojo y el ⋯. pedidoCobros es el pedido COMPLETO,
+  // con sus cobros, que el listado no trae: se pide al abrir.
+  const [pedidoViendo, setPedidoViendo] = useState(null)
+  const [pedidoCobros, setPedidoCobros] = useState(null)
+  const [pedidoEstado, setPedidoEstado] = useState(null)
 
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
@@ -631,36 +636,18 @@ export default function Pedidos() {
     temporizador.current = setTimeout(() => setToast(''), 2600)
   }
 
-  // El error se limpia al abrir y al cerrar, así nunca se ve el de otro
-  // pedido.
-  function abrirCobro(pedido) {
-    setErrorCobro('')
-    setPedidoCobrando(pedido)
+  // ModalCobros necesita la lista de cobros, que el listado no trae.
+  function abrirCobros(pedido) {
+    obtenerPedido(pedido.id)
+      .then((res) => setPedidoCobros(res.data))
+      .catch(() => setError('No se pudieron cargar los cobros del pedido.'))
   }
 
-  function cerrarCobro() {
-    setErrorCobro('')
-    setPedidoCobrando(null)
-  }
-
-  // A diferencia de la ficha, el modal queda abierto mientras viaja el
-  // cobro: si el servidor lo rechaza, el mensaje se lee adentro, como en
-  // Eliminar. Si sale bien, se recarga el listado para que el saldo se
-  // actualice, y se avisa porque la fila puede irse por un filtro de saldo.
-  async function guardarCobro(datos) {
-    setErrorCobro('')
-    setEnviandoCobro(true)
-
-    try {
-      await registrarCobro(pedidoCobrando.id, datos)
-      setPedidoCobrando(null)
-      mostrarToast('Cobro registrado')
-      recargar()
-    } catch (err) {
-      setErrorCobro(err.response?.data?.detail || 'No se pudo registrar el cobro.')
-    } finally {
-      setEnviandoCobro(false)
-    }
+  // Al cerrar se recarga el listado: el saldo pudo cambiar, y con un filtro
+  // de saldo la fila puede irse.
+  function cerrarCobros() {
+    setPedidoCobros(null)
+    recargar()
   }
 
   // Derivados: no se guardan en estado porque se calculan de pedidos.
@@ -941,10 +928,11 @@ export default function Pedidos() {
           <Tabla
             pedidos={filtrados}
             cargando={cargando}
-            onVer={verPedido}
-            onCobrar={abrirCobro}
-            onComprobante={(p) => window.open(urlComprobante(p.id), '_blank', 'noopener,noreferrer')}
+            onVer={(p) => setPedidoViendo(p)}
+            onEditar={verPedido}
             onEliminar={(p) => setPedidoEliminando(p)}
+            onCobros={abrirCobros}
+            onEstado={(p) => setPedidoEstado(p)}
           />
         </>
       )}
@@ -974,17 +962,34 @@ export default function Pedidos() {
         />
       )}
 
-      {/* El listado trae todo lo que el modal necesita. No trae la lista de
-          cobros, pero cobrado > 0 dice lo mismo: un cobro nunca es de $0. */}
-      {pedidoCobrando && (
-        <ModalCobro
-          cobro={null}
-          saldo={pedidoCobrando.saldo}
-          hayCobros={Number(pedidoCobrando.cobrado) > 0}
-          error={errorCobro}
-          enviando={enviandoCobro}
-          onCerrar={cerrarCobro}
-          onGuardar={(_, datos) => guardarCobro(datos)}
+      {pedidoViendo && (
+        <ModalVerPedido
+          pedido={pedidoViendo}
+          onCerrar={() => setPedidoViendo(null)}
+          onEditar={() => verPedido(pedidoViendo)}
+        />
+      )}
+
+      {pedidoCobros && (
+        <ModalCobros
+          pedido={pedidoCobros}
+          onCerrar={cerrarCobros}
+          onPedidoActualizado={(actualizado, aviso) => {
+            setPedidoCobros(actualizado)
+            if (aviso) mostrarToast(aviso)
+          }}
+        />
+      )}
+
+      {pedidoEstado && (
+        <ModalEstado
+          pedido={pedidoEstado}
+          onCerrar={() => setPedidoEstado(null)}
+          onCambiado={(_, aviso) => {
+            setPedidoEstado(null)
+            mostrarToast(aviso)
+            recargar()
+          }}
         />
       )}
 

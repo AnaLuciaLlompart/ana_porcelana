@@ -246,6 +246,22 @@ class ComprobanteSinSesion(PruebaSinSesion):
         self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
 
 
+class UltimoCobroDelListado(PruebaDePedido):
+    """El listado dice cuál es el cobro más reciente, para "Último comprobante" (CU60)."""
+
+    def test_el_listado_trae_el_cobro_mas_reciente(self):
+        """CU60: sin cobros ultimo_cobro es None; con dos, el de fecha mayor aunque se haya cargado antes."""
+        respuesta = self.client.get(LISTA)
+        self.assertIsNone(respuesta.data[0]['ultimo_cobro'])
+
+        self.agregar_pieza()
+        nuevo = Cobro.objects.create(pedido=self.pedido, monto='1000.00', fecha='2026-10-20')
+        Cobro.objects.create(pedido=self.pedido, monto='1000.00', fecha='2026-10-01')
+
+        respuesta = self.client.get(LISTA)
+        self.assertEqual(respuesta.data[0]['ultimo_cobro'], nuevo.id)
+
+
 class ComprobanteDeUnCobro(PruebaDePedido):
     """Cada cobro tiene su comprobante de pago (CU60)."""
 

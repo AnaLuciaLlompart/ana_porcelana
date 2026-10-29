@@ -210,6 +210,7 @@ class PedidoListaSerializer(serializers.ModelSerializer):
 
     cantidad_productos = serializers.SerializerMethodField()
     productos_nombres = serializers.SerializerMethodField()
+    ultimo_cobro = serializers.SerializerMethodField()
 
     class Meta:
         model = Pedido
@@ -235,6 +236,7 @@ class PedidoListaSerializer(serializers.ModelSerializer):
             'esta_al_dia',
             'cantidad_productos',
             'productos_nombres',
+            'ultimo_cobro',
         ]
         # El estado se lee pero no se escribe por acá: para cambiarlo está
         # cambiar_estado, que además escribe la fecha de entrega real al
@@ -299,6 +301,20 @@ class PedidoListaSerializer(serializers.ModelSerializer):
                 nombres.append(linea.producto.nombre)
 
         return nombres
+
+    def get_ultimo_cobro(self, obj):
+        """El id del cobro más reciente, o None si el pedido no tiene cobros.
+
+        Es el que abre "Último comprobante" en el listado (CU60). Más
+        reciente es el de fecha mayor y, el mismo día, el de id mayor: el
+        mismo orden que usa el comprobante. Con max() sobre la lista
+        prefetcheada, sin consultas de más.
+        """
+        cobros = obj.cobros.all()
+        if not cobros:
+            return None
+
+        return max(cobros, key=lambda cobro: (cobro.fecha, cobro.id)).id
 
 
 class PedidoDetalleSerializer(PedidoListaSerializer):

@@ -11,13 +11,13 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**84 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
+**85 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
 10, `materiales` 10, `categorias` 4, `productos` 11, `clientes` 3,
-`pedidos` 14, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
+`pedidos` 15, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 38 |
+| reglas de negocio | 39 |
 | permisos | 12 |
 | validación | 14 |
 | catálogo | 9 |
@@ -111,6 +111,7 @@ rendimiento.
 | pedidos | test_un_id_de_producto_que_es_lista_u_objeto_da_400 | POST {"producto": [1]} y {"producto": {"id": 1}} responden 400 "No existe un producto con ese id." y no crean la línea | TypeError atrapado en agregar_producto (CU44) | validación |
 | pedidos | test_comprobante_sin_sesion_da_403 | GET /api/pedidos/<id>/comprobante/ sin sesión responde 403 | Denegación por defecto (CU60) | permisos |
 | pedidos | test_comprobante_de_un_cobro_sin_sesion_da_403 | GET /api/pedidos/<id>/cobros/<cobro_id>/comprobante/ sin sesión responde 403 | Denegación por defecto (CU60) | permisos |
+| pedidos | test_el_listado_trae_el_cobro_mas_reciente | Sin cobros, ultimo_cobro es null; con dos, es el de fecha mayor aunque se haya cargado antes | ultimo_cobro de PedidoListaSerializer, para "Último comprobante" (CU60) | reglas de negocio |
 | pedidos | test_el_comprobante_de_un_cobro_ajeno_da_400 | Con el cobro de otro pedido responde 400 "Ese cobro no pertenece a este pedido."; con el propio, 200, application/pdf y el nombre comprobante-pedido-<id>-cobro-<cobro_id>.pdf | Un comprobante por cobro, buscado con _buscar_cobro (CU60) | reglas de negocio |
 | pedidos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres pedidos con productos y cobros, el listado hace 4 consultas (sin contar la sesión) | select_related y prefetch_related en PedidoViewSet.get_queryset (CU41) | rendimiento |
 | gastos | test_el_monto_es_la_suma_de_sus_filas_y_un_put_no_lo_pisa | Con 3 × $800 y 2 × $150 el monto es $2.700, en la respuesta y en la base; un PUT con monto 99999 lo deja en $2.700 y sí guarda la descripción | _recalcular_monto es la única puerta al monto; GastoSerializer.validate descarta el monto si es de materiales (CU54, CU56) | reglas de negocio |

@@ -166,10 +166,11 @@ Revisadas todas las pantallas de la gestión (octubre de 2026), no queda
 otro control instantáneo dentro de un formulario con Guardar. En la misma
 pantalla que un formulario pero en una tarjeta aparte, y por eso dentro
 de la regla: la tabla de materiales de la ficha de gasto (Quitar, Alta y
-"Marcar todos en disponibilidad Alta"), y en la ficha de pedido la tarjeta
-de estado, la tabla de productos y el botón Cobros de la cabecera, que
-abre su propio modal. La ficha de producto no tiene ninguna acción fuera
-del formulario: Dar de baja y Reactivar se hacen desde el listado.
+"Marcar todos en disponibilidad Alta"), y la tabla de productos de la
+ficha de pedido. El estado y los cobros del pedido son acciones, y desde
+A1 viven en la fila del listado. La ficha de producto no tiene ninguna
+acción fuera del formulario: Dar de baja y Reactivar se hacen desde el
+listado.
 
 **El pie de Datos es el mismo en las tres fichas** (producto, pedido y
 gasto): Descartar y Guardar siempre visibles, apagados mientras no haya
@@ -482,25 +483,48 @@ dice, y la frase de la seña sale solo con el botón encendido. Vale en la
 ficha y en el alta, donde se evalúa sobre el pedido en memoria (ver Alta
 por pasos).
 
-**Registrar cobro desde el listado (CU48).** El $ de la fila abre el mismo
-`ModalCobro` de la ficha, sin entrar al pedido. Los datos del listado
-alcanzan: no viaja la lista de cobros, pero `cobrado > 0` dice lo mismo,
-porque un cobro nunca es de $0. Como en `ModalCobros`, el modal queda
-abierto mientras viaja el POST: si el servidor lo rechaza, el mensaje se
-ve adentro, como en Eliminar, y la tabla no se toca. Para eso `ModalCobro`
-tiene dos props opcionales, que pasan los dos que lo abren: `error` y
-`enviando`, que apaga Registrar para que un doble clic no cobre dos veces.
-El error se limpia al abrir y al cerrar el modal. Si sale bien, avisa "Cobro
-registrado" y recarga el listado, porque con un filtro de saldo la fila
-puede desaparecer. Para los cuatro botones, ACCIONES pasó del 9% al 19%
-(178px en el mínimo de 940) a costa de PEDIDO (de 10 a 8) y CLIENTE (de 16
-a 10), y antes CONTENIDO (de 14 a 12): a 384px todavía se lee la primera
-palabra antes del "+N".
+**La fila del listado: ojo, lápiz, Cambiar estado y ⋯** (corrección del
+tutor del 28/10/2026, A1; el orden de los dos últimos lo eligió la
+usuaria). Cuatro iconos por fila, y lo menos usado va en el ⋯
+(`MenuMasAcciones`, en `componentes/`): Cobros, Último comprobante y
+Eliminar, este en rojo. El ojo (`onVer`) abre `ModalVerPedido`, de solo
+lectura, que pide la ficha al abrirse (el listado no trae productos ni
+cobros) con los tres estados adentro, y muestra los chips de estado y de
+saldo, los datos, los productos con su etapa, los cobros, total y
+cobrado; su Editar lleva a la ficha. El lápiz y el número (`onEditar`)
+abren la ficha. Cambiar estado abre `ModalEstado`. Cobros pide el pedido
+completo, abre `ModalCobros` y al cerrarlo recarga el listado, porque el
+saldo pudo cambiar y con un filtro de saldo la fila puede irse. Salieron
+de la fila el $ de Registrar cobro y su `ModalCobro` suelto (ahora solo lo
+abre `ModalCobros`) y el comprobante del pedido. ACCIONES sigue en 19%
+(178px en el mínimo de 940), porque siguen siendo cuatro botones; ese
+19% salió en su momento de PEDIDO (de 10 a 8), CLIENTE (de 16 a 10) y
+antes CONTENIDO (de 14 a 12): a 384px todavía se lee la primera palabra
+antes del "+N".
 
-**Comprobante desde el listado (CU60).** El cuarto botón de la fila abre
-`urlComprobante(id)` en una pestaña nueva con `window.open`, y se apaga
-cuando el pedido no tiene productos (`cantidad_productos === 0`, el
-criterio del 400 del backend). Es provisorio hasta A1 (ver abajo).
+**El ⋯ es `MenuMasAcciones({ items })`.** Cada ítem es `{ texto, icono,
+onClick }` y puede llevar `deshabilitado` con su `motivo` en el title, y
+`color`. El botón es un `BotonAccion` con tres puntos; la lista va con
+`position: fixed`, calculada desde el botón con `getBoundingClientRect`,
+porque la tabla vive en una caja con `overflowX: auto` que recortaría una
+lista absoluta, y abre hacia arriba si abajo no entra. Se cierra con un
+clic afuera (capa invisible), con Escape y con cualquier scroll o cambio
+de tamaño, porque la lista fija no seguiría a la fila. Capas 92 y 93.
+
+**Cambiar estado es un modal, `ModalEstado`.** Son los cuatro botones que
+antes estaban en la tarjeta de estado de la ficha, con la clase
+`botones-estado` (2 por 2 en celular). Tocar uno llama a `cambiar_estado`;
+si el backend lo rechaza (Listo con piezas sin terminar), el error se ve
+adentro y el modal queda abierto; si sale bien, se cierra, avisa "Pedido
+listo" (o el que sea) y recarga el listado. El estado sigue siendo una
+acción instantánea y no un campo del formulario (ver "Formulario o
+acción" en Patrón a seguir).
+
+**Último comprobante (CU60)** abre en otra pestaña el comprobante de pago
+del cobro más reciente: `PedidoListaSerializer` trae `ultimo_cobro`, su
+id o `null`, calculado con `max()` por (fecha, id) sobre lo que ya trajo
+el prefetch, así que el listado sigue en 4 consultas. Sin cobros, el ítem
+se apaga con "Este pedido todavía no tiene cobros".
 
 **Cada cobro tiene su comprobante de pago** (corrección del tutor del
 28/10/2026, C5): así queda el historial de cada pago, y no solo el del
@@ -523,42 +547,31 @@ del lápiz de cada cobro en `PestanaCobros`, con la prop opcional
 no existen).
 
 **Dónde queda cada comprobante, decidido por la usuaria.** En
-`ModalCobros`, el de cada pago. En A1, el botón de comprobante sale de la
-fila del listado y en el ⋯ va "Último comprobante", el del cobro más
-reciente (el serializer del listado va a tener que traer su id); sin
-cobros se apaga con "Este pedido todavía no tiene cobros". El PDF del
-pedido sin cobro queda en el backend (`comprobante`), pero cuando llegue
-A1 ninguna pantalla lo va a llamar, como `publicar` y
+`ModalCobros`, el de cada pago, como historial. En el ⋯ del listado,
+"Último comprobante". El PDF del pedido sin cobro queda en el backend
+(`comprobante`), pero ninguna pantalla lo llama, como `publicar` y
 `quitar_del_catalogo`. Esto reemplaza lo que decía el pedido del tutor,
-que conservaba el del pedido en la cabecera de la ficha: esa cabecera ya
-no lo tiene.
+que conservaba el del pedido en la cabecera de la ficha.
 
-**La ficha no tiene Comprobante ni Eliminar** (octubre de 2026): los dos
-se hacen desde la fila del listado. Con ellos se fue el motivo "Guardá
-los cambios para generar el comprobante", que solo existía en la ficha.
+**La ficha no tiene Comprobante, Eliminar, Cobros ni la tarjeta de
+estado** (octubre de 2026): todo eso se hace desde la fila del listado.
+Con el comprobante se fue el motivo "Guardá los cambios para generar el
+comprobante", que solo existía en la ficha. La cabecera muestra el chip de
+estado, solo para leer, al lado del de saldo; cambia solo cuando el
+backend baja el pedido a En producción (ver "La bajada automática").
 
 **La ficha no tiene pestañas** (corrección del tutor del 28/10/2026, A7).
-Es como la de Gasto: la cabecera, la tarjeta de estado y, apiladas
-debajo, la tarjeta Datos con su pie Descartar / Guardar y la tabla de
-Productos del pedido. Antes eran tres pestañas (Datos, Productos del
-pedido y Cobros, las dos últimas con un globito de cantidad); el tutor
-pidió que el detalle del pedido sea del pedido y no de los cobros, que
-pasaron a un modal. Diferencia deliberada con el prototipo, que tiene las
-pestañas.
+Es como la de Gasto: la cabecera y, apiladas debajo, la tarjeta Datos con
+su pie Descartar / Guardar y la tabla de Productos del pedido. Antes eran
+tres pestañas (Datos, Productos del pedido y Cobros, las dos últimas con
+un globito de cantidad); el tutor pidió que el detalle del pedido sea del
+pedido y no de los cobros, que pasaron a un modal. Diferencia deliberada
+con el prototipo, que tiene las pestañas y el estado en "Datos y estado".
+Pendiente, decidido por la usuaria: la ficha va a ser un solo formulario,
+Datos y Productos con un único Guardar, en un punto propio antes de A8-a.
 
-**La tarjeta de estado va entre la cabecera y los datos**, porque cambiar
-el estado es una acción instantánea y no un campo del formulario (ver
-"Formulario o acción" en Patrón a seguir). Sigue con `cambiar_estado`, su
-aviso flotante y su error adentro de la tarjeta (`errorEstado`). La
-cabecera de la ficha no lleva el chip de estado, porque lo muestra la
-tarjeta. En el prototipo es la pestaña "Datos y estado". En celular (hasta
-768px) los cuatro botones van en una grilla de 2 por 2 con la clase
-`botones-estado`: en un selector importa ver los cuatro de un vistazo más
-que ahorrar altura, y la ficha se scrollea.
-
-**Los cobros van en un modal, `ModalCobros`** (A6, adelantado en A7). En
-la ficha lo abre el botón "Cobros" de la cabecera, con el $ en un círculo.
-Envuelve a `PestanaCobros` sin modificarla (sigue compartida con el paso
+**Los cobros van en un modal, `ModalCobros`** (A6, adelantado en A7). Lo
+abre "Cobros" en el ⋯ del listado. Envuelve a `PestanaCobros` sin modificarla (sigue compartida con el paso
 Cobros del alta) y abre `ModalCobro` encima, capas 100 y 110, para
 registrar y editar. No sabe quién lo abrió: recibe el pedido completo,
 llama a `registrarCobro`, `modificarCobro` y `borrarCobro`, que devuelven
@@ -566,15 +579,9 @@ el pedido completo, y se lo entrega a quien lo abrió con
 `onPedidoActualizado(pedido, aviso)`. El aviso flotante ("Cobro
 registrado"; editar y quitar no avisan) lo muestra quien lo abrió.
 `ModalCobro` queda abierto mientras viaja el cobro y el error del backend
-se ve adentro; el de quitar, arriba de la lista. Es independiente de la
-ficha porque en A1 lo abre también el listado.
-
-**Provisorio hasta A1.** La forma final, decidida por la usuaria: la
-ficha es un solo formulario (Datos y Productos del pedido con un único
-Guardar, en un punto propio antes de A8-a), y "Cobros" y "Cambiar estado"
-se mudan al ⋯ del listado. El botón Cobros y la tarjeta de estado quedan
-en la ficha hasta que A1 arme ese ⋯, para que ningún commit deje el
-sistema sin poder cambiar el estado ni editar un cobro.
+se ve adentro (props `error` y `enviando`, la segunda apaga Registrar para
+que un doble clic no cobre dos veces); el de quitar, arriba de la lista.
+En A7 lo abría un botón en la cabecera de la ficha; desde A1, el ⋯.
 
 **El error de los productos va pegado a su tabla.** `PestanaProductos`
 recibe una prop opcional `error` (`errorProductos` en la ficha), copiada
@@ -735,9 +742,8 @@ producto sin fotos y un gasto de materiales sin filas se pueden crear,
 pero "Crear …" pregunta antes con `ModalConfirmar` (ver "Avisar, no
 prohibir" en Patrón a seguir), y los listados de pedidos y gastos los
 marcan con un chip. Como en el alta no hay registro, no hay nada que
-ocultar: el panel de la foto, la tarjeta de estado y el botón Cobros del
-pedido, Eliminar del gasto y los botones de disponibilidad Alta existen
-solo en la ficha, y la
+ocultar: el panel de la foto, Eliminar del gasto y los botones de
+disponibilidad Alta existen solo en la ficha, y la
 cabecera del alta no lleva ningún chip: tampoco "Cambios sin guardar", que
 en un alta no dice nada que no se sepa.
 
@@ -1472,7 +1478,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 84 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 85 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -1717,15 +1723,24 @@ tarjeta.
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
 `#8C5A66`), Registrar cobro (signo $ en un círculo, `#8C5A66`), Comprobante
-(hoja con la punta doblada, `#8C5A66`), Dar de baja (prohibido, `#D9A441`),
-Reactivar (tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`).
+(hoja con la punta doblada, `#8C5A66`), Cambiar estado (dos flechas en
+círculo, `#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar
+(tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`), Más acciones (tres
+puntos, `#8C5A66`).
+
+**Cuatro iconos por fila, como máximo** (corrección del tutor del
+28/10/2026, A1). Si una fila tiene más acciones, las menos usadas van en
+el ⋯ de `MenuMasAcciones`, con icono y texto. Hoy solo lo usa Pedidos;
+Productos (ojo, lápiz, dar de baja, papelera) y Gastos (ojo, lápiz,
+papelera) entran sin él.
 
 **Lápiz donde se puede modificar, ojo donde solo se mira.** La acción que
 abre una ficha editable se llama "Ver y editar" y lleva el lápiz: en los
 listados de Productos (grilla, tabla y el bloque "Baja por su categoría",
 cuyos productos están activos), Pedidos y Gastos. El ojo queda para lo
 que se abre en solo lectura: los modales Ver de Materiales, Clientes,
-Gastos y Productos.
+Gastos, Productos y Pedidos. El $ de Cobros no son los billetes de Gastos
+a propósito: cobrar es plata que entra y gastar, plata que sale.
 
 En Productos (corrección del tutor del 28/10/2026, A1) un producto activo
 lleva ojo, lápiz, dar de baja y papelera, en la grilla y en la tabla
@@ -1737,9 +1752,7 @@ las categorías; su Editar lleva a la ficha y no aparece en un producto de
 baja. La foto y el nombre siguen abriendo la ficha (`onEditar`). En la
 sección de bajas, el ojo de un producto de baja abre el mismo modal y no
 la ficha, así que su ficha, de solo lectura, ya no se abre desde ninguna
-pantalla. El $ de Registrar cobro no son los
-billetes de Gastos a propósito: cobrar es plata que entra y gastar, plata
-que sale.
+pantalla.
 
 
 - El vocabulario sale de mis casos de uso, no de sinónimos. Los materiales de
@@ -1824,8 +1837,8 @@ tocar el fondo oscuro o con Escape. El alto del Layout es `100dvh` y no
 la consulta de 1440: decide si existe el panel con la imagen y el resumen
 del producto, que solo se dibuja en pantalla grande.
 
-**Capas (`z-index`):** fondo oscuro del menú 90, barra lateral 91,
-modales 100 y 110, Toast 120. El panel queda debajo de cualquier modal:
+**Capas (`z-index`):** fondo oscuro del menú 90, barra lateral 91, la
+capa invisible del ⋯ 92 y su lista 93, modales 100 y 110, Toast 120. El panel queda debajo de cualquier modal:
 un modal abierto sigue tapando todo, como en escritorio.
 
 **Las tablas siguen un solo patrón:** caja blanca con `overflowX: 'auto'`
@@ -1865,7 +1878,7 @@ dice.
 - `fila-pestanas`: la fila de pestañas de la ficha de producto y la
   `BarraDePasos` de las tres altas; se desliza de lado, con las pestañas
   sin partirse y menos padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 30
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 32
   modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
   se dibujen en varios lugares); 8px de aire y hasta 96vh de alto.
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
@@ -1876,7 +1889,7 @@ dice.
   'subgrid'`), así las cajas arrancan a la misma altura aunque una
   etiqueta se parta; en PestanaCategorias la línea del medio es un
   elemento de la grilla, que con una columna queda horizontal.
-- `botones-estado`: los cuatro botones de la tarjeta de estado del pedido;
+- `botones-estado`: los cuatro botones de `ModalEstado`, el Cambiar estado del pedido;
   grilla de 2 por 2, todos del mismo ancho.
 - `paneles-finanzas` y `cobros-dos-columnas`: la grilla INGRESOS / GASTOS
   de Finanzas y la grilla lista + resumen de `PestanaCobros` (en
