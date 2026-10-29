@@ -163,11 +163,10 @@ producto de baja rechaza el PUT con 400, así que el tilde tampoco cambia,
 y en la pantalla su formulario ya está apagado.
 
 Revisadas todas las pantallas de la gestión (octubre de 2026), no queda
-otro control instantáneo dentro de un formulario con Guardar. En la misma
-pantalla que un formulario pero en una tarjeta aparte, y por eso dentro
-de la regla: la tabla de materiales de la ficha de gasto (Quitar, Alta y
-"Marcar todos en disponibilidad Alta"). El estado y los cobros del pedido
-son acciones, y desde A1 viven en la fila del listado. La ficha de
+otro control instantáneo dentro de un formulario con Guardar. El estado y
+los cobros del pedido son acciones, y desde A1 viven en la fila del
+listado. Las fichas de pedido y de gasto son un solo formulario, tablas
+incluidas, y no tienen acciones al instante. La ficha de
 producto no tiene ninguna acción fuera del formulario: Dar de baja y
 Reactivar se hacen desde el listado.
 
@@ -191,8 +190,8 @@ Si todo sale bien, vuelve al listado, que muestra el modal "Cambios
 guardados" (y, si el backend bajó el pedido a En producción, lo dice).
 Salir con cambios sin guardar pregunta "Salir sin guardar" con el mismo
 `useBlocker` de las altas, solo cuando hay cambios, y el navegador avisa
-con `beforeunload`. Es la única ficha que vuelve al listado y pregunta al
-salir; la de gasto se iguala en su propio punto, y la de producto en A8-a.
+con `beforeunload`. La ficha de gasto funciona igual (ver Módulo Gastos);
+la de producto se iguala en A8-a.
 
 **El pie de Datos es el mismo en las tres fichas** (producto, pedido y
 gasto): Descartar y Guardar siempre visibles, apagados mientras no haya
@@ -209,10 +208,10 @@ solo Producto tenía el chip. Es una diferencia deliberada con los tres
 prototipos: en el de Productos el pie es CANCELAR (vuelve al listado, con
 un modal si hay cambios) y GUARDAR CAMBIOS, siempre visibles, y el chip
 existe; en los de Pedidos y Gastos el pie es Cancelar / Guardar y aparece
-solo con cambios, donde ese Cancelar descarta, y no hay chip. En la
-ficha de pedido el pie va debajo de los productos, Guardar vuelve al
-listado y salir con cambios pregunta (ver "La ficha de pedido es un solo
-formulario").
+solo con cambios, donde ese Cancelar descarta, y no hay chip. En las
+fichas de pedido y de gasto el pie va debajo de la tabla, Guardar vuelve
+al listado y salir con cambios pregunta (ver "La ficha de pedido es un
+solo formulario"); la de producto sigue como se describe acá hasta A8-a.
 
 **Avisar, no prohibir, cuando falta el contenido principal.** Un pedido sin
 productos, un producto sin fotos y un gasto de materiales sin filas son
@@ -225,14 +224,12 @@ Pero se avisa, siempre con `ModalConfirmar` y una pregunta "¿… igual?":
 | "Crear producto" sin fotos (de ningún grupo) | Crear sin fotos | Este producto no tiene fotos. ¿Crear igual? | Crear igual |
 | "Crear gasto" de materiales sin filas | Crear sin materiales | Este gasto no tiene materiales cargados: se va a crear en $0. ¿Crear igual? | Crear igual |
 | "Guardar" un pedido que queda sin productos | Guardar sin productos | Este pedido va a quedar sin productos. ¿Guardar igual? | Guardar igual |
-| Quitar el último material de un gasto | Quitar el último material | Es el último material del gasto: el monto queda en $0. ¿Quitarlo igual? | Quitar igual |
+| "Guardar" un gasto de materiales que queda sin filas | Guardar sin materiales | Este gasto va a quedar sin materiales: el monto queda en $0. ¿Guardar igual? | Guardar igual |
 
 En las altas lo decide `terminar()`, que llama a `crear()` directo si hay
-contenido; en la ficha de pedido, `pedirGuardar()`, si el pedido tenía
-productos y el borrador ya no; en la de gasto, `quitarMaterial`, que
-guarda la fila en `filaAQuitar` si es la última y si no llama a
-`quitarMaterialAhora`. Quitar filas en memoria (en un alta o en la ficha
-de pedido) no pregunta: la pregunta está al crear o al guardar. La
+contenido; en las fichas de pedido y de gasto, `pedirGuardar()`, si
+tenían contenido guardado y el borrador ya no. Quitar filas en memoria no
+pregunta: la pregunta está al crear o al guardar. La
 acción va en rosa, no en rojo: es una confirmación, no un modal de
 eliminar. En los listados el aviso es `ChipSinContenido` (en
 `componentes/`, con `texto` y `title`): "Sin materiales" en MONTO de
@@ -684,8 +681,8 @@ del arreglo, y al crear `orden` es la posición dentro de su grupo. En
 gastos las dos tarjetas de la ficha, `DatosDelGasto` y
 `MaterialesDelGasto`, salieron de `DetalleGasto.jsx` a archivos propios
 para que el alta las comparta, como las `Pestana*` de los otros dos; y
-`ModalMaterial`, que en la ficha llama él mismo a la API, recibe en el alta
-la prop `onGuardar` y le entrega los datos en vez de mandarlos. Si se
+`ModalMaterial` le entrega los datos con `onGuardar`, en el alta y en la
+ficha, en vez de mandarlos. Si se
 cargan filas y después se cambia el tipo a Publicidad, las filas quedan en
 memoria pero no viajan; al volver a Materiales reaparecen.
 
@@ -694,10 +691,12 @@ memoria pero no viajan; al volver a Materiales reaparecen.
 `cantidad_productos`, y antes de crear no hay backend que los calcule.
 `pedidoEnMemoria(borrador)`, en `AltaPedido.jsx`, hace las mismas cuentas
 que `Pedido` en `models.py`; `montoEnMemoria(borrador)`, en
-`AltaGasto.jsx`, la de `_recalcular_monto` en `gastos/views.py` (la suma
-de cantidad por precio unitario de las filas). Son las dos únicas cuentas
+`gastos/presentacion.js` (la usan el alta y la ficha), la de
+`_recalcular_monto` en `gastos/views.py` (la suma de cantidad por precio
+unitario de las filas). Son las dos únicas cuentas
 del backend escritas por segunda vez en el navegador, y no hay
-alternativa; las fichas siguen mostrando lo que calcula el backend. Una
+alternativa. La ficha de pedido muestra el total y el saldo que calcula el
+backend; la de gasto, mientras se edita, el monto en memoria. Una
 pieza nueva nace Pendiente: si en el alta se le cambia la etapa, al crear
 va un PATCH después de su POST, que es lo que hace el selector en la
 ficha. Un cobro que dejó de valer (se cargó y después se sacaron
@@ -770,8 +769,8 @@ producto sin fotos y un gasto de materiales sin filas se pueden crear,
 pero "Crear …" pregunta antes con `ModalConfirmar` (ver "Avisar, no
 prohibir" en Patrón a seguir), y los listados de pedidos y gastos los
 marcan con un chip. Como en el alta no hay registro, no hay nada que
-ocultar: el panel de la foto, Eliminar del gasto y los botones de
-disponibilidad Alta existen solo en la ficha, y la
+ocultar: el panel de la foto y los botones de disponibilidad Alta existen
+solo en la ficha, y la
 cabecera del alta no lleva ningún chip: tampoco "Cambios sin guardar", que
 en un alta no dice nada que no se sepa.
 
@@ -823,9 +822,9 @@ su hermano para avisar algo que ya pasó: un tilde verde, el texto y un
 solo botón, Aceptar, sin Cancelar porque no pregunta nada; capa 100, porque
 se abre sobre un listado. Lo usan los listados de productos y pedidos
 después de crear, y el de pedidos después de guardar la ficha. La
-`PestanaDatos` de pedidos no tiene pie (lo pone el alta con
-`PieDelRecorrido` y la ficha debajo de los productos); la de productos y
-`DatosDelGasto` reciben `enRecorrido`,
+`PestanaDatos` de pedidos y `DatosDelGasto` no tienen pie (lo pone el
+alta con `PieDelRecorrido` y la ficha debajo de la tabla); la
+`PestanaDatos` de productos recibe `enRecorrido`,
 que quiere decir una sola cosa: no dibujar su pie, porque los botones los
 pone `PieDelRecorrido`.
 
@@ -1000,58 +999,59 @@ pasos): dos pasos, Datos y Materiales, el segundo solo si el tipo es
 Materiales. La primera versión creaba primero y cargaba los materiales en
 la ficha. El "Agregá al menos un material…" del prototipo no es un error:
 ningún paso es obligatorio, un gasto de materiales en $0 es válido (el alta
-pregunta antes de crearlo así), el texto queda como leyenda bajo la tabla
-vacía y el listado lo marca con el chip "Sin materiales".
+pregunta antes de crearlo así) y el listado lo marca con el chip "Sin
+materiales". La tabla vacía dice "Todavía no hay materiales" y "Sin
+materiales, el gasto queda en $0." (simplificada a pedido de la usuaria).
 
-**La ficha no tiene pestañas**, porque el prototipo no las tiene: son dos
-tarjetas apiladas y el botón de eliminar. Los botones Descartar y Guardar
-están siempre, apagados sin cambios (ver "El pie de Datos" en Patrón a
-seguir). Salir descarta sin preguntar.
+**La ficha es un solo formulario**, como la de pedido (decidido por la
+usuaria junto con las correcciones del tutor del 28/10/2026). Son dos
+tarjetas apiladas, Datos y Materiales del gasto, y abajo un solo pie
+Descartar / Guardar; el pie salió de `DatosDelGasto`, y "Eliminar gasto"
+salió de la ficha (queda la papelera del listado). Agregar, editar y
+quitar filas escriben en el borrador (`filaEnMemoria`, compartida con el
+alta); Guardar encadena el PUT de los datos si cambiaron, quitar,
+modificar (cantidad y precio unitario) y registrar filas, y al final pasa
+a Alta las marcadas. Mismo manejo que la de pedido si algo falla a mitad
+(lo anterior queda guardado, las filas nuevas reciben su id real, el
+error va pegado a la tabla), misma vuelta al listado con el modal
+"Cambios guardados" y el mismo "Salir sin guardar". Quitar el último
+material no pregunta: pregunta Guardar si el gasto queda sin materiales.
 
-**El monto de un gasto de materiales no se calcula en el navegador, en la
-ficha.** Se muestra `gasto.monto` tal cual viene en cada respuesta, tanto
-en el campo apagado de arriba como en el pie de la tabla. El único caso con
-$0 escrito por el frontend es cuando se eligió Materiales pero el gasto
-todavía no se guardó así (un gasto de publicidad que se está pasando a
-materiales): no hay materiales que sumar, y es lo que el backend va a
-escribir al guardar. En el alta sí se calcula, con `montoEnMemoria` (ver
-Alta por pasos), hasta crear.
+**El monto de un gasto de materiales se calcula en el navegador mientras
+se edita**, con `montoEnMemoria` sobre el borrador, en el campo apagado de
+arriba y en el pie de la tabla, como en el alta: tiene que acompañar las
+filas que todavía no se guardaron. Al guardar lo vuelve a escribir el
+backend (`_recalcular_monto`), que es el que vale. `montoEnMemoria` pasa
+cada subtotal por `Number()` porque en la ficha se mezclan filas del
+backend, con el subtotal como texto, y filas nuevas, con un número.
 
 **El tipo se bloquea en la ficha cuando el gasto GUARDADO es de
 materiales.** Los otros dos segmentos van deshabilitados con un title que
 lo explica, para no ofrecer un cambio que el backend va a rechazar. Se mira
-el gasto guardado, no el borrador. La tabla de materiales aparece con esa
-misma condición.
+el gasto guardado, no el borrador. La tabla aparece cuando el BORRADOR es
+de materiales, así un gasto de publicidad que se pasa a materiales carga
+sus filas y se guarda todo junto; si después se vuelve a publicidad, las
+filas quedan en memoria pero no viajan ni cuentan como cambios.
 
 **`ModalMaterial` es un solo modal para agregar y editar**, distinguido
-por prop como ModalCobro; al editar, el material queda bloqueado. Pero a
-diferencia de ModalCobro llama él mismo a la API, como ModalCliente: es la
-única forma de que el error del backend se vea adentro del modal con el
-formulario todavía abierto. Al salir bien le entrega a la ficha el gasto
-actualizado. Con la prop opcional `onGuardar` no llama a la API: valida
-igual y le entrega los datos a quien lo abrió, que es como lo usa el alta
-por pasos. El desplegable ofrece solo los materiales activos que todavía
-no están en el gasto.
+por prop como ModalCobro; al editar, el material queda bloqueado. No llama
+a la API: valida y le entrega los datos a quien lo abrió con `onGuardar`,
+porque el alta y la ficha guardan en memoria. Antes la ficha lo usaba
+llamando a la API, y ese modo se sacó. El desplegable ofrece solo los
+materiales activos que todavía no están en el borrador.
 
-**Las operaciones sobre materiales devuelven el gasto completo**, y la
-ficha lo reemplaza en estado sin volver a pedirlo. Quitar es inmediato,
-sin aviso flotante, igual que quitar un producto del pedido, salvo el
-último material, que pregunta antes porque deja el gasto en $0 (ver
-"Avisar, no prohibir" en Patrón a seguir). Sus errores se muestran dentro de la tarjeta de materiales, no en
-el formulario: el mismo criterio que `errorEstado` en Pedidos.
-
-**El aviso con Deshacer.** Al marcar en disponibilidad Alta, si
-`materiales_cambiados` viene vacío no hay aviso. Si no, el aviso lleva la
-acción Deshacer y dura 6 segundos en vez de 2,6. La lista se guarda en un
-ref y no en estado, porque no se dibuja. Deshacer llama a
-`cambiarDisponibilidad(id, disponibilidad)`, que vive en
-`materiales/api.js` y hace un PATCH con ese solo campo, una vez por
-material, y después vuelve a pedir el gasto. `actualizarMaterial` no sirve
-para esto: es un PUT con FormData que exige todos los campos.
-
-**Los otros avisos de la ficha** son "Cambios guardados", "Material
-agregado" y "Material actualizado", de 2,6 segundos y sin acción. Crear,
-quitar y eliminar no avisan: su efecto se ve.
+**Disponibilidad Alta, parte del Guardar** (decidido por la usuaria). La
+flecha de cada fila marca o desmarca `pasar_a_alta` en el borrador, y la
+celda DISPONIBILIDAD lo muestra ("Baja → Alta", en verde); "Marcar todos
+en disponibilidad Alta" marca todas las que se pueden. Nada cambia en
+Materiales hasta Guardar, que al final de la cadena llama a
+`marcarDisponibilidadAlta` por cada fila marcada, ya con su id real (así
+sirve también para una fila nueva), y suma los `materiales_cambiados`.
+El modal "Cambios guardados" dice cuántos pasaron a Alta. Ya no hay
+Deshacer: si fue un error, se corrige desde Materiales. El endpoint de
+"todas" y `cambiarDisponibilidad` siguen en sus `api.js` (una función por
+endpoint), pero ninguna pantalla los llama. Los avisos flotantes de la
+ficha desaparecieron: todo se confirma con el modal del listado.
 
 **Dos props opcionales en los componentes compartidos.** `Toast` recibe
 `accion` y `onAccion`; sin ellas se dibuja igual. `BotonAccion` recibe

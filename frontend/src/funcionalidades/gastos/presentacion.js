@@ -49,6 +49,38 @@ export const COLOR_DISPONIBILIDAD = {
 }
 
 
+// Una fila nueva en memoria, con la misma forma que las que devuelve el
+// backend, que es lo que la tabla sabe dibujar: el modal manda material,
+// cantidad y precio unitario, y el nombre, el estado y la disponibilidad
+// salen del material elegido. La usan el alta y la ficha, que guardan todo
+// junto al final; el id es provisorio y negativo.
+export function filaEnMemoria(id, datos, material) {
+  return {
+    id,
+    material: datos.material,
+    material_nombre: material.nombre,
+    material_estado: material.estado,
+    material_estado_display: material.estado_display,
+    material_disponibilidad: material.disponibilidad,
+    material_disponibilidad_display: material.disponibilidad_display,
+    cantidad: datos.cantidad,
+    precio_unitario: datos.precio_unitario,
+    subtotal: datos.cantidad * Number(datos.precio_unitario),
+  }
+}
+
+// El monto del borrador. Para materiales es la misma cuenta que
+// _recalcular_monto en gastos/views.py: la suma de los subtotales de las
+// filas. Para los otros tipos es lo que se escribió en el campo. Number()
+// porque en la ficha se mezclan filas del backend, con el subtotal como
+// texto ("2400.00"), y filas nuevas, con un número.
+export function montoEnMemoria(borrador) {
+  if (borrador.tipo !== 'MATERIALES') return Number(borrador.monto) || 0
+
+  return borrador.materiales.reduce((suma, fila) => suma + Number(fila.subtotal), 0)
+}
+
+
 // El backend contesta de dos formas según qué falló: las reglas de negocio
 // mandan {'detail': '...'} y los errores de campo mandan
 // {'monto': ['El monto del gasto tiene que ser mayor a cero.']}. Hay que

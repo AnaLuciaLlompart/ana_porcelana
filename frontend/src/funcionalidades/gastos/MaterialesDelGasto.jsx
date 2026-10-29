@@ -51,7 +51,11 @@ function tituloDeAlta(fila) {
   if (fila.material_estado !== 'ACTIVO') return 'Material discontinuado'
   if (fila.material_disponibilidad === 'ALTA') return 'Ya está en Alta'
 
-  return 'Marcar en disponibilidad Alta'
+  // En la ficha marcar no escribe nada todavía: queda en el borrador y se
+  // aplica al guardar. Tocar de nuevo lo desmarca.
+  return fila.pasar_a_alta
+    ? 'No pasar a disponibilidad Alta al guardar'
+    : 'Pasar a disponibilidad Alta al guardar'
 }
 
 
@@ -111,10 +115,13 @@ function FilaMaterial({ fila, onAlta, onEditar, onQuitar }) {
           textAlign: 'center',
           whiteSpace: 'nowrap',
           fontSize: 15,
-          color: COLOR_DISPONIBILIDAD[fila.material_disponibilidad],
+          color: fila.pasar_a_alta ? COLOR_DISPONIBILIDAD.ALTA : COLOR_DISPONIBILIDAD[fila.material_disponibilidad],
         }}
       >
-        {fila.material_disponibilidad_display}
+        {/* Marcada para pasar a Alta, dice de dónde a dónde va a ir. */}
+        {fila.pasar_a_alta
+          ? `${fila.material_disponibilidad_display} → Alta`
+          : fila.material_disponibilidad_display}
       </td>
 
       <td style={{ padding: '11px 8px' }}>
@@ -155,13 +162,13 @@ function FilaMaterial({ fila, onAlta, onEditar, onQuitar }) {
 }
 
 
-// La tarjeta con los materiales del gasto. En la ficha existe solo para un
-// gasto de materiales que ya está guardado; en el alta es el paso
-// Materiales, con las filas en memoria y sin los botones de disponibilidad
-// Alta, que necesitan un gasto creado.
+// La tarjeta con los materiales del gasto. En la ficha aparece cuando el
+// borrador es de materiales, y en el alta es el paso Materiales; en los dos
+// las filas viven en memoria hasta guardar o crear.
 //
-// Por eso onAlta y onAltaTodos son opcionales: sin ellos no se dibujan
-// "Marcar todos en disponibilidad Alta" ni el botón Alta de cada fila.
+// onAlta y onAltaTodos son opcionales: sin ellos no se dibujan "Marcar todos
+// en disponibilidad Alta" ni el botón Alta de cada fila. Los pasa solo la
+// ficha, donde marcar deja la fila con pasar_a_alta y se aplica al guardar.
 export default function MaterialesDelGasto({
   gasto,
   quedanPorAgregar,
@@ -174,7 +181,7 @@ export default function MaterialesDelGasto({
 }) {
   const filas = gasto.materiales
 
-  const hayPorMarcar = filas.some(sePuedeMarcarEnAlta)
+  const hayPorMarcar = filas.some((fila) => sePuedeMarcarEnAlta(fila) && !fila.pasar_a_alta)
 
   return (
     <div
@@ -205,7 +212,7 @@ export default function MaterialesDelGasto({
               disabled={!hayPorMarcar}
               title={
                 hayPorMarcar
-                  ? 'Marcar todos los materiales de este gasto en disponibilidad Alta'
+                  ? 'Pasar todos los materiales de este gasto a disponibilidad Alta al guardar'
                   : 'No queda ningún material por marcar'
               }
               className="btn-reponer"
@@ -270,8 +277,7 @@ export default function MaterialesDelGasto({
 
       {/* El error de una operación sobre los materiales va acá, pegado a la
           tabla que la provocó, y no en el formulario de arriba. Es el mismo
-          criterio que el error de los botones de estado en la ficha de
-          Pedidos. */}
+          criterio que el error de los productos en la ficha de Pedidos. */}
       {error && (
         <div style={{ padding: '14px 20px 0' }}>
           <p role="alert" style={estiloCartelError}>
@@ -321,9 +327,9 @@ export default function MaterialesDelGasto({
             </table>
           </div>
 
-          {/* El total es el monto del gasto, tal cual lo manda el backend: es
-              el mismo número que muestra MONTO TOTAL en la tarjeta de arriba.
-              No se suma acá. */}
+          {/* El total es el monto del gasto que llega, que en el alta y en la
+              ficha es el del borrador (montoEnMemoria): el mismo número que
+              muestra MONTO TOTAL en la tarjeta de arriba. No se suma acá. */}
           <div
             style={{
               display: 'flex',
@@ -360,19 +366,10 @@ export default function MaterialesDelGasto({
               color: '#3D3238',
             }}
           >
-            Sin materiales cargados
+            Todavía no hay materiales
           </p>
           <p style={{ margin: 0, fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
-            Anotá qué compraste y a qué precio.
-          </p>
-
-          {/* DIFERENCIA DELIBERADA CON EL DISEÑO: allá esto es un error que
-              impide crear el gasto sin materiales. Acá el gasto se crea
-              primero y los materiales se cargan después, así que un gasto de
-              materiales en $0 es válido y el texto queda como aclaración. */}
-          <p style={{ margin: '10px 0 0', fontSize: 13, color: '#B08791', textWrap: 'pretty' }}>
-            El monto sale de la suma de los subtotales: mientras no haya
-            materiales, el gasto queda en $0.
+            Sin materiales, el gasto queda en $0.
           </p>
         </div>
       )}

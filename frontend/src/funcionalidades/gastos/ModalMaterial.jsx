@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { modificarMaterialDelGasto, registrarMaterialDelGasto } from './api'
-import { formatearPrecio, mensajeDeError } from './presentacion'
+import { formatearPrecio } from './presentacion'
 import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
@@ -44,20 +43,11 @@ const FONDO_APAGADO = '#F7F3F4'
 // de modificación no tiene ese campo. Para anotar otro material se quita la
 // fila y se agrega otra, porque cambiarlo sería otra cosa comprada.
 //
-// A DIFERENCIA de ModalCobro, este modal llama él mismo a la API, como hace
-// ModalCliente. El motivo es que los errores del backend se tienen que ver
-// ACÁ ADENTRO, con el formulario todavía abierto para corregirlo: si la
-// llamada la hiciera la ficha después de cerrar el modal, el error saldría
-// en la ficha y lo escrito se perdería.
-//
-// Al salir bien le entrega a la ficha el gasto completo que devolvió el
-// backend, con la fila y el monto ya actualizados.
-//
-// Con onGuardar, en cambio, el modal no llama a la API: valida igual y le
-// entrega los datos a quien lo abrió. Así lo usa el alta por pasos, que los
-// guarda en memoria hasta crear el gasto; ahí no hay backend que pueda
-// rechazar nada, y el cartel de error no aparece.
-export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onGuardado, onGuardar }) {
+// El modal no llama a la API: valida y le entrega los datos a quien lo
+// abrió con onGuardar. El alta y la ficha los guardan en memoria hasta
+// crear o guardar el gasto, y si el backend rechaza una fila, el error se
+// ve pegado a la tabla.
+export default function ModalMaterial({ fila, materiales, onCerrar, onGuardar }) {
   const editando = Boolean(fila)
 
   // El material va como texto porque el value de un <select> siempre lo es;
@@ -68,8 +58,6 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
     editando ? String(Math.round(Number(fila.precio_unitario))) : ''
   )
   const [tocado, setTocado] = useState(false)
-  const [error, setError] = useState('')
-  const [enviando, setEnviando] = useState(false)
 
   const sinMaterial = material === ''
   // Entera y de 1 para arriba: es lo mismo que exige el backend, que la
@@ -79,51 +67,23 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
 
   // Solo una vista previa para que ella vea cuánto va a sumar la fila antes
   // de guardarla. El subtotal de verdad, y el monto del gasto, los calcula
-  // el backend y vuelven en la respuesta; en el alta, montoEnMemoria hace la
-  // misma cuenta hasta crear.
+  // el backend al guardar; hasta entonces, montoEnMemoria hace la misma
+  // cuenta.
   const subtotal = Math.max(0, Number(cantidad) || 0) * Number(precio)
 
-  async function guardar() {
+  function guardar() {
     if (sinMaterial || cantidadInvalida || precioInvalido) {
       setTocado(true)
       return
     }
 
-    // Los mismos datos que viajarían al backend, sin viajar. Al editar no va
-    // el material, como en la llamada de abajo.
-    if (onGuardar) {
-      onGuardar(
-        editando
-          ? { cantidad: Number(cantidad), precio_unitario: precio }
-          : { material: Number(material), cantidad: Number(cantidad), precio_unitario: precio }
-      )
-      return
-    }
-
-    setError('')
-    setEnviando(true)
-
-    try {
-      // Al editar no viaja el material: el backend lo ignoraría igual.
-      const res = editando
-        ? await modificarMaterialDelGasto(gastoId, fila.id, {
-            cantidad: Number(cantidad),
-            precio_unitario: precio,
-          })
-        : await registrarMaterialDelGasto(gastoId, {
-            material: Number(material),
-            cantidad: Number(cantidad),
-            precio_unitario: precio,
-          })
-
-      onGuardado(res.data)
-    } catch (err) {
-      // Por ejemplo, "El gasto ya tiene «X» entre sus materiales", si el
-      // mismo material se cargó desde otra pestaña mientras este modal
-      // estaba abierto.
-      setError(mensajeDeError(err))
-      setEnviando(false)
-    }
+    // Los mismos datos que van a viajar al backend al guardar. Al editar no
+    // va el material: el backend no deja cambiarlo.
+    onGuardar(
+      editando
+        ? { cantidad: Number(cantidad), precio_unitario: precio }
+        : { material: Number(material), cantidad: Number(cantidad), precio_unitario: precio }
+    )
   }
 
   return (
@@ -309,24 +269,6 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
               </p>
             </div>
           </div>
-
-          {error && (
-            <p
-              role="alert"
-              style={{
-                margin: 0,
-                padding: '10px 12px',
-                background: '#FAEAE8',
-                border: '1px solid #F0C4BC',
-                borderRadius: 6,
-                fontSize: 14,
-                color: '#C0442F',
-                textWrap: 'pretty',
-              }}
-            >
-              {error}
-            </p>
-          )}
         </div>
 
         <div
@@ -359,23 +301,19 @@ export default function ModalMaterial({ gastoId, fila, materiales, onCerrar, onG
 
           <button
             onClick={guardar}
-            disabled={enviando}
             style={{
               padding: '10px 18px',
               border: 0,
               background: '#8C5A66',
               color: 'white',
               borderRadius: 6,
-              cursor: enviando ? 'default' : 'pointer',
-              opacity: enviando ? 0.7 : 1,
+              cursor: 'pointer',
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
               fontSize: 15,
             }}
           >
-            {editando
-              ? (enviando ? 'Guardando…' : 'Guardar')
-              : (enviando ? 'Agregando…' : 'Agregar')}
+            {editando ? 'Guardar' : 'Agregar'}
           </button>
         </div>
       </div>

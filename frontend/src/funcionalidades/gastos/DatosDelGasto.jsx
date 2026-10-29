@@ -59,22 +59,15 @@ function EtiquetaConNota({ texto, nota }) {
 }
 
 
-// La tarjeta con los cuatro datos del gasto. La usan la ficha y el alta.
-//
-// enRecorrido es true en el alta por pasos: ahí la tarjeta no dibuja su pie,
-// porque los botones los pone PieDelRecorrido. Por defecto false, que es la
-// ficha.
+// La tarjeta con los cuatro datos del gasto. La usan la ficha y el alta, y
+// no tiene pie: en el alta los botones los pone PieDelRecorrido, y en la
+// ficha el pie va debajo de los materiales, porque se guardan juntos.
 export default function DatosDelGasto({
   borrador,
   onCambiar,
-  enRecorrido = false,
-  hayCambios,
   tipoBloqueado,
   montoCalculado,
-  guardando,
   error,
-  onGuardar,
-  onCancelar,
 }) {
   const esDeMateriales = borrador.tipo === 'MATERIALES'
 
@@ -210,65 +203,6 @@ export default function DatosDelGasto({
           <p role="alert" style={estiloCartelError}>
             {error}
           </p>
-        )}
-
-        {/* Los dos botones están siempre, apagados mientras no haya nada que
-            guardar ni que descartar: el mismo pie que en Productos y Pedidos.
-            DIFERENCIA DELIBERADA CON EL DISEÑO, donde aparecen recién con
-            cambios. En el alta por pasos no se dibujan: los pone
-            PieDelRecorrido. */}
-        {!enRecorrido && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: 12,
-              paddingTop: 2,
-            }}
-          >
-            {/* Sin cambios los dos se apagan, con el motivo en el title,
-                como todo botón apagado por una regla. */}
-            <button
-              onClick={onCancelar}
-              disabled={!hayCambios}
-              title={hayCambios ? undefined : 'No hay cambios que descartar'}
-              style={{
-                padding: '10px 18px',
-                border: '1px solid #EBE0E2',
-                background: 'white',
-                color: '#8C5A66',
-                borderRadius: 6,
-                cursor: hayCambios ? 'pointer' : 'default',
-                opacity: hayCambios ? undefined : 0.5,
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-              }}
-            >
-              Descartar
-            </button>
-
-            <button
-              onClick={onGuardar}
-              disabled={!hayCambios || guardando}
-              title={hayCambios ? undefined : 'No hay cambios que guardar'}
-              style={{
-                padding: '10px 20px',
-                border: 0,
-                background: '#8C5A66',
-                color: 'white',
-                borderRadius: 6,
-                cursor: hayCambios && !guardando ? 'pointer' : 'default',
-                opacity: guardando ? 0.7 : hayCambios ? undefined : 0.5,
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-              }}
-            >
-              {guardando ? 'Guardando…' : 'Guardar'}
-            </button>
-          </div>
         )}
       </div>
     </div>

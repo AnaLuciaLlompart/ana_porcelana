@@ -1,56 +1,99 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 
 import {
   obtenerGasto,
   modificarGasto,
+  registrarMaterialDelGasto,
+  modificarMaterialDelGasto,
   quitarMaterialDelGasto,
   marcarDisponibilidadAlta,
-  marcarTodosDisponibilidadAlta,
 } from './api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
-// Imports que cruzan de funcionalidad, con el mismo criterio de siempre: el
-// endpoint pertenece a esa app y ahí se queda. listarMateriales es para el
-// desplegable del modal, y cambiarDisponibilidad para deshacer el "marcar en
-// disponibilidad Alta": los dos son operaciones sobre materiales, no sobre
-// gastos.
-import { cambiarDisponibilidad, listarMateriales } from '../materiales/api'
+// Import que cruza de funcionalidad, con el mismo criterio de siempre: el
+// endpoint pertenece a esa app y ahí se queda. La lista de materiales es
+// para el desplegable del modal.
+import { listarMateriales } from '../materiales/api'
 
-import Toast from '../../componentes/Toast'
 import ChipCambiosSinGuardar from '../../componentes/ChipCambiosSinGuardar'
 import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import DatosDelGasto from './DatosDelGasto'
 import MaterialesDelGasto from './MaterialesDelGasto'
 import ModalMaterial from './ModalMaterial'
-import ModalEliminarGasto from './ModalEliminarGasto'
 import {
-  ICONO_BORRAR,
   ICONO_FLECHA,
+  filaEnMemoria,
   fmtFechaLarga,
   mensajeDeError,
+  montoEnMemoria,
 } from './presentacion'
 
 
-// Los campos que edita el formulario.
+// Los campos que edita el formulario, y las filas de materiales.
 //
 // El monto va en pesos enteros, como los demás importes del sistema. En un
 // gasto de MATERIALES queda vacío a propósito: ahí el monto no se edita ni
 // se manda, lo calcula el backend sumando los materiales del gasto. La
-// ficha lo muestra leyéndolo del gasto, no del borrador.
+// ficha lo muestra con montoEnMemoria, la misma cuenta sobre el borrador.
 function borradorDe(gasto) {
   return {
     tipo: gasto.tipo,
     fecha: gasto.fecha,
     monto: gasto.tipo === 'MATERIALES' ? '' : String(Math.round(Number(gasto.monto))),
     descripcion: gasto.descripcion,
+    materiales: gasto.materiales,
   }
+}
+
+// Si algún dato del formulario difiere de lo guardado. Las filas van
+// aparte, en cambiosEnFilas.
+function datosCambiaron(borrador, original) {
+  return (
+    borrador.tipo !== original.tipo ||
+    borrador.fecha !== original.fecha ||
+    borrador.monto !== original.monto ||
+    borrador.descripcion !== original.descripcion
+  )
+}
+
+// Lo que hay que mandar para que lo guardado quede como el borrador: las
+// filas que se quitaron, las que cambiaron (solo cantidad y precio unitario,
+// que es lo que se puede modificar), las nuevas, que son las de id
+// provisorio negativo, y las marcadas para pasar a disponibilidad Alta.
+function cambiosEnFilas(guardadas, enBorrador) {
+  const idsEnBorrador = enBorrador.map((fila) => fila.id)
+  const quitadas = guardadas.filter((g) => !idsEnBorrador.includes(g.id))
+  const nuevas = enBorrador.filter((fila) => fila.id < 0)
+  const aAlta = enBorrador.filter((fila) => fila.pasar_a_alta)
+
+  const modificadas = []
+  for (const fila of enBorrador) {
+    const guardada = guardadas.find((g) => g.id === fila.id)
+    if (!guardada) continue
+
+    // El precio llega del backend con decimales ("800.00") y del modal sin
+    // ellos ("800"): se comparan como números.
+    if (
+      fila.cantidad !== guardada.cantidad ||
+      Number(fila.precio_unitario) !== Number(guardada.precio_unitario)
+    ) {
+      modificadas.push(fila)
+    }
+  }
+
+  return { quitadas, modificadas, nuevas, aAlta }
 }
 
 
 // La ficha de un gasto que ya existe (/gastos/:id). El alta vive aparte, en
 // AltaGasto: junta todo en memoria y lo crea al final.
+//
+// Es un solo formulario, como la ficha de pedido: los datos, las filas de
+// materiales y las marcas de disponibilidad Alta se editan en el borrador y
+// se guardan juntos con Guardar, que al terminar vuelve al listado con un
+// modal de aviso.
 export default function DetalleGasto() {
   const { id } = useParams()
   const navegar = useNavigate()
@@ -60,14 +103,15 @@ export default function DetalleGasto() {
 
   // Dos errores y no uno, por lo mismo que en la ficha de Pedidos: cada uno
   // se muestra al lado de lo que lo provocó. 'error' es el del formulario de
-  // datos; 'errorMateriales', el de las operaciones sobre la tabla.
+  // datos; 'errorMateriales', el de guardar una fila de la tabla.
   const [error, setError] = useState('')
   const [errorMateriales, setErrorMateriales] = useState('')
 
-  // El borrador de los datos vive acá, en la ficha. Es lo que se edita y lo
-  // que viaja al guardar; el gasto es lo último que confirmó el backend.
+  // El borrador vive acá, en la ficha. Es lo que se edita y lo que viaja al
+  // guardar; el gasto es lo último que confirmó el backend.
   const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
+  const [avance, setAvance] = useState('')
 
   // Todos los materiales del sistema, para el desplegable del modal.
   const [materiales, setMateriales] = useState([])
@@ -76,20 +120,14 @@ export default function DetalleGasto() {
   // editando, o bien la cadena 'nuevo' para agregar: el mismo truco que el
   // modal de cobros.
   const [modalMaterial, setModalMaterial] = useState(null)
-  const [modalEliminar, setModalEliminar] = useState(false)
 
-  // La fila que se está por quitar cuando es la última: el modal pregunta
-  // antes, y recién al confirmar se quita.
-  const [filaAQuitar, setFilaAQuitar] = useState(null)
+  // Guardar un gasto de materiales que va a quedar sin filas se puede, pero
+  // antes se pregunta con el modal.
+  const [preguntarSinMateriales, setPreguntarSinMateriales] = useState(false)
 
-  const [toast, setToast] = useState('')
-  const [hayDeshacer, setHayDeshacer] = useState(false)
-  const temporizador = useRef(null)
-
-  // Los materiales que cambió el último "marcar en Alta", con la
-  // disponibilidad que tenía cada uno. Va en un ref y no en estado porque no
-  // se dibuja: solo se usa si ella toca Deshacer.
-  const cambiados = useRef([])
+  // Los ids provisorios de las filas nuevas: negativos, para que nunca
+  // choquen con uno real.
+  const proximoId = useRef(-1)
 
   useEffect(() => {
     obtenerGasto(id)
@@ -106,30 +144,117 @@ export default function DetalleGasto() {
   }, [id])
 
 
-  // conDeshacer decide las dos cosas que distinguen a ese aviso: que lleve
-  // el botón, y que dure 6 segundos en vez de 2,6. Dura más porque es el
-  // único aviso con algo para hacer, y hay que llegar a leerlo y decidir.
-  function mostrarToast(texto, conDeshacer = false) {
-    setToast(texto)
-    setHayDeshacer(conDeshacer)
+  // Hay cambios si algún dato difiere de lo guardado, si hay filas
+  // quitadas, modificadas o nuevas, o si alguna está marcada para pasar a
+  // Alta. Se calcula antes de los return de la carga porque lo usan los dos
+  // avisos de salir, que son hooks y tienen que correr siempre.
+  //
+  // Las filas cuentan solo si el borrador es de materiales: si se cargaron
+  // y después se cambió el tipo, quedan en memoria pero no viajan.
+  const cambios =
+    gasto && borrador && borrador.tipo === 'MATERIALES'
+      ? cambiosEnFilas(gasto.materiales, borrador.materiales)
+      : { quitadas: [], modificadas: [], nuevas: [], aAlta: [] }
+  const hayCambios =
+    gasto !== null &&
+    borrador !== null &&
+    (datosCambiaron(borrador, borradorDe(gasto)) ||
+      cambios.quitadas.length + cambios.modificadas.length + cambios.nuevas.length > 0 ||
+      cambios.aAlta.length > 0)
 
-    // Se cancela el anterior: si no, al hacer dos acciones seguidas el
-    // temporizador de la primera apaga el cartel de la segunda antes de
-    // tiempo.
-    clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => {
-      setToast('')
-      setHayDeshacer(false)
-    }, conDeshacer ? 6000 : 2600)
+  // Con cambios sin guardar, recargar, cerrar la pestaña o escribir otra
+  // dirección muestra el cartel del navegador, como en las altas.
+  useEffect(() => {
+    if (!hayCambios) return
+
+    function avisar(evento) {
+      evento.preventDefault()
+      evento.returnValue = ''
+    }
+    window.addEventListener('beforeunload', avisar)
+    return () => window.removeEventListener('beforeunload', avisar)
+  }, [hayCambios])
+
+  // Y cualquier navegación dentro de la aplicación se frena y pregunta, con
+  // el mismo bloqueo de las altas, solo si hay cambios. Después de guardar
+  // no se frena, y la del cierre de sesión tampoco.
+  const saltearBloqueo = useRef(false)
+  const bloqueo = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hayCambios &&
+      !saltearBloqueo.current &&
+      nextLocation.pathname !== currentLocation.pathname &&
+      nextLocation.pathname !== `${BASE_GESTION}/login`
+  )
+
+
+  // -------------------------------------------------------------------
+  // Las filas de materiales (CU56 a CU59), en el borrador
+  // -------------------------------------------------------------------
+  // Como en el alta, nada viaja hasta Guardar. Las tres limpian el error de
+  // la tabla: si quedó uno de una fila rechazada, tocar las filas es
+  // corregirlo.
+
+  function agregarFila(datos) {
+    setModalMaterial(null)
+    setErrorMateriales('')
+    const material = materiales.find((m) => m.id === datos.material)
+    const fila = filaEnMemoria(proximoId.current, datos, material)
+    proximoId.current -= 1
+    setBorrador({ ...borrador, materiales: [...borrador.materiales, fila] })
+  }
+
+  function cambiarFila(fila, cambio) {
+    setErrorMateriales('')
+    setBorrador({
+      ...borrador,
+      materiales: borrador.materiales.map((f) => (f.id === fila.id ? { ...f, ...cambio } : f)),
+    })
+  }
+
+  // Al editar el modal manda solo cantidad y precio unitario, como a la API.
+  function editarFila(fila, datos) {
+    setModalMaterial(null)
+    cambiarFila(fila, { ...datos, subtotal: datos.cantidad * Number(datos.precio_unitario) })
+  }
+
+  // Quitar no pregunta: la pregunta, si el gasto queda sin materiales, está
+  // al guardar.
+  function quitarFila(fila) {
+    setErrorMateriales('')
+    setBorrador({ ...borrador, materiales: borrador.materiales.filter((f) => f.id !== fila.id) })
+  }
+
+  // Disponibilidad Alta (parte de CU58): marcar no escribe nada todavía.
+  // La fila queda con pasar_a_alta y se aplica al guardar, después de las
+  // filas, con el endpoint de siempre. Tocar de nuevo la desmarca.
+  function alternarAlta(fila) {
+    cambiarFila(fila, { pasar_a_alta: !fila.pasar_a_alta })
+  }
+
+  // Marca todas las que se pueden: las de un material activo que no está en
+  // Alta, la misma condición que aplica el backend.
+  function marcarTodasEnAlta() {
+    setBorrador({
+      ...borrador,
+      materiales: borrador.materiales.map((f) =>
+        f.material_estado === 'ACTIVO' && f.material_disponibilidad !== 'ALTA'
+          ? { ...f, pasar_a_alta: true }
+          : f
+      ),
+    })
   }
 
 
   // -------------------------------------------------------------------
-  // Los datos del gasto (CU52 y CU54)
+  // Guardar (CU54, y CU56 a CU59 para las filas)
   // -------------------------------------------------------------------
 
-  async function guardarDatos() {
+  // Primero revisa los datos y, si el gasto de materiales va a quedar sin
+  // filas, pregunta.
+  function pedirGuardar() {
     setError('')
+    setErrorMateriales('')
 
     const esDeMateriales = borrador.tipo === 'MATERIALES'
 
@@ -145,138 +270,132 @@ export default function DetalleGasto() {
       return
     }
 
-    setGuardando(true)
-
-    const datos = {
-      tipo: borrador.tipo,
-      fecha: borrador.fecha,
-      descripcion: borrador.descripcion.trim(),
-    }
-
-    // En un gasto de materiales el monto NO viaja: lo calcula el backend, y
-    // si fuera en el cuerpo lo ignoraría.
-    if (!esDeMateriales) datos.monto = borrador.monto
-
-    try {
-      const res = await modificarGasto(id, datos)
-      setGasto(res.data)
-      setBorrador(borradorDe(res.data))
-      mostrarToast('Cambios guardados')
-    } catch (err) {
-      setError(mensajeDeError(err))
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-
-  // -------------------------------------------------------------------
-  // Los materiales del gasto (CU56 a CU59)
-  // -------------------------------------------------------------------
-  // Las operaciones sobre la tabla son inmediatas, como las de los productos
-  // del pedido: quitar un material es un hecho consumado, no un campo que se
-  // está editando, así que no esperan al botón de guardar.
-  //
-  // Todas devuelven el gasto completo ya recalculado por el backend, así que
-  // se usa esa respuesta en vez de volver a pedir el gasto: es un viaje
-  // menos, y la tabla y el monto se acomodan de una sola vez.
-
-  // Devuelve lo que respondió el backend, o null si falló.
-  async function accionSobreMateriales(llamada) {
-    // Se limpian los dos carteles: si no, quedaría colgado un error viejo
-    // hablando de algo que ya pasó.
-    setError('')
-    setErrorMateriales('')
-
-    try {
-      const res = await llamada()
-      return res.data
-    } catch (err) {
-      setErrorMateriales(mensajeDeError(err))
-      return null
-    }
-  }
-
-  // Quitar el último material deja el gasto en $0: se puede, pero antes se
-  // pregunta con el modal. Los demás se quitan directo.
-  function quitarMaterial(fila) {
-    if (gasto.materiales.length === 1) {
-      setFilaAQuitar(fila)
+    if (esDeMateriales && borrador.materiales.length === 0 && gasto.materiales.length > 0) {
+      setPreguntarSinMateriales(true)
       return
     }
-    quitarMaterialAhora(fila)
+
+    guardar()
   }
 
-  async function quitarMaterialAhora(fila) {
-    setFilaAQuitar(null)
+  // Guardar es una cadena de los endpoints que ya existen, como Crear en el
+  // alta: el PUT de los datos si cambiaron, después quitar, modificar y
+  // agregar filas, y al final pasar a Alta las marcadas. No es atómico: si
+  // algo falla a mitad, lo anterior quedó guardado. Por eso, a medida que
+  // avanza, la ficha se queda con la última respuesta del backend, y cada
+  // fila nueva que se crea recibe su id real en el borrador: volver a tocar
+  // Guardar sigue desde ahí, sin duplicar nada.
+  async function guardar() {
+    setPreguntarSinMateriales(false)
+    setGuardando(true)
 
-    // Sin aviso flotante: la fila desaparece de la tabla y el monto baja,
-    // que ya es confirmación suficiente. La única pregunta es por el último
-    // material, que deja el gasto en $0, y se hace antes de llegar acá.
-    const actualizado = await accionSobreMateriales(() => quitarMaterialDelGasto(id, fila.id))
+    let actual = gasto
+    let filas = borrador.materiales
 
-    if (actualizado) setGasto(actualizado)
-  }
-
-  // Lo que sigue a marcar en Alta, sea una fila o todas: las dos llamadas
-  // responden con la misma forma, { materiales_cambiados, gasto }.
-  function aplicarDisponibilidadAlta(respuesta) {
-    if (!respuesta) return
-
-    setGasto(respuesta.gasto)
-
-    const lista = respuesta.materiales_cambiados
-
-    // Si no cambió ninguno no hay nada que avisar ni que deshacer.
-    if (lista.length === 0) return
-
-    cambiados.current = lista
-
-    mostrarToast(
-      lista.length === 1
-        ? `«${lista[0].nombre}» pasó a disponibilidad Alta`
-        : `${lista.length} materiales pasaron a disponibilidad Alta`,
-      true
-    )
-  }
-
-  async function marcarEnAlta(fila) {
-    aplicarDisponibilidadAlta(
-      await accionSobreMateriales(() => marcarDisponibilidadAlta(id, fila.id))
-    )
-  }
-
-  async function marcarTodosEnAlta() {
-    aplicarDisponibilidadAlta(
-      await accionSobreMateriales(() => marcarTodosDisponibilidadAlta(id))
-    )
-  }
-
-  // Deshacer no tiene endpoint propio: a cada material que cambió se le
-  // devuelve la disponibilidad que tenía, con el PATCH de materiales.
-  async function deshacer() {
-    clearTimeout(temporizador.current)
-    setToast('')
-    setHayDeshacer(false)
-    setErrorMateriales('')
-
-    try {
-      // De a uno y en orden, con un for común: son dos o tres materiales y
-      // así se lee de corrido qué se le manda a cada uno.
-      for (const material of cambiados.current) {
-        await cambiarDisponibilidad(material.id, material.disponibilidad_anterior)
+    if (datosCambiaron(borrador, borradorDe(gasto))) {
+      const datos = {
+        tipo: borrador.tipo,
+        fecha: borrador.fecha,
+        descripcion: borrador.descripcion.trim(),
       }
 
-      // Acá SÍ se vuelve a pedir el gasto. cambiarDisponibilidad responde
-      // con el material, no con el gasto, así que es la única forma de que
-      // la tabla muestre la disponibilidad restaurada.
-      const res = await obtenerGasto(id)
-      setGasto(res.data)
-    } catch (err) {
-      setErrorMateriales(mensajeDeError(err))
+      // En un gasto de materiales el monto NO viaja: lo calcula el backend, y
+      // si fuera en el cuerpo lo ignoraría.
+      if (borrador.tipo !== 'MATERIALES') datos.monto = borrador.monto
+
+      try {
+        setAvance('Guardando datos…')
+        actual = (await modificarGasto(id, datos)).data
+      } catch (err) {
+        setError(mensajeDeError(err))
+        setGuardando(false)
+        setAvance('')
+        return
+      }
     }
 
-    cambiados.current = []
+    // Con publicidad u otro no hay filas que mandar: el tipo de un gasto de
+    // materiales no se puede cambiar, así que no puede haber filas guardadas.
+    const esDeMateriales = borrador.tipo === 'MATERIALES'
+    const { quitadas, modificadas, nuevas } = esDeMateriales
+      ? cambiosEnFilas(gasto.materiales, filas)
+      : { quitadas: [], modificadas: [], nuevas: [] }
+
+    const total = quitadas.length + modificadas.length + nuevas.length
+    let hechos = 0
+    let enCurso = null
+    let pasaronAAlta = 0
+
+    try {
+      for (const fila of quitadas) {
+        enCurso = fila
+        hechos += 1
+        setAvance(`Guardando materiales (${hechos} de ${total})…`)
+        actual = (await quitarMaterialDelGasto(id, fila.id)).data
+      }
+
+      for (const fila of modificadas) {
+        enCurso = fila
+        hechos += 1
+        setAvance(`Guardando materiales (${hechos} de ${total})…`)
+        actual = (await modificarMaterialDelGasto(id, fila.id, {
+          cantidad: fila.cantidad,
+          precio_unitario: fila.precio_unitario,
+        })).data
+      }
+
+      for (const fila of nuevas) {
+        enCurso = fila
+        hechos += 1
+        setAvance(`Guardando materiales (${hechos} de ${total})…`)
+        const idsAntes = actual.materiales.map((f) => f.id)
+        actual = (await registrarMaterialDelGasto(id, {
+          material: fila.material,
+          cantidad: fila.cantidad,
+          precio_unitario: fila.precio_unitario,
+        })).data
+
+        // La fila creada es la que no estaba antes. Su id real reemplaza al
+        // provisorio en el borrador.
+        const creada = actual.materiales.find((f) => !idsAntes.includes(f.id))
+        filas = filas.map((f) => (f.id === fila.id ? { ...f, id: creada.id } : f))
+      }
+
+      // Al final, las marcadas para pasar a Alta, de a una y con su id ya
+      // real. La respuesta dice cuántos materiales cambiaron de verdad.
+      if (esDeMateriales) {
+        for (const fila of filas.filter((f) => f.pasar_a_alta)) {
+          enCurso = fila
+          setAvance('Pasando materiales a disponibilidad Alta…')
+          const respuesta = (await marcarDisponibilidadAlta(id, fila.id)).data
+          actual = respuesta.gasto
+          pasaronAAlta += respuesta.materiales_cambiados.length
+          filas = filas.map((f) =>
+            f.id === fila.id
+              ? { ...f, pasar_a_alta: false, material_disponibilidad: 'ALTA', material_disponibilidad_display: 'Alta' }
+              : f
+          )
+        }
+      }
+    } catch (err) {
+      setErrorMateriales(
+        `No se pudo guardar «${enCurso.material_nombre}»: ${mensajeDeError(err)} ` +
+          'Lo anterior quedó guardado.'
+      )
+      setGasto(actual)
+      setBorrador({ ...borrador, materiales: filas })
+      setGuardando(false)
+      setAvance('')
+      return
+    }
+
+    // Todo guardado: se vuelve al listado, que avisa con un modal y dice
+    // cuántos materiales pasaron a Alta. Sin bloqueo: ya no queda nada sin
+    // guardar.
+    saltearBloqueo.current = true
+    navegar(`${BASE_GESTION}/gastos`, {
+      state: { guardado: actual.id, pasaronAAlta },
+    })
   }
 
 
@@ -289,15 +408,16 @@ export default function DetalleGasto() {
   }
 
 
-  // Salir descarta lo escrito sin preguntar, igual que en las otras fichas.
+  // Salir con cambios sin guardar pregunta: lo frena el bloqueo de arriba.
   // El aviso mientras se está en la ficha es el chip del breadcrumb.
   function volver() {
     navegar(`${BASE_GESTION}/gastos`)
   }
 
-  // Descartar repone el formulario desde el gasto guardado.
+  // Descartar repone el formulario, datos y filas, desde el gasto guardado.
   function descartar() {
     setError('')
+    setErrorMateriales('')
     setBorrador(borradorDe(gasto))
   }
 
@@ -310,41 +430,24 @@ export default function DetalleGasto() {
   // del borrador, para poder usar el tipo_display que manda el backend.
   const subtitulo = `${gasto.tipo_display} · ${fmtFechaLarga(gasto.fecha)}`
 
-  // Si el gasto guardado ya es de materiales. De esto dependen tres cosas:
-  // que el tipo quede bloqueado, que aparezca la tabla, y que haya un monto
-  // calculado para mostrar.
-  const yaEsDeMateriales = gasto.tipo === 'MATERIALES'
+  // Un gasto guardado como de materiales no puede cambiar de tipo: el
+  // backend lo rechaza. Se mira el gasto guardado, no el borrador.
+  const tipoBloqueado = gasto.tipo === 'MATERIALES'
 
-  // El monto de un gasto de materiales es el que manda el backend, tal cual.
-  // Hay un solo caso donde todavía no hay ninguno que mostrar: cuando se
-  // eligió Materiales pero el gasto no se guardó así todavía (un gasto de
-  // publicidad que se está pasando a materiales). Ahí va $0, que es
-  // lo que el backend va a escribir al guardar, porque no hay materiales que
-  // sumar. No es una cuenta del navegador.
-  const montoCalculado = yaEsDeMateriales ? gasto.monto : 0
+  // La tabla aparece cuando el BORRADOR es de materiales: un gasto de
+  // publicidad que se pasa a materiales ya puede cargar sus filas, y se
+  // guardan todas juntas.
+  const esDeMateriales = borrador.tipo === 'MATERIALES'
 
-  // Hay cambios si algún campo del borrador difiere de lo guardado.
-  const original = borradorDe(gasto)
-
-  const hayCambios =
-    borrador.tipo !== original.tipo ||
-    borrador.fecha !== original.fecha ||
-    borrador.monto !== original.monto ||
-    borrador.descripcion !== original.descripcion
-
-  // La línea gris de abajo del formulario, para cuando se eligió Materiales
-  // pero la tabla todavía no puede aparecer porque el gasto no está guardado
-  // así.
-  const avisoMateriales =
-    borrador.tipo === 'MATERIALES' && !yaEsDeMateriales
-      ? 'Guardá el cambio de tipo para poder cargarle los materiales.'
-      : ''
+  // El monto se calcula sobre el borrador, como en el alta, para que
+  // acompañe lo que se ve. Al guardar lo vuelve a calcular el backend.
+  const monto = montoEnMemoria(borrador)
 
   // Los materiales que se pueden agregar: los activos que todavía no están
   // en este gasto. El backend permitiría uno discontinuado, pero no tiene
   // sentido ofrecer para una compra nueva algo que ya no se usa; y uno
   // repetido lo rechaza, porque cada material va una sola vez por gasto.
-  const cargados = yaEsDeMateriales ? gasto.materiales.map((fila) => fila.material) : []
+  const cargados = borrador.materiales.map((fila) => fila.material)
 
   const disponibles = materiales.filter(
     (m) => m.estado === 'ACTIVO' && !cargados.includes(m.id)
@@ -402,111 +505,102 @@ export default function DetalleGasto() {
             setError('')
             setBorrador({ ...borrador, ...cambio })
           }}
-          hayCambios={hayCambios}
-          tipoBloqueado={yaEsDeMateriales}
-          montoCalculado={montoCalculado}
-          guardando={guardando}
+          tipoBloqueado={tipoBloqueado}
+          montoCalculado={monto}
           error={error}
-          onGuardar={guardarDatos}
-          // Descartar vuelve el borrador a lo guardado y se queda en la ficha.
-          onCancelar={descartar}
         />
 
-        {avisoMateriales && (
-          <p style={{ margin: '-8px 0 0', fontSize: 14, color: '#857078', textWrap: 'pretty' }}>
-            {avisoMateriales}
-          </p>
-        )}
-
-        {/* Los materiales cuelgan de un gasto que ya existe y que es de
-            materiales: hasta entonces no hay de dónde colgarlos. */}
-        {yaEsDeMateriales && (
+        {esDeMateriales && (
           <MaterialesDelGasto
-            gasto={gasto}
+            gasto={{ ...gasto, monto, materiales: borrador.materiales }}
             quedanPorAgregar={disponibles.length > 0}
             error={errorMateriales}
             onAgregar={() => setModalMaterial('nuevo')}
             onEditar={(fila) => setModalMaterial(fila)}
-            onQuitar={quitarMaterial}
-            onAlta={marcarEnAlta}
-            onAltaTodos={marcarTodosEnAlta}
+            onQuitar={quitarFila}
+            onAlta={alternarAlta}
+            onAltaTodos={marcarTodasEnAlta}
           />
         )}
 
-        {/* Eliminar va fuera de las tarjetas, como en el diseño. */}
-        <div>
+        {/* El pie del formulario, debajo de todo: un solo Guardar para los
+            datos, las filas y las marcas de Alta. Sin cambios los dos se
+            apagan, con el motivo en el title. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
           <button
-            onClick={() => setModalEliminar(true)}
-            className="btn-eliminar"
+            onClick={descartar}
+            disabled={!hayCambios || guardando}
+            title={hayCambios ? undefined : 'No hay cambios que descartar'}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 16px',
+              padding: '10px 18px',
               border: '1px solid #EBE0E2',
               background: 'white',
-              color: '#C0442F',
+              color: '#8C5A66',
               borderRadius: 6,
-              cursor: 'pointer',
+              cursor: hayCambios && !guardando ? 'pointer' : 'default',
+              opacity: hayCambios && !guardando ? undefined : 0.5,
               fontFamily: "'Quicksand', sans-serif",
               fontWeight: 600,
-              fontSize: 14,
+              fontSize: 15,
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-              <path strokeLinecap="round" strokeLinejoin="round" d={ICONO_BORRAR} />
-            </svg>
-            Eliminar gasto
+            Descartar
+          </button>
+
+          <button
+            onClick={pedirGuardar}
+            disabled={!hayCambios || guardando}
+            title={hayCambios ? undefined : 'No hay cambios que guardar'}
+            style={{
+              padding: '10px 20px',
+              border: 0,
+              background: '#8C5A66',
+              color: 'white',
+              borderRadius: 6,
+              cursor: hayCambios && !guardando ? 'pointer' : 'default',
+              opacity: guardando ? 0.7 : hayCambios ? undefined : 0.5,
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 15,
+            }}
+          >
+            {guardando ? avance || 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </div>
 
       {modalMaterial && (
         <ModalMaterial
-          gastoId={gasto.id}
           // 'nuevo' es agregar; cualquier otra cosa es la fila que se está
           // editando.
           fila={modalMaterial === 'nuevo' ? null : modalMaterial}
           materiales={disponibles}
           onCerrar={() => setModalMaterial(null)}
-          // El modal ya habló con el backend: acá llega el gasto completo
-          // actualizado, y alcanza con reemplazarlo.
-          onGuardado={(actualizado) => {
-            const editando = modalMaterial !== 'nuevo'
-
-            setGasto(actualizado)
-            setModalMaterial(null)
-            setErrorMateriales('')
-            mostrarToast(editando ? 'Material actualizado' : 'Material agregado')
-          }}
+          onGuardar={(datos) =>
+            modalMaterial === 'nuevo' ? agregarFila(datos) : editarFila(modalMaterial, datos)
+          }
         />
       )}
 
-      {modalEliminar && (
-        <ModalEliminarGasto
-          gasto={gasto}
-          onCerrar={() => setModalEliminar(false)}
-          // Al borrarlo se vuelve al listado: la ficha quedaría mostrando
-          // algo que ya no existe.
-          onEliminado={() => navegar(`${BASE_GESTION}/gastos`)}
-        />
-      )}
-
-      {filaAQuitar && (
+      {/* La navegación frenada espera acá: Cancelar la deja sin efecto y el
+          router repone la dirección; "Salir sin guardar" la deja seguir. */}
+      {bloqueo.state === 'blocked' && (
         <ModalConfirmar
-          titulo="Quitar el último material"
-          texto="Es el último material del gasto: el monto queda en $0. ¿Quitarlo igual?"
-          textoAccion="Quitar igual"
-          onCerrar={() => setFilaAQuitar(null)}
-          onConfirmar={() => quitarMaterialAhora(filaAQuitar)}
+          titulo="Salir sin guardar"
+          texto="Se pierden los cambios que no guardaste. ¿Salir sin guardar?"
+          textoAccion="Salir sin guardar"
+          onCerrar={() => bloqueo.reset()}
+          onConfirmar={() => bloqueo.proceed()}
         />
       )}
 
-      {toast && (
-        <Toast
-          texto={toast}
-          accion={hayDeshacer ? 'Deshacer' : undefined}
-          onAccion={deshacer}
+      {preguntarSinMateriales && (
+        <ModalConfirmar
+          titulo="Guardar sin materiales"
+          texto="Este gasto va a quedar sin materiales: el monto queda en $0. ¿Guardar igual?"
+          textoAccion="Guardar igual"
+          onCerrar={() => setPreguntarSinMateriales(false)}
+          onConfirmar={guardar}
         />
       )}
     </div>

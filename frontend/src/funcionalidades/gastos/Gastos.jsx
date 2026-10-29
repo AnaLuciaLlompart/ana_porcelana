@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { listarGastos } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarGasto from './ModalEliminarGasto'
@@ -20,8 +20,26 @@ import {
 
 import BotonAccion from '../../componentes/BotonAccion'
 import ChipSinContenido from '../../componentes/ChipSinContenido'
+import ModalAviso from '../../componentes/ModalAviso'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import { BASE_GESTION } from '../../constantes'
+
+
+// El título y el texto del modal de aviso, según lo que dejó en el state la
+// ficha al guardar, o null si no dejó nada. Si al guardar algún material
+// pasó a disponibilidad Alta, el modal lo cuenta.
+function avisoDeLaNavegacion(state) {
+  if (!state?.guardado) return null
+
+  const n = state.pasaronAAlta || 0
+  const alta =
+    n === 0 ? '' : n === 1 ? ' 1 material pasó a disponibilidad Alta.' : ` ${n} materiales pasaron a disponibilidad Alta.`
+
+  return {
+    titulo: 'Cambios guardados',
+    texto: `El gasto #${state.guardado} quedó guardado.${alta}`,
+  }
+}
 
 
 const estiloTh = {
@@ -421,6 +439,7 @@ function EstadoVacio({ onNuevo }) {
 
 export default function Gastos() {
   const navegar = useNavigate()
+  const ubicacion = useLocation()
   const [gastos, setGastos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -430,6 +449,10 @@ export default function Gastos() {
   const [gastoEliminando, setGastoEliminando] = useState(null)
   const [gastoViendo, setGastoViendo] = useState(null)
 
+  // El modal de aviso de la ficha, que deja en el state de la navegación el
+  // gasto que guardó. Se lee al montar.
+  const [aviso, setAviso] = useState(() => avisoDeLaNavegacion(ubicacion.state))
+
   // Una sola carga al montar. El buscador filtra sobre estos datos, así que
   // no vuelve a pedir nada y tampoco lleva debounce.
   useEffect(() => {
@@ -437,6 +460,14 @@ export default function Gastos() {
       .then((res) => setGastos(res.data))
       .catch(() => setError('No se pudieron cargar los gastos.'))
       .finally(() => setCargando(false))
+  }, [])
+
+  // Ya leído, el state se borra, así el aviso no reaparece al recargar ni al
+  // volver con Atrás.
+  useEffect(() => {
+    if (!ubicacion.state) return
+    navegar(`${ubicacion.pathname}${ubicacion.search}`, { replace: true, state: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function recargar() {
@@ -745,6 +776,10 @@ export default function Gastos() {
           onCerrar={() => setGastoViendo(null)}
           onEditar={() => verGasto(gastoViendo)}
         />
+      )}
+
+      {aviso && (
+        <ModalAviso titulo={aviso.titulo} texto={aviso.texto} onCerrar={() => setAviso(null)} />
       )}
 
       {gastoEliminando && (

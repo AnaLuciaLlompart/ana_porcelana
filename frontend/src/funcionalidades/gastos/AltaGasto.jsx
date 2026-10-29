@@ -15,7 +15,7 @@ import ModalConfirmar from '../../componentes/ModalConfirmar'
 import DatosDelGasto from './DatosDelGasto'
 import MaterialesDelGasto from './MaterialesDelGasto'
 import ModalMaterial from './ModalMaterial'
-import { ICONO_FLECHA, hoy, mensajeDeError } from './presentacion'
+import { ICONO_FLECHA, filaEnMemoria, hoy, mensajeDeError, montoEnMemoria } from './presentacion'
 
 
 // Los dos pasos del alta. El segundo existe solo si el gasto es de
@@ -39,17 +39,6 @@ function borradorVacio() {
     descripcion: '',
     materiales: [],
   }
-}
-
-
-// El monto del gasto que todavía no existe. Para materiales es la misma
-// cuenta que _recalcular_monto en gastos/views.py: la suma de los subtotales
-// de las filas. Para los otros tipos es lo que se escribió en el campo. La
-// ficha no hace esta cuenta: muestra el monto que manda el backend.
-function montoEnMemoria(borrador) {
-  if (borrador.tipo !== 'MATERIALES') return Number(borrador.monto) || 0
-
-  return borrador.materiales.reduce((suma, fila) => suma + fila.subtotal, 0)
 }
 
 
@@ -193,18 +182,7 @@ export default function AltaGasto() {
     setModalMaterial(null)
     setErrorMateriales('')
     const material = materiales.find((m) => m.id === datos.material)
-    const fila = {
-      id: nuevoId(),
-      material: datos.material,
-      material_nombre: material.nombre,
-      material_estado: material.estado,
-      material_estado_display: material.estado_display,
-      material_disponibilidad: material.disponibilidad,
-      material_disponibilidad_display: material.disponibilidad_display,
-      cantidad: datos.cantidad,
-      precio_unitario: datos.precio_unitario,
-      subtotal: datos.cantidad * Number(datos.precio_unitario),
-    }
+    const fila = filaEnMemoria(nuevoId(), datos, material)
     setBorrador({ ...borrador, materiales: [...borrador.materiales, fila] })
   }
 
@@ -390,7 +368,6 @@ export default function AltaGasto() {
               setError('')
               setBorrador({ ...borrador, ...cambio })
             }}
-            enRecorrido
             // Antes de crear el tipo es libre: el candado es para un gasto
             // guardado como de materiales.
             tipoBloqueado={false}
