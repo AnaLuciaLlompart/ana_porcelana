@@ -25,7 +25,6 @@ import ModalMaterial from './ModalMaterial'
 import {
   ICONO_FLECHA,
   filaEnMemoria,
-  fmtFechaLarga,
   mensajeDeError,
   montoEnMemoria,
 } from './presentacion'
@@ -426,10 +425,6 @@ export default function DetalleGasto() {
 
   const titulo = `Gasto #${gasto.id}`
 
-  // El subtítulo de un gasto que ya existe se lee del gasto GUARDADO y no
-  // del borrador, para poder usar el tipo_display que manda el backend.
-  const subtitulo = `${gasto.tipo_display} · ${fmtFechaLarga(gasto.fecha)}`
-
   // Un gasto guardado como de materiales no puede cambiar de tipo: el
   // backend lo rechaza. Se mira el gasto guardado, no el borrador.
   const tipoBloqueado = gasto.tipo === 'MATERIALES'
@@ -485,7 +480,7 @@ export default function DetalleGasto() {
       <div className="ancho-pantalla" style={{ marginBottom: 22, maxWidth: ANCHO_MAXIMO }}>
         <h1
           style={{
-            margin: '0 0 8px',
+            margin: 0,
             fontFamily: "'Quicksand', sans-serif",
             fontWeight: 600,
             fontSize: 32,
@@ -494,8 +489,6 @@ export default function DetalleGasto() {
         >
           {titulo}
         </h1>
-
-        <p style={{ margin: 0, fontSize: 15, color: '#857078', textWrap: 'pretty' }}>{subtitulo}</p>
       </div>
 
       <div className="ancho-pantalla" style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: ANCHO_MAXIMO }}>
