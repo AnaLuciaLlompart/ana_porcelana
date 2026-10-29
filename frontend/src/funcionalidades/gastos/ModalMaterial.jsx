@@ -205,6 +205,7 @@ export default function ModalMaterial({ fila, materiales, onCerrar, onGuardar })
                 ...estiloCampo(tocado && sinMaterial),
                 background: editando ? FONDO_APAGADO : 'white',
               }}
+              flotante
             />
 
             {tocado && sinMaterial && (

@@ -593,8 +593,10 @@ corre los otros campos. A diferencia del ⋯, no se cierra al deslizar: se
 vuelve a ubicar con cada scroll o cambio de tamaño, porque en el celular
 abrir el teclado cambia el tamaño de la ventana y lo cerraría apenas se
 abre. La lista mide hasta 240px, o menos (mínimo 120) si abajo no hay
-lugar. Lo usan el cliente del pedido y el producto de "Agregar producto"
-(pedido de la usuaria: la lista corría los campos de abajo).
+lugar. Lo usan el cliente del pedido, el producto de "Agregar producto" y
+el material de `ModalMaterial` del gasto (pedido de la usuaria: la lista
+corría los campos de abajo). El de `ModalAgregarMaterial` de producto
+sigue en el flujo, también por decisión de la usuaria.
 
 **Cambiar estado es un modal, `ModalEstado`.** Son los cuatro botones que
 antes estaban en la tarjeta de estado de la ficha, con la clase
