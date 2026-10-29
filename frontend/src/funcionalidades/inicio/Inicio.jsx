@@ -318,6 +318,50 @@ function Vacio({ titulo, texto, conIcono = false, conBorde = false }) {
 }
 
 
+// Cuántas filas de cada lista se ven sin deslizar. El backend manda las
+// listas enteras, y las demás filas se ven deslizando dentro de la tarjeta.
+const FILAS_EN_PRODUCCION = 8
+const FILAS_ENTREGAS = 8
+const FILAS_MATERIALES = 6
+
+// Los títulos de las dos tablas quedan pegados arriba al deslizar las
+// filas. Llevan su propio fondo porque el de la fila no los acompaña.
+const estiloThFijo = { ...estiloTh, position: 'sticky', top: 0, zIndex: 1, background: '#F0E2E4' }
+
+// El alto que ocupan las primeras `cantidad` filas de una lista, para
+// usarlo de maxHeight en la caja que la envuelve; null si no hay más filas
+// que esas. Se mide porque las filas no miden todas lo mismo (una
+// descripción o un "Cobrar al entregar" las hace más altas). El
+// ResizeObserver vuelve a medir cuando el contenido cambia de tamaño: al
+// cambiar el ancho de la ventana, al cargar la tipografía o al cambiar las
+// filas. Devuelve la ref, que va en el elemento que contiene las filas.
+function useAltoDeFilas(cantidad, selector, filas) {
+  const contenido = useRef(null)
+  const [alto, setAlto] = useState(null)
+
+  useEffect(() => {
+    const elemento = contenido.current
+    if (!elemento) return
+
+    function medir() {
+      const encontradas = elemento.querySelectorAll(selector)
+      if (encontradas.length <= cantidad) {
+        setAlto(null)
+        return
+      }
+      const ultima = encontradas[cantidad - 1]
+      setAlto(ultima.getBoundingClientRect().bottom - elemento.getBoundingClientRect().top)
+    }
+
+    const observador = new ResizeObserver(medir)
+    observador.observe(elemento)
+    return () => observador.disconnect()
+  }, [cantidad, selector, filas])
+
+  return [contenido, alto]
+}
+
+
 // La tabla EN PRODUCCIÓN: los productos del pedido que todavía no están
 // terminados, del más avanzado al que recién empieza, como los manda el
 // backend. El selector de etapa es el mismo de la pestaña de productos de
@@ -326,6 +370,8 @@ function Vacio({ titulo, texto, conIcono = false, conBorde = false }) {
 // MATERIALES lleva el botón que antes estaba en la tabla de productos del
 // pedido: en el taller es donde hace falta saber qué lleva cada pieza.
 function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerMateriales }) {
+  const [tabla, altoMaximo] = useAltoDeFilas(FILAS_EN_PRODUCCION, 'tbody tr', productos)
+
   if (productos.length === 0) {
     return (
       <Vacio
@@ -336,16 +382,16 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+    <div style={{ overflow: 'auto', maxHeight: altoMaximo ?? undefined }}>
+      <table ref={tabla} style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ background: '#F0E2E4' }}>
-            <th style={{ ...estiloTh, width: '27%', padding: '10px 20px' }}>PRODUCTO</th>
-            <th style={{ ...estiloTh, width: '8%', textAlign: 'center' }}>CANT.</th>
-            <th style={{ ...estiloTh, width: '10%' }}>PEDIDO</th>
-            <th style={{ ...estiloTh, width: '20%' }}>ETAPA</th>
-            <th style={{ ...estiloTh, width: '14%' }}>DESDE</th>
-            <th style={{ ...estiloTh, width: '21%', padding: '10px 20px', textAlign: 'center' }}>MATERIALES</th>
+            <th style={{ ...estiloThFijo, width: '27%', padding: '10px 20px' }}>PRODUCTO</th>
+            <th style={{ ...estiloThFijo, width: '8%', textAlign: 'center' }}>CANT.</th>
+            <th style={{ ...estiloThFijo, width: '10%' }}>PEDIDO</th>
+            <th style={{ ...estiloThFijo, width: '20%' }}>ETAPA</th>
+            <th style={{ ...estiloThFijo, width: '14%' }}>DESDE</th>
+            <th style={{ ...estiloThFijo, width: '21%', padding: '10px 20px', textAlign: 'center' }}>MATERIALES</th>
           </tr>
         </thead>
 
@@ -460,6 +506,8 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
 // son los del listado de Pedidos, con el hoy del servidor. "Cobrar al
 // entregar" no viaja desde el backend: se deduce acá, como en el prototipo.
 function TablaEntregas({ pedidos, hoy, onVerPedido }) {
+  const [tabla, altoMaximo] = useAltoDeFilas(FILAS_ENTREGAS, 'tbody tr', pedidos)
+
   if (pedidos.length === 0) {
     return (
       <Vacio
@@ -471,15 +519,15 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="tabla-entregas" style={{ width: '100%', minWidth: 640, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+    <div style={{ overflow: 'auto', maxHeight: altoMaximo ?? undefined }}>
+      <table ref={tabla} className="tabla-entregas" style={{ width: '100%', minWidth: 640, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ background: '#F0E2E4' }}>
-            <th style={{ ...estiloTh, width: '14%', padding: '10px 20px' }}>PEDIDO</th>
-            <th style={{ ...estiloTh, width: '26%' }}>CLIENTE</th>
-            <th style={{ ...estiloTh, width: '20%', textAlign: 'center' }}>ENTREGA</th>
-            <th style={{ ...estiloTh, width: '18%', textAlign: 'center' }}>ESTADO</th>
-            <th style={{ ...estiloTh, width: '22%', padding: '10px 20px', textAlign: 'center' }}>SALDO</th>
+            <th style={{ ...estiloThFijo, width: '14%', padding: '10px 20px' }}>PEDIDO</th>
+            <th style={{ ...estiloThFijo, width: '26%' }}>CLIENTE</th>
+            <th style={{ ...estiloThFijo, width: '20%', textAlign: 'center' }}>ENTREGA</th>
+            <th style={{ ...estiloThFijo, width: '18%', textAlign: 'center' }}>ESTADO</th>
+            <th style={{ ...estiloThFijo, width: '22%', padding: '10px 20px', textAlign: 'center' }}>SALDO</th>
           </tr>
         </thead>
 
@@ -562,6 +610,8 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
 // negativo de la paleta; el texto igual sale del disponibilidad_display,
 // que es el que se muestra en todo el proyecto.
 function ListaMateriales({ materiales }) {
+  const [lista, altoMaximo] = useAltoDeFilas(FILAS_MATERIALES, ':scope > div', materiales)
+
   if (materiales.length === 0) {
     return (
       <Vacio
@@ -573,38 +623,46 @@ function ListaMateriales({ materiales }) {
     )
   }
 
-  return materiales.map((m) => (
-    <div
-      key={m.id}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-        padding: '13px 20px',
-        borderBottom: '1px solid #EBE0E2',
-      }}
-    >
-      <span style={{ minWidth: 0, fontSize: 15, lineHeight: 1.35, color: '#3D3238', textWrap: 'pretty' }}>
-        {m.nombre}
-      </span>
-      <span
-        style={{
-          flexShrink: 0,
-          fontFamily: QUICKSAND,
-          fontWeight: 600,
-          fontSize: 13,
-          borderRadius: 20,
-          padding: '4px 12px',
-          border: '1px solid #C0442F',
-          background: '#FAEAE8',
-          color: '#C0442F',
-        }}
-      >
-        {m.disponibilidad_display}
-      </span>
+  // Dos cajas: la de afuera es la que desliza y la de adentro contiene las
+  // filas, que es la que se mide.
+  return (
+    <div style={{ overflowY: 'auto', maxHeight: altoMaximo ?? undefined }}>
+      <div ref={lista}>
+        {materiales.map((m) => (
+          <div
+            key={m.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '13px 20px',
+              borderBottom: '1px solid #EBE0E2',
+            }}
+          >
+            <span style={{ minWidth: 0, fontSize: 15, lineHeight: 1.35, color: '#3D3238', textWrap: 'pretty' }}>
+              {m.nombre}
+            </span>
+            <span
+              style={{
+                flexShrink: 0,
+                fontFamily: QUICKSAND,
+                fontWeight: 600,
+                fontSize: 13,
+                borderRadius: 20,
+                padding: '4px 12px',
+                border: '1px solid #C0442F',
+                background: '#FAEAE8',
+                color: '#C0442F',
+              }}
+            >
+              {m.disponibilidad_display}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
-  ))
+  )
 }
 
 
@@ -810,7 +868,7 @@ export default function Inicio() {
               texto={textoVerTodos(
                 'Ver todos los pedidos',
                 datos.en_produccion.total,
-                datos.en_produccion.productos.length,
+                FILAS_EN_PRODUCCION,
                 'productos sin terminar'
               )}
               onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
@@ -828,7 +886,7 @@ export default function Inicio() {
                 texto={textoVerTodos(
                   'Ver todos los pedidos',
                   datos.proximas_entregas.total,
-                  datos.proximas_entregas.pedidos.length,
+                  FILAS_ENTREGAS,
                   'sin entregar'
                 )}
                 onClick={() => navegar(`${BASE_GESTION}/pedidos`)}
@@ -841,7 +899,7 @@ export default function Inicio() {
                 texto={textoVerTodos(
                   'Ver todos los materiales',
                   datos.materiales_por_reponer.total,
-                  datos.materiales_por_reponer.materiales.length,
+                  FILAS_MATERIALES,
                   'por reponer'
                 )}
                 onClick={() => navegar(`${BASE_GESTION}/materiales`)}

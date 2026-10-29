@@ -17,9 +17,6 @@ DIAS_ENTREGAS_PROXIMAS = 3
 
 # Hasta cuántos elementos muestra cada lista de la pantalla. El resto se
 # ve en el listado de cada módulo, adonde lleva el enlace "Ver todos".
-MAXIMO_ENTREGAS = 8
-MAXIMO_EN_PRODUCCION = 8
-MAXIMO_MATERIALES = 6
 
 # El orden de la tabla EN PRODUCCIÓN: de la etapa más avanzada a la que
 # recién empieza. Terminado no está porque esas piezas ya no se muestran.
@@ -181,15 +178,15 @@ def resumen_de_hoy(request):
         },
         'proximas_entregas': {
             'total': len(sin_entregar),
-            'pedidos': sin_entregar[:MAXIMO_ENTREGAS],
+            'pedidos': sin_entregar,
         },
         'en_produccion': {
             'total': len(en_produccion),
-            'productos': en_produccion[:MAXIMO_EN_PRODUCCION],
+            'productos': en_produccion,
         },
         'materiales_por_reponer': {
             'total': len(por_reponer),
-            'materiales': por_reponer[:MAXIMO_MATERIALES],
+            'materiales': por_reponer,
         },
     }
 

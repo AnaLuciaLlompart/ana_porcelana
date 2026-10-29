@@ -1795,6 +1795,25 @@ que entren cuatro justas las filas miden siempre lo mismo
 `maxHeight` de cuatro filas con `overflowY: 'auto'`; el título queda fijo
 arriba.
 
+**Las tres listas de Inicio se deslizan** (corrección del tutor del
+28/10/2026, D2; se eligió scroll y no paginación): EN PRODUCCIÓN y
+PRÓXIMAS ENTREGAS muestran 8 filas y MATERIALES POR REPONER 6
+(`FILAS_EN_PRODUCCION`, `FILAS_ENTREGAS`, `FILAS_MATERIALES`), y el resto
+se ve deslizando dentro de la tarjeta. Para eso `GET /api/inicio/` manda
+las tres listas enteras: antes las recortaba a esos mismos números
+(`MAXIMO_*`, ya borrados), y siguen siendo cinco consultas. Acá las filas
+no miden todas lo mismo (la descripción de una pieza o "Cobrar al
+entregar" las hacen más altas), así que el tope no es una cuenta fija
+como en Materiales: `useAltoDeFilas(cantidad, selector, filas)`, en
+`Inicio.jsx`, mide dónde termina la última fila visible y devuelve ese
+alto para el `maxHeight` de la caja, o null si no hay más filas; un
+`ResizeObserver` vuelve a medir cuando cambia el ancho, la tipografía o
+las filas. En las dos tablas los títulos quedan pegados arriba
+(`estiloThFijo`, `position: 'sticky'` con su propio fondo). El pie
+"Ver todos … (N …)" muestra el total cuando hay más filas que las
+visibles. El filtro por etapa de EN PRODUCCIÓN, la otra mitad de D2,
+queda pendiente.
+
 **Patrón de modal:** cabecera `#8C5A66` con título blanco y cruz, cuerpo
 con campos apilados, pie con Cancelar y la acción principal. Fondo
 oscurecido que cierra al hacer clic, con `e.stopPropagation()` en la
