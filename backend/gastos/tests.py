@@ -1,7 +1,10 @@
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
+from openpyxl import load_workbook
 from rest_framework import status
 
-from pruebas.base import USUARIA, PruebaConSesion, PruebaSinSesion
+from pruebas.base import TIPO_EXCEL, USUARIA, PruebaConSesion, PruebaSinSesion, celdas_del_excel
 from materiales.models import Material
 
 from .models import Gasto, MaterialDelGasto
@@ -293,3 +296,72 @@ class ListadoEnLaBase(PruebaConSesion):
         self.assertEqual(respuesta.data, {
             'cantidad': 1, 'monto_total': '1500.00', 'monto_maximo': '6000.00',
         })
+
+
+EXPORTAR = f'{LISTA}exportar/'
+
+
+class ExportarSinSesion(PruebaSinSesion):
+    """Exportar es un endpoint de gestión (corrección E10)."""
+
+    def test_exportar_sin_sesion_da_403(self):
+        """E10: GET /api/gastos/exportar/ sin sesión responde 403, en PDF y en Excel."""
+        for formato in ('pdf', 'excel'):
+            respuesta = self.client.get(EXPORTAR, {'formato': formato})
+            self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ExportarGastos(PruebaConSesion):
+    """El listado filtrado se exporta a PDF y a Excel (corrección E10).
+
+    Un gasto de materiales con una fila, uno de materiales sin filas y uno
+    de publicidad.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.de_materiales = Gasto.objects.create(tipo=Gasto.Tipo.MATERIALES, fecha='2026-09-10', monto='6000.00')
+        MaterialDelGasto.objects.create(
+            gasto=self.de_materiales, material=Material.objects.create(nombre='Porcelana fría'),
+            cantidad=2, precio_unitario='3000.00',
+        )
+        self.vacio = Gasto.objects.create(tipo=Gasto.Tipo.MATERIALES, fecha='2026-09-20')
+        self.publicidad = Gasto.objects.create(
+            tipo=Gasto.Tipo.PUBLICIDAD, monto='1500.00', fecha='2026-10-05', descripcion='Instagram',
+        )
+
+    def test_el_pdf_se_muestra_y_el_excel_se_descarga(self):
+        """E10: el PDF va inline como application/pdf; el Excel, como adjunto .xlsx."""
+        respuesta = self.client.get(EXPORTAR, {'formato': 'pdf'})
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertTrue(respuesta['Content-Disposition'].startswith('inline'))
+
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel'})
+        self.assertEqual(respuesta['Content-Type'], TIPO_EXCEL)
+        self.assertTrue(respuesta['Content-Disposition'].startswith('attachment'))
+
+    def test_exporta_las_mismas_filas_que_el_listado_filtrado(self):
+        """E10: con período y orden=-monto, los gastos del Excel son los del listado; la columna Materiales los nombra o dice "Sin materiales"."""
+        filtros = {'fecha_hasta': '2026-09-30', 'orden': '-monto'}
+
+        listado = self.client.get(LISTA, {'pagina': 1, **filtros})
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel', **filtros})
+        filas = [[celda.value for celda in fila] for fila in celdas_del_excel(respuesta, 'N.º')]
+
+        self.assertEqual([fila[0] for fila in filas], [gasto['id'] for gasto in listado.data['results']])
+        # La columna 4 es Materiales y la 5, el monto, como número.
+        self.assertEqual([(fila[0], fila[4], fila[5]) for fila in filas], [
+            (self.de_materiales.id, '2 × Porcelana fría', 6000),
+            (self.vacio.id, 'Sin materiales', 0),
+        ])
+
+    def test_el_encabezado_dice_los_filtros(self):
+        """E10: el renglón de filtros nombra el tipo, el período con sus fechas y el rango de monto."""
+        respuesta = self.client.get(EXPORTAR, {
+            'formato': 'excel', 'tipo': 'PUBLICIDAD',
+            'fecha_desde': '2026-10-01', 'fecha_hasta': '2026-10-31', 'monto_desde': '1000',
+        })
+        hoja = load_workbook(BytesIO(b''.join(respuesta.streaming_content))).active
+        # A1 es el título, A2 la fecha y la cantidad, A3 los filtros.
+        self.assertEqual(hoja['A2'].value.split(' · ')[1], '1 gasto')
+        self.assertEqual(hoja['A3'].value, 'Tipo: Publicidad · Fecha: 01/10/2026 – 31/10/2026 · Monto: desde $1.000')

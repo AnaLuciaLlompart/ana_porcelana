@@ -1,4 +1,5 @@
 import cliente from '../../api/cliente'
+import { pedirExportacionExcel, urlDeExportacionPdf } from '../../api/exportar'
 
 // Una función por endpoint del backend. 
 
@@ -58,6 +59,16 @@ export function publicarProducto(id) {
 
 export function quitarProductoDelCatalogo(id) {
   return cliente.post(`/productos/${id}/quitar_del_catalogo/`)
+}
+
+// El listado filtrado en PDF o Excel (corrección E10 del tutor, no un CU).
+// Lo que hacen está en api/exportar.js, común a los listados.
+export function urlExportarProductosPdf(parametros) {
+  return urlDeExportacionPdf('/productos/', parametros)
+}
+
+export function exportarProductosAExcel(parametros) {
+  return pedirExportacionExcel('/productos/', parametros)
 }
 
 

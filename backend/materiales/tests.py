@@ -5,7 +5,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 
 from pruebas.base import (
-    PruebaConSesion, imagen_png, media_temporal, png_bomba, png_de_mas_de_15mb,
+    TIPO_EXCEL, PruebaConSesion, PruebaSinSesion, celdas_del_excel, imagen_png,
+    media_temporal, png_bomba, png_de_mas_de_15mb,
 )
 from gastos.models import Gasto, MaterialDelGasto
 from productos.models import MaterialProducto, Producto
@@ -201,3 +202,55 @@ class ListadoEnLaBase(PruebaConSesion):
         self.assertEqual(respuesta.data['detail'], 'Una de las disponibilidades no existe.')
 
         self.assertEqual(self.ids({'estado': 'ACTIVO', 'disponibilidad': 'ALTA'}), [self.barniz.id])
+
+
+EXPORTAR = f'{LISTA}exportar/'
+
+
+class ExportarSinSesion(PruebaSinSesion):
+    """Exportar es un endpoint de gestión (corrección E10)."""
+
+    def test_exportar_sin_sesion_da_403(self):
+        """E10: GET /api/materiales/exportar/ sin sesión responde 403, en PDF y en Excel."""
+        for formato in ('pdf', 'excel'):
+            respuesta = self.client.get(EXPORTAR, {'formato': formato})
+            self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ExportarMateriales(PruebaConSesion):
+    """El listado filtrado se exporta a PDF y a Excel (corrección E10)."""
+
+    def setUp(self):
+        super().setUp()
+        self.porcelana = Material.objects.create(nombre='Porcelana', disponibilidad=Material.Disponibilidad.BAJA)
+        self.barniz = Material.objects.create(nombre='Barniz', disponibilidad=Material.Disponibilidad.ALTA)
+        self.viejo = Material.objects.create(nombre='Acrílico viejo', estado=Material.Estado.DISCONTINUADO)
+
+    def nombres_del_excel(self, parametros):
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel', **parametros})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        return [fila[0].value for fila in celdas_del_excel(respuesta, 'Material')]
+
+    def test_el_pdf_se_muestra_y_el_excel_se_descarga(self):
+        """E10: el PDF va inline como application/pdf; el Excel, como adjunto .xlsx."""
+        respuesta = self.client.get(EXPORTAR, {'formato': 'pdf'})
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertTrue(respuesta['Content-Disposition'].startswith('inline'))
+
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel'})
+        self.assertEqual(respuesta['Content-Type'], TIPO_EXCEL)
+        self.assertTrue(respuesta['Content-Disposition'].startswith('attachment'))
+
+    def test_sin_filtros_van_los_activos_y_despues_los_discontinuados(self):
+        """E10: sin filtros salen los tres, los activos por nombre y el discontinuado al final, como en la pantalla."""
+        self.assertEqual(self.nombres_del_excel({}), ['Barniz', 'Porcelana', 'Acrílico viejo'])
+
+    def test_exporta_las_mismas_filas_que_el_listado_filtrado(self):
+        """E10: con estado y disponibilidad, los materiales del Excel son los de la página del listado."""
+        filtros = {'estado': 'ACTIVO', 'disponibilidad': 'BAJA'}
+
+        listado = self.client.get(LISTA, {'pagina': 1, **filtros})
+        nombres_del_listado = [material['nombre'] for material in listado.data['results']]
+
+        self.assertEqual(self.nombres_del_excel(filtros), nombres_del_listado)
+        self.assertEqual(nombres_del_listado, ['Porcelana'])

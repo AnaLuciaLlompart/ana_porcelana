@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { listarProductos, reactivarProducto, resumenDeProductos } from './api'
+import {
+  exportarProductosAExcel,
+  listarProductos,
+  reactivarProducto,
+  resumenDeProductos,
+  urlExportarProductosPdf,
+} from './api'
 import BotonAccion from '../../componentes/BotonAccion'
+import BotonesExportar from '../../componentes/BotonesExportar'
 import ModalAviso from '../../componentes/ModalAviso'
 import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
 import Paginacion from '../../componentes/Paginacion'
@@ -12,7 +19,13 @@ import ModalEliminarProducto from './ModalEliminarProducto'
 import ModalVerProducto from './ModalVerProducto'
 import ModalReactivarCategoria from './ModalReactivarCategoria'
 import ModalFiltros from './ModalFiltros'
-import { FILTROS_VACIOS, contarFiltros, parametrosDelListado, rangoDePrecios } from './filtros'
+import {
+  FILTROS_VACIOS,
+  contarFiltros,
+  parametrosDelListado,
+  parametrosParaExportar,
+  rangoDePrecios,
+} from './filtros'
 
 // Segundo import que cruza de funcionalidad, con el mismo criterio que el
 // modal de reactivar: el endpoint de categorías vive en su carpeta y ahí se
@@ -311,6 +324,8 @@ export default function Productos() {
   // Solo la primera carga, como en Pedidos.
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  // Cuántos productos irían al archivo exportado, o null mientras no se sabe.
+  const [cantidadParaExportar, setCantidadParaExportar] = useState(null)
   // Lo que se escribe en el buscador, y lo que se manda 300 ms después de
   // la última tecla (debounce).
   const [busqueda, setBusqueda] = useState('')
@@ -432,6 +447,28 @@ export default function Productos() {
     }
   }, [filtros, busquedaEnviada, sortBy, sortDir, pagina, porPagina, version])
 
+  // Cuántos productos irían al archivo exportado (corrección E10). Sin
+  // filtro de estado son más que los de la grilla, porque se suman los de
+  // la sección de bajas que cumplen los filtros: total no alcanza. Se pide
+  // una página de una sola fila, que trae el count. Con 0 se apagan PDF y
+  // Excel.
+  useEffect(() => {
+    let vigente = true
+    const parametros = parametrosParaExportar({ filtros, busqueda: busquedaEnviada, orden: { campo: null } })
+    parametros.append('pagina', 1)
+    parametros.append('por_pagina', 1)
+
+    listarProductos(parametros)
+      .then((res) => {
+        if (vigente) setCantidadParaExportar(res.data.count)
+      })
+      .catch(() => {})
+
+    return () => {
+      vigente = false
+    }
+  }, [filtros, busquedaEnviada, version])
+
   // La sección de abajo, entera y sin los filtros, como antes: con
   // estado=BAJA el backend devuelve los dados de baja y, además, todos los
   // que tienen una categoría de baja. Acá se separan en los dos bloques. Se
@@ -534,6 +571,12 @@ export default function Productos() {
   function quitarDe(campo, valor) {
     cambiarFiltros({ ...filtros, [campo]: filtros[campo].filter((v) => v !== valor) })
   }
+
+  // Lo que se exporta: los mismos filtros, la búsqueda ya enviada y el
+  // orden, sin página (corrección E10).
+  const parametrosExportar = parametrosParaExportar({
+    filtros, busqueda: busquedaEnviada, orden: { campo: sortBy, dir: sortDir },
+  })
 
   const chips = []
 
@@ -695,7 +738,10 @@ export default function Productos() {
               flexWrap: 'wrap',
             }}
           >
-            <div className="buscador" style={{ position: 'relative', width: 420 }}>
+            {/* 320 y no 420 como en los otros listados: esta barra lleva
+                además Ordenar y la vista, y con 420 no entraba en una
+                notebook de 1366. */}
+            <div className="buscador" style={{ position: 'relative', width: 320 }}>
               <svg
                 width="16"
                 height="16"
@@ -714,6 +760,7 @@ export default function Productos() {
                 placeholder="Buscar producto..."
                 style={{
                   width: '100%',
+                  height: 40,
                   padding: '8px 16px 8px 36px',
                   border: '1px solid #EBE0E2',
                   background: 'white',
@@ -725,17 +772,53 @@ export default function Productos() {
               />
             </div>
 
+            <select
+              className="orden-listado"
+              value={sortBy ? `${sortBy}:${sortDir}` : ''}
+              onChange={(e) => {
+                const valor = e.target.value
+                setPagina(1)
+                if (!valor) {
+                  setSortBy(null)
+                  return
+                }
+                const [campo, direccion] = valor.split(':')
+                setSortBy(campo)
+                setSortDir(direccion)
+              }}
+              title="Ordenar"
+              style={{
+                height: 40,
+                padding: '8px 12px',
+                border: '1px solid #EBE0E2',
+                background: 'white',
+                fontFamily: "'Quicksand', sans-serif",
+                fontWeight: 600,
+                fontSize: 15,
+                color: '#8C5A66',
+                borderRadius: 5,
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {ORDENES.map((o) => (
+                <option key={o.valor} value={o.valor}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+
             <button
               className="boton-filtros"
               onClick={() => setFiltrosAbierto(true)}
               style={{
-                marginLeft: 'auto',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
                 padding: '8px 12px',
                 minWidth: 130,
+                height: 40,
                 borderRadius: 5,
                 cursor: 'pointer',
                 fontFamily: "'Quicksand', sans-serif",
@@ -771,80 +854,58 @@ export default function Productos() {
               )}
             </button>
 
-            <select
-              value={sortBy ? `${sortBy}:${sortDir}` : ''}
-              onChange={(e) => {
-                const valor = e.target.value
-                setPagina(1)
-                if (!valor) {
-                  setSortBy(null)
-                  return
-                }
-                const [campo, direccion] = valor.split(':')
-                setSortBy(campo)
-                setSortDir(direccion)
-              }}
-              title="Ordenar"
-              style={{
-                padding: '8px 12px',
-                border: '1px solid #EBE0E2',
-                background: 'white',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-                color: '#8C5A66',
-                borderRadius: 5,
-                outline: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {ORDENES.map((o) => (
-                <option key={o.valor} value={o.valor}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                padding: 3,
-                background: 'white',
-                border: '1px solid #EBE0E2',
-                borderRadius: 6,
-              }}
-            >
-              {VISTAS.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => setVista(v.id)}
-                  title={v.title}
-                  style={{
-                    width: 34,
-                    height: 30,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: 0,
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    background: vista === v.id ? '#F0E2E4' : 'transparent',
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={vista === v.id ? '#8C5A66' : '#B08791'}
-                    strokeWidth="1.8"
+            {/* A la derecha, la vista y exportar. En pantalla chica bajan
+                juntos a un renglón propio (acciones-derecha en index.css). */}
+            <div className="acciones-derecha" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  height: 40,
+                  padding: 3,
+                  background: 'white',
+                  border: '1px solid #EBE0E2',
+                  borderRadius: 6,
+                }}
+              >
+                {VISTAS.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setVista(v.id)}
+                    title={v.title}
+                    style={{
+                      width: 34,
+                      height: 30,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: 0,
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      background: vista === v.id ? '#F0E2E4' : 'transparent',
+                    }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d={v.icono} />
-                  </svg>
-                </button>
-              ))}
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={vista === v.id ? '#8C5A66' : '#B08791'}
+                      strokeWidth="1.8"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d={v.icono} />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+
+              <BotonesExportar
+                urlPdf={urlExportarProductosPdf(parametrosExportar)}
+                pedirExcel={() => exportarProductosAExcel(parametrosExportar)}
+                deshabilitado={!cantidadParaExportar}
+                motivo="No hay productos para exportar"
+              />
             </div>
           </div>
 

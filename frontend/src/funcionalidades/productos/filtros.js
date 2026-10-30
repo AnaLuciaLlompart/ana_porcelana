@@ -31,16 +31,36 @@ export const FILTROS_VACIOS = {
 // Va en un URLSearchParams porque varios criterios se repiten
 // (?categoria=3&categoria=7).
 export function parametrosDelListado({ filtros, busqueda, orden, pagina, porPagina }) {
-  const parametros = new URLSearchParams()
+  const parametros = parametrosDeLosFiltros({ filtros, busqueda, orden })
 
   parametros.append('pagina', pagina)
   parametros.append('por_pagina', porPagina)
 
-  const texto = busqueda.trim()
-  if (texto) parametros.append('busqueda', texto)
-
   const estados = filtros.estados.length > 0 ? filtros.estados : ['ACTIVO']
   estados.forEach((estado) => parametros.append('estado', estado))
+
+  return parametros
+}
+
+
+// Los de la exportación (corrección E10): los mismos filtros, sin página, y
+// el estado solo si está elegido. Sin estado el backend devuelve todos,
+// los de la grilla y los de la sección de bajas, y eso es lo que va al
+// archivo.
+export function parametrosParaExportar({ filtros, busqueda, orden }) {
+  const parametros = parametrosDeLosFiltros({ filtros, busqueda, orden })
+  filtros.estados.forEach((estado) => parametros.append('estado', estado))
+  return parametros
+}
+
+
+// Lo que comparten las dos: la búsqueda, los filtros que no son el estado y
+// el orden.
+function parametrosDeLosFiltros({ filtros, busqueda, orden }) {
+  const parametros = new URLSearchParams()
+
+  const texto = busqueda.trim()
+  if (texto) parametros.append('busqueda', texto)
 
   filtros.categorias.forEach((id) => parametros.append('categoria', id))
   filtros.dificultades.forEach((valor) => parametros.append('dificultad', valor))

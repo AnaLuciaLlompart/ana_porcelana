@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { listarGastos, resumenDeGastos } from './api'
+import { exportarGastosAExcel, listarGastos, resumenDeGastos, urlExportarGastosPdf } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarGasto from './ModalEliminarGasto'
 import ModalVerGasto from './ModalVerGasto'
@@ -19,6 +19,7 @@ import {
 } from './presentacion'
 
 import BotonAccion from '../../componentes/BotonAccion'
+import BotonesExportar from '../../componentes/BotonesExportar'
 import ChipSinContenido from '../../componentes/ChipSinContenido'
 import ModalAviso from '../../componentes/ModalAviso'
 import Paginacion from '../../componentes/Paginacion'
@@ -562,6 +563,10 @@ export default function Gastos() {
     resumen = `${cantidad} ${cantidad === 1 ? 'gasto' : 'gastos'} · ${formatearPrecio(montoTotal)} en total`
   }
 
+  // Lo que se exporta es lo que muestra la tabla: los mismos filtros, la
+  // búsqueda ya enviada y el orden, sin página (corrección E10).
+  const parametrosExportar = parametrosDelListado({ filtros, busqueda: busquedaEnviada, orden })
+
   // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo.
   const chips = []
 
@@ -690,6 +695,7 @@ export default function Gastos() {
                 placeholder="Buscar por descripción, tipo o material..."
                 style={{
                   width: '100%',
+                  height: 40,
                   padding: '8px 16px 8px 36px',
                   border: '1px solid #EBE0E2',
                   background: 'white',
@@ -705,13 +711,13 @@ export default function Gastos() {
               className="boton-filtros"
               onClick={() => setFiltrosAbiertos(true)}
               style={{
-                marginLeft: 'auto',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
                 padding: '8px 12px',
                 minWidth: 130,
+                height: 40,
                 borderRadius: 5,
                 cursor: 'pointer',
                 fontFamily: "'Quicksand', sans-serif",
@@ -746,6 +752,18 @@ export default function Gastos() {
                 </span>
               )}
             </button>
+
+            {/* Filtros queda pegado al buscador; exportar, a la derecha. En
+                pantalla chica baja a un renglón propio (acciones-derecha en
+                index.css). */}
+            <div className="acciones-derecha" style={{ marginLeft: 'auto', display: 'flex' }}>
+              <BotonesExportar
+                urlPdf={urlExportarGastosPdf(parametrosExportar)}
+                pedirExcel={() => exportarGastosAExcel(parametrosExportar)}
+                deshabilitado={total === 0}
+                motivo="No hay gastos para exportar"
+              />
+            </div>
           </div>
 
           {chips.length > 0 && (

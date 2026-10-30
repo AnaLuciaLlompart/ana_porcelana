@@ -4,6 +4,8 @@ from decimal import Decimal
 
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth
+from django.http import FileResponse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -11,6 +13,7 @@ from rest_framework.response import Response
 from gastos.models import Gasto
 from pedidos.models import Cobro
 
+from .exportar import armar_excel_de_finanzas, armar_pdf_de_finanzas
 from .serializers import FinanzasDelPeriodoSerializer
 
 # Cuántos meses tiene el gráfico de evolución si el pedido no
@@ -106,47 +109,39 @@ def _totales_por_mes(queryset):
     return {fila['mes']: fila['total'] for fila in filas}
 
 
-@api_view(['GET'])
-def finanzas_del_periodo(request):
-    """CU61 - Visualizar gastos de un período de tiempo, y CU62 - Visualizar ingresos de un período de tiempo.
+def leer_periodo(parametros):
+    """Lee el período de la URL (CU61 y CU62). Devuelve ((desde, hasta, meses), None) o (None, mensaje).
 
-    Un solo endpoint, GET /api/finanzas/, que devuelve en un pedido todo
-    lo que la pantalla Finanzas necesita: los totales del período, los
-    desgloses, la evolución mensual y las dos listas. Los parámetros van
-    en la URL: desde y hasta (obligatorios, AAAA-MM-DD, inclusivos los
-    dos) y meses (opcional, cuántos meses tiene la evolución).
-
-    Es una función con @api_view y no un ViewSet porque no es un CRUD
-    sobre un modelo: es el mismo patrón que las vistas de usuarios.
-    Hereda IsAuthenticated de la configuración global de DRF, así que
-    exige sesión activa.
-
-    Los ingresos son los COBROS con fecha dentro del período, no el total
-    de los pedidos vendidos: es la plata que entró de verdad, que es lo
-    que se puede comparar contra los gastos.
-
-    Todas las sumas y los agrupados se hacen en la base con aggregate()
-    y annotate(). Son ocho consultas, siempre las mismas sin importar
-    cuántos cobros o gastos haya.
+    desde y hasta son obligatorios y meses, opcional. La usan las dos
+    vistas, la de la pantalla y la de exportar (corrección E10), así las dos
+    aceptan y rechazan exactamente lo mismo.
     """
-    desde, error = _leer_fecha(request.query_params.get('desde'), 'desde')
+    desde, error = _leer_fecha(parametros.get('desde'), 'desde')
     if error:
-        return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error
 
-    hasta, error = _leer_fecha(request.query_params.get('hasta'), 'hasta')
+    hasta, error = _leer_fecha(parametros.get('hasta'), 'hasta')
     if error:
-        return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error
 
     if desde > hasta:
-        return Response(
-            {'detail': 'La fecha desde no puede ser posterior a la fecha hasta.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return None, 'La fecha desde no puede ser posterior a la fecha hasta.'
 
-    meses, error = _leer_meses(request.query_params.get('meses'))
+    meses, error = _leer_meses(parametros.get('meses'))
     if error:
-        return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        return None, error
 
+    return (desde, hasta, meses), None
+
+
+def calcular_finanzas(desde, hasta, meses):
+    """Las cuentas del período (CU61 y CU62): totales, desgloses, evolución y las dos listas.
+
+    Devuelve el diccionario que FinanzasDelPeriodoSerializer convierte en
+    la respuesta de la pantalla. La exportación a PDF y Excel (corrección
+    E10) usa esta misma función: la pantalla y el archivo no pueden dar
+    números distintos porque salen de las mismas cuentas.
+    """
     # -----------------------------------------------------------------
     # Los movimientos del período
     # -----------------------------------------------------------------
@@ -252,4 +247,67 @@ def finanzas_del_periodo(request):
         'gastos': gastos,
     }
 
-    return Response(FinanzasDelPeriodoSerializer(datos).data)
+    return datos
+
+
+@api_view(['GET'])
+def finanzas_del_periodo(request):
+    """CU61 - Visualizar gastos de un período de tiempo, y CU62 - Visualizar ingresos de un período de tiempo.
+
+    Un solo endpoint, GET /api/finanzas/, que devuelve en un pedido todo
+    lo que la pantalla Finanzas necesita: los totales del período, los
+    desgloses, la evolución mensual y las dos listas. Los parámetros van
+    en la URL: desde y hasta (obligatorios, AAAA-MM-DD, inclusivos los
+    dos) y meses (opcional, cuántos meses tiene la evolución).
+
+    Es una función con @api_view y no un ViewSet porque no es un CRUD
+    sobre un modelo: es el mismo patrón que las vistas de usuarios.
+    Hereda IsAuthenticated de la configuración global de DRF, así que
+    exige sesión activa.
+
+    Los ingresos son los COBROS con fecha dentro del período, no el total
+    de los pedidos vendidos: es la plata que entró de verdad, que es lo
+    que se puede comparar contra los gastos.
+
+    Todas las sumas y los agrupados se hacen en la base con aggregate()
+    y annotate(). Son ocho consultas, siempre las mismas sin importar
+    cuántos cobros o gastos haya.
+    """
+    periodo, error = leer_periodo(request.query_params)
+    if error:
+        return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(FinanzasDelPeriodoSerializer(calcular_finanzas(*periodo)).data)
+
+
+#   GET /api/finanzas/exportar/?desde=…&hasta=…&meses=…&formato=pdf|excel
+
+@api_view(['GET'])
+def exportar_finanzas(request):
+    """El período de Finanzas en PDF o en Excel (CU61 y CU62, corrección E10).
+
+    Acepta los mismos parámetros que la pantalla, leídos por la misma
+    leer_periodo(), más formato. Las cuentas salen de calcular_finanzas(),
+    la misma función de la pantalla: el archivo no puede dar otros números.
+    El armado de los dos archivos está en exportar.py de esta app.
+
+    El PDF se muestra en la pestaña (inline) y el Excel se descarga
+    (attachment), como en los listados.
+    """
+    formato = request.query_params.get('formato')
+    if formato not in ('pdf', 'excel'):
+        return Response({'detail': 'El formato tiene que ser pdf o excel.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    periodo, error = leer_periodo(request.query_params)
+    if error:
+        return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+
+    desde, hasta, meses = periodo
+    datos = calcular_finanzas(desde, hasta, meses)
+    hoy = timezone.localdate()
+    nombre = f'finanzas-{desde.isoformat()}-a-{hasta.isoformat()}'
+
+    if formato == 'pdf':
+        return FileResponse(armar_pdf_de_finanzas(datos, desde, hasta, hoy), as_attachment=False, filename=f'{nombre}.pdf')
+
+    return FileResponse(armar_excel_de_finanzas(datos, desde, hasta, hoy), as_attachment=True, filename=f'{nombre}.xlsx')

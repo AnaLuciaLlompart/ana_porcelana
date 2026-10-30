@@ -1,4 +1,5 @@
 import cliente from '../../api/cliente'
+import { pedirExportacionExcel, urlDeExportacionPdf } from '../../api/exportar'
 
 // Una función por endpoint del backend.
 
@@ -45,6 +46,16 @@ export function modificarGasto(id, datos) {
 
 export function eliminarGasto(id) {
   return cliente.delete(`/gastos/${id}/`)
+}
+
+// El listado filtrado en PDF o Excel (corrección E10 del tutor, no un CU).
+// Lo que hacen está en api/exportar.js, común a los listados.
+export function urlExportarGastosPdf(parametros) {
+  return urlDeExportacionPdf('/gastos/', parametros)
+}
+
+export function exportarGastosAExcel(parametros) {
+  return pedirExportacionExcel('/gastos/', parametros)
 }
 
 

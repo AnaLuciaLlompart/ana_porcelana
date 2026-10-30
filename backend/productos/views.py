@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from categorias.models import Categoria
 from categorias.serializers import CategoriaSerializer
+from config.exportar import Columna, ExportarMixin, describir_rango
 from config.listados import leer_importe, ordenar
 from config.paginacion import PaginacionDeListado
 from materiales.models import Material
@@ -44,6 +45,20 @@ ORDENES = {
 TIPOS = {'personalizado': True, 'catalogo': False}
 
 
+def _catalogo_para_exportar(producto):
+    """El texto de la columna CATÁLOGO del listado, como estadoCatalogo()
+    de productos/presentacion.js en el frontend."""
+    if producto.estado != Producto.Estado.ACTIVO:
+        return 'Dado de baja'
+    if producto.es_personalizado:
+        return 'Personalizado'
+    if producto.visible_en_catalogo:
+        return 'En catálogo'
+    if producto.oculto_por_categoria:
+        return 'Categoría de baja'
+    return 'Sin publicar'
+
+
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
 # no están escritas acá: las hereda el ModelViewSet de DRF. La
 # correspondencia es esta, para no tener que deducirla:
@@ -56,7 +71,7 @@ TIPOS = {'personalizado': True, 'catalogo': False}
 # retrieve (GET /productos/{id}/) no implementa un CU propio: devuelve
 # la ficha que CU19 usa para cargar el formulario.
 
-class ProductoViewSet(viewsets.ModelViewSet):
+class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
     """CRUD de productos y sus relaciones (CU17 a CU35).
 
     Hereda IsAuthenticated de la configuración global de DRF, por lo
@@ -79,6 +94,19 @@ class ProductoViewSet(viewsets.ModelViewSet):
     # productos de un pedido y el alta de producto, que revisa que el
     # nombre no exista. Reemplaza al SearchFilter y al OrderingFilter.
     pagination_class = PaginacionDeListado
+
+    # Lo que necesita ExportarMixin para /exportar/ (corrección E10).
+    EXPORTAR_TITULO = 'Productos'
+    EXPORTAR_ARCHIVO = 'productos'
+    EXPORTAR_UNIDAD = ('producto', 'productos')
+    COLUMNAS_PARA_EXPORTAR = [
+        Columna('Producto', lambda p: p.nombre, 'texto', 16),
+        Columna('Precio', lambda p: p.precio_actual, 'plata', 7),
+        Columna('Dificultad', lambda p: p.get_dificultad_display(), 'texto', 7),
+        Columna('Categorías', lambda p: ', '.join(c.nombre for c in p.categorias.all()), 'texto', 20),
+        Columna('Catálogo', _catalogo_para_exportar, 'texto', 9),
+        Columna('Estado', lambda p: p.get_estado_display(), 'texto', 6),
+    ]
 
     # Los tres formatos en los que puede llegar el cuerpo de un pedido.
     # JSON es el de siempre; los otros dos hacen falta para subir
@@ -130,7 +158,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
         """
         queryset = Producto.objects.all()
 
-        if self.action == 'list':
+        # Exportar trae lo mismo que el listado, con los mismos filtros.
+        if self.action in ('list', 'exportar'):
             return self._filtrar(queryset.prefetch_related(
                 'categorias',
                 'materiales',
@@ -237,6 +266,59 @@ class ProductoViewSet(viewsets.ModelViewSet):
         )
         # Sin orden elegido queda el del modelo, por nombre.
         return ordenar(queryset, parametros, ORDENES, ['nombre', 'id'])
+
+    def describir_filtros(self, parametros):
+        """Los filtros de _filtrar() en palabras, para el PDF y el Excel (corrección E10).
+
+        Con los textos de los chips de la pantalla. No valida: exportar lo
+        llama después de get_queryset(), que ya rechazó lo que no se entiende.
+        """
+        filtros = []
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            filtros.append(f'Búsqueda: {texto}')
+
+        estados = parametros.getlist('estado')
+        if estados:
+            nombres = {Producto.Estado.ACTIVO: 'Activos', Producto.Estado.BAJA: 'Dados de baja'}
+            filtros.append('Estado: ' + ', '.join(nombres[estado] for estado in estados))
+
+        categorias = parametros.getlist('categoria')
+        if categorias:
+            nombres = Categoria.objects.filter(id__in=categorias).order_by('nombre').values_list('nombre', flat=True)
+            filtros.append('Categoría: ' + ', '.join(nombres))
+
+        dificultades = parametros.getlist('dificultad')
+        if dificultades:
+            filtros.append('Dificultad: ' + ', '.join(
+                Producto.Dificultad(valor).label.lower() for valor in dificultades
+            ))
+
+        tipos = parametros.getlist('tipo')
+        if tipos:
+            nombres = {'personalizado': 'Personalizado', 'catalogo': 'En catálogo'}
+            filtros.append('Tipo: ' + ', '.join(nombres[tipo] for tipo in tipos))
+
+        rango = describir_rango(
+            'Precio', leer_importe(parametros, 'precio_desde'), leer_importe(parametros, 'precio_hasta'),
+        )
+        if rango:
+            filtros.append(rango)
+
+        return filtros
+
+    def registros_para_exportar(self):
+        """Primero los de la grilla y después los de la sección de bajas, como en la pantalla.
+
+        La grilla muestra los activos sin categorías de baja; abajo van los
+        dados de baja y los que tienen una categoría de baja. sorted() no
+        cambia de lugar dos del mismo grupo: queda el orden elegido.
+        """
+        registros = super().registros_para_exportar()
+        return sorted(registros, key=lambda producto: not (
+            producto.estado == Producto.Estado.ACTIVO and not producto.categorias_de_baja
+        ))
 
     # -----------------------------------------------------------------
     # Los números del encabezado del listado

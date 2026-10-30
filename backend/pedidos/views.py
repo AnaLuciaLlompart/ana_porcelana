@@ -9,6 +9,8 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError
 from rest_framework.response import Response
 
+from clientes.models import Cliente
+from config.exportar import Columna, ExportarMixin, describir_rango
 from config.listados import leer_importe, ordenar
 from config.paginacion import PaginacionDeListado
 from inicio.views import DIAS_ENTREGAS_PROXIMAS
@@ -132,6 +134,13 @@ ORDENES = {
 }
 
 
+def _productos_para_exportar(pedido):
+    """"2 × Aros de Luna, 1 × Dije", desde lo que ya trajo el prefetch."""
+    return ', '.join(
+        f'{linea.cantidad} × {linea.producto.nombre}' for linea in pedido.productos.all()
+    )
+
+
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
 # no están escritas acá: las hereda el ModelViewSet de DRF. La
 # correspondencia es esta, para no tener que deducirla:
@@ -144,7 +153,7 @@ ORDENES = {
 # retrieve (GET /pedidos/{id}/) no implementa un CU propio: devuelve la
 # ficha que CU42 usa para cargar el formulario.
 
-class PedidoViewSet(viewsets.ModelViewSet):
+class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
     """CRUD de pedidos con sus productos, cobros y comprobante (CU40 a CU51 y CU60).
 
     Hereda IsAuthenticated de la configuración global de DRF, por lo que
@@ -155,13 +164,33 @@ class PedidoViewSet(viewsets.ModelViewSet):
     estado que deje al registro de solo lectura. Es la misma situación
     que Cliente. Un pedido entregado se sigue pudiendo corregir.
 
-    Además del CRUD expone cuatro cosas:
+    Además del CRUD expone cinco cosas:
 
     - cambiar_estado, que es parte de CU42
     - los productos del pedido, en /productos/ (CU44 a CU47)
     - los cobros del pedido, en /cobros/ (CU48 a CU51)
     - el comprobante de compra, en /comprobante/ (CU60)
+    - el listado filtrado en PDF o Excel, en /exportar/ (corrección E10),
+      que hereda de ExportarMixin
     """
+
+    # Lo que necesita ExportarMixin. Los importes salen de las anotaciones
+    # de con_totales(), las mismas que muestra el listado.
+    EXPORTAR_TITULO = 'Pedidos'
+    EXPORTAR_ARCHIVO = 'pedidos'
+    EXPORTAR_UNIDAD = ('pedido', 'pedidos')
+    COLUMNAS_PARA_EXPORTAR = [
+        Columna('N.º', lambda p: p.id, 'numero', 5),
+        Columna('Fecha', lambda p: p.fecha_pedido, 'fecha', 8),
+        Columna('Cliente', lambda p: f'@{p.cliente.instagram}', 'texto', 13),
+        Columna('Nombre', lambda p: f'{p.cliente.nombre} {p.cliente.apellido}'.strip(), 'texto', 11),
+        Columna('Productos', _productos_para_exportar, 'texto', 20),
+        Columna('Entrega estimada', lambda p: p.fecha_entrega_estimada, 'fecha', 11),
+        Columna('Estado', lambda p: p.get_estado_display(), 'texto', 9),
+        Columna('Total', lambda p: p.total_calculado, 'plata', 8),
+        Columna('Cobrado', lambda p: p.cobrado_calculado, 'plata', 8),
+        Columna('Saldo', lambda p: p.saldo_calculado, 'plata', 8),
+    ]
 
     # El listado se pagina (corrección D3): una página por pedido, con los
     # filtros y el orden resueltos en la base por _filtrar(). Reemplaza al
@@ -206,7 +235,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
         """
         queryset = Pedido.objects.select_related('cliente')
 
-        if self.action == 'list':
+        # Exportar trae lo mismo que el listado, con los mismos filtros.
+        if self.action in ('list', 'exportar'):
             queryset = Pedido.objects.con_totales().select_related('cliente')
             return self._filtrar(queryset.prefetch_related('productos__producto', 'cobros'))
 
@@ -311,6 +341,48 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
         # Sin orden elegido queda el del modelo: los más nuevos primero.
         return ordenar(queryset, parametros, ORDENES, ['-fecha_pedido', '-id'])
+
+    def describir_filtros(self, parametros):
+        """Los filtros de _filtrar() en palabras, para el PDF y el Excel (corrección E10).
+
+        Usa los mismos textos que los chips de la pantalla. No valida nada:
+        exportar lo llama después de get_queryset(), que ya rechazó con 400
+        cualquier valor que no se entienda.
+        """
+        filtros = []
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            filtros.append(f'Búsqueda: {texto}')
+
+        cliente = parametros.get('cliente')
+        if cliente:
+            instagram = Cliente.objects.filter(id=cliente).values_list('instagram', flat=True).first()
+            filtros.append(f'Cliente: @{instagram}' if instagram else f'Cliente: #{cliente}')
+
+        estados = parametros.getlist('estado')
+        if estados:
+            filtros.append('Estado: ' + ', '.join(Pedido.Estado(estado).label for estado in estados))
+
+        entrega = parametros.get('entrega')
+        if entrega == 'atrasados':
+            filtros.append('Entrega: atrasados')
+        if entrega == 'proximos':
+            filtros.append(f'Entrega: próximos {DIAS_ENTREGAS_PROXIMAS} días')
+
+        saldos = parametros.getlist('saldo')
+        if 'pendiente' in saldos:
+            filtros.append('Con saldo pendiente')
+        if 'al_dia' in saldos:
+            filtros.append('Saldo al día')
+
+        rango = describir_rango(
+            'Total', leer_importe(parametros, 'total_desde'), leer_importe(parametros, 'total_hasta'),
+        )
+        if rango:
+            filtros.append(rango)
+
+        return filtros
 
     # -----------------------------------------------------------------
     # Los números del encabezado del listado

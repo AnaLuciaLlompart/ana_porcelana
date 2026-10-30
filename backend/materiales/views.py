@@ -4,8 +4,10 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError
 from rest_framework.response import Response
 
+from config.exportar import Columna, ExportarMixin
 from config.listados import ordenar
 from config.paginacion import PaginacionDeListado
+from productos.models import Producto
 
 from .models import Material
 from .serializers import MaterialSerializer
@@ -22,7 +24,7 @@ ORDENES = {
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model, verifica permisos
 
-class MaterialViewSet(viewsets.ModelViewSet): # ModelViewSet es la clase que ya cuenta con las operaciones del CRUD: listar, ver uno, crear, modificar y eliminar
+class MaterialViewSet(ExportarMixin, viewsets.ModelViewSet): # ModelViewSet es la clase que ya cuenta con las operaciones del CRUD: listar, ver uno, crear, modificar y eliminar
     """CRUD de materiales (CU04 a CU10).
 
     Hereda IsAuthenticated de la configuración global de DRF, por lo
@@ -42,11 +44,23 @@ class MaterialViewSet(viewsets.ModelViewSet): # ModelViewSet es la clase que ya 
     # producto y de un gasto. Reemplaza al SearchFilter y al OrderingFilter.
     pagination_class = PaginacionDeListado
 
+    # Lo que necesita ExportarMixin para /exportar/ (corrección E10).
+    EXPORTAR_TITULO = 'Materiales'
+    EXPORTAR_ARCHIVO = 'materiales'
+    EXPORTAR_UNIDAD = ('material', 'materiales')
+    COLUMNAS_PARA_EXPORTAR = [
+        Columna('Material', lambda m: m.nombre, 'texto', 14),
+        Columna('Descripción', lambda m: m.descripcion, 'texto', 24),
+        Columna('Disponibilidad', lambda m: m.get_disponibilidad_display(), 'texto', 10),
+        Columna('Estado', lambda m: m.get_estado_display(), 'texto', 8),
+    ]
+
     def get_queryset(self):
         """En el listado, los filtros y el orden de la URL; en lo demás, sin filtrar."""
         queryset = super().get_queryset()
 
-        if self.action == 'list':
+        # Exportar trae lo mismo que el listado, con los mismos filtros.
+        if self.action in ('list', 'exportar'):
             return self._filtrar(queryset)
 
         return queryset
@@ -103,6 +117,44 @@ class MaterialViewSet(viewsets.ModelViewSet): # ModelViewSet es la clase que ya 
         )
         # Sin orden elegido queda el del modelo, por nombre.
         return ordenar(queryset, parametros, ORDENES, ['nombre', 'id'])
+
+    def describir_filtros(self, parametros):
+        """Los filtros de _filtrar() en palabras, para el PDF y el Excel (corrección E10).
+
+        Con los textos de los chips de la pantalla. No valida: exportar lo
+        llama después de get_queryset(), que ya rechazó lo que no se entiende.
+        """
+        filtros = []
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            filtros.append(f'Búsqueda: {texto}')
+
+        disponibilidades = parametros.getlist('disponibilidad')
+        if disponibilidades:
+            filtros.append('Disponibilidad: ' + ', '.join(
+                Material.Disponibilidad(valor).label for valor in disponibilidades
+            ))
+
+        estados = parametros.getlist('estado')
+        if estados:
+            filtros.append('Estado: ' + ', '.join(Material.Estado(valor).label for valor in estados))
+
+        producto = parametros.get('producto')
+        if producto:
+            nombre = Producto.objects.filter(id=producto).values_list('nombre', flat=True).first()
+            filtros.append(f'Aparece en «{nombre}»' if nombre else f'Aparece en el producto #{producto}')
+
+        return filtros
+
+    def registros_para_exportar(self):
+        """Los activos primero y los discontinuados después, como en la pantalla.
+
+        sorted() no cambia de lugar dos registros con la misma clave, así
+        que dentro de cada grupo queda el orden que eligió la pantalla.
+        """
+        registros = super().registros_para_exportar()
+        return sorted(registros, key=lambda material: material.estado != Material.Estado.ACTIVO)
 
 
     # ----------------------------------------------------------------

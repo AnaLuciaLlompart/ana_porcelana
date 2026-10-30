@@ -5,32 +5,32 @@ Una app sola: `python manage.py test <app>`. Cobertura: `coverage run
 manage.py test` y después `coverage report`.
 
 Las pruebas viven en el `tests.py` de cada app. Lo que comparten
-(`PruebaSinSesion`, `PruebaConSesion`, los ayudantes de imágenes) está
+(`PruebaSinSesion`, `PruebaConSesion`, los ayudantes de imágenes y los
+de leer una planilla exportada, `celdas_del_excel` y `TIPO_EXCEL`) está
 en `pruebas/base.py`, en esta misma app, que no es una funcionalidad
 sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**85 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
-10, `materiales` 10, `categorias` 4, `productos` 11, `clientes` 3,
-`pedidos` 15, `gastos` 10, `finanzas` 2, `inicio` 1, `pruebas` 5).
+**146 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
+16, `materiales` 18, `categorias` 5, `productos` 21, `clientes` 7,
+`pedidos` 30, `gastos` 20, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 39 |
-| permisos | 12 |
-| validación | 14 |
-| catálogo | 9 |
-| seguridad | 7 |
-| rendimiento | 4 |
+| reglas de negocio | 78 |
+| validación | 22 |
+| permisos | 17 |
+| catálogo | 13 |
+| rendimiento | 8 |
+| seguridad | 8 |
 
-**Cobertura: 82 %** del código del backend (1.792 sentencias, 324 sin
+**Cobertura: 89 %** del código del backend (2.588 sentencias, 283 sin
 ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye la app
 `pruebas` entera (las pruebas y los comandos), las migraciones,
-`manage.py`, los settings y los arranques asgi/wsgi (ver `.coveragerc`). Lo que más falta es el dibujo
-del PDF (`pedidos/comprobante.py`, 41 %) y las acciones de sub-recursos
-de `pedidos/views.py` y `productos/views.py` que no están en este
-listado (63 % cada uno).
+`manage.py`, los settings y los arranques asgi/wsgi (ver `.coveragerc`). Lo que más falta son las acciones de sub-recursos
+de `productos/views.py` (72 %) y `pedidos/views.py` (73 %) que no están
+en este listado.
 
 ## Listado
 
@@ -55,7 +55,14 @@ rendimiento.
 | usuarios | test_cambiar_contrasena_exige_la_actual_y_la_nueva_sirve_para_entrar | Con la actual incorrecta 400 con mensaje; con la correcta 200, la sesión sigue viva, la vieja ya no entra y la nueva sí | Modificar contraseña y update_session_auth_hash (CU03) | seguridad |
 | finanzas | test_desde_posterior_a_hasta_da_400 | GET con desde 2026-02-01 y hasta 2026-01-01 responde 400 con mensaje | Validación del período (CU61, CU62) | validación |
 | finanzas | test_los_totales_del_periodo_son_correctos | Un cobro de $4.000 y un gasto de $1.500 en marzo dan ingresos, gastos y resultado $2.500 con una fila de cada; un cobro de abril y un gasto de febrero quedan afuera | Ingresos = cobros del período; fecha__range inclusivo (CU61, CU62) | reglas de negocio |
+| finanzas | test_exportar_sin_sesion_da_403 | GET /api/finanzas/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (CU61, CU62, corrección E10) | permisos |
+| finanzas | test_sin_fechas_o_con_formato_invalido_da_400 | Sin desde responde 400 "Falta la fecha desde."; con formato=word, 400 "El formato tiene que ser pdf o excel."; con marzo y pdf, 200 | leer_periodo, la misma de la pantalla (corrección E10) | validación |
+| finanzas | test_el_pdf_se_muestra_y_el_excel_se_descarga | El PDF va inline con el nombre finanzas-2026-03-01-a-2026-03-31.pdf; el Excel, como attachment, con las hojas Resumen, Cobros y Gastos | exportar_finanzas (corrección E10) | reglas de negocio |
+| finanzas | test_los_totales_del_excel_son_los_de_la_pantalla | Ingresos, gastos y resultado ($4.200) de la hoja Resumen son los de GET /api/finanzas/ para marzo; Cobros y Gastos tienen una fila por movimiento del período | calcular_finanzas, la misma función de la pantalla (corrección E10) | reglas de negocio |
 | inicio | test_el_resumen_cuenta_pedidos_atrasados_y_materiales_en_baja | Un pedido sin entregar con fecha vencida y un material activo en Baja se cuentan; un Entregado vencido y un discontinuado en Baja no | Resumen de Inicio: atrasados y materiales por reponer | reglas de negocio |
+| inicio | test_las_entregas_vienen_de_a_8 | Con 10 pedidos sin entregar, la primera página trae 8 y el count dice 10; la segunda, 2 | /inicio/entregas/, paginada de a 8 (Inicio, corrección D2) | rendimiento |
+| inicio | test_las_piezas_van_de_la_etapa_mas_avanzada_y_se_filtran_por_etapa | El orden es Pintura-Barniz, Secado, Modelado, Pendiente; ?etapa= deja solo esa, y el resumen las cuenta por etapa | /inicio/en_produccion/ y el filtro por etapa (Inicio, corrección D2) | reglas de negocio |
+| inicio | test_una_etapa_terminada_o_inexistente_da_400 | ?etapa=TERMINADO responde 400 con mensaje: esas piezas no están en la tabla | Validación de la etapa (Inicio, corrección D2) | validación |
 | pruebas | test_una_foto_grande_se_achica_a_1600_y_pesa_menos | Un JPEG de 3000×2000 subido por POST /api/materiales/ queda guardado en 1600×1067, JPEG, .jpg, y pesa menos que el subido | Achicado al subir: LADO_MAXIMO y CALIDAD_JPEG en config/imagenes.py (CU04) | reglas de negocio |
 | pruebas | test_una_imagen_chica_conserva_sus_dimensiones | Un PNG de 800×600 se guarda de 800×600 | Achicar solo si el lado mayor supera 1600 (CU04) | validación |
 | pruebas | test_la_transparencia_se_conserva_en_png | Un PNG RGBA de 2000×2000 con alfa real queda en 1600×1600, PNG, RGBA y con píxeles transparentes | usa_transparencia mira los píxeles, no el modo (CU04) | reglas de negocio |
@@ -71,6 +78,12 @@ rendimiento.
 | catalogo | test_las_categorias_del_catalogo_son_solo_las_activas | /api/catalogo/categorias/ no incluye categorías de baja | CU64 | catálogo |
 | catalogo | test_detalle_no_visible_da_el_mismo_404_que_inexistente | El detalle de un producto de baja y el de un id inexistente devuelven el mismo status y el mismo cuerpo | El visitante no distingue un producto escondido de uno que no existe (CU65) | catálogo |
 | catalogo | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres productos, cada uno con categorías e imágenes, el listado hace 3 consultas | productos_del_catalogo(): productos, categorías e imágenes prefetcheadas | rendimiento |
+| catalogo | test_pagina_de_a_20 | Con 23 productos visibles, la primera página trae 20 y el count dice 23; la segunda, 3 | PaginacionDelCatalogo, de a 20 para "Cargar más" (CU63, corrección D3) | rendimiento |
+| catalogo | test_categorias_o_dentro_del_grupo_y_entre_grupos | Aros o Dijes, y además Harry Potter, deja solo los aros de Harry Potter | Filtro por categoría en la base: O dentro de un grupo, Y entre grupos (CU64, corrección D3) | catálogo |
+| catalogo | test_busca_sin_acentos_y_ordena_por_precio | "jose" encuentra "José" en la descripción; orden=precio-desc pone primero el más caro | Búsqueda sin acentos con TRANSLATE en la base, y ORDENES del catálogo (CU63, corrección D3) | catálogo |
+| catalogo | test_ids_trae_los_de_la_seleccion | ?ids= devuelve solo esos productos, y un id que no es visible no sale | La selección pide sus productos por id, dentro de los visibles (CU67, corrección D3) | catálogo |
+| catalogo | test_las_categorias_traen_cuantos_productos_visibles_tienen | La cantidad de cada categoría cuenta solo los productos visibles: uno de baja no suma | cantidad en ListaDeCategoriasView (CU64, corrección D3) | catálogo |
+| catalogo | test_un_orden_que_no_existe_da_400 | Un orden que no está en ORDENES responde 400 con mensaje; uno que existe pasa | Validación del orden del catálogo (CU63, corrección D3) | validación |
 | materiales | test_nombre_repetido_da_400 | POST con un nombre que ya existe responde 400 "Ya existe un material con este nombre." y no crea la fila; el PATCH del propio material con su nombre sigue dando 200 | nombre unique=True con mensaje propio (CU04, CU06) | validación |
 | materiales | test_editar_material_discontinuado_da_400 | PUT y PATCH sobre un material discontinuado responden 400 con mensaje y no cambian nada | Una entidad de baja queda de solo lectura (CU06, CU07) | reglas de negocio |
 | materiales | test_discontinuar_un_material_discontinuado_da_400 | POST discontinuar sobre uno ya discontinuado responde 400 con mensaje | Baja lógica (CU07) | reglas de negocio |
@@ -81,10 +94,19 @@ rendimiento.
 | materiales | test_un_archivo_que_no_es_imagen_da_400 | Un archivo con extensión .png que no es imagen responde 400 y no deja fila ni archivo | Pillow valida que sea una imagen real | validación |
 | materiales | test_una_imagen_de_mas_de_15_mb_da_400 | Un PNG válido de 16 MB responde 400 "La imagen pesa 16.0 MB y el máximo son 15 MB." | validar_tamano_archivo | validación |
 | materiales | test_una_bomba_de_descompresion_da_400 | Un PNG que declara 30.000 × 30.000 píxeles responde 400, no 500 | Pillow rechaza la bomba al abrir; ImageField la convierte en 400 | seguridad |
+| materiales | test_filtra_por_estado_disponibilidad_y_producto | Estado, disponibilidad y el producto que los usa dejan solo los que cumplen | _filtrar de MaterialViewSet (CU05, corrección D3) | reglas de negocio |
+| materiales | test_ordena_por_disponibilidad_en_su_orden_logico | orden=disponibilidad va de Alta a Baja, no alfabético | ORDENES de MaterialViewSet (CU05, corrección D3) | reglas de negocio |
+| materiales | test_sin_pagina_devuelve_todos_para_los_desplegables | Sin ?pagina= el listado devuelve la lista entera, activos y discontinuados | La paginación es opcional: los desplegables piden todo (CU05, corrección D3) | reglas de negocio |
+| materiales | test_una_disponibilidad_que_no_existe_da_400 | disponibilidad=NULA responde 400 "Una de las disponibilidades no existe."; una que existe pasa | _filtrar de MaterialViewSet (CU05, corrección D3) | validación |
+| materiales | test_exportar_sin_sesion_da_403 | GET /api/materiales/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (corrección E10) | permisos |
+| materiales | test_el_pdf_se_muestra_y_el_excel_se_descarga | formato=pdf responde application/pdf inline; formato=excel, el tipo de .xlsx como attachment | ExportarMixin (corrección E10) | reglas de negocio |
+| materiales | test_sin_filtros_van_los_activos_y_despues_los_discontinuados | Sin filtros salen los tres materiales: Barniz y Porcelana, y al final Acrílico viejo, discontinuado, aunque por nombre iría primero | registros_para_exportar de MaterialViewSet: el orden de la pantalla (corrección E10) | reglas de negocio |
+| materiales | test_exporta_las_mismas_filas_que_el_listado_filtrado | Con estado=ACTIVO y disponibilidad=BAJA, los nombres del Excel son los de la página del listado | Exportar reusa get_queryset y _filtrar del listado (corrección E10) | reglas de negocio |
 | categorias | test_nombre_repetido_da_400 | POST con un nombre que ya existe responde 400 "Ya existe una categoría con este nombre." y no crea la fila | nombre unique=True con mensaje propio (CU11) | validación |
 | categorias | test_editar_categoria_dada_de_baja_da_400 | PUT y PATCH sobre una categoría de baja responden 400 con mensaje y no cambian nada | Una entidad de baja queda de solo lectura (CU13, CU14) | reglas de negocio |
 | categorias | test_dar_de_baja_una_categoria_dada_de_baja_da_400 | POST dar_de_baja sobre una ya de baja responde 400 "La categoría ya está dada de baja." | Baja lógica (CU14) | reglas de negocio |
 | categorias | test_eliminar_una_categoria_no_elimina_sus_productos | Después del DELETE (204) la categoría no existe, el producto sigue sin categorías y aparece en el catálogo público | Eliminar una categoría borra solo las asociaciones (CU16) | reglas de negocio |
+| categorias | test_busca_por_nombre_o_descripcion_sin_paginar | ?busqueda= encuentra por nombre y por descripción, y la respuesta es la lista entera, sin páginas | Búsqueda de categorías en la base, sin paginar (CU12, corrección D3) | reglas de negocio |
 | productos | test_subir_imagen_sin_sesion_da_403_y_no_guarda_nada | POST /api/productos/<id>/imagenes/ sin sesión responde 403, sin ImagenProducto y sin archivo en media | Denegación por defecto (CU32) | permisos |
 | productos | test_nombre_repetido_da_400 | POST con un nombre que ya existe responde 400 "Ya existe un producto con este nombre." y no crea la fila; el PUT del propio producto con su nombre sigue dando 200 | nombre unique=True con mensaje propio (CU17, CU19) | validación |
 | productos | test_editar_producto_dado_de_baja_da_400 | PUT y PATCH sobre un producto de baja responden 400 con mensaje y no cambian nada | Una entidad de baja queda de solo lectura (CU19, CU20) | reglas de negocio |
@@ -96,9 +118,23 @@ rendimiento.
 | productos | test_la_cantidad_acepta_texto_libre | La cantidad "dos gotas" se guarda al asignar y "media plancha" al modificar | Cantidad en texto libre (CU28, CU30) | reglas de negocio |
 | productos | test_eliminar_producto_que_figura_en_un_pedido_da_400 | DELETE de un producto con ProductoDelPedido responde 400 "está en 1 pedido" y el producto sigue | Discontinuar ≠ eliminar; FK PROTECT explicada (CU22) | reglas de negocio |
 | productos | test_borrar_una_imagen_borra_el_archivo_de_media | Después del DELETE de la imagen no queda la fila ni el archivo en media | Señal post_delete de productos/apps.py (CU35) | reglas de negocio |
+| productos | test_la_grilla_deja_afuera_a_los_de_una_categoria_de_baja | estado=ACTIVO trae los activos sin categorías de baja; con BAJA, los de baja y los de una categoría de baja | La regla de la sección de bajas, en _filtrar (CU18, corrección D3) | reglas de negocio |
+| productos | test_sin_estado_devuelve_todos_para_los_desplegables | Sin ?pagina= ni ?estado= el listado devuelve los cuatro productos | Los desplegables y el alta piden todos (CU18, corrección D3) | reglas de negocio |
+| productos | test_filtra_por_categoria_tipo_y_precio | Categoría, tipo y rango de precio dejan solo los que cumplen | _filtrar de ProductoViewSet (CU18, corrección D3) | reglas de negocio |
+| productos | test_ordena_por_dificultad_en_su_orden_logico | orden=-dificultad pone primero la alta; orden=precio, el más barato | ORDENES de ProductoViewSet (CU18, corrección D3) | reglas de negocio |
+| productos | test_un_tipo_que_no_existe_da_400 | tipo=regalo responde 400 "El tipo tiene que ser personalizado o catalogo."; catalogo pasa | _filtrar de ProductoViewSet (CU18, corrección D3) | validación |
+| productos | test_el_resumen_cuenta_sobre_todos_los_productos | Activos en la grilla, los dos números de la sección de bajas, los visibles en el catálogo y el rango de precios | /productos/resumen/ (CU18, corrección D3) | reglas de negocio |
+| productos | test_exportar_sin_sesion_da_403 | GET /api/productos/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (corrección E10) | permisos |
+| productos | test_el_pdf_se_muestra_y_el_excel_se_descarga | formato=pdf responde application/pdf inline; formato=excel, el tipo de .xlsx como attachment | ExportarMixin (corrección E10) | reglas de negocio |
+| productos | test_sin_filtros_van_la_grilla_y_despues_la_seccion_de_bajas | Sin filtros salen los cuatro: Aros Luna (En catálogo) y Collar Sol (Personalizado), y después Aros Navidad (Categoría de baja) y Dije viejo (Dado de baja) | registros_para_exportar de ProductoViewSet y la columna CATÁLOGO del listado (corrección E10) | reglas de negocio |
+| productos | test_exporta_las_mismas_filas_que_el_listado_filtrado | Con estado=BAJA, los nombres del Excel son los de la página del listado: el de baja y el de la categoría de baja | Exportar reusa get_queryset y _filtrar del listado (corrección E10) | reglas de negocio |
 | clientes | test_instagram_repetido_con_distintas_mayusculas_da_400 | POST con ' @Sofi.Delgado' cuando existe 'sofi.delgado' responde 400 "Ya tenés un cliente con ese usuario." y no crea la fila | Instagram único y normalizado en to_internal_value (CU36) | validación |
 | clientes | test_el_instagram_se_guarda_normalizado | POST con ' @Sofi.Delgado ' guarda y devuelve 'sofi.delgado' | Normalización en Model.save() y en el serializer (CU36) | validación |
 | clientes | test_eliminar_cliente_con_pedidos_da_400 | DELETE de un cliente con un pedido responde 400 con el mensaje que no ofrece baja lógica, y el cliente sigue | FK PROTECT de Pedido explicada; Cliente no tiene baja lógica (CU39) | reglas de negocio |
+| clientes | test_las_cuentas_de_la_base_son_las_del_serializer | Pedidos, pedidos en curso y saldo calculados en la base dan lo mismo que el serializer | clientes_con_cuentas() (CU37, corrección D3) | reglas de negocio |
+| clientes | test_filtra_por_los_dos_chips_y_busca_con_arroba | con_saldo y en_curso dejan a quien corresponde; "@mica" encuentra a mica.luna | _filtrar de ClienteViewSet (CU37, corrección D3) | reglas de negocio |
+| clientes | test_ordena_por_ultimo_con_los_que_no_tienen_pedidos_al_final | orden=-ultimo pone primero el pedido más nuevo y al final al cliente sin pedidos | Orden por ÚLTIMO en la base (CU37, corrección D3) | reglas de negocio |
+| clientes | test_el_resumen_cuenta_sobre_todos_los_clientes | El total de clientes y los números de los dos chips, sin mirar los filtros | /clientes/resumen/ (CU37, corrección D3) | reglas de negocio |
 | pedidos | test_cambiar_el_precio_del_producto_no_altera_los_pedidos | Después de subir precio_actual del producto por PUT, el precio de la línea y el total del pedido siguen en $5.000 | Precio congelado al registrar el producto del pedido (CU44) | reglas de negocio |
 | pedidos | test_el_saldo_se_calcula_con_varios_cobros | Dos señas de $3.000 y $2.000 sobre $10.000 dan cobrado $5.000 y saldo $5.000; el pago restante deja saldo $0 y esta_al_dia | Propiedades cobrado y saldo de Pedido (CU48) | reglas de negocio |
 | pedidos | test_no_se_puede_cobrar_mas_que_el_total | Un cobro de $12.000 sobre $10.000 responde 400 con las tres cifras y no se registra | No se puede cobrar más que el total (CU48) | reglas de negocio |
@@ -113,7 +149,22 @@ rendimiento.
 | pedidos | test_comprobante_de_un_cobro_sin_sesion_da_403 | GET /api/pedidos/<id>/cobros/<cobro_id>/comprobante/ sin sesión responde 403 | Denegación por defecto (CU60) | permisos |
 | pedidos | test_el_listado_trae_el_cobro_mas_reciente | Sin cobros, ultimo_cobro es null; con dos, es el de fecha mayor aunque se haya cargado antes | ultimo_cobro de PedidoListaSerializer, para "Último comprobante" (CU60) | reglas de negocio |
 | pedidos | test_el_comprobante_de_un_cobro_ajeno_da_400 | Con el cobro de otro pedido responde 400 "Ese cobro no pertenece a este pedido."; con el propio, 200, application/pdf y el nombre comprobante-pedido-<id>-cobro-<cobro_id>.pdf | Un comprobante por cobro, buscado con _buscar_cobro (CU60) | reglas de negocio |
-| pedidos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres pedidos con productos y cobros, el listado hace 4 consultas (sin contar la sesión) | select_related y prefetch_related en PedidoViewSet.get_queryset (CU41) | rendimiento |
+| pedidos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres pedidos con productos y cobros, una página del listado hace 5 consultas (sin contar la sesión): el COUNT de la paginación y las 4 de siempre | select_related y prefetch_related en PedidoViewSet.get_queryset (CU41) | rendimiento |
+| pedidos | test_el_listado_viene_paginado | Con ?pagina= devuelve 12 de 13 y el count; con por_pagina=24, los 13; sin pagina, la lista entera | PaginacionDeListado, opcional (CU41, corrección D3) | rendimiento |
+| pedidos | test_el_total_y_el_saldo_de_la_base_son_los_de_las_propiedades | con_totales() da el mismo total y saldo que las propiedades, con y sin envío a cobrar | Pedido.objects.con_totales() (CU41, corrección D3) | reglas de negocio |
+| pedidos | test_filtra_por_saldo_y_por_total | saldo=pendiente deja el que debe y al_dia el que no; el rango de total incluye los extremos | _filtrar de PedidoViewSet (CU41, corrección D3) | reglas de negocio |
+| pedidos | test_filtra_por_entrega | atrasados y proximos dejan afuera a los entregados y a los que no tienen fecha | condicion_de_entrega(), la regla de Inicio escrita para la base (CU41, corrección D3) | reglas de negocio |
+| pedidos | test_busca_por_numero_cliente_y_producto | La búsqueda encuentra por número con o sin #, por instagram y por nombre de producto | _filtrar de PedidoViewSet (CU41, corrección D3) | reglas de negocio |
+| pedidos | test_ordena_por_saldo_y_por_estado | orden=-saldo pone primero al que más debe; orden=estado sigue el orden del trabajo | ORDENES de PedidoViewSet (CU41, corrección D3) | reglas de negocio |
+| pedidos | test_un_parametro_invalido_da_400 | Un estado o un orden que no existen responden 400 con mensaje; uno válido pasa | _filtrar y ordenar() de config/listados.py (CU41, corrección D3) | validación |
+| pedidos | test_el_resumen_cuenta_sobre_todos_los_pedidos | Activos, atrasados, con saldo y el total más alto, sin mirar los filtros | /pedidos/resumen/ (CU41, corrección D3) | reglas de negocio |
+| pedidos | test_exportar_sin_sesion_da_403 | GET /api/pedidos/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (corrección E10) | permisos |
+| pedidos | test_el_pdf_se_muestra_en_la_pestana | formato=pdf responde 200, application/pdf, Content-Disposition inline y un archivo que empieza con %PDF- | ExportarMixin: el PDF se abre en la pestaña (corrección E10) | reglas de negocio |
+| pedidos | test_el_excel_se_descarga | formato=excel responde 200, el tipo de .xlsx, Content-Disposition attachment y una fila por pedido | ExportarMixin: el Excel se descarga (corrección E10) | reglas de negocio |
+| pedidos | test_exporta_las_mismas_filas_que_el_listado_filtrado | Con estado, búsqueda y orden=-total, los ids del Excel son los de la página del listado y en el mismo orden; sin filtros, todos los pedidos | Exportar reusa get_queryset y _filtrar del listado (corrección E10) | reglas de negocio |
+| pedidos | test_los_titulos_de_las_columnas_quedan_pintados_y_fijos | En la planilla, los títulos van en la fila 5 con el fondo rosa; la 4 queda vacía y sin color, y freeze_panes es A6 | armar_excel escribe cada fila por su número (corrección E10) | reglas de negocio |
+| pedidos | test_un_formato_desconocido_da_400 | Sin formato y con formato=word responde 400 "El formato tiene que ser pdf o excel."; con pdf, 200 | ExportarMixin.exportar (corrección E10) | validación |
+| pedidos | test_un_texto_que_empieza_con_igual_sale_como_texto | Una clienta con nombre "=1+1" queda en la planilla con ese valor y data_type 's' (texto), no 'f' (fórmula) | Inyección de fórmulas: armar_excel escribe los textos como texto (corrección E10) | seguridad |
 | gastos | test_el_monto_es_la_suma_de_sus_filas_y_un_put_no_lo_pisa | Con 3 × $800 y 2 × $150 el monto es $2.700, en la respuesta y en la base; un PUT con monto 99999 lo deja en $2.700 y sí guarda la descripción | _recalcular_monto es la única puerta al monto; GastoSerializer.validate descarta el monto si es de materiales (CU54, CU56) | reglas de negocio |
 | gastos | test_un_gasto_de_materiales_no_puede_cambiar_de_tipo | PUT y PATCH con otro tipo responden 400 con mensaje y el gasto sigue siendo de materiales | GastoViewSet.update (CU54) | reglas de negocio |
 | gastos | test_publicidad_u_otro_con_monto_cero_o_negativo_da_400 | Publicidad u otro con monto 0 o negativo responden 400 en 'monto' y no crean la fila; con $500 se crea | GastoSerializer.validate: monto mayor a cero salvo materiales (CU52) | validación |
@@ -124,3 +175,13 @@ rendimiento.
 | gastos | test_modificar_y_quitar_un_material_recalculan_el_monto | 3 × $800 = $2.400; cantidad 5 → $4.000; precio $100 → $500; quitar la fila → $0, en la respuesta y en la base | _recalcular_monto desde modificar y quitar (CU58, CU59) | reglas de negocio |
 | gastos | test_marcar_alta_cambia_solo_los_activos_que_no_estaban_en_alta | Marcar todos: solo el activo en Baja pasa a Alta y figura en materiales_cambiados; el que ya estaba en Alta y el discontinuado se ignoran; de a uno sobre el que ya está en Alta devuelve lista vacía | _marcar_disponibilidad_alta (parte de CU58) | reglas de negocio |
 | gastos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres gastos de dos materiales cada uno, el listado hace 3 consultas (sin contar la sesión) | prefetch_related('materiales__material') en GastoViewSet (CU53) | rendimiento |
+| gastos | test_el_listado_viene_paginado | Con ?pagina= y 13 gastos, la página trae 12 y el count dice 13; sin pagina, la lista entera | PaginacionDeListado, opcional (CU53, corrección D3) | rendimiento |
+| gastos | test_filtra_por_tipo_periodo_y_monto | Tipo, período y rango de monto dejan solo los que cumplen, con los extremos incluidos | _filtrar de GastoViewSet (CU53, corrección D3) | reglas de negocio |
+| gastos | test_busca_por_material_y_por_tipo | La búsqueda encuentra por el nombre de un material comprado y por la etiqueta del tipo ("publi") | _filtrar de GastoViewSet (CU53, corrección D3) | reglas de negocio |
+| gastos | test_ordena_por_monto | orden=monto pone primero el más barato y orden=-monto el más caro | ordenar() de config/listados.py (CU53, corrección D3) | reglas de negocio |
+| gastos | test_una_fecha_mal_escrita_da_400 | fecha_desde=05/10/2026 responde 400 "fecha_desde tiene que ser una fecha AAAA-MM-DD."; 2026-10-05 pasa | leer_fecha de config/listados.py (CU53, corrección D3) | validación |
+| gastos | test_el_resumen_suma_lo_filtrado | Con tipo=PUBLICIDAD, cantidad 1 y monto total $1.500; el monto máximo, $6.000, sobre todos | /gastos/resumen/ (CU53, corrección D3) | reglas de negocio |
+| gastos | test_exportar_sin_sesion_da_403 | GET /api/gastos/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (corrección E10) | permisos |
+| gastos | test_el_pdf_se_muestra_y_el_excel_se_descarga | formato=pdf responde application/pdf inline; formato=excel, el tipo de .xlsx como attachment | ExportarMixin (corrección E10) | reglas de negocio |
+| gastos | test_exporta_las_mismas_filas_que_el_listado_filtrado | Con fecha_hasta y orden=-monto, los ids del Excel son los del listado y en su orden; Materiales dice "2 × Porcelana fría" o "Sin materiales", y el monto va como número | Exportar reusa get_queryset y _filtrar del listado (corrección E10) | reglas de negocio |
+| gastos | test_el_encabezado_dice_los_filtros | Con tipo, período y monto desde, el renglón de filtros es "Tipo: Publicidad · Fecha: 01/10/2026 – 31/10/2026 · Monto: desde $1.000" y la cantidad, "1 gasto" | describir_filtros de GastoViewSet y describir_rango (corrección E10) | reglas de negocio |

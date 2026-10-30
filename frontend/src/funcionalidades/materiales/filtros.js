@@ -25,14 +25,17 @@ export const FILTROS_VACIOS = {
 // vacía (con solo "Discontinuado" marcado, la de arriba no tiene nada que
 // pedir).
 export function parametrosDelListado({ filtros, busqueda, orden, estado, pagina, porPagina }) {
-  if (filtros.estados.length > 0 && !filtros.estados.includes(estado)) return null
+  if (estado && filtros.estados.length > 0 && !filtros.estados.includes(estado)) return null
 
   const parametros = new URLSearchParams()
 
   if (pagina) parametros.append('pagina', pagina)
   if (porPagina) parametros.append('por_pagina', porPagina)
 
-  parametros.append('estado', estado)
+  // Sin estado, los del filtro de la pantalla: es lo que pide la
+  // exportación, que lleva activos y discontinuados juntos (corrección E10).
+  if (estado) parametros.append('estado', estado)
+  else filtros.estados.forEach((valor) => parametros.append('estado', valor))
 
   const texto = busqueda.trim()
   if (texto) parametros.append('busqueda', texto)

@@ -6,4 +6,5 @@ from . import views
 # sola función. El prefijo /api/finanzas/ lo pone config/urls.py.
 urlpatterns = [
     path('', views.finanzas_del_periodo, name='finanzas'),
+    path('exportar/', views.exportar_finanzas, name='finanzas-exportar'),
 ]

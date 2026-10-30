@@ -8,7 +8,8 @@ from rest_framework.test import APIClient
 from categorias.models import Categoria
 from clientes.models import Cliente
 from pruebas.base import (
-    USUARIA, PruebaConSesion, PruebaSinSesion, imagen_png, media_temporal,
+    TIPO_EXCEL, USUARIA, PruebaConSesion, PruebaSinSesion, celdas_del_excel,
+    imagen_png, media_temporal,
 )
 from materiales.models import Material
 from pedidos.models import Pedido, ProductoDelPedido
@@ -316,3 +317,68 @@ class ListadoEnLaBase(PruebaConSesion):
             'activos': 2, 'de_baja': 1, 'por_categoria': 1, 'visibles_en_catalogo': 1,
             'precio_minimo': '1000.00', 'precio_maximo': '9000.00',
         })
+
+
+EXPORTAR = f'{LISTA}exportar/'
+
+
+class ExportarSinSesion(PruebaSinSesion):
+    """Exportar es un endpoint de gestión (corrección E10)."""
+
+    def test_exportar_sin_sesion_da_403(self):
+        """E10: GET /api/productos/exportar/ sin sesión responde 403, en PDF y en Excel."""
+        for formato in ('pdf', 'excel'):
+            respuesta = self.client.get(EXPORTAR, {'formato': formato})
+            self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ExportarProductos(PruebaConSesion):
+    """El listado filtrado se exporta a PDF y a Excel (corrección E10).
+
+    Los mismos cuatro productos que ListadoEnLaBase: dos en la grilla, uno
+    de baja y uno activo con una categoría de baja.
+    """
+
+    def setUp(self):
+        super().setUp()
+        vieja = Categoria.objects.create(
+            nombre='Navidad', tipo=Categoria.Tipo.TEMATICA, estado=Categoria.Estado.BAJA,
+        )
+        crear_producto('Aros Luna', precio_actual='3000.00')
+        crear_producto('Collar Sol', precio_actual='9000.00', es_personalizado=True)
+        crear_producto('Dije viejo', precio_actual='1000.00', estado=Producto.Estado.BAJA)
+        crear_producto('Aros Navidad', precio_actual='4000.00').categorias.add(vieja)
+
+    def filas_del_excel(self, parametros):
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel', **parametros})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        return [[celda.value for celda in fila] for fila in celdas_del_excel(respuesta, 'Producto')]
+
+    def test_el_pdf_se_muestra_y_el_excel_se_descarga(self):
+        """E10: el PDF va inline como application/pdf; el Excel, como adjunto .xlsx."""
+        respuesta = self.client.get(EXPORTAR, {'formato': 'pdf'})
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertTrue(respuesta['Content-Disposition'].startswith('inline'))
+
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel'})
+        self.assertEqual(respuesta['Content-Type'], TIPO_EXCEL)
+        self.assertTrue(respuesta['Content-Disposition'].startswith('attachment'))
+
+    def test_sin_filtros_van_la_grilla_y_despues_la_seccion_de_bajas(self):
+        """E10: sin filtros salen los cuatro, primero los de la grilla y después los de baja y el de la categoría de baja."""
+        filas = self.filas_del_excel({})
+        # La columna 0 es el nombre y la 4, la de CATÁLOGO del listado.
+        self.assertEqual([(fila[0], fila[4]) for fila in filas], [
+            ('Aros Luna', 'En catálogo'),
+            ('Collar Sol', 'Personalizado'),
+            ('Aros Navidad', 'Categoría de baja'),
+            ('Dije viejo', 'Dado de baja'),
+        ])
+
+    def test_exporta_las_mismas_filas_que_el_listado_filtrado(self):
+        """E10: con estado=BAJA, los productos del Excel son los de la página del listado."""
+        listado = self.client.get(LISTA, {'pagina': 1, 'estado': 'BAJA'})
+        nombres_del_listado = [producto['nombre'] for producto in listado.data['results']]
+
+        self.assertEqual([fila[0] for fila in self.filas_del_excel({'estado': 'BAJA'})], nombres_del_listado)
+        self.assertEqual(nombres_del_listado, ['Aros Navidad', 'Dije viejo'])

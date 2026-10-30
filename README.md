@@ -119,6 +119,8 @@ distinguir quién pregunta.
 | Django REST Framework | Capa que expone los modelos como API. Traduce a JSON y valida las peticiones entrantes |
 | PostgreSQL 17 | Base de datos relacional |
 | Pillow | Tratamiento de imágenes. Verifica que los archivos subidos sean imágenes reales y las achica a un tamaño razonable |
+| ReportLab | Arma los PDF: el comprobante de pago y las exportaciones |
+| openpyxl | Arma las planillas de Excel de las exportaciones |
 | django-axes | Bloqueo temporal tras varios intentos de login fallidos |
 | gunicorn | Servidor de aplicación para producción. Atiende las peticiones con varios procesos en paralelo |
 
@@ -156,6 +158,9 @@ ana_porcelana/
 │   │   ├── imagenes.py          achica las fotos al subirlas (lado máximo 1.600 px)
 │   │   ├── ip.py                IP real del visitante detrás del proxy inverso
 │   │   ├── limpieza_archivos.py señales que borran archivos del disco
+│   │   ├── paginacion.py        paginación de los listados
+│   │   ├── listados.py          lo que comparten los filtros de los listados
+│   │   ├── exportar.py          exportar los listados a PDF y Excel
 │   │   ├── wsgi.py · asgi.py    puntos de entrada para producción
 │   ├── usuarios/                modelo de usuario y autenticación
 │   ├── materiales/
@@ -169,8 +174,8 @@ ana_porcelana/
 │   ├── catalogo/                catálogo público: tres endpoints de lectura sin sesión; sin modelos propios
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
-│   │   ├── tests.py             las 5 generales; las otras 75, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 80 y cómo correrlas
+│   │   ├── tests.py             las 5 generales; las otras 141, en el tests.py de cada app
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 146 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -200,6 +205,7 @@ ana_porcelana/
 │   │   └── elegir-config.sh     elige http o https según exista el certificado
 │   └── src/
 │       ├── api/cliente.js       cliente HTTP compartido
+│       ├── api/exportar.js      lo común de exportar a PDF y Excel
 │       ├── contexto/            estado de sesión compartido
 │       ├── componentes/         navegación y elementos compartidos
 │       │   ├── BarraDePasos.jsx · PieDelRecorrido.jsx  los pasos y los botones del alta

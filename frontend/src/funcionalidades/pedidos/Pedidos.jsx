@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   cambiarEstadoPedido,
+  exportarPedidosAExcel,
   listarPedidos,
   obtenerPedido,
   resumenDePedidos,
   urlComprobanteDeCobro,
+  urlExportarPedidosPdf,
 } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
@@ -44,6 +46,7 @@ import {
 import { listarClientes } from '../clientes/api'
 
 import BotonAccion from '../../componentes/BotonAccion'
+import BotonesExportar from '../../componentes/BotonesExportar'
 import MenuMasAcciones from '../../componentes/MenuMasAcciones'
 import Paginacion from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
@@ -784,6 +787,10 @@ export default function Pedidos() {
       (conSaldo ? ` · ${conSaldo} con saldo pendiente` : '')
   }
 
+  // Lo que se exporta es lo que muestra la tabla: los mismos filtros, la
+  // búsqueda ya enviada y el orden, sin página (corrección E10).
+  const parametrosExportar = parametrosDelListado({ filtros, busqueda: busquedaEnviada, orden })
+
   // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo.
   const chips = []
 
@@ -928,6 +935,7 @@ export default function Pedidos() {
                 placeholder="Buscar por cliente, número o producto..."
                 style={{
                   width: '100%',
+                  height: 40,
                   padding: '8px 16px 8px 36px',
                   border: '1px solid #EBE0E2',
                   background: 'white',
@@ -943,13 +951,13 @@ export default function Pedidos() {
               className="boton-filtros"
               onClick={abrirFiltros}
               style={{
-                marginLeft: 'auto',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
                 padding: '8px 12px',
                 minWidth: 130,
+                height: 40,
                 borderRadius: 5,
                 cursor: 'pointer',
                 fontFamily: "'Quicksand', sans-serif",
@@ -984,6 +992,18 @@ export default function Pedidos() {
                 </span>
               )}
             </button>
+
+            {/* Filtros queda pegado al buscador; exportar, a la derecha. En
+                pantalla chica baja a un renglón propio (acciones-derecha en
+                index.css). */}
+            <div className="acciones-derecha" style={{ marginLeft: 'auto', display: 'flex' }}>
+              <BotonesExportar
+                urlPdf={urlExportarPedidosPdf(parametrosExportar)}
+                pedirExcel={() => exportarPedidosAExcel(parametrosExportar)}
+                deshabilitado={total === 0}
+                motivo="No hay pedidos para exportar"
+              />
+            </div>
           </div>
 
           {chips.length > 0 && (

@@ -132,6 +132,26 @@ button:not(:disabled):hover {
     flex: 1;
   }
 
+  /* Productos: Ordenar comparte el renglón con Filtros, por mitades.
+     min-width 0 porque un select no se achica, por defecto, por debajo de
+     su opción más larga, y no entrarían los dos. */
+  .orden-listado {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Lo que va a la derecha de la barra (la vista, PDF y Excel) baja a un
+     renglón propio, a todo el ancho, y PDF y Excel se estiran a llenarlo. */
+  .acciones-derecha {
+    flex-basis: 100%;
+    margin-left: 0 !important;
+  }
+
+  .botones-exportar,
+  .botones-exportar > button {
+    flex: 1;
+  }
+
   /* Productos: el enlace al catálogo y el botón de alta bajan a un renglón
      cada uno, a todo el ancho. Es > * y no > button porque uno es un <a>. */
   .acciones-encabezado {

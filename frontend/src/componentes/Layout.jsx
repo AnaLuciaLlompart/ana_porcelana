@@ -37,7 +37,7 @@ function Item({ icon, label, activo, expandida, onClick, title }) {
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        height: 46,
+        height: 42,
         padding: '0 10px',
         borderRadius: 6,
         border: 0,
@@ -47,7 +47,7 @@ function Item({ icon, label, activo, expandida, onClick, title }) {
         justifyContent: expandida ? 'flex-start' : 'center',
       }}
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
            stroke={color} strokeWidth="1.8" style={{ flexShrink: 0 }}>
         <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
       </svg>
@@ -55,7 +55,7 @@ function Item({ icon, label, activo, expandida, onClick, title }) {
         <span style={{
           fontFamily: "'Quicksand', sans-serif",
           fontWeight: 600,
-          fontSize: 17,
+          fontSize: 15,
           whiteSpace: 'nowrap',
           color,
         }}>

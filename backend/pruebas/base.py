@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
+from openpyxl import load_workbook
 from PIL import Image
 from rest_framework.test import APITestCase
 
@@ -49,6 +50,26 @@ class PruebaConSesion(PruebaSinSesion):
             USUARIA, password=CONTRASENA,
         )
         self.client.force_login(self.usuaria)
+
+
+# ---------------------------------------------------------------------
+# Exportar a Excel (corrección E10)
+# ---------------------------------------------------------------------
+
+TIPO_EXCEL = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+
+def celdas_del_excel(respuesta, primera_columna):
+    """Las filas de datos de la planilla exportada, como celdas.
+
+    Son las que van debajo del encabezado de las columnas, que es la fila
+    cuya primera celda dice primera_columna ('N.º' en Pedidos, 'Material'
+    en Materiales). Las de arriba son el título, la fecha y los filtros.
+    """
+    hoja = load_workbook(BytesIO(b''.join(respuesta.streaming_content))).active
+    filas = list(hoja.iter_rows())
+    encabezado = [fila[0].value for fila in filas].index(primera_columna)
+    return filas[encabezado + 1:]
 
 
 # ---------------------------------------------------------------------

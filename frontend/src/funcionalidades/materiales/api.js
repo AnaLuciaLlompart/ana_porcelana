@@ -1,4 +1,5 @@
 import cliente from '../../api/cliente'
+import { pedirExportacionExcel, urlDeExportacionPdf } from '../../api/exportar'
 
 export function listarMateriales(params = {}) {
   return cliente.get('/materiales/', { params })
@@ -60,4 +61,14 @@ export function reactivarMaterial(id) {
 // Alta": le devuelve a cada material la disponibilidad que tenía antes.
 export function cambiarDisponibilidad(id, disponibilidad) {
   return cliente.patch(`/materiales/${id}/`, { disponibilidad })
+}
+
+// El listado filtrado en PDF o Excel (corrección E10 del tutor, no un CU).
+// Lo que hacen está en api/exportar.js, común a los listados.
+export function urlExportarMaterialesPdf(parametros) {
+  return urlDeExportacionPdf('/materiales/', parametros)
+}
+
+export function exportarMaterialesAExcel(parametros) {
+  return pedirExportacionExcel('/materiales/', parametros)
 }

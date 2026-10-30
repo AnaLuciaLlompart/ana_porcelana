@@ -1,4 +1,5 @@
 import cliente from '../../api/cliente'
+import { pedirExportacionExcel, urlDeExportacionPdf } from '../../api/exportar'
 
 // Una función por endpoint del backend.
 
@@ -69,6 +70,16 @@ export function urlComprobante(id) {
 // El de un solo cobro, por el mismo camino: una dirección para abrir.
 export function urlComprobanteDeCobro(id, cobroId) {
   return `/api/pedidos/${id}/cobros/${cobroId}/comprobante/`
+}
+
+// El listado filtrado en PDF o Excel (corrección E10 del tutor, no un CU).
+// Lo que hacen está en api/exportar.js, común a los listados.
+export function urlExportarPedidosPdf(parametros) {
+  return urlDeExportacionPdf('/pedidos/', parametros)
+}
+
+export function exportarPedidosAExcel(parametros) {
+  return pedirExportacionExcel('/pedidos/', parametros)
 }
 
 

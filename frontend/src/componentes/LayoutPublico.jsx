@@ -223,7 +223,7 @@ export default function LayoutPublico() {
   // Las categorías se cargan UNA vez, acá, y no en cada pantalla: el
   // listado, el árbol del encabezado y el pie usan la misma lista, que trae
   // la cantidad de productos de cada una. Los productos del listado los pide
-  // el listado, de a 16 (corrección D3).
+  // el listado, de a 20 (corrección D3).
   useEffect(() => {
     listarCategoriasDelCatalogo()
       .then((res) => setCategorias(res.data))

@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ParseError
 from rest_framework.response import Response
 
+from config.exportar import Columna, ExportarMixin, describir_rango, escribir_fecha
 from config.listados import leer_fecha, leer_importe, ordenar
 from config.paginacion import PaginacionDeListado
 from materiales.models import Material
@@ -33,6 +34,17 @@ ORDENES = {
 }
 
 
+def _materiales_para_exportar(gasto):
+    """"3 × Porcelana, 1 × Barniz", desde lo que ya trajo el prefetch. Un gasto
+    de materiales sin filas dice "Sin materiales", como el chip del listado."""
+    if gasto.tipo != Gasto.Tipo.MATERIALES:
+        return ''
+    filas = gasto.materiales.all()
+    if not filas:
+        return 'Sin materiales'
+    return ', '.join(f'{fila.cantidad} × {fila.material.nombre}' for fila in filas)
+
+
 # Las cuatro operaciones del CRUD no llevan docstring con su CU porque
 # no están escritas acá: las hereda el ModelViewSet de DRF. La
 # correspondencia es esta, para no tener que deducirla:
@@ -45,7 +57,7 @@ ORDENES = {
 # retrieve (GET /gastos/{id}/) no implementa un CU propio: devuelve la
 # ficha que CU54 usa para cargar el formulario.
 
-class GastoViewSet(viewsets.ModelViewSet):
+class GastoViewSet(ExportarMixin, viewsets.ModelViewSet):
     """CRUD de gastos y de los materiales que los componen (CU52 a CU59).
 
     Hereda IsAuthenticated de la configuración global de DRF, por lo que
@@ -75,11 +87,25 @@ class GastoViewSet(viewsets.ModelViewSet):
     # SearchFilter y al OrderingFilter de DRF.
     pagination_class = PaginacionDeListado
 
+    # Lo que necesita ExportarMixin para /exportar/ (corrección E10).
+    EXPORTAR_TITULO = 'Gastos'
+    EXPORTAR_ARCHIVO = 'gastos'
+    EXPORTAR_UNIDAD = ('gasto', 'gastos')
+    COLUMNAS_PARA_EXPORTAR = [
+        Columna('N.º', lambda g: g.id, 'numero', 5),
+        Columna('Fecha', lambda g: g.fecha, 'fecha', 8),
+        Columna('Tipo', lambda g: g.get_tipo_display(), 'texto', 9),
+        Columna('Descripción', lambda g: g.descripcion, 'texto', 24),
+        Columna('Materiales', _materiales_para_exportar, 'texto', 24),
+        Columna('Monto', lambda g: g.monto, 'plata', 9),
+    ]
+
     def get_queryset(self):
         """En el listado, los filtros y el orden de la URL; en lo demás, sin filtrar."""
         queryset = super().get_queryset()
 
-        if self.action == 'list':
+        # Exportar trae lo mismo que el listado, con los mismos filtros.
+        if self.action in ('list', 'exportar'):
             return self._filtrar(queryset)
 
         return queryset
@@ -153,6 +179,35 @@ class GastoViewSet(viewsets.ModelViewSet):
         )
         # Sin orden elegido queda el del modelo: los más nuevos primero.
         return ordenar(queryset, parametros, ORDENES, ['-fecha', '-id'])
+
+    def describir_filtros(self, parametros):
+        """Los filtros de _filtrar() en palabras, para el PDF y el Excel (corrección E10).
+
+        Con los textos de los chips de la pantalla. No valida: exportar lo
+        llama después de get_queryset(), que ya rechazó lo que no se entiende.
+        """
+        filtros = []
+
+        texto = parametros.get('busqueda', '').strip()
+        if texto:
+            filtros.append(f'Búsqueda: {texto}')
+
+        tipos = parametros.getlist('tipo')
+        if tipos:
+            filtros.append('Tipo: ' + ', '.join(Gasto.Tipo(tipo).label for tipo in tipos))
+
+        rangos = [
+            describir_rango(
+                'Fecha', leer_fecha(parametros, 'fecha_desde'), leer_fecha(parametros, 'fecha_hasta'),
+                escribir=escribir_fecha,
+            ),
+            describir_rango(
+                'Monto', leer_importe(parametros, 'monto_desde'), leer_importe(parametros, 'monto_hasta'),
+            ),
+        ]
+        filtros += [rango for rango in rangos if rango]
+
+        return filtros
 
     @action(detail=False, methods=['get'])
     def resumen(self, request):

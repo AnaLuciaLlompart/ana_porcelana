@@ -74,8 +74,9 @@ export const FILTROS_VACIOS = {
 export function parametrosDelListado({ filtros, busqueda, orden, pagina, porPagina }) {
   const parametros = new URLSearchParams()
 
-  parametros.append('pagina', pagina)
-  parametros.append('por_pagina', porPagina)
+  // Sin página viajan todos: es lo que pide la exportación (corrección E10).
+  if (pagina !== undefined) parametros.append('pagina', pagina)
+  if (porPagina !== undefined) parametros.append('por_pagina', porPagina)
 
   const texto = busqueda.trim()
   if (texto) parametros.append('busqueda', texto)

@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { listarMateriales, reactivarMaterial } from './api'
+import {
+  exportarMaterialesAExcel,
+  listarMateriales,
+  reactivarMaterial,
+  urlExportarMaterialesPdf,
+} from './api'
 import ModalMaterial from './ModalMaterial'
 import ModalVerMaterial from './ModalVerMaterial'
 import ModalDiscontinuarMaterial from './ModalDiscontinuarMaterial'
@@ -14,6 +19,7 @@ import { FILTROS_VACIOS, contarFiltros, parametrosDelListado } from './filtros'
 import { listarProductos } from '../productos/api'
 
 import BotonAccion from '../../componentes/BotonAccion'
+import BotonesExportar from '../../componentes/BotonesExportar'
 import ModalAviso from '../../componentes/ModalAviso'
 import Paginacion from '../../componentes/Paginacion'
 
@@ -521,6 +527,11 @@ const FILAS_VISIBLES = 4
 const ALTO_FILA = 58
 
 function AvisoReponer({ materiales, onReponer }) {
+  // El encabezado abre y cierra la lista, para ahorrar lugar. Arranca
+  // abierta. useState va antes del return: un hook no puede quedar
+  // salteado según lo que llegue.
+  const [abierto, setAbierto] = useState(true)
+
   if (materiales.length === 0) return null
 
   const titulo =
@@ -538,13 +549,20 @@ function AvisoReponer({ materiales, onReponer }) {
         overflow: 'hidden',
       }}
     >
-      <div
+      <button
+        onClick={() => setAbierto((a) => !a)}
+        aria-expanded={abierto}
+        title={abierto ? 'Esconder la lista' : 'Mostrar la lista'}
         style={{
+          width: '100%',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           padding: '12px 18px',
+          border: 0,
           background: '#FAEAE8',
+          cursor: 'pointer',
+          textAlign: 'left',
         }}
       >
         <svg
@@ -573,8 +591,27 @@ function AvisoReponer({ materiales, onReponer }) {
         >
           {titulo}
         </span>
-      </div>
 
+        {/* La flechita apunta hacia arriba abierta y hacia abajo cerrada. */}
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#C0442F"
+          strokeWidth="2"
+          style={{
+            marginLeft: 'auto',
+            flexShrink: 0,
+            transform: abierto ? 'rotate(180deg)' : 'none',
+            transition: 'transform .2s',
+          }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {abierto && (
       <div style={{ maxHeight: FILAS_VISIBLES * ALTO_FILA, overflowY: 'auto' }}>
       {materiales.map((m) => (
         <div
@@ -628,6 +665,7 @@ function AvisoReponer({ materiales, onReponer }) {
         </div>
       ))}
       </div>
+      )}
     </div>
   )
 }
@@ -830,6 +868,11 @@ export default function Materiales() {
     },
   }
 
+  // Lo que se exporta es lo que muestra la pantalla, activos y
+  // discontinuados juntos: los mismos filtros, la búsqueda ya enviada y el
+  // orden, sin página (corrección E10).
+  const parametrosExportar = parametrosDelListado({ filtros, busqueda: busquedaEnviada, orden })
+
   // Los chips de filtros activos. Cada uno sabe cómo quitarse a sí mismo.
   const chips = []
 
@@ -962,6 +1005,7 @@ export default function Materiales() {
             placeholder="Buscar material..."
             style={{
               width: '100%',
+              height: 40,
               padding: '8px 16px 8px 36px',
               border: '1px solid #EBE0E2',
               background: 'white',
@@ -977,13 +1021,13 @@ export default function Materiales() {
           className="boton-filtros"
           onClick={abrirFiltros}
           style={{
-            marginLeft: 'auto',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
             padding: '8px 12px',
             minWidth: 130,
+            height: 40,
             borderRadius: 5,
             cursor: 'pointer',
             fontFamily: "'Quicksand', sans-serif",
@@ -1023,43 +1067,56 @@ export default function Materiales() {
           )}
         </button>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            padding: 3,
-            background: 'white',
-            border: '1px solid #EBE0E2',
-            borderRadius: 6,
-          }}
-        >
-          {[
-            { id: 'lista', titulo: 'Ver como lista', icono: ICONO_LISTA },
-            { id: 'grid', titulo: 'Ver como tarjetas', icono: ICONO_GRID },
-          ].map((v) => (
-            <button
-              key={v.id}
-              onClick={() => setVista(v.id)}
-              title={v.titulo}
-              style={{
-                width: 34,
-                height: 30,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: 0,
-                borderRadius: 4,
-                cursor: 'pointer',
-                background: vista === v.id ? '#F0E2E4' : 'transparent',
-                color: vista === v.id ? '#8C5A66' : '#B08791',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d={v.icono} />
-              </svg>
-            </button>
-          ))}
+        {/* Filtros queda pegado al buscador; la vista y exportar, a la
+            derecha. En pantalla chica bajan juntos a un renglón propio
+            (acciones-derecha en index.css). */}
+        <div className="acciones-derecha" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              height: 40,
+              padding: 3,
+              background: 'white',
+              border: '1px solid #EBE0E2',
+              borderRadius: 6,
+            }}
+          >
+            {[
+              { id: 'lista', titulo: 'Ver como lista', icono: ICONO_LISTA },
+              { id: 'grid', titulo: 'Ver como tarjetas', icono: ICONO_GRID },
+            ].map((v) => (
+              <button
+                key={v.id}
+                onClick={() => setVista(v.id)}
+                title={v.titulo}
+                style={{
+                  width: 34,
+                  height: 30,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 0,
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  background: vista === v.id ? '#F0E2E4' : 'transparent',
+                  color: vista === v.id ? '#8C5A66' : '#B08791',
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d={v.icono} />
+                </svg>
+              </button>
+            ))}
+          </div>
+
+          <BotonesExportar
+            urlPdf={urlExportarMaterialesPdf(parametrosExportar)}
+            pedirExcel={() => exportarMaterialesAExcel(parametrosExportar)}
+            deshabilitado={total + discontinuados.length === 0}
+            motivo="No hay materiales para exportar"
+          />
         </div>
       </div>
 

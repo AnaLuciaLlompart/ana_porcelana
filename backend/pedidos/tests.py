@@ -1,12 +1,14 @@
 from datetime import timedelta
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from openpyxl import load_workbook
 from rest_framework import status
 
 from clientes.models import Cliente
-from pruebas.base import USUARIA, PruebaConSesion, PruebaSinSesion
+from pruebas.base import TIPO_EXCEL, USUARIA, PruebaConSesion, PruebaSinSesion, celdas_del_excel
 from productos.models import Producto
 
 from .models import Cobro, Pedido, ProductoDelPedido
@@ -443,3 +445,89 @@ class ListadoEnLaBase(PruebaDePedido):
         self.assertEqual(respuesta.data, {
             'activos': 1, 'atrasados': 1, 'con_saldo': 1, 'total_maximo': '10000.00',
         })
+
+
+EXPORTAR = f'{LISTA}exportar/'
+
+
+class ExportarSinSesion(PruebaSinSesion):
+    """Exportar es un endpoint de gestión (corrección E10)."""
+
+    def test_exportar_sin_sesion_da_403(self):
+        """E10: GET /api/pedidos/exportar/ sin sesión responde 403, en PDF y en Excel."""
+        for formato in ('pdf', 'excel'):
+            respuesta = self.client.get(EXPORTAR, {'formato': formato})
+            self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class ExportarPedidos(PruebaDePedido):
+    """El listado filtrado se exporta a PDF y a Excel (corrección E10)."""
+
+    def test_el_pdf_se_muestra_en_la_pestana(self):
+        """E10: formato=pdf responde un PDF inline, para que el navegador lo muestre."""
+        respuesta = self.client.get(EXPORTAR, {'formato': 'pdf'})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta['Content-Type'], 'application/pdf')
+        self.assertTrue(respuesta['Content-Disposition'].startswith('inline'))
+        self.assertTrue(b''.join(respuesta.streaming_content).startswith(b'%PDF-'))
+
+    def test_el_excel_se_descarga(self):
+        """E10: formato=excel responde una planilla .xlsx como adjunto, con una fila por pedido."""
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel'})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta['Content-Type'], TIPO_EXCEL)
+        self.assertTrue(respuesta['Content-Disposition'].startswith('attachment'))
+        self.assertEqual(len(celdas_del_excel(respuesta, 'N.º')), 1)
+
+    def test_exporta_las_mismas_filas_que_el_listado_filtrado(self):
+        """E10: con estado, búsqueda y orden, los pedidos del Excel son los del listado, en su orden; sin filtros, todos."""
+        self.agregar_pieza()
+        listo = Pedido.objects.create(cliente=self.cliente, estado=Pedido.Estado.LISTO)
+        ProductoDelPedido.objects.create(pedido=listo, producto=self.producto, precio='5000.00', cantidad=3)
+        Pedido.objects.create(cliente=self.cliente, estado=Pedido.Estado.ENTREGADO)
+
+        filtros = {'estado': ['LISTO', 'PENDIENTE'], 'busqueda': 'hedwig', 'orden': '-total'}
+
+        listado = self.client.get(LISTA, {'pagina': 1, **filtros})
+        exportado = self.client.get(EXPORTAR, {'formato': 'excel', **filtros})
+        ids_del_excel = [fila[0].value for fila in celdas_del_excel(exportado, 'N.º')]
+        self.assertEqual(listado.data['count'], 2)
+        self.assertEqual(ids_del_excel, [pedido['id'] for pedido in listado.data['results']])
+        self.assertEqual(ids_del_excel, [listo.id, self.pedido.id])
+
+        exportado = self.client.get(EXPORTAR, {'formato': 'excel'})
+        self.assertEqual(len(celdas_del_excel(exportado, 'N.º')), Pedido.objects.count())
+
+    def test_los_titulos_de_las_columnas_quedan_pintados_y_fijos(self):
+        """E10: los títulos van en la fila 5, la pintada; la 4 queda vacía y sin color, y lo fijo termina en la 5."""
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel'})
+        hoja = load_workbook(BytesIO(b''.join(respuesta.streaming_content))).active
+
+        self.assertEqual(hoja['A5'].value, 'N.º')
+        self.assertEqual(hoja['A5'].fill.fgColor.rgb, '00F0E2E4')
+        self.assertIsNone(hoja['A4'].value)
+        self.assertIsNone(hoja['A4'].fill.fill_type)
+        # freeze_panes es la primera celda que se desplaza: todo lo de arriba queda fijo.
+        self.assertEqual(hoja.freeze_panes, 'A6')
+
+    def test_un_formato_desconocido_da_400(self):
+        """E10: sin formato o con uno que no es pdf ni excel responde 400 con mensaje; con pdf pasa."""
+        for parametros in ({}, {'formato': 'word'}):
+            respuesta = self.client.get(EXPORTAR, parametros)
+            self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(respuesta.data['detail'], 'El formato tiene que ser pdf o excel.')
+
+        respuesta = self.client.get(EXPORTAR, {'formato': 'pdf'})
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+
+    def test_un_texto_que_empieza_con_igual_sale_como_texto(self):
+        """E10: una clienta llamada "=1+1" queda en la planilla como texto y no como fórmula."""
+        self.cliente.nombre = '=1+1'
+        self.cliente.save()
+
+        respuesta = self.client.get(EXPORTAR, {'formato': 'excel'})
+        fila = celdas_del_excel(respuesta, 'N.º')[0]
+        nombre = fila[3]
+        self.assertEqual(nombre.value, '=1+1')
+        # 's' es texto; una fórmula vendría como 'f'.
+        self.assertEqual(nombre.data_type, 's')

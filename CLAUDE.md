@@ -35,7 +35,8 @@ básico y SQL. Frameworks: Node, React y Django básicos. Es mi primera aplicaci
 
 ## Stack y entorno
 
-**Backend** (puerto 8000): Django 5.2 LTS + DRF + PostgreSQL 17 + Pillow
+**Backend** (puerto 8000): Django 5.2 LTS + DRF + PostgreSQL 17 + Pillow,
+y ReportLab y openpyxl para los PDF y los Excel
 **Frontend** (puerto 5173): React 19 + Vite + React Router + Axios
 
 Arquitectura desacoplada. El servidor de Vite hace de proxy inverso:
@@ -88,7 +89,7 @@ excluye entera.
 
 En el frontend, carpetas por funcionalidad dentro de
 `src/funcionalidades/`. Lo que usa más de una funcionalidad queda
-afuera: `api/cliente.js`, `contexto/AuthContext.jsx`,
+afuera: `api/cliente.js`, `api/exportar.js`, `contexto/AuthContext.jsx`,
 `componentes/Layout.jsx`.
 
 Apps terminadas: `usuarios` (CU01–CU03), `materiales` (CU04–CU10),
@@ -143,9 +144,11 @@ guardados en estado, objeto `acciones` que se expande con
 `{...acciones}`, y una función `cambiarEstado(entidad, accion)` que
 recibe la función de la API como argumento.
 
-**Debounce solo cuando el buscador consulta al servidor**, con 300 ms,
-como en Materiales. Si el filtrado es local sobre datos ya cargados no
-lleva debounce, como en Categorías y Productos.
+**Debounce solo cuando el buscador consulta al servidor**, con 300 ms.
+Desde D3 todos los buscadores de la gestión y el del catálogo consultan
+al servidor, así que todos lo llevan (ver "Listados en el backend"). Uno
+que filtre local sobre datos ya cargados, como la tabla de cobros de
+Finanzas, no lo lleva.
 
 **Formulario o acción.** Lo que está adentro de un formulario se guarda
 con Guardar; lo que está afuera es una acción, se aplica al instante y
@@ -370,7 +373,10 @@ su ordenamiento, los dos chips de filtro, la línea de resumen, el
 recuento y el chip de saldo del modal Ver, y la rama bloqueada del modal
 Eliminar. La tabla ordena por ÚLTIMO descendente, como el prototipo.
 
-**El único aviso flotante del módulo es el de copiar el usuario.** Copiar
+**El único aviso flotante del módulo es el de copiar el email.** El botón
+de dos hojas copia el email del cliente y no el usuario (pedido de la
+usuaria); sin email cargado se apaga, con "Este cliente no tiene email
+cargado" en el title. Copiar
 al portapapeles es la única acción sin efecto visible. El alta y la
 edición se confirman con `ModalAviso`, como en todos los listados (ver
 "Después de crear, las tres vuelven al listado con un modal de aviso");
@@ -881,11 +887,20 @@ eliminar sin la llamada a la API; no sabe de navegación ni de API, quien
 lo abre decide qué pasa al confirmar. Lo usan las tres altas para salir
 sin crear y para crear sin el contenido principal, y las tres fichas
 para salir sin guardar y para guardar sin el contenido principal.
-`ModalAviso({ titulo, texto, onCerrar })` es su hermano para avisar algo
-que ya pasó: un tilde verde, el texto y un solo botón, Aceptar, sin
-Cancelar porque no pregunta nada; capa 100, porque se abre sobre un
-listado. Es más angosto que los otros modales (380px, título a 17 y texto
-a 15), porque lleva una sola frase. Lo usan los seis listados con alta y
+`ModalAviso({ titulo, texto, onCerrar, error })` es su hermano para avisar
+algo que ya pasó: el texto y un solo botón, Aceptar, sin Cancelar porque
+no pregunta nada; capa 100, porque se abre sobre un listado. Es más
+angosto que los otros modales (380px, texto a 15), porque lleva una sola
+frase. No lleva la cabecera rosa del patrón de modal (pedido de la
+usuaria: "parece un modal cualquiera"): arriba va una franja verde claro
+(`#E8F5EF`) con un círculo verde de 52px, el tilde blanco y el título en
+verde a 18; el círculo entra con un saltito y el tilde se dibuja solo,
+con `element.animate()` y `pathLength="1"`, como el aviso flotante. El
+texto va centrado y Aceptar sigue en rosa, porque el verde es color de
+estado y no de botón. Con `error` es la misma forma en rojo (franja
+`#FAEAE8`, círculo rojo con el triángulo): la usan Pedidos cuando el
+backend rechaza un cambio de estado y `BotonesExportar` cuando falla un
+Excel. Lo usan los seis listados con alta y
 edición (productos, pedidos, gastos, materiales, clientes y categorías)
 para confirmar las dos. Ninguna tarjeta de Datos tiene pie: la
 `PestanaDatos` de pedidos y `DatosDelGasto` lo tienen debajo de la tabla,
@@ -1005,9 +1020,11 @@ el buscador local busca por nombre de material. Las filas viajan con el
 nombre, el estado y la disponibilidad del material y sus `_display`, que
 es lo que la tabla del prototipo muestra.
 
-**`search_fields` incluye `materiales__material__nombre`:** el buscador
-del prototipo dice "descripción, tipo o material". El filtrado real es
-local en el navegador, como en todos los módulos.
+**La búsqueda encuentra también por material:** el buscador del
+prototipo dice "descripción, tipo o material". Desde D3 la hace
+`_filtrar()` en la base: número (con o sin #), descripción, la etiqueta
+del tipo ("publi") y, con un `Exists` para no repetir gastos, el nombre de
+un material comprado.
 
 ### El frontend de Gastos
 
@@ -1046,9 +1063,10 @@ materiales, la tabla sin botones (decidido por la usuaria; el pedido del
 tutor decía solo los datos). El pie es Cerrar y Editar, que lleva a la
 ficha, como el Ver de Clientes.
 
-**El tope del deslizador de monto sale de los datos.** `montoMaximo`, en
-`filtros.js`, toma el gasto más caro y lo redondea hacia arriba a mil, con
-el criterio de `rangoDePrecios` en Productos. El piso queda fijo en 0. El
+**El tope del deslizador de monto sale de los datos.** `topeDelMonto`, en
+`filtros.js`, toma el gasto más caro (`monto_maximo`, que desde D3 manda
+`/gastos/resumen/` sobre todos los gastos) y lo redondea hacia arriba a
+mil, con el criterio de `rangoDePrecios` en Productos. El piso queda fijo en 0. El
 $120.000 del prototipo era de relleno: un tope fijo envejece el día que se
 carga un gasto más caro. Los filtros aplicados se muestran como en Pedidos,
 con chips que llevan cruz y "Limpiar todo".
@@ -1173,6 +1191,36 @@ Las dos listas vienen completas y del más nuevo al más viejo; la
 paginación y el filtrado son locales. La lista de cobros lleva
 `select_related('pedido__cliente')` porque trae el instagram y el nombre.
 
+**La vista está partida en dos funciones** que comparte con la
+exportación: `leer_periodo(parametros)` lee y valida `desde`, `hasta` y
+`meses` y devuelve el período o el mensaje del 400, y
+`calcular_finanzas(desde, hasta, meses)` hace todas las cuentas y devuelve
+el diccionario que pasa por el serializer. `finanzas_del_periodo` quedó
+en cuatro líneas. Antes de partirla se comparó la respuesta vieja con la
+nueva en seis períodos de la base de desarrollo: idénticas.
+
+**Exportar el período (corrección E10).** `GET /api/finanzas/exportar/`
+con los mismos `desde`, `hasta` y `meses`, más `formato` (`pdf` o
+`excel`; otro, 400). Es otra función con `@api_view`,
+`exportar_finanzas`, que usa las mismas `leer_periodo` y
+`calcular_finanzas`: el archivo no puede dar otros números que la
+pantalla. El armado está en `finanzas/exportar.py`, con las piezas de
+`config/exportar.py` (ver "Exportar a PDF y Excel"):
+
+- PDF: el período y "Emitido el … · N cobros · N gastos"; Totales; los dos
+  desgloses lado a lado; la evolución como tabla (mes, ingresos, gastos,
+  resultado); la lista de cobros y la de gastos. El pie lleva el período a
+  la izquierda.
+- Excel, en tres hojas: Resumen (las cuatro tablas chicas, una debajo de
+  la otra), Cobros (con la columna Medio, que la tabla de la pantalla no
+  muestra) y Gastos.
+
+En la pantalla, PDF y Excel van en el renglón del título, a la derecha,
+alineados por abajo con la línea del período (`encabezado-pantalla`,
+`alignItems: 'flex-end'`). Se apagan con el personalizado incompleto,
+mientras carga, si hubo error y con un período sin cobros ni gastos
+(`motivoSinExportar`, con el motivo en el title).
+
 
 ---
 
@@ -1191,26 +1239,49 @@ aclaraciones, CU70 generar el mensaje). CU71 se eliminó de la tesis.
 
 **App `catalogo` sin modelos**, como `finanzas` e `inicio`: lee
 `productos` y `categorias`. Son `apps.py`, `models.py` (solo el
-comentario), `serializers.py`, `views.py` y `urls.py`; no tiene
-migraciones, admin ni tests.
+comentario), `serializers.py`, `views.py`, `urls.py` y `tests.py`; no
+tiene migraciones ni admin.
 
 **Tres endpoints, los tres GET y los tres con `AllowAny` explícito:**
 
 ```
-GET /api/catalogo/productos/        CU63  los productos visibles, sin paginar
+GET /api/catalogo/productos/        CU63  los productos visibles; con ?pagina=, de a 20
 GET /api/catalogo/productos/<id>/   CU65  uno, con todas sus imágenes de resultado; 404 si no es visible
-GET /api/catalogo/categorias/       CU64  las categorías activas, por tipo y nombre
+GET /api/catalogo/categorias/       CU64  las categorías activas, por tipo y nombre, con su cantidad
 ```
 
 Son vistas genéricas de DRF (`ListaDeProductosView` y
 `ListaDeCategoriasView` sobre `ListAPIView`, `DetalleDeProductoView`
 sobre `RetrieveAPIView`), las primeras del proyecto, con tres `path()` y
-sin router: una clase por endpoint y nada más expuesto. No declaran
-`filter_backends`, `search_fields` ni paginación, así que los parámetros
-de la URL se ignoran: el filtrado es local en el navegador, como en toda
-la aplicación. El 404 del detalle sale de buscar el producto DENTRO de
-los visibles: uno de baja, personalizado o con una categoría de baja
-responde lo mismo que uno que no existe.
+sin router: una clase por endpoint y nada más expuesto. El 404 del
+detalle sale de buscar el producto DENTRO de los visibles: uno de baja,
+personalizado o con una categoría de baja responde lo mismo que uno que
+no existe.
+
+**Desde D3 el listado filtra y pagina en la base.** `ListaDeProductosView`
+lee de la URL, en su `get_queryset()`:
+
+- `categoria=id`, que se repite: O dentro de un grupo, Y entre grupos.
+  Las elegidas se reparten por su `tipo` y, por cada grupo con algo
+  elegido, va un `Exists` sobre la tabla que une productos y categorías.
+- `busqueda=texto`, en el nombre o la descripción, sin mayúsculas ni
+  acentos: `sin_acentos()` limpia el texto en Python y
+  `sin_acentos_en_la_base()` el campo en PostgreSQL, con `TRANSLATE` sobre
+  `Lower` (viene con la base: ni la extensión unaccent ni migraciones).
+- `orden`, una clave de `ORDENES` (`nombre-asc` por defecto), con el
+  nombre y el id de desempate.
+- `ids=3,7,12`, para la selección.
+
+Un valor que no se entiende responde 400 con `detail`.
+`PaginacionDelCatalogo` es la de la gestión con `page_size = 20` y sin
+`por_pagina`: el "Cargar más" pide la página siguiente. Como en la
+gestión, pagina solo con `?pagina=`; sin él devuelve todos (así pide la
+selección sus productos, con `?ids=`). `ListaDeCategoriasView` le suma a
+cada categoría `cantidad`, cuántos productos visibles tiene, con una
+subconsulta sobre la tabla intermedia y la misma
+`visibles_en_catalogo()`: antes lo contaba el navegador sobre la lista
+entera, que ya no tiene. `CategoriaConCantidadSerializer` es el de
+categorías con ese campo.
 
 **Serializers propios, que no heredan de los de gestión.**
 `ProductoListaSerializer` y `ProductoDetalleSerializer` exponen el
@@ -1352,40 +1423,43 @@ carpeta `catalogo` (`api`, `filtros`,
 el layout es el que carga el catálogo, arma el árbol y guarda la
 selección, pero esas piezas viven donde corresponde.
 
-**Los productos y las categorías se cargan UNA vez, en el layout**, con
-`Promise.all` de las dos funciones de `api.js`
-(`listarProductosDelCatalogo`, `listarCategoriasDelCatalogo`) y el patrón
-de tres estados. Las pantallas recién se dibujan con los datos y los
-leen con `useOutletContext()`: `{ productos, grupos, esEscritorio,
-seleccion, mostrarAviso }`. El detalle es la única que pide algo más
-(`obtenerProductoDelCatalogo(id)`), porque la lista no trae todas las
-fotos. Un visitante hace dos pedidos al entrar y uno por cada detalle;
-cambiar filtros, armar la selección o abrir las páginas de texto no pide
-nada.
+**Las categorías se cargan UNA vez, en el layout**, con
+`listarCategoriasDelCatalogo` y el patrón de tres estados: el listado, el
+árbol del encabezado y el pie usan la misma lista, que trae la cantidad
+de cada una. Las pantallas recién se dibujan con ella y la leen con
+`useOutletContext()`: `{ grupos, esEscritorio, seleccion, mostrarAviso }`.
+**Los productos los pide cada pantalla** (corrección D3): el listado, de
+a 20 con los filtros, y "Cargar más" suma los 20 siguientes debajo
+(`Catalogo.jsx`, con `pagina`, `total` y `cargandoMas`; el primer pedido
+se repite cuando cambian los filtros, el orden o la búsqueda, con la
+bandera `vigente`); el detalle, el suyo (`obtenerProductoDelCatalogo(id)`);
+y la selección, sus productos por id, desde el layout
+(`listarProductosDelCatalogo({ ids })`), solo cuando cambia QUÉ productos
+hay elegidos y no la cantidad. Un visitante hace tres pedidos al entrar
+(las categorías, la primera página y, si tiene algo elegido, su
+selección), uno por cada "Cargar más" y uno por cada detalle.
 
 **Los filtros viven en la URL: `/?categoria=3&categoria=7`**, un
 parámetro por categoría elegida, leído y escrito con `useSearchParams`,
 así una dirección filtrada se copia, se abre en otra pestaña y sobrevive
 a recargar. **El orden también: `?orden=precio-desc`**, uno de los
 cuatro valores de `ORDENES`; si falta o trae otra cosa vale
-`ORDEN_POR_DEFECTO` (`nombre-asc`), que no se escribe. El orden se
-aplica siempre en el navegador, también el de por defecto, para que A–Z
-y Z–A sean espejo exacto aunque la base ordene con otra intercalación.
-**Y la búsqueda: `?busqueda=aros`**, el texto tal cual, que
-`buscarProductos` aplica como "contiene" sin acentos ni mayúsculas en el
-nombre o la descripción; un texto en blanco no se escribe.
+`ORDEN_POR_DEFECTO` (`nombre-asc`), que no se escribe. **Y la búsqueda:
+`?busqueda=aros`**, el texto tal cual; un texto en blanco no se escribe.
+Desde D3 el filtrado, el orden y la búsqueda (sin acentos ni mayúsculas)
+los hace el backend; la búsqueda viaja 300 ms después de la última letra.
 Las funciones están en `filtros.js`: `agruparCategorias`
-(los dos grupos, tipo de accesorio y después temática, cada categoría con su cantidad
-contada sobre la lista completa; las que no tienen productos no salen, y
-el título del grupo es el `tipo_display` del backend), `leerFiltros`
+(los dos grupos, tipo de accesorio y después temática, cada categoría con
+la `cantidad` que manda el backend; las que no tienen productos no salen,
+y el título del grupo es el `tipo_display` del backend), `leerFiltros`
 (solo los ids que existen entre las categorías que se muestran: un id
 viejo o mal escrito no filtra ni se cuenta), `escribirFiltros`,
-`alternarFiltro`, `filtrarProductos` (**O dentro de un grupo, Y entre
-grupos**: con Aros, Dijes y Harry Potter quedan los aros y los dijes que
-sean de Harry Potter), `ordenarCategorias`, `leerOrden`, `escribirOrden`,
-`ordenarProductos` (copia y ordena con `localeCompare(…, 'es')` o con
-`Number(precio_actual)`), `leerBusqueda`, `escribirBusqueda` y
-`buscarProductos`. Las casillas, el desplegable de orden y el buscador
+`alternarFiltro`, `ordenarCategorias`, `leerOrden`, `escribirOrden`,
+`leerBusqueda`, `escribirBusqueda` y `parametrosDelCatalogo`, que traduce
+los elegidos, el orden, la búsqueda y la página a los parámetros del
+listado (**O dentro de un grupo, Y entre grupos** lo resuelve el backend:
+con Aros, Dijes y Harry Potter quedan los aros y los dijes que sean de
+Harry Potter). Las casillas, el desplegable de orden y el buscador
 escriben con `replace: true`, para que tildar tres filtros o escribir seis
 letras no deje seis pasos en el historial, y cada escritura lleva filtros,
 orden y búsqueda juntos, por `escribirDireccion` en `Catalogo.jsx`, que
@@ -1393,8 +1467,8 @@ parte de lo que hay y pisa lo que cambia, porque `setSearchParams`
 reemplaza todos los parámetros; elegir desde el árbol, el pie o un chip
 del detalle navega a `/?categoria=<id>`, una sola. "Volver al catálogo"
 conserva los filtros, el orden y la búsqueda porque la tarjeta los deja en
-el `state` del enlace. Los derivados (elegidos, orden, búsqueda,
-filtrados, cantidades, "N piezas") se calculan en cada dibujo y nunca se
+el `state` del enlace. Los derivados (elegidos, orden, búsqueda, "N
+piezas" con el `count` del backend) se calculan en cada dibujo y nunca se
 guardan en estado. Sin resultados por la búsqueda, "Limpiar búsqueda" es
 un botón (prop `onSalida` de `CajaMensaje`) que deja los filtros; sin
 resultados por los filtros, "Ver todas las piezas" sigue siendo el enlace
@@ -1407,8 +1481,8 @@ a `/`.
 {"cantidades":{"14":2,"37":1},"aclaraciones":"Los aros en dorado, si se puede."}
 ```
 
-Solo ids y cantidades: el nombre, el precio y la foto salen de la lista
-que el layout ya tiene, así un producto que dejó de ser visible
+Solo ids y cantidades: el nombre, el precio y la foto salen de los
+productos que el layout pide por id, así un producto que dejó de ser visible
 desaparece de la selección solo, sin error (su id queda guardado, y si
 vuelve al catálogo vuelve a la selección). Se lee una vez, al montar el
 layout, y se guarda en cada cambio, las dos cosas con `try/catch`: si el
@@ -1560,12 +1634,17 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ### Pendientes
 
-- **Los 8 avisos de `npm run lint`**, que vienen de antes del catálogo y
-  no son de él: `react-refresh/only-export-components` en
-  `componentes/Paginacion.jsx` (línea 11), `contexto/AuthContext.jsx`
-  (39) y `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23, 31 y
-  36); y `react-hooks/exhaustive-deps` en
-  `funcionalidades/materiales/Materiales.jsx` (722), que es un warning.
+- **Los 11 errores de `npm run lint`** (medidos el 29/10/2026). Siete
+  vienen de antes del catálogo y no son de él:
+  `react-refresh/only-export-components` en `componentes/Paginacion.jsx`
+  (línea 11), `contexto/AuthContext.jsx` (39) y
+  `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23, 31 y 36). Los
+  otros cuatro son de D3, `react-hooks/set-state-in-effect`: un `setState`
+  sincrónico al principio de un efecto, para vaciar una lista cuando no
+  hay nada que pedir, en `componentes/LayoutPublico.jsx` (251),
+  `funcionalidades/categorias/Categorias.jsx` (341) y
+  `funcionalidades/materiales/Materiales.jsx` (765 y 803). El
+  `exhaustive-deps` de Materiales ya no aparece.
 
 
 ---
@@ -1574,16 +1653,24 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 85 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 146 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
 `python manage.py test <app>`. El listado completo, con qué verifica
 cada una, el CU o la regla que cubre y su grupo, está en
 `pruebas/PRUEBAS.md`, que se actualiza al agregar una prueba. La
-cobertura es del 82 % (`coverage run manage.py test` y
+cobertura es del 89 % (`coverage run manage.py test` y
 `coverage report`; `.coveragerc` excluye la app `pruebas`, las
 migraciones y los settings).
+
+**Las pruebas en verde no prueban el servidor que está corriendo.**
+`manage.py test` lee cada archivo de nuevo; `runserver` puede quedar con
+una versión intermedia si un cambio se hizo en dos pasos y el segundo
+cayó en el mismo segundo (pasó con `FILA_ENCABEZADO`: cuatro Excel en 500
+con las pruebas pasando). Después de cambiar el backend se pide el
+endpoint a través del proxy, y si falla con algo que el archivo ya tiene,
+se recarga tocando la fecha del archivo.
 
 **La base compartida vive en `pruebas/base.py`.** `PruebaSinSesion`
 limpia la caché en `setUp`, porque los throttles guardan ahí sus
@@ -1593,7 +1680,10 @@ azar. `PruebaConSesion` además crea la usuaria y entra con `force_login`:
 Las de rendimiento (`assertNumQueries`) autentican con
 `force_authenticate`, que no toca la base, para contar solo las
 consultas del ViewSet: la sesión suma las suyas (leerla, leer la usuaria
-y renovarla por `SESSION_SAVE_EVERY_REQUEST`).
+y renovarla por `SESSION_SAVE_EVERY_REQUEST`). Para las exportaciones,
+`celdas_del_excel(respuesta, primera_columna)` devuelve las filas de
+datos de la planilla (las que van debajo de la fila cuya primera celda es
+esa) y `TIPO_EXCEL` es el content-type del `.xlsx`.
 
 **Las imágenes se generan en memoria** con Pillow: `imagen_png` (un PNG
 chico de un color), `foto_jpeg` (un JPEG de ruido de 4 MB, parecido a
@@ -1808,19 +1898,34 @@ Nunito Sans 400 para texto y tablas. Cargadas desde Google Fonts en
 **Estilo:** bordes de 1px sin sombras marcadas, radios de 6 a 10px,
 mucho espacio en blanco.
 
-**Patrón de listado:** título + botón de alta a la derecha → buscador y
-filtros → tabla o grilla → sección colapsable de dados de baja al final.
+**Patrón de listado:** título + botón de alta a la derecha → barra de
+herramientas → tabla o grilla → sección colapsable de dados de baja al
+final. **En la barra, Filtros va pegado al buscador** y lo demás a la
+derecha (pedido de la usuaria, para no mezclar filtrar con exportar): la
+vista grilla/lista y PDF/Excel van en una caja `acciones-derecha` con
+`marginLeft: 'auto'`. En Productos el orden es buscador, Ordenar y
+Filtros, y su buscador mide 320 y no 420 para que la barra entre en una
+notebook de 1366. **Todo lo de esa barra mide 40px de alto** (buscador,
+Filtros, Ordenar, la vista, PDF y Excel), el alto del buscador: así
+Filtros no crece cuando aparece su globito.
 
-**Encabezados de tabla: con franja en los listados, sin franja dentro de
-una tarjeta** (pedido de la usuaria, por jerarquía). En un listado la
-tabla es la pantalla y lleva la franja `#F0E2E4` con los títulos de
-columna en `#8C5A66`. Cuando la tabla vive dentro de una tarjeta con su
-propio título (la de productos del pedido, la de materiales del gasto, las
-dos de Inicio), el encabezado va en el fondo general `#FAF7F7` con los
-títulos en gris `#857078`, y el título de la tarjeta o panel sube de 14 a
-17px: con la franja, los nombres de columna pesaban más que el título. Los
-modales Ver de pedido y de gasto y los encabezados del acordeón de la
-ficha de producto quedan como estaban (decidido por la usuaria).
+**Encabezados de tabla en rosa oscuro, en los listados y en las
+tarjetas** (pedido de la usuaria: los grises se perdían con el fondo y se
+mezclaban con los campos). En un listado la franja del `thead` es
+`#8C5A66`, el color de la barra lateral, con los títulos de columna en
+blanco (y el hover de las columnas que ordenan, `.th-orden`, es un velo
+blanco). Se probaron y descartaron el rosa del ítem seleccionado de la
+barra (`#A37B85`) y el blanco al 75% de sus textos. Cuando la tabla vive
+dentro de una tarjeta con su propio título (Datos y Productos del pedido,
+Datos y Materiales del gasto, los tres paneles de Inicio), el título va
+en `EncabezadoDeTarjeta` (`componentes/`): una franja `#8C5A66` con el
+título en blanco a 17px, `nota` opcional al lado y lo que va a la derecha
+como `children`; la tarjeta lleva `overflow: 'hidden'` para que la franja
+tome las esquinas. Debajo, los títulos de columna van en gris `#857078`
+sobre blanco con una línea `#F0E2E4` de 2px, y el total de la tabla lleva
+la misma línea arriba, sin fondo. Las tablas de Finanzas, los modales Ver
+de pedido y de gasto y los encabezados del acordeón de la ficha de
+producto quedan como estaban (decidido por la usuaria).
 
 **El aviso de disponibilidad baja de Materiales muestra cuatro filas**
 (`AvisoReponer`, pedido de la usuaria): de la quinta en adelante se ven
@@ -1828,42 +1933,56 @@ deslizando dentro del aviso, que así no empuja la tabla hacia abajo. Para
 que entren cuatro justas las filas miden siempre lo mismo
 (`FILAS_VISIBLES = 4`, `ALTO_FILA = 58`) y la caja de las filas tiene
 `maxHeight` de cuatro filas con `overflowY: 'auto'`; el título queda fijo
-arriba.
+arriba. **El título es un botón que esconde y muestra las filas**, con una
+flechita a la derecha que gira; arranca abierto y no se recuerda al salir
+de la pantalla.
 
-**Las tres listas de Inicio se deslizan** (corrección del tutor del
-28/10/2026, D2; se eligió scroll y no paginación): PRODUCTOS EN
-ELABORACIÓN (antes EN PRODUCCIÓN, renombrada por la usuaria, que además
-evita confundirla con el estado En producción del pedido) y PRÓXIMAS
-ENTREGAS muestran 8 filas y MATERIALES POR REPONER 6
-(`FILAS_EN_PRODUCCION`, `FILAS_ENTREGAS`, `FILAS_MATERIALES`), y el resto
-se ve deslizando dentro de la tarjeta. Para eso `GET /api/inicio/` manda
-las tres listas enteras: antes las recortaba a esos mismos números
-(`MAXIMO_*`, ya borrados), y siguen siendo cinco consultas. Acá las filas
-no miden todas lo mismo (la descripción de una pieza o un nombre largo
-las hacen más altas), así que el tope no es una cuenta fija
-como en Materiales: `useAltoDeFilas(cantidad, selector, filas)`, en
-`Inicio.jsx`, mide dónde termina la última fila visible y devuelve ese
-alto para el `maxHeight` de la caja, o null si no hay más filas; un
-`ResizeObserver` vuelve a medir cuando cambia el ancho, la tipografía o
-las filas. En las dos tablas los títulos quedan pegados arriba
-(`estiloThFijo`, `position: 'sticky'` con su propio fondo). El pie
-"Ver todos … (N …)" muestra el total cuando hay más filas que las
-visibles.
+**Las tres listas de Inicio van paginadas desde el backend** (pedido de la
+usuaria, para no tener que deslizar dentro de cada panel; reemplaza al
+scroll que se había elegido para D2): PRODUCTOS EN ELABORACIÓN (antes EN
+PRODUCCIÓN, renombrada por la usuaria, que además evita confundirla con
+el estado En producción del pedido) y PRÓXIMAS ENTREGAS de a 8, y
+MATERIALES POR REPONER de a 6 (`FILAS_EN_PRODUCCION`, `FILAS_ENTREGAS`,
+`FILAS_MATERIALES`). Cada lista tiene su endpoint, con un paginador hecho
+a mano (`una_pagina`, `PaginacionDeInicio`, `PaginacionDeMateriales`):
+`GET /api/inicio/en_produccion/` (con `?etapa=`),
+`/api/inicio/entregas/` y `/api/inicio/materiales/`. `GET /api/inicio/`
+quedó para el resumen (las tarjetas de arriba, con la deuda sumada en la
+base sobre `saldo_calculado`, y los totales y la cantidad por etapa de
+las listas). Cada panel tiene su `PieDePaginas` y su página en el estado;
+una página con menos filas se dibuja más chica, sin relleno (pedido de la
+usuaria). El pie "Ver todos … (N …)" sigue llevando al módulo.
 
 **PRODUCTOS EN ELABORACIÓN se filtra por etapa** (la otra mitad de D2).
 Entre el título y la tabla, `FiltroEtapas` dibuja Todas y un chip por
-etapa salvo Terminado, cada uno con cuántas piezas tiene; se elige una a
-la vez y el filtrado es local, porque las piezas ya vinieron enteras. Si
-la etapa elegida se queda sin piezas, la tabla dice "Ninguna pieza en …"
-en vez del vacío del taller. El pie no cambia con el filtro. Los chips son
+etapa salvo Terminado, cada uno con cuántas piezas tiene (`por_etapa` del
+resumen); se elige una a la vez y se pide al backend con `?etapa=`, desde
+la página 1. Si la etapa elegida se queda sin piezas, la tabla dice
+"Ninguna pieza en …" en vez del vacío del taller. Los chips son
 `ChipFiltro`, que salió de `Clientes.jsx` a `componentes/` al tener este
 segundo uso. PRÓXIMAS ENTREGAS ya no muestra "Cobrar al entregar" debajo
-del estado (pedido de la usuaria; diferencia con el prototipo).
+del estado (pedido de la usuaria; diferencia con el prototipo). **Cada
+cambio de etapa avisa** con el aviso flotante: "Aros de Luna pasó a
+Secado", y Terminado, con Deshacer, como siempre.
+
+**El aviso flotante (`Toast`) va en el medio de la pantalla** (pedido de
+la usuaria: quería algo más grande que un toast, más verde y que se fuera
+solo). Es una tarjeta verde claro con borde verde, un círculo verde con
+el tilde blanco y el texto en verde a 16; no oscurece el fondo ni frena
+nada. Entra con un saltito y el tilde se dibuja solo, con
+`element.animate()`, la API de animaciones del navegador (sin estado de
+React ni `index.css`); se vuelve a animar con cada texto nuevo. Dura
+1,4 segundos (cada pantalla tiene su temporizador en `mostrarToast`); el
+de copiar el email y el de "Cobro registrado", 0,93; el de Terminado con
+Deshacer, 3. Lo usan las pantallas de la gestión; el catálogo tiene el
+suyo, `ToastCatalogo`.
 
 **Patrón de modal:** cabecera `#8C5A66` con título blanco y cruz, cuerpo
 con campos apilados, pie con Cancelar y la acción principal. Fondo
 oscurecido que cierra al hacer clic, con `e.stopPropagation()` en la
-tarjeta.
+tarjeta. **La excepción es `ModalAviso`**, que avisa algo que ya pasó y
+lleva una franja verde (o roja) con un círculo en lugar de la cabecera
+rosa (ver "Cuatro componentes compartidos" en Las altas).
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
@@ -1907,16 +2026,144 @@ pantalla.
   existe uno equivalente en otro módulo y reusalo. Las pantallas nuevas
   tienen que sentirse iguales a las que ya están, no más elaboradas.
 
-**El filtrado es siempre local**, sobre los datos ya cargados, así que
-ningún buscador lleva debounce. El volumen del emprendimiento no
-supera el centenar de productos, así que traer la lista completa y
-filtrarla en el navegador es instantáneo y evita un pedido por tecla.
-Los ViewSets igual declaran `search_fields` porque es lo que hace
-andar el buscador de la interfaz navegable de DRF.
+**El filtrado y la paginación los hace el backend** desde D3 (ver
+Listados en el backend). Antes eran locales, sobre la lista entera.
 
 **Al escribir el catálogo público**, revisar que su serializer NO
 herede de ProductoListaSerializer ni de ProductoDetalleSerializer:
 esos exponen los ids de materiales, y la composición no va al catálogo.
+
+
+---
+
+
+
+## Listados en el backend (corrección D3)
+
+El tutor pidió filtrar y paginar en el backend, y la usuaria lo resumió
+así: "el objetivo es que la página NO DEMORE". Cada listado pide solo la
+página que se mira, con los filtros, la búsqueda y el orden resueltos en
+la base.
+
+**La paginación es opcional: `PaginacionDeListado`**, en
+`config/paginacion.py`. Pagina solo si viene `?pagina=` (de a 12; con
+`?por_pagina=` hasta 48) y devuelve `count` y `results`. Sin `?pagina=`
+devuelve la lista entera, como antes: así la siguen pidiendo los
+desplegables (clientes de un pedido, materiales de un producto o de un
+gasto, productos de un pedido) y el alta de producto, que revisa que el
+nombre no exista.
+
+**Cada ViewSet filtra en su `_filtrar()`**, llamado desde `get_queryset()`
+cuando la acción es `list` (o `exportar`). Reemplaza al `SearchFilter` y
+al `OrderingFilter` de DRF, que no sabían filtrar por saldo, entrega o
+total, y los ViewSets ya no declaran `search_fields`. Lo que se repite
+está en `config/listados.py`: `leer_importe`, `leer_fecha` y
+`ordenar(queryset, parametros, ORDENES, desempate)`, con `?orden=campo` u
+`?orden=-campo` sobre una lista cerrada `ORDENES` por ViewSet (de menor a
+mayor los vacíos van al final; al revés, al principio). Un valor que no
+se entiende responde 400 con `detail` (`ParseError`): un filtro mal
+escrito que no filtra mostraría una lista que parece correcta y no lo es.
+
+**Lo que antes sumaba el navegador ahora lo suma la base**, con
+subconsultas, y cada cuenta tiene una prueba que la compara con la
+propiedad de Python: `Pedido.objects.con_totales()` (`total_calculado`,
+`cobrado_calculado`, `saldo_calculado`, `cantidad_productos_calculada`) y
+`clientes_con_cuentas()` (pedidos, pedidos en curso, último y saldo).
+`condicion_de_entrega()`, en `pedidos/views.py`, es la regla de atrasados
+y próximos de Inicio escrita para un `.filter()`.
+
+**Los números de arriba de cada listado salen de `/resumen/`**, porque la
+pantalla ya no tiene la lista entera para contarlos: pedidos (activos,
+atrasados, con saldo y el total más alto), clientes (total y los dos
+chips) y productos (activos, de baja, baja por categoría, visibles y el
+rango de precios) cuentan sobre todos; gastos suma lo filtrado, como su
+línea de resumen.
+
+**Lo propio de cada listado:** Productos aplica la regla de la sección de
+bajas solo con `?estado=` (la grilla pide `ACTIVO`; la sección, que se
+pide recién al abrirla, `BAJA`, sin filtros). Materiales pide dos listas,
+los activos paginados y los discontinuados enteros para su sección, con
+los mismos filtros. Pedidos pide los clientes del filtro recién al abrir
+el modal. Categorías busca en el backend con `?busqueda=` y no pagina. El
+catálogo va de a 20 con "Cargar más" (ver Catálogo público).
+
+**El patrón de las pantallas.** `parametrosDelListado(...)`, en el
+`filtros.js` de cada módulo, traduce los filtros a un `URLSearchParams`
+(porque estado, tipo y categoría se repiten). El buscador espera 300 ms
+después de la última tecla (`busqueda` → `busquedaEnviada`) y vuelve a
+la página 1. El efecto que pide la página lleva la bandera `vigente`, que
+descarta una respuesta vieja si llega después de la nueva; un contador
+`version` fuerza el pedido después de un cambio; y una página que ya no
+existe (se borró el último registro de la última) responde 404 y se
+vuelve a la anterior. `Paginacion` muestra "Filas por página" solo si
+recibe `onPorPagina`.
+
+
+
+## Exportar a PDF y Excel (corrección E10)
+
+Materiales, Productos, Pedidos y Gastos exportan lo que el listado tiene
+filtrado y buscado, en su orden y sin paginar; sin filtros, todo,
+incluidos los de baja y los discontinuados, con su columna de estado.
+Finanzas exporta el período (ver Módulo Finanzas). Clientes y Categorías
+no exportan: no estaban en el pedido.
+
+**El backend está escrito una vez, en `config/exportar.py`.** Cada
+ViewSet hereda `ExportarMixin`, que suma la acción
+`GET /api/<listado>/exportar/?formato=pdf|excel&<los filtros>`, y declara
+solo lo suyo: `EXPORTAR_TITULO`, `EXPORTAR_ARCHIVO`, `EXPORTAR_UNIDAD`
+(singular y plural), `COLUMNAS_PARA_EXPORTAR` (una lista de
+`Columna(titulo, valor, tipo, ancho)`: `valor` es una función del
+registro; `tipo`, `texto`, `plata`, `fecha`, `mes` o `numero`; `ancho`,
+su parte del ancho del PDF, y por 1,6 los caracteres en el Excel) y
+`describir_filtros(parametros)`, que pasa los filtros de la URL a
+palabras con los textos de los chips de la pantalla.
+`get_queryset()` incluye `'exportar'` junto a `'list'`, y la acción toma
+`filter_queryset(get_queryset())` sin paginar, lo mismo que el `list()`
+de DRF; Materiales y Productos sobrescriben `registros_para_exportar()`
+para poner primero lo de arriba de la pantalla (activos; la grilla) y
+después lo de su sección de abajo, con `sorted()`, que no cambia el orden
+elegido dentro de cada grupo. `describir_rango(nombre, desde, hasta,
+escribir=plata)` arma "Total: $5.000 – $90.000", "desde" o "hasta", y con
+`escribir_fecha` sirve para un período.
+
+**Las piezas**, para que Finanzas arme varias tablas con las mismas:
+`encabezado_pdf`, `tabla_pdf` (títulos en rosa claro que se repiten en
+cada hoja, pegada al margen izquierdo), `construir_pdf` (A4 apaisada; pie
+en cada hoja con los filtros o el período a la izquierda, la fecha en el
+medio y la página a la derecha; los márgenes descuentan el relleno de
+`SimpleDocTemplate`, como en el comprobante, para que textos y tablas
+queden alineados), y en Excel `escribir_encabezado_excel`,
+`escribir_tabla_excel`, `ajustar_anchos_excel` y `guardar_excel`.
+`armar_pdf` y `armar_excel` las juntan para un listado. En el Excel cada
+fila se escribe por su número (preguntar por `max_row` daba una fila
+menos y los títulos quedaban fuera de la fila pintada y fija); los
+títulos van en la fila 5 y lo de arriba queda fijo. Los importes y las
+fechas van como números y fechas, y **los textos siempre como texto**
+(`data_type = 's'`): un nombre cargado como "=1+1" no se toma como
+fórmula. Los importes negativos se escriben "-$484.970".
+
+**El PDF se abre en otra pestaña (`inline`) y el Excel se descarga
+(`attachment`)**, con el nombre `<listado>-AAAA-MM-DD`. En el frontend,
+`BotonesExportar({ urlPdf, pedirExcel, deshabilitado, motivo })`, en
+`componentes/`: PDF en rojo y Excel en verde, con borde y el estilo de
+Filtros. El PDF se abre con `window.open`, como el comprobante. El Excel
+se pide con `cliente` (`responseType: 'blob'`), así un 403 lo atrapa el
+interceptor y un 400 no saca a la pestaña de la aplicación: se guarda con
+una dirección temporal (`URL.createObjectURL`) y un `<a download>`, con el
+nombre que manda el backend, y un error se muestra en el `ModalAviso`
+rojo del propio componente. Los dos se apagan sin resultados, con el
+motivo en el title, y el Excel también mientras descarga.
+`api/exportar.js` tiene `urlDeExportacionPdf(ruta, parametros)` y
+`pedirExportacionExcel(ruta, parametros)`; cada `api.js` suma dos
+funciones de una línea. Productos pregunta cuántos irían al archivo con
+una página de una fila, porque sin filtro de estado se suman los de la
+sección de bajas y `total` no alcanza.
+
+**openpyxl** (3.1.5, con `et_xmlfile` 2.0.0) está en `requirements.txt`;
+`pip-audit -r requirements.txt` dio sin vulnerabilidades conocidas. En el
+servidor hay que reconstruir la imagen del backend. `config/exportar.py`
+importa `plata()` de `pedidos/presentacion.py`, la misma del comprobante.
 
 
 ---
@@ -2014,12 +2261,20 @@ dice.
   fuera de pantalla, `abierta` lo trae.
 - `contenido`: el `main`; padding 16 en vez de 32.
 - `encabezado-pantalla`: el div del título y el botón de alta de los seis
-  listados; se apila, el título baja a 26px y el botón ocupa todo el
-  ancho.
+  listados, y el del título y PDF/Excel de Finanzas; se apila, el título
+  baja a 26px y el botón ocupa todo el ancho.
 - `barra-herramientas` y `buscador`: el contenedor buscador + Filtros y el
   div del buscador; la barra se parte y el buscador ocupa su fila entera.
 - `boton-filtros`: el botón Filtros de Materiales, Productos, Pedidos y
   Gastos; crece hasta llenar su fila.
+- `orden-listado`: el desplegable Ordenar de Productos; comparte el
+  renglón con Filtros, por mitades. Lleva `min-width: 0` porque un select,
+  por defecto, no se achica por debajo de su opción más larga.
+- `acciones-derecha`: la caja de la derecha de la barra (la vista y
+  PDF/Excel) en Materiales, Productos, Pedidos y Gastos; baja a un renglón
+  propio, a todo el ancho.
+- `botones-exportar`: la caja de PDF y Excel de `BotonesExportar`; ella y
+  sus dos botones se estiran hasta llenar el renglón.
 - `fila-pestanas`: la `BarraDePasos` del alta de producto (la ficha ya no
   tiene pestañas: es un acordeón); se desliza de lado, con los pasos sin
   partirse y menos padding.

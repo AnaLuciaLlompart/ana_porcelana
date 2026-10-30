@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { obtenerFinanzas } from './api'
+import { exportarFinanzasAExcel, obtenerFinanzas, urlExportarFinanzasPdf } from './api'
 import {
   FECHAS_AL_REVES,
   PERIODOS,
@@ -19,6 +19,7 @@ import {
 import { formatearPrecio } from '../productos/presentacion'
 import { fmtFechaLarga } from '../pedidos/presentacion'
 
+import BotonesExportar from '../../componentes/BotonesExportar'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
@@ -765,21 +766,58 @@ export default function Finanzas() {
       ` · ${gastos} ${gastos === 1 ? 'gasto' : 'gastos'}`
   }
 
+  // Por qué no se puede exportar el período todavía, o '' si se puede
+  // (corrección E10). Sin movimientos no hay nada que poner en el archivo.
+  let motivoSinExportar = ''
+  if (!rango) {
+    motivoSinExportar = 'Elegí las dos fechas del período'
+  } else if (cargando) {
+    motivoSinExportar = 'Todavía se está cargando el período'
+  } else if (error) {
+    motivoSinExportar = 'No se pudieron cargar los datos del período'
+  } else if (datos.totales.cantidad_cobros + datos.totales.cantidad_gastos === 0) {
+    motivoSinExportar = 'El período no tiene cobros ni gastos'
+  }
+
   return (
     <div>
-      <h1
+      {/* El título con la línea del período y, a la derecha, PDF y Excel,
+          que exportan el período elegido (corrección E10). Los botones se
+          alinean abajo, con la línea del período. Lleva la clase del
+          encabezado de los listados, así en pantalla chica se apila igual. */}
+      <div
+        className="encabezado-pantalla"
         style={{
-          margin: 0,
-          fontFamily: QUICKSAND,
-          fontWeight: 600,
-          fontSize: 32,
-          color: '#3D3238',
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          gap: 16,
+          marginBottom: 24,
         }}
       >
-        Finanzas
-      </h1>
+        <div>
+          <h1
+            style={{
+              margin: 0,
+              fontFamily: QUICKSAND,
+              fontWeight: 600,
+              fontSize: 32,
+              color: '#3D3238',
+            }}
+          >
+            Finanzas
+          </h1>
 
-      <p style={{ margin: '6px 0 24px', fontSize: 15, color: '#857078' }}>{resumen}</p>
+          <p style={{ margin: '6px 0 0', fontSize: 15, color: '#857078' }}>{resumen}</p>
+        </div>
+
+        <BotonesExportar
+          urlPdf={rango ? urlExportarFinanzasPdf(rango) : ''}
+          pedirExcel={() => exportarFinanzasAExcel(rango)}
+          deshabilitado={motivoSinExportar !== ''}
+          motivo={motivoSinExportar}
+        />
+      </div>
 
       {/* La tarjeta del período: los cinco chips, las dos fechas del
           personalizado y, a la derecha, qué se está mirando. */}
