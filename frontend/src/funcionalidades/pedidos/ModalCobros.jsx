@@ -124,7 +124,7 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
   return (
     <>
       <div
-        className="modal-fondo"
+        className="modal-fondo cobros-fondo"
         onClick={onCerrar}
         style={{
           position: 'fixed',
@@ -138,7 +138,7 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
         }}
       >
         <div
-          className="modal-caja"
+          className="modal-caja cobros-caja"
           onClick={(e) => e.stopPropagation()}
           style={{
             background: 'white',
@@ -195,6 +195,7 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
           </div>
 
           <div
+            className="cobros-cuerpo"
             style={{
               padding: '22px 24px',
               display: 'flex',

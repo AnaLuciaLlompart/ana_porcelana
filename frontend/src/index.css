@@ -198,8 +198,10 @@ button:not(:disabled):hover {
     padding: 8px !important;
   }
 
+  /* dvh y no vh: en el celular vh no descuenta la barra del navegador y la
+     caja quedaba tapada abajo. Es el mismo motivo del 100dvh del Layout. */
   .modal-caja {
-    max-height: 96vh !important;
+    max-height: 96dvh !important;
   }
 
   .campos-dos-columnas {
@@ -228,6 +230,88 @@ button:not(:disabled):hover {
 
   .cobros-dos-columnas {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* Pantalla chica, el modal de Cobros (ModalCobros) ocupa la pantalla
+   entera: sin aire alrededor, sin esquinas redondeadas y con 100dvh de alto.
+   La cabecera y el pie con Cerrar quedan siempre a la vista y lo del medio
+   se desplaza. Adentro, las tarjetas COBROS y RESUMEN conservan el borde,
+   que las distingue, con menos relleno adentro (14 en vez de 20) para no
+   gastar ancho. ModalCobro, el de registrar o editar, sigue siendo
+   un modal común encima. */
+@media (max-width: 768px) {
+  .cobros-fondo {
+    padding: 0 !important;
+  }
+
+  /* Con las dos clases, para ganarle a la regla general de .modal-caja. */
+  .modal-caja.cobros-caja {
+    height: 100dvh;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+
+  /* El medio crece hasta empujar el pie al fondo, y se desplaza adentro. */
+  .cobros-cuerpo {
+    flex: 1;
+    padding: 16px !important;
+  }
+
+  /* La cabecera de COBROS: el título y la frase arriba, y "Registrar
+     cobro" debajo, a todo el ancho. */
+  .cobros-cabecera {
+    flex-direction: column;
+    align-items: stretch !important;
+    padding: 14px !important;
+  }
+
+  /* RESUMEN con el mismo relleno que COBROS, así los textos de las dos
+     tarjetas arrancan en la misma vertical. */
+  .cobros-resumen {
+    padding: 14px !important;
+  }
+
+  .cobros-cabecera > button {
+    justify-content: center;
+  }
+
+  /* Cada cobro en dos renglones: arriba el tipo y el monto, abajo "fecha ·
+     medio" y los tres botones. La caja de los dos textos se "abre" con
+     display: contents, así sus dos párrafos se acomodan en la grilla de la
+     fila como si fueran hijos directos. */
+  .cobros-fila {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'tipo monto'
+      'fecha botones';
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 12px 14px !important;
+  }
+
+  .cobros-textos {
+    display: contents;
+  }
+
+  .cobros-textos > p:first-child {
+    grid-area: tipo;
+  }
+
+  .cobros-textos > p:last-child {
+    grid-area: fecha;
+  }
+
+  .cobros-fila > span {
+    grid-area: monto;
+    justify-self: end;
+  }
+
+  .cobros-fila > div:last-child {
+    grid-area: botones;
+    justify-self: end;
   }
 }
 

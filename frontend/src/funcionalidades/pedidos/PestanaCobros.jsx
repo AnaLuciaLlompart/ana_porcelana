@@ -81,6 +81,7 @@ export default function PestanaCobros({
         }}
       >
         <div
+          className="cobros-cabecera"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -140,6 +141,7 @@ export default function PestanaCobros({
         {pedido.cobros.map((cobro) => (
           <div
             key={cobro.id}
+            className="cobros-fila"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -148,7 +150,7 @@ export default function PestanaCobros({
               borderBottom: '1px solid #EBE0E2',
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="cobros-textos" style={{ flex: 1, minWidth: 0 }}>
               <p
                 style={{
                   margin: 0,
@@ -160,8 +162,11 @@ export default function PestanaCobros({
               >
                 {cobro.tipo_display}
               </p>
+              {/* Entre la fecha y el punto va un espacio que no se corta
+                  (\u00A0): si el renglón no alcanza, baja el medio y el
+                  punto queda pegado a la fecha, nunca solo. */}
               <p style={{ margin: '2px 0 0', fontSize: 13, color: '#857078' }}>
-                {fmtFechaLarga(cobro.fecha)} · {cobro.medio_display}
+                {fmtFechaLarga(cobro.fecha)}{'\u00A0'}· {cobro.medio_display}
               </p>
             </div>
 
@@ -239,6 +244,7 @@ export default function PestanaCobros({
           calcula el backend y se actualiza con cada respuesta. Acá no se
           recalcula nada. */}
       <div
+        className="cobros-resumen"
         style={{
           background: 'white',
           border: '1px solid #EBE0E2',

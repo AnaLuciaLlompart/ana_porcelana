@@ -2313,7 +2313,9 @@ dice.
   partirse y menos padding.
 - `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 31
   modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
-  se dibujen en varios lugares); 8px de aire y hasta 96vh de alto.
+  se dibujen en varios lugares); 8px de aire y hasta 96dvh de alto (dvh y
+  no vh, por el mismo motivo del 100dvh del Layout: vh no descuenta la
+  barra del navegador y la caja quedaba tapada abajo).
 - `campos-dos-columnas`: los grids de dos campos de ModalCobro,
   ModalAgregarProducto y ModalEditarProductoDelPedido, la grilla
   Descripción / Paso a paso de PestanaDatos de producto y las dos columnas
@@ -2325,6 +2327,25 @@ dice.
 - `paneles-finanzas` y `cobros-dos-columnas`: la grilla INGRESOS / GASTOS
   de Finanzas y la grilla lista + resumen de `PestanaCobros` (en
   `ModalCobros`); una columna.
+- `cobros-fondo`, `cobros-caja` y `cobros-cuerpo`: el fondo, la caja y el
+  medio de `ModalCobros`, que en pantalla chica ocupa la pantalla entera
+  (pedido de la usuaria: se veía apretado). El fondo pierde el aire; la
+  caja mide 100dvh, sin esquinas (va como `.modal-caja.cobros-caja` para
+  ganarle a la regla general); el medio crece con `flex: 1`, así la
+  cabecera queda arriba y el pie con Cerrar abajo, siempre a la vista, y lo
+  del medio se desplaza. `ModalCobro` (registrar o editar) sigue siendo un
+  modal común encima.
+- `cobros-cabecera` y `cobros-resumen`: la cabecera de la tarjeta COBROS
+  (título y frase arriba, "Registrar cobro" debajo a todo el ancho) y la
+  tarjeta RESUMEN. Las dos tarjetas conservan el borde, que las distingue
+  (se probó sin borde y se perdía la separación), con 14px de relleno en
+  vez de 20 para no gastar ancho.
+- `cobros-fila` y `cobros-textos`: cada cobro de `PestanaCobros`, en dos
+  renglones con una grilla de áreas: arriba el tipo y el monto, abajo
+  "fecha · medio" y los tres botones. La caja de los dos textos lleva
+  `display: contents`, así sus dos párrafos se ubican en la grilla de la
+  fila como hijos directos. Entre la fecha y el "·" va un ` `, para
+  que el punto nunca quede solo en un renglón (vale también en la compu).
 - `fila-fechas`: la fila Desde / Hasta del período Personalizado de
   Finanzas; se parte, sin margen, con cada fecha en su renglón.
 - `acciones-materiales`: los dos botones de la cabecera de materiales de
