@@ -1,6 +1,7 @@
 import BotonAccion from '../../componentes/BotonAccion'
 import { ANCHO_MAXIMO } from '../../constantes'
 import {
+  ICONO_COMPARTIR,
   ICONO_COMPROBANTE,
   ICONO_CRUZ,
   ICONO_EDITAR,
@@ -35,7 +36,14 @@ function FilaResumen({ etiqueta, valor, apagada, color }) {
 // La lista de cobros y el resumen de un pedido guardado. La usa solo
 // ModalCobros. onComprobante es opcional: sin él no se dibuja el botón del
 // comprobante de cada pago.
-export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar, onComprobante }) {
+export default function PestanaCobros({
+  pedido,
+  onRegistrar,
+  onEditar,
+  onQuitar,
+  onComprobante,
+  comprobanteSeComparte = false,
+}) {
   const chip = chipSaldo(pedido.saldo)
 
   // El costo que el cliente paga por su cuenta: se anota igual, pero no
@@ -170,14 +178,17 @@ export default function PestanaCobros({ pedido, onRegistrar, onEditar, onQuitar,
             </span>
 
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              {/* En el celular el mismo botón comparte el comprobante en vez
+                  de abrirlo (corrección E11): cambian el ícono y el title,
+                  y el lugar es el mismo, así la fila no se recarga. */}
               {onComprobante && (
                 <BotonAccion
                   onClick={() => onComprobante(cobro)}
-                  titulo="Comprobante de este pago"
+                  titulo={comprobanteSeComparte ? 'Compartir comprobante' : 'Comprobante de este pago'}
                   color="#8C5A66"
                   hover="#F0E2E4"
                   tamanoIcono={20}
-                  icono={ICONO_COMPROBANTE}
+                  icono={comprobanteSeComparte ? ICONO_COMPARTIR : ICONO_COMPROBANTE}
                 />
               )}
               <BotonAccion

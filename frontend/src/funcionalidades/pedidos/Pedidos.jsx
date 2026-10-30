@@ -5,6 +5,7 @@ import {
   exportarPedidosAExcel,
   listarPedidos,
   obtenerPedido,
+  pedirComprobanteDeCobro,
   resumenDePedidos,
   urlComprobanteDeCobro,
   urlExportarPedidosPdf,
@@ -26,6 +27,7 @@ import {
   ICONO_BORRAR,
   ICONO_BUSCAR,
   ICONO_COBRO,
+  ICONO_COMPARTIR,
   ICONO_COMPROBANTE,
   ICONO_EDITAR,
   ICONO_FILTROS,
@@ -53,6 +55,7 @@ import Toast from '../../componentes/Toast'
 import ModalAviso from '../../componentes/ModalAviso'
 import ChipSinContenido from '../../componentes/ChipSinContenido'
 import { BASE_GESTION } from '../../constantes'
+import { compartirArchivo, puedeCompartirArchivos } from '../../api/exportar'
 
 
 const estiloTh = {
@@ -147,13 +150,19 @@ function colorSelectorEstado(estado) {
 // Cobros, el modal de los cobros. El estado se cambia en su propia columna,
 // con el selector. Lo que no entra va en el ⋯: el comprobante del último
 // pago, que se abre en otra pestaña, y eliminar.
-function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros }) {
+function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onCompartirComprobante }) {
+  // En el celular, si el navegador comparte archivos, el último comprobante
+  // se comparte en vez de abrirse (corrección E11). El 768 es el mismo de
+  // index.css y de PANTALLA_CHICA en Layout.jsx.
+  const comprobanteSeComparte = window.matchMedia('(max-width: 768px)').matches && puedeCompartirArchivos()
+
   const masAcciones = [
     {
-      texto: 'Último comprobante',
-      icono: ICONO_COMPROBANTE,
-      onClick: () =>
-        window.open(urlComprobanteDeCobro(pedido.id, pedido.ultimo_cobro), '_blank', 'noopener,noreferrer'),
+      texto: comprobanteSeComparte ? 'Compartir último comprobante' : 'Último comprobante',
+      icono: comprobanteSeComparte ? ICONO_COMPARTIR : ICONO_COMPROBANTE,
+      onClick: comprobanteSeComparte
+        ? () => onCompartirComprobante(pedido)
+        : () => window.open(urlComprobanteDeCobro(pedido.id, pedido.ultimo_cobro), '_blank', 'noopener,noreferrer'),
       deshabilitado: pedido.ultimo_cobro === null,
       motivo: 'Este pedido todavía no tiene cobros',
     },
@@ -230,6 +239,7 @@ function Tabla({
   onEditar,
   onEliminar,
   onCobros,
+  onCompartirComprobante,
   onCambiarEstado,
 }) {
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
@@ -438,6 +448,7 @@ function Tabla({
                       onEditar={onEditar}
                       onEliminar={onEliminar}
                       onCobros={onCobros}
+                      onCompartirComprobante={onCompartirComprobante}
                     />
                   </td>
                 </tr>
@@ -610,6 +621,8 @@ export default function Pedidos() {
   const [pedidoCobros, setPedidoCobros] = useState(null)
   // El motivo por el que el backend rechazó un cambio de estado, o ''.
   const [errorEstado, setErrorEstado] = useState('')
+  // Lo mismo para compartir el último comprobante desde el celular.
+  const [errorCompartir, setErrorCompartir] = useState('')
 
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
@@ -758,6 +771,16 @@ export default function Pedidos() {
     obtenerPedido(pedido.id)
       .then((res) => setPedidoCobros(res.data))
       .catch(() => setError('No se pudieron cargar los cobros del pedido.'))
+  }
+
+  // El "Compartir último comprobante" del ⋯ en el celular (corrección E11).
+  // Cerrar el menú de compartir sin elegir nada no avisa; un error, sí.
+  async function compartirUltimoComprobante(pedido) {
+    const fallo = await compartirArchivo(
+      () => pedirComprobanteDeCobro(pedido.id, pedido.ultimo_cobro),
+      `Comprobante del pedido #${pedido.id}`,
+    )
+    if (fallo) setErrorCompartir(fallo)
   }
 
   // Al cerrar se recarga el listado: el saldo pudo cambiar, y con un filtro
@@ -1076,6 +1099,7 @@ export default function Pedidos() {
             onEditar={verPedido}
             onEliminar={(p) => setPedidoEliminando(p)}
             onCobros={abrirCobros}
+            onCompartirComprobante={compartirUltimoComprobante}
             onCambiarEstado={cambiarEstado}
           />
         </>
@@ -1138,6 +1162,15 @@ export default function Pedidos() {
           titulo="No se pudo cambiar el estado"
           texto={errorEstado}
           onCerrar={() => setErrorEstado('')}
+        />
+      )}
+
+      {errorCompartir && (
+        <ModalAviso
+          error
+          titulo="No se pudo compartir"
+          texto={errorCompartir}
+          onCerrar={() => setErrorCompartir('')}
         />
       )}
 

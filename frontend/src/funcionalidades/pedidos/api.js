@@ -72,6 +72,12 @@ export function urlComprobanteDeCobro(id, cobroId) {
   return `/api/pedidos/${id}/cobros/${cobroId}/comprobante/`
 }
 
+// El mismo comprobante, pero pedido con cliente y como blob, para
+// compartirlo desde el celular (corrección E11): ahí no se abre, se manda.
+export function pedirComprobanteDeCobro(id, cobroId) {
+  return cliente.get(`/pedidos/${id}/cobros/${cobroId}/comprobante/`, { responseType: 'blob' })
+}
+
 // El listado filtrado en PDF o Excel (corrección E10 del tutor, no un CU).
 // Lo que hacen está en api/exportar.js, común a los listados.
 export function urlExportarPedidosPdf(parametros) {

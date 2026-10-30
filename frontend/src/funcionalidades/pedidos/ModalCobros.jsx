@@ -1,7 +1,15 @@
 import { useState } from 'react'
-import { registrarCobro, modificarCobro, borrarCobro, urlComprobanteDeCobro } from './api'
+import {
+  registrarCobro,
+  modificarCobro,
+  borrarCobro,
+  pedirComprobanteDeCobro,
+  urlComprobanteDeCobro,
+} from './api'
 import PestanaCobros from './PestanaCobros'
 import ModalCobro from './ModalCobro'
+import ModalAviso from '../../componentes/ModalAviso'
+import { compartirArchivo, puedeCompartirArchivos } from '../../api/exportar'
 
 
 // El backend contesta de dos formas según qué falló: las reglas de negocio
@@ -41,6 +49,27 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
   const [modalCobro, setModalCobro] = useState(null)
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
+  // El motivo por el que no se pudo compartir un comprobante, o ''.
+  const [errorCompartir, setErrorCompartir] = useState('')
+
+  // En el celular, si el navegador comparte archivos, el comprobante se
+  // comparte en vez de abrirse (corrección E11). El 768 es el mismo de
+  // index.css y de PANTALLA_CHICA en Layout.jsx.
+  const comprobanteSeComparte = window.matchMedia('(max-width: 768px)').matches && puedeCompartirArchivos()
+
+  async function verOCompartirComprobante(cobro) {
+    if (!comprobanteSeComparte) {
+      // El PDF de ese pago en otra pestaña, como el del listado.
+      window.open(urlComprobanteDeCobro(pedido.id, cobro.id), '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    const fallo = await compartirArchivo(
+      () => pedirComprobanteDeCobro(pedido.id, cobro.id),
+      `Comprobante del pedido #${pedido.id}`,
+    )
+    if (fallo) setErrorCompartir(fallo)
+  }
 
   function abrirCobro(cobro) {
     setError('')
@@ -186,10 +215,8 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
               onRegistrar={() => abrirCobro('nuevo')}
               onEditar={(cobro) => abrirCobro(cobro)}
               onQuitar={quitarCobro}
-              // El PDF de ese pago en otra pestaña, como el del listado.
-              onComprobante={(cobro) =>
-                window.open(urlComprobanteDeCobro(pedido.id, cobro.id), '_blank', 'noopener,noreferrer')
-              }
+              onComprobante={verOCompartirComprobante}
+              comprobanteSeComparte={comprobanteSeComparte}
             />
           </div>
 
@@ -235,6 +262,16 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
           enviando={enviando}
           onCerrar={cerrarCobro}
           onGuardar={guardarCobro}
+        />
+      )}
+
+      {/* Después del fondo de los cobros, así queda encima. */}
+      {errorCompartir && (
+        <ModalAviso
+          error
+          titulo="No se pudo compartir"
+          texto={errorCompartir}
+          onCerrar={() => setErrorCompartir('')}
         />
       )}
     </>

@@ -624,7 +624,8 @@ instantánea y no un campo del formulario (ver "Formulario o acción" en
 Patrón a seguir).
 
 **Último comprobante (CU60)** abre en otra pestaña el comprobante de pago
-del cobro más reciente: `PedidoListaSerializer` trae `ultimo_cobro`, su
+del cobro más reciente; en el celular lo comparte (ver "En el celular, el
+comprobante se comparte", en Diseño visual). `PedidoListaSerializer` trae `ultimo_cobro`, su
 id o `null`, calculado con `max()` por (fecha, id) sobre lo que ya trajo
 el prefetch, así que el listado sigue en 4 consultas. Sin cobros, el ítem
 se apaga con "Este pedido todavía no tiene cobros".
@@ -647,7 +648,9 @@ ocupaba dos hojas. El saldo se calcula con el total de hoy: el PDF no se
 guarda, se arma cada vez. En pantalla, el botón con la hoja va al lado
 del lápiz de cada cobro en `PestanaCobros`, con la prop opcional
 `onComprobante`, que pasa `ModalCobros` y no el alta (sus cobros todavía
-no existen).
+no existen). En el celular el mismo botón comparte el comprobante, con la
+prop `comprobanteSeComparte` (ver "En el celular, el comprobante se
+comparte", en Diseño visual).
 
 **Dónde queda cada comprobante, decidido por la usuaria.** En
 `ModalCobros`, el de cada pago, como historial. En el ⋯ del listado,
@@ -1987,9 +1990,37 @@ rosa (ver "Cuatro componentes compartidos" en Las altas).
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
 `#8C5A66`), Cobros (signo $ en un círculo, `#8C5A66`), Comprobante
-(hoja con la punta doblada, `#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar
+(hoja con la punta doblada, `#8C5A66`), Compartir (tres círculos unidos,
+`#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar
 (tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`), Más acciones (tres
 puntos, `#8C5A66`).
+
+**En el celular, el comprobante se comparte** (corrección del tutor,
+E11). El botón de comprobante de cada cobro, en `ModalCobros`, pasa a
+ser Compartir: mismo lugar, el ícono de compartir y el title "Compartir
+comprobante". En el ⋯ del listado de Pedidos, "Último comprobante" pasa
+a "Compartir último comprobante". No se agrega un botón: se reemplaza,
+para que la fila no se recargue en pantalla chica. **Por qué:** en el
+teléfono lo que se hace con el comprobante es mandárselo al cliente, y
+abrirlo en otra pestaña obligaba a descargarlo y adjuntarlo a mano; así
+abre el menú de compartir del teléfono (WhatsApp, Instagram) con el PDF.
+**La condición** son las dos cosas: pantalla chica (una línea con
+`window.matchMedia('(max-width: 768px)')`, en `ModalCobros` y en
+`Acciones` de `Pedidos.jsx`) y un navegador que comparta archivos
+(`puedeCompartirArchivos()`, en `api/exportar.js`, que le pregunta a
+`navigator.canShare` por un PDF vacío). Si falta una, en la compu o en un
+celular cuyo navegador no comparte, se ve el comprobante como siempre.
+Compartir pide el PDF con `cliente` como blob
+(`pedirComprobanteDeCobro`, el mismo endpoint), arma un `File` con el
+nombre que manda el backend (`comprobante-pedido-<id>-cobro-<cobro>.pdf`)
+y llama a `navigator.share`, todo en `compartirArchivo`. Si la usuaria
+cierra el menú sin elegir (`AbortError`) no se avisa nada; un error de
+verdad abre el `ModalAviso` rojo "No se pudo compartir". No hay
+reintento: si un navegador rechaza compartir porque bajar el PDF tardó
+(pasa en algunos iPhone, que piden que compartir salga del toque), sale
+ese mismo aviso (decidido por la usuaria). Se probó en Chrome sin
+ventana con el menú de compartir simulado; la prueba en un celular real
+necesita el despliegue.
 
 **Cuatro iconos por fila, como máximo** (corrección del tutor del
 28/10/2026, A1). Si una fila tiene más acciones, las menos usadas van en
@@ -2199,8 +2230,10 @@ tablet vertical que funciona como un celular ancho. El segundo es
 fichas, que en escritorio normal miden `ANCHO_MAXIMO` (1140, en
 `src/constantes.js`), se estiran a 1400. Entre los dos está el escritorio
 normal, notebook o tablet apaisada, que es para lo que se diseñó todo y
-no lleva ninguna regla. Cada número está en dos lugares que tienen que
-coincidir: el 768 en `index.css` y en `PANTALLA_CHICA` de `Layout.jsx`; el
+no lleva ninguna regla. Cada número está en los lugares que tienen que
+coincidir: el 768 en `index.css`, en `PANTALLA_CHICA` de `Layout.jsx` y,
+desde E11, en la línea que decide si el comprobante se comparte, en
+`ModalCobros.jsx` y en `Acciones` de `Pedidos.jsx`; el
 1440 en `index.css` y en `PANTALLA_GRANDE` de `DetalleProducto.jsx`. React
 decide qué dibujar y CSS cómo se ve: si los dos números difieren, hay un
 rango de anchos donde uno cree estar de un lado y el otro del otro.
