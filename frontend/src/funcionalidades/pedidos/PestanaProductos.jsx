@@ -1,4 +1,5 @@
 import BotonAccion from '../../componentes/BotonAccion'
+import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
 import { ANCHO_MAXIMO } from '../../constantes'
 import {
   COLOR_ETAPA,
@@ -11,9 +12,10 @@ import {
 } from './presentacion'
 
 
-// Los títulos de columna van en gris sobre el fondo general, sin la franja
-// rosa de los listados: dentro de la ficha la tabla es parte de una tarjeta,
-// y el que manda es el título de la tarjeta, no los de las columnas.
+// Los títulos de columna van en gris sobre blanco, con una línea rosa
+// debajo, y no con la franja rosa de los listados: dentro de la ficha la
+// tabla es parte de una tarjeta, y el que manda es su encabezado rosa
+// oscuro. El blanco los separa del gris de los campos del formulario.
 const estiloTh = {
   padding: '10px 8px',
   fontFamily: "'Quicksand', sans-serif",
@@ -21,6 +23,7 @@ const estiloTh = {
   fontSize: 13,
   letterSpacing: '.06em',
   color: '#857078',
+  borderBottom: '2px solid #F0E2E4',
 }
 
 const estiloCartelError = {
@@ -178,29 +181,7 @@ export default function PestanaProductos({
         maxWidth: ANCHO_MAXIMO,
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '16px 20px',
-          borderBottom: '1px solid #EBE0E2',
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 17,
-            color: '#8C5A66',
-            letterSpacing: '.06em',
-          }}
-        >
-          PRODUCTOS DEL PEDIDO
-        </h2>
-
+      <EncabezadoDeTarjeta titulo="PRODUCTOS DEL PEDIDO">
         <button
           onClick={onAgregar}
           className="btn-reponer"
@@ -225,7 +206,7 @@ export default function PestanaProductos({
           </svg>
           Agregar producto
         </button>
-      </div>
+      </EncabezadoDeTarjeta>
 
       {/* El error de agregar, editar, cambiar la etapa o quitar va acá,
           pegado a la tabla, como en los materiales del gasto. */}
@@ -249,7 +230,7 @@ export default function PestanaProductos({
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#FAF7F7' }}>
+                <tr>
                   <th style={{ ...estiloTh, width: '37%', padding: '10px 20px', textAlign: 'left' }}>
                     PRODUCTO
                   </th>
@@ -287,8 +268,7 @@ export default function PestanaProductos({
               justifyContent: 'flex-end',
               gap: 24,
               padding: '14px 20px',
-              borderTop: '1px solid #EBE0E2',
-              background: '#FAF7F7',
+              borderTop: '2px solid #F0E2E4',
             }}
           >
             <span

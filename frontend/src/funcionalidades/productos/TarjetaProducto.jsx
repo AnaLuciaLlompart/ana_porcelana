@@ -2,11 +2,9 @@ import BotonAccion from '../../componentes/BotonAccion'
 import {
   ICONO_IMAGEN,
   ICONO_ALERTA,
-  COLOR_DIFICULTAD,
   formatearPrecio,
   estadoCatalogo,
   avisoMateriales,
-  textoDificultad,
   accionesDe,
 } from './presentacion'
 
@@ -14,7 +12,6 @@ import {
 // los clics avisan hacia arriba.
 
 export default function TarjetaProducto({ producto, acciones }) {
-  const dificultad = COLOR_DIFICULTAD[producto.dificultad]
   const catalogo = estadoCatalogo(producto)
   const aviso = avisoMateriales(producto)
 
@@ -124,20 +121,6 @@ export default function TarjetaProducto({ producto, acciones }) {
             }}
           >
             {formatearPrecio(producto.precio_actual)}
-          </span>
-          <span
-            style={{
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 12,
-              borderRadius: 20,
-              padding: '3px 11px',
-              border: `1px solid ${dificultad.color}`,
-              background: dificultad.fondo,
-              color: dificultad.color,
-            }}
-          >
-            {textoDificultad(producto)}
           </span>
         </div>
 

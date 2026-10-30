@@ -144,24 +144,25 @@ class TotalesDeHoySerializer(serializers.Serializer):
 
 
 class ProximasEntregasSerializer(serializers.Serializer):
-    """La lista de próximas entregas: cuántos pedidos hay sin entregar y los primeros."""
+    """La lista de próximas entregas: cuántos pedidos hay sin entregar.
+
+    Las filas las trae aparte /api/inicio/entregas/, de a una página
+    (corrección D3).
+    """
 
     total = serializers.IntegerField()
-    pedidos = PedidoPorEntregarSerializer(many=True)
 
 
 class EnProduccionSerializer(serializers.Serializer):
-    """La tabla EN PRODUCCIÓN: cuántas piezas hay sin terminar y las primeras."""
+    """La tabla PRODUCTOS EN ELABORACIÓN: cuántas piezas hay sin terminar, en total y por etapa.
+
+    por_etapa son los números de los chips de etapa, con la clave de cada
+    etapa (PENDIENTE, MODELADO…). Las filas las trae aparte
+    /api/inicio/en_produccion/, de a una página (corrección D3).
+    """
 
     total = serializers.IntegerField()
-    productos = ProductoDelPedidoEnProduccionSerializer(many=True)
-
-
-class MaterialesPorReponerSerializer(serializers.Serializer):
-    """La lista de materiales por reponer: cuántos hay en Baja y los primeros."""
-
-    total = serializers.IntegerField()
-    materiales = MaterialPorReponerSerializer(many=True)
+    por_etapa = serializers.DictField(child=serializers.IntegerField())
 
 
 # LA RESPUESTA COMPLETA ------------------------
@@ -179,4 +180,3 @@ class ResumenDeHoySerializer(serializers.Serializer):
     totales = TotalesDeHoySerializer()
     proximas_entregas = ProximasEntregasSerializer()
     en_produccion = EnProduccionSerializer()
-    materiales_por_reponer = MaterialesPorReponerSerializer()

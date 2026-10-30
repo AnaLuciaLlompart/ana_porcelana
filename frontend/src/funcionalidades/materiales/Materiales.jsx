@@ -37,7 +37,7 @@ const estiloTh = {
   fontWeight: 600,
   fontSize: 13,
   letterSpacing: '.06em',
-  color: '#8C5A66',
+  color: 'white',
 }
 
 const estiloTd = {
@@ -336,7 +336,7 @@ function Tabla({ materiales, cargando, orden, onOrdenar, paginacion, onVer, onEd
       }}
     >
       <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse' }}>
-        <thead style={{ background: '#F0E2E4' }}>
+        <thead style={{ background: '#8C5A66' }}>
           <tr>
             <EncabezadoOrdenable campo="nombre" etiqueta="MATERIAL" orden={orden} onClick={onOrdenar} />
             <EncabezadoOrdenable campo="disponibilidad" etiqueta="DISPONIBILIDAD" orden={orden} onClick={onOrdenar} centrado />

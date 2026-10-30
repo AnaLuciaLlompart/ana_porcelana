@@ -43,7 +43,7 @@ button:not(:disabled):hover {
 }
 
 .th-orden:hover {
-  background: rgba(140, 90, 102, 0.09) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
 }
 
 .btn-ver-productos:hover {

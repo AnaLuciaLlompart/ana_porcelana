@@ -15,7 +15,7 @@ export default function MiCuenta() {
   function mostrarToast(texto) {
     setToast(texto)
     clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => setToast(''), 2600)
+    temporizador.current = setTimeout(() => setToast(''), 1400)
   }
 
   return (

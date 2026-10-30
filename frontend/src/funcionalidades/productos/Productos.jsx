@@ -948,7 +948,7 @@ export default function Productos() {
             <div style={{ background: 'white', border: '1px solid #EBE0E2', borderRadius: 8, overflowX: 'auto' }}>
               <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#F0E2E4' }}>
+                  <tr style={{ background: '#8C5A66' }}>
                     {COLUMNAS.map((col) => (
                       <th key={col.campo} style={{ textAlign: 'left', padding: 0 }}>
                         <button
@@ -967,7 +967,7 @@ export default function Productos() {
                             fontFamily: "'Quicksand', sans-serif",
                             fontWeight: 600,
                             fontSize: 13,
-                            color: '#8C5A66',
+                            color: 'white',
                             letterSpacing: '.06em',
                           }}
                         >
@@ -1004,7 +1004,7 @@ export default function Productos() {
                         fontFamily: "'Quicksand', sans-serif",
                         fontWeight: 600,
                         fontSize: 13,
-                        color: '#8C5A66',
+                        color: 'white',
                         letterSpacing: '.06em',
                       }}
                     >
@@ -1017,7 +1017,7 @@ export default function Productos() {
                         fontFamily: "'Quicksand', sans-serif",
                         fontWeight: 600,
                         fontSize: 13,
-                        color: '#8C5A66',
+                        color: 'white',
                         letterSpacing: '.06em',
                       }}
                     >

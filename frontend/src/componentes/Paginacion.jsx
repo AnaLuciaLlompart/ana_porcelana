@@ -72,6 +72,9 @@ export default function Paginacion({
         borderTop: borde ? '1px solid #EBE0E2' : 0,
       }}
     >
+      {/* El selector va solo si quien usa el pie deja elegir: los paneles
+          de Inicio paginan siempre de a lo mismo y no pasan onPorPagina. */}
+      {onPorPagina && (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 13, color: '#857078' }}>Filas por página</span>
         <select
@@ -92,6 +95,7 @@ export default function Paginacion({
           <option value={48}>48</option>
         </select>
       </div>
+      )}
 
       <span style={{ fontSize: 13, color: '#857078' }}>
         {total === 0

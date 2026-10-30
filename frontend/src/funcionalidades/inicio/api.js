@@ -15,3 +15,18 @@ import cliente from '../../api/cliente'
 export function obtenerInicio() {
   return cliente.get('/inicio/')
 }
+
+// Las tres listas de la pantalla, de a una página (corrección D3): de a 8
+// las piezas y las entregas, de a 6 los materiales. Las piezas aceptan
+// además la etapa del chip elegido.
+export function listarPiezasEnProduccion(params = {}) {
+  return cliente.get('/inicio/en_produccion/', { params })
+}
+
+export function listarProximasEntregas(params = {}) {
+  return cliente.get('/inicio/entregas/', { params })
+}
+
+export function listarMaterialesPorReponer(params = {}) {
+  return cliente.get('/inicio/materiales/', { params })
+}

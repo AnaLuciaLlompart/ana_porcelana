@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { obtenerInicio } from './api'
+import {
+  listarMaterialesPorReponer,
+  listarPiezasEnProduccion,
+  listarProximasEntregas,
+  obtenerInicio,
+} from './api'
 
 // Imports que cruzan de funcionalidad, con el mismo criterio de siempre: la
 // pieza se queda en la funcionalidad donde nació y las demás la usan desde
@@ -27,6 +32,8 @@ import { formatearPrecio } from '../productos/presentacion'
 import { MESES_LARGOS } from '../finanzas/periodos'
 
 import ChipFiltro from '../../componentes/ChipFiltro'
+import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
+import Paginacion from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
 import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
@@ -49,19 +56,8 @@ const estiloTarjeta = {
   borderRadius: 8,
 }
 
-// Los títulos en mayúsculas de cada sección: EN PRODUCCIÓN, PRÓXIMAS
-// ENTREGAS, MATERIALES POR REPONER.
-const estiloTituloSeccion = {
-  margin: 0,
-  fontFamily: QUICKSAND,
-  fontWeight: 600,
-  fontSize: 17,
-  letterSpacing: '.06em',
-  color: '#8C5A66',
-}
-
-// Los títulos de columna van en gris sobre el fondo general, sin la franja
-// rosa de los listados, como en las fichas: el que manda es el título del
+// Los títulos de columna van en gris sobre blanco, con una línea rosa
+// debajo, como en las fichas: el que manda es el encabezado rosa oscuro del
 // panel, no los de las columnas.
 const estiloTh = {
   padding: '10px 8px',
@@ -72,6 +68,7 @@ const estiloTh = {
   fontSize: 13,
   letterSpacing: '.06em',
   color: '#857078',
+  borderBottom: '2px solid #F0E2E4',
 }
 
 const estiloTd = {
@@ -244,21 +241,9 @@ function Tarjeta({ titulo, valor, color, enlace, onClick }) {
 function Panel({ titulo, nota, estilo, className, children }) {
   return (
     <div className={className} style={{ ...estiloTarjeta, overflow: 'hidden', minWidth: 0, ...estilo }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: 10,
-          flexWrap: 'wrap',
-          padding: '16px 20px',
-          borderBottom: '1px solid #EBE0E2',
-        }}
-      >
-        <h2 style={estiloTituloSeccion}>{titulo}</h2>
-        {/* La aclaración chica al lado del título, como la cantidad en las
-            secciones de Categorías. Es opcional: solo la lleva EN PRODUCCIÓN. */}
-        {nota && <span style={{ fontSize: 13, color: '#B08791' }}>{nota}</span>}
-      </div>
+      {/* La aclaración chica al lado del título, como la cantidad en las
+          secciones de Categorías. Es opcional: solo la lleva EN PRODUCCIÓN. */}
+      <EncabezadoDeTarjeta titulo={titulo} nota={nota} />
       {children}
     </div>
   )
@@ -326,10 +311,11 @@ function Vacio({ titulo, texto, conIcono = false, conBorde = false }) {
 // porque esas piezas ya no están en la tabla.
 const ETAPAS_EN_PRODUCCION = ETAPAS.filter((e) => e.valor !== 'TERMINADO')
 
-// Los chips de etapa arriba de EN PRODUCCIÓN: Todas y una por etapa, cada
-// una con cuántas piezas tiene. Se elige una sola a la vez, y el filtrado es
-// local: el backend ya mandó todas las piezas.
-function FiltroEtapas({ productos, etapa, onElegir }) {
+// Los chips de etapa arriba de PRODUCTOS EN ELABORACIÓN: Todas y una por
+// etapa, cada una con cuántas piezas tiene. Los números los cuenta el
+// backend (por_etapa, en /api/inicio/), y elegir una le pide al backend las
+// piezas de esa etapa (corrección D3). Se elige una sola a la vez.
+function FiltroEtapas({ total, porEtapa, etapa, onElegir }) {
   return (
     <div
       style={{
@@ -340,12 +326,12 @@ function FiltroEtapas({ productos, etapa, onElegir }) {
         borderBottom: '1px solid #EBE0E2',
       }}
     >
-      <ChipFiltro label="Todas" cuenta={productos.length} activo={etapa === ''} onClick={() => onElegir('')} />
+      <ChipFiltro label="Todas" cuenta={total} activo={etapa === ''} onClick={() => onElegir('')} />
       {ETAPAS_EN_PRODUCCION.map((e) => (
         <ChipFiltro
           key={e.valor}
           label={e.label}
-          cuenta={productos.filter((p) => p.estado === e.valor).length}
+          cuenta={porEtapa[e.valor] ?? 0}
           activo={etapa === e.valor}
           onClick={() => onElegir(e.valor)}
         />
@@ -355,47 +341,33 @@ function FiltroEtapas({ productos, etapa, onElegir }) {
 }
 
 
-// Cuántas filas de cada lista se ven sin deslizar. El backend manda las
-// listas enteras, y las demás filas se ven deslizando dentro de la tarjeta.
+// Cuántas filas trae cada página de cada lista. Tienen que ser las mismas
+// que pagina el backend (PaginacionDeInicio y PaginacionDeMateriales, en
+// inicio/views.py): acá se usan para el "1–8 de 117" del pie y para el
+// "Ver todos" de abajo.
 const FILAS_EN_PRODUCCION = 8
 const FILAS_ENTREGAS = 8
 const FILAS_MATERIALES = 6
 
-// Los títulos de las dos tablas quedan pegados arriba al deslizar las
-// filas. Llevan su propio fondo porque el de la fila no los acompaña.
-const estiloThFijo = { ...estiloTh, position: 'sticky', top: 0, zIndex: 1, background: '#FAF7F7' }
+// El pie de páginas de cada panel: "1–8 de 117" y las dos flechas, sin el
+// selector de filas, porque cada panel pagina siempre de a lo mismo. Solo
+// aparece si hay más de una página: con todo en una, no hay a dónde ir.
+// borde es la línea de arriba; la lista de materiales no la lleva, porque
+// cada fila ya dibuja la suya abajo, como el Pie.
+function PieDePaginas({ total, pagina, porPagina, onPagina, borde = true }) {
+  if (total <= porPagina) return null
 
-// El alto que ocupan las primeras `cantidad` filas de una lista, para
-// usarlo de maxHeight en la caja que la envuelve; null si no hay más filas
-// que esas. Se mide porque las filas no miden todas lo mismo (la
-// descripción de una pieza o un nombre largo las hace más altas). El
-// ResizeObserver vuelve a medir cuando el contenido cambia de tamaño: al
-// cambiar el ancho de la ventana, al cargar la tipografía o al cambiar las
-// filas. Devuelve la ref, que va en el elemento que contiene las filas.
-function useAltoDeFilas(cantidad, selector, filas) {
-  const contenido = useRef(null)
-  const [alto, setAlto] = useState(null)
-
-  useEffect(() => {
-    const elemento = contenido.current
-    if (!elemento) return
-
-    function medir() {
-      const encontradas = elemento.querySelectorAll(selector)
-      if (encontradas.length <= cantidad) {
-        setAlto(null)
-        return
-      }
-      const ultima = encontradas[cantidad - 1]
-      setAlto(ultima.getBoundingClientRect().bottom - elemento.getBoundingClientRect().top)
-    }
-
-    const observador = new ResizeObserver(medir)
-    observador.observe(elemento)
-    return () => observador.disconnect()
-  }, [cantidad, selector, filas])
-
-  return [contenido, alto]
+  return (
+    <Paginacion
+      total={total}
+      desde={(pagina - 1) * porPagina}
+      porPagina={porPagina}
+      pagina={pagina}
+      totalPaginas={Math.ceil(total / porPagina)}
+      onPagina={onPagina}
+      borde={borde}
+    />
+  )
 }
 
 
@@ -407,8 +379,6 @@ function useAltoDeFilas(cantidad, selector, filas) {
 // MATERIALES lleva el botón que antes estaba en la tabla de productos del
 // pedido: en el taller es donde hace falta saber qué lleva cada pieza.
 function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerMateriales }) {
-  const [tabla, altoMaximo] = useAltoDeFilas(FILAS_EN_PRODUCCION, 'tbody tr', productos)
-
   if (productos.length === 0) {
     return (
       <Vacio
@@ -419,16 +389,16 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
   }
 
   return (
-    <div style={{ overflow: 'auto', maxHeight: altoMaximo ?? undefined }}>
-      <table ref={tabla} style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
-          <tr style={{ background: '#FAF7F7' }}>
-            <th style={{ ...estiloThFijo, width: '27%', padding: '10px 20px' }}>PRODUCTO</th>
-            <th style={{ ...estiloThFijo, width: '8%', textAlign: 'center' }}>CANT.</th>
-            <th style={{ ...estiloThFijo, width: '10%' }}>PEDIDO</th>
-            <th style={{ ...estiloThFijo, width: '20%' }}>ETAPA</th>
-            <th style={{ ...estiloThFijo, width: '14%' }}>DESDE</th>
-            <th style={{ ...estiloThFijo, width: '21%', padding: '10px 20px', textAlign: 'center' }}>MATERIALES</th>
+          <tr>
+            <th style={{ ...estiloTh, width: '27%', padding: '10px 20px' }}>PRODUCTO</th>
+            <th style={{ ...estiloTh, width: '8%', textAlign: 'center' }}>CANT.</th>
+            <th style={{ ...estiloTh, width: '10%' }}>PEDIDO</th>
+            <th style={{ ...estiloTh, width: '20%' }}>ETAPA</th>
+            <th style={{ ...estiloTh, width: '14%' }}>DESDE</th>
+            <th style={{ ...estiloTh, width: '21%', padding: '10px 20px', textAlign: 'center' }}>MATERIALES</th>
           </tr>
         </thead>
 
@@ -543,8 +513,6 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
 // son los del listado de Pedidos, con el hoy del servidor. "Cobrar al
 // entregar" no viaja desde el backend: se deduce acá, como en el prototipo.
 function TablaEntregas({ pedidos, hoy, onVerPedido }) {
-  const [tabla, altoMaximo] = useAltoDeFilas(FILAS_ENTREGAS, 'tbody tr', pedidos)
-
   if (pedidos.length === 0) {
     return (
       <Vacio
@@ -556,15 +524,15 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
   }
 
   return (
-    <div style={{ overflow: 'auto', maxHeight: altoMaximo ?? undefined }}>
-      <table ref={tabla} className="tabla-entregas" style={{ width: '100%', minWidth: 640, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+    <div style={{ overflowX: 'auto' }}>
+      <table className="tabla-entregas" style={{ width: '100%', minWidth: 640, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
-          <tr style={{ background: '#FAF7F7' }}>
-            <th style={{ ...estiloThFijo, width: '14%', padding: '10px 20px' }}>PEDIDO</th>
-            <th style={{ ...estiloThFijo, width: '26%' }}>CLIENTE</th>
-            <th style={{ ...estiloThFijo, width: '20%', textAlign: 'center' }}>ENTREGA</th>
-            <th style={{ ...estiloThFijo, width: '18%', textAlign: 'center' }}>ESTADO</th>
-            <th style={{ ...estiloThFijo, width: '22%', padding: '10px 20px', textAlign: 'center' }}>SALDO</th>
+          <tr>
+            <th style={{ ...estiloTh, width: '14%', padding: '10px 20px' }}>PEDIDO</th>
+            <th style={{ ...estiloTh, width: '26%' }}>CLIENTE</th>
+            <th style={{ ...estiloTh, width: '20%', textAlign: 'center' }}>ENTREGA</th>
+            <th style={{ ...estiloTh, width: '18%', textAlign: 'center' }}>ESTADO</th>
+            <th style={{ ...estiloTh, width: '22%', padding: '10px 20px', textAlign: 'center' }}>SALDO</th>
           </tr>
         </thead>
 
@@ -633,8 +601,6 @@ function TablaEntregas({ pedidos, hoy, onVerPedido }) {
 // negativo de la paleta; el texto igual sale del disponibilidad_display,
 // que es el que se muestra en todo el proyecto.
 function ListaMateriales({ materiales }) {
-  const [lista, altoMaximo] = useAltoDeFilas(FILAS_MATERIALES, ':scope > div', materiales)
-
   if (materiales.length === 0) {
     return (
       <Vacio
@@ -646,46 +612,38 @@ function ListaMateriales({ materiales }) {
     )
   }
 
-  // Dos cajas: la de afuera es la que desliza y la de adentro contiene las
-  // filas, que es la que se mide.
-  return (
-    <div style={{ overflowY: 'auto', maxHeight: altoMaximo ?? undefined }}>
-      <div ref={lista}>
-        {materiales.map((m) => (
-          <div
-            key={m.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              padding: '13px 20px',
-              borderBottom: '1px solid #EBE0E2',
-            }}
-          >
-            <span style={{ minWidth: 0, fontSize: 15, lineHeight: 1.35, color: '#3D3238', textWrap: 'pretty' }}>
-              {m.nombre}
-            </span>
-            <span
-              style={{
-                flexShrink: 0,
-                fontFamily: QUICKSAND,
-                fontWeight: 600,
-                fontSize: 13,
-                borderRadius: 20,
-                padding: '4px 12px',
-                border: '1px solid #C0442F',
-                background: '#FAEAE8',
-                color: '#C0442F',
-              }}
-            >
-              {m.disponibilidad_display}
-            </span>
-          </div>
-        ))}
-      </div>
+  return materiales.map((m) => (
+    <div
+      key={m.id}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        padding: '13px 20px',
+        borderBottom: '1px solid #EBE0E2',
+      }}
+    >
+      <span style={{ minWidth: 0, fontSize: 15, lineHeight: 1.35, color: '#3D3238', textWrap: 'pretty' }}>
+        {m.nombre}
+      </span>
+      <span
+        style={{
+          flexShrink: 0,
+          fontFamily: QUICKSAND,
+          fontWeight: 600,
+          fontSize: 13,
+          borderRadius: 20,
+          padding: '4px 12px',
+          border: '1px solid #C0442F',
+          background: '#FAEAE8',
+          color: '#C0442F',
+        }}
+      >
+        {m.disponibilidad_display}
+      </span>
     </div>
-  )
+  ))
 }
 
 
@@ -697,8 +655,21 @@ export default function Inicio() {
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(true)
 
-  // La etapa elegida en EN PRODUCCIÓN; '' es Todas.
+  // La etapa elegida en PRODUCTOS EN ELABORACIÓN; '' es Todas.
   const [etapa, setEtapa] = useState('')
+
+  // Las tres listas, cada una con la página que se está mirando y lo que
+  // mandó el backend para esa página: { results, count } (corrección D3).
+  // Cada una se pide sola, así pasar de página en una no recarga las otras.
+  const [paginaPiezas, setPaginaPiezas] = useState(1)
+  const [piezas, setPiezas] = useState(null)
+  const [paginaEntregas, setPaginaEntregas] = useState(1)
+  const [entregas, setEntregas] = useState(null)
+  const [paginaMateriales, setPaginaMateriales] = useState(1)
+  const [materiales, setMateriales] = useState(null)
+  // Sube en uno cada vez que hay que volver a pedir las piezas (después de
+  // cambiar una etapa o deshacer), aunque la página no haya cambiado.
+  const [versionPiezas, setVersionPiezas] = useState(0)
 
   const [toast, setToast] = useState('')
   const [hayDeshacer, setHayDeshacer] = useState(false)
@@ -708,8 +679,8 @@ export default function Inicio() {
   // si toca Deshacer. Va en un ref y no en estado porque no se dibuja.
   const pendienteDeDeshacer = useRef(null)
 
-  // Un solo pedido al servidor al abrir la pantalla: sin parámetros, sin
-  // filtros, sin paginación. Las listas ya vienen recortadas.
+  // Al abrir la pantalla: el resumen (las cuatro tarjetas, los números de
+  // los chips y los totales de cada lista). Las filas las pide cada lista.
   useEffect(() => {
     obtenerInicio()
       .then((res) => setDatos(res.data))
@@ -717,10 +688,73 @@ export default function Inicio() {
       .finally(() => setCargando(false))
   }, [])
 
-  // Vuelve a pedir el resumen después de una acción. No pasa por cargando:
-  // lo que ya está en pantalla se queda hasta que llegan los datos nuevos,
-  // así la pantalla no parpadea a "Cargando…" por un cambio de etapa.
+  // Una página de cada lista, cada vez que cambia su página (y, en las
+  // piezas, la etapa elegida). Si llegan dos respuestas fuera de orden,
+  // vigente descarta la vieja. Una página que dejó de existir (se terminó la
+  // última pieza de la última página) responde 404: se vuelve a la anterior.
+  useEffect(() => {
+    let vigente = true
+    const parametros = { pagina: paginaPiezas }
+    if (etapa) parametros.etapa = etapa
+
+    listarPiezasEnProduccion(parametros)
+      .then((res) => {
+        if (vigente) setPiezas(res.data)
+      })
+      .catch((err) => {
+        if (!vigente) return
+        if (err.response?.status === 404 && paginaPiezas > 1) setPaginaPiezas(paginaPiezas - 1)
+        else setError('No se pudieron cargar los productos en elaboración.')
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [paginaPiezas, etapa, versionPiezas])
+
+  useEffect(() => {
+    let vigente = true
+
+    listarProximasEntregas({ pagina: paginaEntregas })
+      .then((res) => {
+        if (vigente) setEntregas(res.data)
+      })
+      .catch(() => {
+        if (vigente) setError('No se pudieron cargar las próximas entregas.')
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [paginaEntregas])
+
+  useEffect(() => {
+    let vigente = true
+
+    listarMaterialesPorReponer({ pagina: paginaMateriales })
+      .then((res) => {
+        if (vigente) setMateriales(res.data)
+      })
+      .catch(() => {
+        if (vigente) setError('No se pudieron cargar los materiales por reponer.')
+      })
+
+    return () => {
+      vigente = false
+    }
+  }, [paginaMateriales])
+
+  // Elegir otra etapa vuelve a la página 1 de las piezas.
+  function elegirEtapa(valor) {
+    setEtapa(valor)
+    setPaginaPiezas(1)
+  }
+
+  // Vuelve a pedir el resumen y la página de piezas después de cambiar una
+  // etapa. No pasa por cargando: lo que ya está en pantalla se queda hasta
+  // que llegan los datos nuevos, así la pantalla no parpadea a "Cargando…".
   function recargar() {
+    setVersionPiezas((v) => v + 1)
     return obtenerInicio()
       .then((res) => setDatos(res.data))
       .catch(() => setError('No se pudo actualizar el inicio.'))
@@ -740,7 +774,7 @@ export default function Inicio() {
     temporizador.current = setTimeout(() => {
       setToast('')
       setHayDeshacer(false)
-    }, conDeshacer ? 6000 : 2600)
+    }, conDeshacer ? 3000 : 1400)
   }
 
   // Manda la etapa nueva al backend con el PATCH de Pedidos y, si salió
@@ -772,10 +806,18 @@ export default function Inicio() {
   async function cambiarEtapa(producto, estado) {
     const salioBien = await aplicarEtapa(producto, estado)
 
-    if (!salioBien || estado !== 'TERMINADO') return
+    if (!salioBien) return
 
-    pendienteDeDeshacer.current = { producto, estado: producto.estado }
-    mostrarToast(`${producto.producto_nombre} terminado`, true)
+    if (estado === 'TERMINADO') {
+      pendienteDeDeshacer.current = { producto, estado: producto.estado }
+      mostrarToast(`${producto.producto_nombre} terminado`, true)
+      return
+    }
+
+    // Las otras etapas avisan sin Deshacer: la fila sigue en la tabla, con
+    // su selector para volver atrás.
+    const etapa = ETAPAS.find((e) => e.valor === estado)
+    mostrarToast(`${producto.producto_nombre} pasó a ${etapa.label}`)
   }
 
   // Deshacer no tiene endpoint propio: es el mismo PATCH con la etapa que
@@ -798,12 +840,6 @@ export default function Inicio() {
   // "Cargando…" mientras no llegó.
   const subtitulo = cargando ? 'Cargando…' : datos ? fechaDelEncabezado(datos.hoy) : ''
 
-  // Las piezas de EN PRODUCCIÓN de la etapa elegida, o todas.
-  const enProduccionFiltrados = !datos
-    ? []
-    : etapa === ''
-      ? datos.en_produccion.productos
-      : datos.en_produccion.productos.filter((p) => p.estado === etapa)
 
   return (
     <div>
@@ -890,24 +926,37 @@ export default function Inicio() {
             className="ancho-pantalla"
             estilo={{ maxWidth: ANCHO_MAXIMO, marginBottom: 24 }}
           >
-            {datos.en_produccion.productos.length > 0 && (
-              <FiltroEtapas productos={datos.en_produccion.productos} etapa={etapa} onElegir={setEtapa} />
+            {datos.en_produccion.total > 0 && (
+              <FiltroEtapas
+                total={datos.en_produccion.total}
+                porEtapa={datos.en_produccion.por_etapa}
+                etapa={etapa}
+                onElegir={elegirEtapa}
+              />
             )}
             {/* Si la etapa elegida se quedó sin piezas (se pasó la última a
                 otra), se dice eso y no "No tenés nada en el taller". */}
-            {datos.en_produccion.productos.length > 0 && enProduccionFiltrados.length === 0 ? (
+            {piezas && datos.en_produccion.total > 0 && piezas.count === 0 && etapa !== '' ? (
               <Vacio
                 titulo={`Ninguna pieza en ${ETAPAS.find((e) => e.valor === etapa).label}`}
                 texto="Elegí otra etapa para ver las demás piezas."
               />
-            ) : (
-              <TablaEnProduccion
-                productos={enProduccionFiltrados}
-                hoy={datos.hoy}
-                onVerPedido={verPedido}
-                onCambiarEtapa={cambiarEtapa}
-                onVerMateriales={(producto) => navegar(`${BASE_GESTION}/materiales?producto=${producto}`)}
-              />
+            ) : piezas && (
+              <>
+                <TablaEnProduccion
+                  productos={piezas.results}
+                  hoy={datos.hoy}
+                  onVerPedido={verPedido}
+                  onCambiarEtapa={cambiarEtapa}
+                  onVerMateriales={(producto) => navegar(`${BASE_GESTION}/materiales?producto=${producto}`)}
+                />
+                <PieDePaginas
+                  total={piezas.count}
+                  pagina={paginaPiezas}
+                  porPagina={FILAS_EN_PRODUCCION}
+                  onPagina={setPaginaPiezas}
+                />
+              </>
             )}
             <Pie
               texto={textoVerTodos(
@@ -922,11 +971,17 @@ export default function Inicio() {
 
           <div className="ancho-pantalla" style={{ display: 'flex', flexWrap: 'wrap', gap: 24, maxWidth: ANCHO_MAXIMO, alignItems: 'flex-start' }}>
             <Panel titulo="PRÓXIMAS ENTREGAS" estilo={{ flex: '2 1 600px' }}>
-              <TablaEntregas
-                pedidos={datos.proximas_entregas.pedidos}
-                hoy={datos.hoy}
-                onVerPedido={verPedido}
-              />
+              {entregas && (
+                <>
+                  <TablaEntregas pedidos={entregas.results} hoy={datos.hoy} onVerPedido={verPedido} />
+                  <PieDePaginas
+                    total={entregas.count}
+                    pagina={paginaEntregas}
+                    porPagina={FILAS_ENTREGAS}
+                    onPagina={setPaginaEntregas}
+                  />
+                </>
+              )}
               <Pie
                 texto={textoVerTodos(
                   'Ver todos los pedidos',
@@ -939,16 +994,29 @@ export default function Inicio() {
             </Panel>
 
             <Panel titulo="MATERIALES POR REPONER" estilo={{ flex: '1 1 300px' }}>
-              <ListaMateriales materiales={datos.materiales_por_reponer.materiales} />
+              {materiales && (
+                <>
+                  <ListaMateriales materiales={materiales.results} />
+                  <PieDePaginas
+                    total={materiales.count}
+                    pagina={paginaMateriales}
+                    porPagina={FILAS_MATERIALES}
+                    onPagina={setPaginaMateriales}
+                    borde={false}
+                  />
+                </>
+              )}
+              {/* Con el pie de páginas en el medio, el enlace sí lleva su
+                  línea: la de la última fila quedó arriba del pie. */}
               <Pie
                 texto={textoVerTodos(
                   'Ver todos los materiales',
-                  datos.materiales_por_reponer.total,
+                  datos.totales.materiales_por_reponer,
                   FILAS_MATERIALES,
                   'por reponer'
                 )}
                 onClick={() => navegar(`${BASE_GESTION}/materiales`)}
-                conBorde={false}
+                conBorde={datos.totales.materiales_por_reponer > FILAS_MATERIALES}
               />
             </Panel>
           </div>

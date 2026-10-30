@@ -59,7 +59,7 @@ const estiloTh = {
   fontWeight: 600,
   fontSize: 13,
   letterSpacing: '.06em',
-  color: '#8C5A66',
+  color: 'white',
 }
 
 const estiloTd = {
@@ -249,7 +249,7 @@ function Tabla({
           borderCollapse: 'collapse',
         }}
       >
-        <thead style={{ background: '#F0E2E4' }}>
+        <thead style={{ background: '#8C5A66' }}>
           <tr>
             {COLS.map((col) => (
               <EncabezadoOrdenable
@@ -722,12 +722,14 @@ export default function Pedidos() {
     navegar(`${BASE_GESTION}/pedidos/${pedido.id}`)
   }
 
-  function mostrarToast(texto) {
+  // duracion es opcional: el cambio de estado dura lo de siempre y el
+  // cobro registrado, un tercio menos.
+  function mostrarToast(texto, duracion = 1400) {
     setToast(texto)
     // Se cancela el anterior, como en la ficha: si no, el temporizador de un
     // aviso viejo apagaría el nuevo antes de tiempo.
     clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => setToast(''), 2600)
+    temporizador.current = setTimeout(() => setToast(''), duracion)
   }
 
   // El selector de ESTADO de la fila (CU42). Llama a cambiar_estado, que
@@ -1097,7 +1099,7 @@ export default function Pedidos() {
           onCerrar={cerrarCobros}
           onPedidoActualizado={(actualizado, aviso) => {
             setPedidoCobros(actualizado)
-            if (aviso) mostrarToast(aviso)
+            if (aviso) mostrarToast(aviso, 930)
           }}
         />
       )}

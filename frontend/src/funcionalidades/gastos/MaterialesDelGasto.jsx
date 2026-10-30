@@ -1,4 +1,5 @@
 import BotonAccion from '../../componentes/BotonAccion'
+import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
 import {
   COLOR_DISPONIBILIDAD,
   ICONO_CRUZ,
@@ -9,18 +10,10 @@ import {
 } from './presentacion'
 
 
-const estiloTituloTarjeta = {
-  margin: 0,
-  fontFamily: "'Quicksand', sans-serif",
-  fontWeight: 600,
-  fontSize: 17,
-  color: '#8C5A66',
-  letterSpacing: '.06em',
-}
-
-// Los títulos de columna van en gris sobre el fondo general, sin la franja
-// rosa de los listados: dentro de la ficha la tabla es parte de una tarjeta,
-// y el que manda es el título de la tarjeta, no los de las columnas.
+// Los títulos de columna van en gris sobre blanco, con una línea rosa
+// debajo, y no con la franja rosa de los listados: dentro de la ficha la
+// tabla es parte de una tarjeta, y el que manda es su encabezado rosa
+// oscuro. El blanco los separa del gris de los campos del formulario.
 const estiloTh = {
   padding: '10px 8px',
   fontFamily: "'Quicksand', sans-serif",
@@ -28,6 +21,7 @@ const estiloTh = {
   fontSize: 13,
   letterSpacing: '.06em',
   color: '#857078',
+  borderBottom: '2px solid #F0E2E4',
 }
 
 const estiloCartelError = {
@@ -195,19 +189,7 @@ export default function MaterialesDelGasto({
         overflow: 'hidden',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '16px 20px',
-          borderBottom: '1px solid #EBE0E2',
-          flexWrap: 'wrap',
-        }}
-      >
-        <h2 style={estiloTituloTarjeta}>MATERIALES DEL GASTO</h2>
-
+      <EncabezadoDeTarjeta titulo="MATERIALES DEL GASTO">
         <div className="acciones-materiales" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {onAltaTodos && (
             <button
@@ -276,7 +258,7 @@ export default function MaterialesDelGasto({
             Agregar material
           </button>
         </div>
-      </div>
+      </EncabezadoDeTarjeta>
 
       {/* El error de una operación sobre los materiales va acá, pegado a la
           tabla que la provocó, y no en el formulario de arriba. Es el mismo
@@ -301,7 +283,7 @@ export default function MaterialesDelGasto({
               }}
             >
               <thead>
-                <tr style={{ background: '#FAF7F7' }}>
+                <tr>
                   <th style={{ ...estiloTh, width: '24%', padding: '10px 20px', textAlign: 'left' }}>
                     MATERIAL
                   </th>
@@ -340,8 +322,7 @@ export default function MaterialesDelGasto({
               justifyContent: 'flex-end',
               gap: 24,
               padding: '14px 20px',
-              borderTop: '1px solid #EBE0E2',
-              background: '#FAF7F7',
+              borderTop: '2px solid #F0E2E4',
             }}
           >
             <span

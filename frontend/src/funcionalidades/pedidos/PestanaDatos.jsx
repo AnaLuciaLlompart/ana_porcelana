@@ -1,3 +1,4 @@
+import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
 import SelectorBuscable from '../../componentes/SelectorBuscable'
 
 
@@ -148,27 +149,18 @@ export default function PestanaDatos({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* overflow hidden para que el encabezado rosa oscuro tome las
+          esquinas redondeadas. No recorta la lista del cliente: esa va con
+          position fixed. */}
       <div
         style={{
           background: 'white',
           border: '1px solid #EBE0E2',
           borderRadius: 8,
+          overflow: 'hidden',
         }}
       >
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #EBE0E2' }}>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 17,
-              color: '#8C5A66',
-              letterSpacing: '.06em',
-            }}
-          >
-            DATOS DEL PEDIDO
-          </h2>
-        </div>
+        <EncabezadoDeTarjeta titulo="DATOS DEL PEDIDO" />
 
         <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div

@@ -31,7 +31,7 @@ const estiloTh = {
   fontWeight: 600,
   fontSize: 13,
   letterSpacing: '.06em',
-  color: '#8C5A66',
+  color: 'white',
 }
 
 const estiloTd = {
@@ -107,12 +107,15 @@ function Acciones({ cliente, onVer, onEditar, onCopiar, onEliminar }) {
         hover="#F0E2E4"
         icono={ICONO_EDITAR}
       />
+      {/* El email es opcional: sin email el botón se apaga y el title dice
+          por qué, como los botones apagados del resto del sistema. */}
       <BotonAccion
         onClick={() => onCopiar(cliente)}
-        titulo={`Copiar @${cliente.instagram}`}
+        titulo={cliente.email ? `Copiar ${cliente.email}` : 'Este cliente no tiene email cargado'}
         color="#8C5A66"
         hover="#F0E2E4"
         icono={ICONO_COPIAR}
+        deshabilitado={!cliente.email}
       />
       <BotonAccion
         onClick={() => onEliminar(cliente)}
@@ -156,7 +159,7 @@ function Tabla({
       }}
     >
       <table style={{ width: '100%', minWidth: 880, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-        <thead style={{ background: '#F0E2E4' }}>
+        <thead style={{ background: '#8C5A66' }}>
           <tr>
             <EncabezadoOrdenable
               campo="instagram"
@@ -547,17 +550,17 @@ export default function Clientes() {
     // Se cancela el anterior: si no, al copiar dos usuarios seguidos el
     // temporizador del primero apaga el cartel del segundo antes de tiempo.
     clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => setToast(''), 2600)
+    temporizador.current = setTimeout(() => setToast(''), 930)
   }
 
   // Copiar es la única acción sin efecto visible en la pantalla, y por eso
   // es la única que avisa con el cartel.
-  async function copiarUsuario(c) {
+  async function copiarEmail(c) {
     try {
-      await navigator.clipboard.writeText(`@${c.instagram}`)
-      mostrarToast(`@${c.instagram} copiado`)
+      await navigator.clipboard.writeText(c.email)
+      mostrarToast(`${c.email} copiado`)
     } catch {
-      setError('No se pudo copiar el usuario.')
+      setError('No se pudo copiar el email.')
     }
   }
 
@@ -583,7 +586,7 @@ export default function Clientes() {
   const acciones = {
     onVer: (c) => setClienteViendo(c),
     onEditar: (c) => setClienteEditando(c),
-    onCopiar: (c) => copiarUsuario(c),
+    onCopiar: (c) => copiarEmail(c),
     onEliminar: (c) => setClienteEliminando(c),
   }
 

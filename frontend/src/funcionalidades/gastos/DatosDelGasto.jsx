@@ -1,4 +1,5 @@
 import { TIPOS, formatearPrecio } from './presentacion'
+import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
 
 
 const estiloEtiqueta = {
@@ -21,15 +22,6 @@ const estiloCampo = {
   borderRadius: 6,
   outline: 'none',
   fontFamily: 'inherit',
-}
-
-const estiloTituloTarjeta = {
-  margin: 0,
-  fontFamily: "'Quicksand', sans-serif",
-  fontWeight: 600,
-  fontSize: 17,
-  color: '#8C5A66',
-  letterSpacing: '.06em',
 }
 
 const estiloCartelError = {
@@ -80,9 +72,7 @@ export default function DatosDelGasto({
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EBE0E2' }}>
-        <h2 style={estiloTituloTarjeta}>DATOS DEL GASTO</h2>
-      </div>
+      <EncabezadoDeTarjeta titulo="DATOS DEL GASTO" />
 
       <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
         <div
