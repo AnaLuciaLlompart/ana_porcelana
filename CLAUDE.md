@@ -1985,7 +1985,11 @@ con campos apilados, pie con Cancelar y la acción principal. Fondo
 oscurecido que cierra al hacer clic, con `e.stopPropagation()` en la
 tarjeta. **La excepción es `ModalAviso`**, que avisa algo que ya pasó y
 lleva una franja verde (o roja) con un círculo en lugar de la cabecera
-rosa (ver "Cuatro componentes compartidos" en Las altas).
+rosa (ver "Cuatro componentes compartidos" en Las altas). **`ModalCobros`
+no tiene pie**: su único botón era Cerrar, que repetía la cruz de la
+cabecera, y la usuaria lo sacó, en la compu y en el celular. Cada cobro
+se guarda en el momento, así que no hay ninguna acción principal que
+poner abajo.
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
@@ -2331,10 +2335,10 @@ dice.
   medio de `ModalCobros`, que en pantalla chica ocupa la pantalla entera
   (pedido de la usuaria: se veía apretado). El fondo pierde el aire; la
   caja mide 100dvh, sin esquinas (va como `.modal-caja.cobros-caja` para
-  ganarle a la regla general); el medio crece con `flex: 1`, así la
-  cabecera queda arriba y el pie con Cerrar abajo, siempre a la vista, y lo
-  del medio se desplaza. `ModalCobro` (registrar o editar) sigue siendo un
-  modal común encima.
+  ganarle a la regla general); el cuerpo crece con `flex: 1` hasta el
+  fondo, así la cabecera con la cruz queda arriba, siempre a la vista, y lo
+  de abajo se desplaza. El modal no tiene pie (ver Patrón de modal).
+  `ModalCobro` (registrar o editar) sigue siendo un modal común encima.
 - `cobros-cabecera` y `cobros-resumen`: la cabecera de la tarjeta COBROS
   (título y frase arriba, "Registrar cobro" debajo a todo el ancho) y la
   tarjeta RESUMEN. Las dos tarjetas conservan el borde, que las distingue

@@ -220,33 +220,6 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
               comprobanteSeComparte={comprobanteSeComparte}
             />
           </div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              padding: '16px 24px',
-              flexShrink: 0,
-              borderTop: '1px solid #EBE0E2',
-            }}
-          >
-            <button
-              onClick={onCerrar}
-              style={{
-                padding: '10px 20px',
-                border: '1px solid #EBE0E2',
-                background: 'white',
-                color: '#8C5A66',
-                borderRadius: 6,
-                cursor: 'pointer',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 15,
-              }}
-            >
-              Cerrar
-            </button>
-          </div>
         </div>
       </div>
 

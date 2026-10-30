@@ -235,8 +235,8 @@ button:not(:disabled):hover {
 
 /* Pantalla chica, el modal de Cobros (ModalCobros) ocupa la pantalla
    entera: sin aire alrededor, sin esquinas redondeadas y con 100dvh de alto.
-   La cabecera y el pie con Cerrar quedan siempre a la vista y lo del medio
-   se desplaza. Adentro, las tarjetas COBROS y RESUMEN conservan el borde,
+   La cabecera, con la cruz, queda siempre a la vista y lo de abajo se
+   desplaza. Adentro, las tarjetas COBROS y RESUMEN conservan el borde,
    que las distingue, con menos relleno adentro (14 en vez de 20) para no
    gastar ancho. ModalCobro, el de registrar o editar, sigue siendo
    un modal común encima. */
@@ -252,7 +252,7 @@ button:not(:disabled):hover {
     border-radius: 0 !important;
   }
 
-  /* El medio crece hasta empujar el pie al fondo, y se desplaza adentro. */
+  /* El cuerpo ocupa todo el alto que deja la cabecera, y se desplaza adentro. */
   .cobros-cuerpo {
     flex: 1;
     padding: 16px !important;
