@@ -345,8 +345,6 @@ asociaciones. Los que queden sin categorías siguen visibles.
 
 ## Módulo Clientes (CU36–CU39)
 
-Diseño en `disenio/Clientes.dc.html`.
-
 **Cliente NO tiene baja lógica.** La tabla no tiene campo Estado. Las
 únicas operaciones son alta, búsqueda, modificación y eliminación.
 
@@ -376,7 +374,9 @@ Eliminar. La tabla ordena por ÚLTIMO descendente, como el prototipo.
 **El único aviso flotante del módulo es el de copiar el email.** El botón
 de dos hojas copia el email del cliente y no el usuario (pedido de la
 usuaria); sin email cargado se apaga, con "Este cliente no tiene email
-cargado" en el title. Copiar
+cargado" en el title. El aviso dice "Email copiado" y no el email entero,
+que lo hacía largo (pedido de la usuaria); el mismo botón y el mismo aviso
+están en `ModalCobros` (ver Módulo Pedidos). Copiar
 al portapapeles es la única acción sin efecto visible. El alta y la
 edición se confirman con `ModalAviso`, como en todos los listados (ver
 "Después de crear, las tres vuelven al listado con un modal de aviso");
@@ -391,8 +391,6 @@ funcionalidad que los usaba.
 ---
 
 ## Módulo Pedidos (CU40–CU47)
-
-Diseño en `disenio/Pedidos.dc.html`.
 
 **Dos modelos: `Pedido` y `ProductoDelPedido`.** El segundo se llama
 así y no "línea": el vocabulario sale de los casos de uso.
@@ -690,6 +688,20 @@ que un doble clic no cobre dos veces); el de quitar, arriba de la lista.
 En A7 lo abría un botón en la cabecera de la ficha; en A1, el ⋯; hoy, el $
 de la fila.
 
+**El email del cliente se copia desde `ModalCobros`** (pedido de la
+usuaria: para tenerlo a mano al mandar el comprobante). Arriba de las dos
+tarjetas va el @usuario y, al lado, el email con el botón de copiar de
+Clientes pegado (`ICONO_COPIAR`, que `pedidos/presentacion.js` repite como
+los demás iconos). En la compu es un renglón; en el celular, si no entra,
+el email y el botón bajan juntos debajo del usuario (`flexWrap`, sin
+clase en `index.css`; lo eligió la usuaria entre tres formas). Sin email
+cargado dice "Sin email cargado" y el botón se apaga con el mismo title
+que en Clientes. El email lo trae
+`PedidoDetalleSerializer` en `cliente_email`, solo en la ficha: el listado
+no lo muestra. El aviso "Email copiado" lo muestra quien abrió el modal,
+por la prop `onAviso`, como "Cobro registrado"; si copiar falla, el error
+va arriba de la lista, como el de quitar un cobro.
+
 **El error de los productos va pegado a su tabla.** `PestanaProductos`
 recibe una prop opcional `error` (`errorProductos` en la ficha), copiada
 de `MaterialesDelGasto` con `errorMateriales`: si Guardar falla en un
@@ -917,8 +929,7 @@ la ficha, debajo de todas las secciones.
 
 ## Módulo Gastos (CU52–CU59)
 
-Diseño en `disenio/Gastos.dc.html`. **El módulo está completo**, backend
-y frontend. Los informes son CU60 a CU62 y quedan fuera de este módulo.
+**El módulo está completo**, backend y frontend. Los informes son CU60 a CU62 y quedan fuera de este módulo.
 
 **Dos modelos en la app `gastos`: `Gasto` y `MaterialDelGasto`.** El
 segundo no lleva app ni ViewSet propio: cuelga siempre de un gasto, igual
@@ -1152,8 +1163,7 @@ listado (Clientes, Pedidos, Materiales y Gastos).
 
 ## Módulo Finanzas (CU61, CU62)
 
-Diseño en `disenio/Finanzas.dc.html`. La pantalla se llama Finanzas; el
-módulo de la tesis sigue siendo Informes. **El módulo está completo: el
+La pantalla se llama Finanzas; el módulo de la tesis sigue siendo Informes. **El módulo está completo: el
 backend, verificado en la interfaz navegable, y el frontend.**
 
 **App `finanzas` sin modelos propios:** solo vista, serializers y urls.
@@ -1231,8 +1241,7 @@ mientras carga, si hubo error y con un período sin cobros ni gastos
 
 ## Catálogo público (CU63–CU70)
 
-Diseño en `disenio/Catalogo.dc.html`. Son ocho casos de uso, del
-Visitante: el catálogo (CU63 visualizar, CU64 filtrar por categoría,
+Son ocho casos de uso, del Visitante: el catálogo (CU63 visualizar, CU64 filtrar por categoría,
 CU65 ver el detalle) y la consulta de productos (CU66 agregar a la
 selección, CU67 modificar cantidad, CU68 quitar, CU69 registrar
 aclaraciones, CU70 generar el mensaje). CU71 se eliminó de la tesis.
@@ -1920,15 +1929,18 @@ blanco (y el hover de las columnas que ordenan, `.th-orden`, es un velo
 blanco). Se probaron y descartaron el rosa del ítem seleccionado de la
 barra (`#A37B85`) y el blanco al 75% de sus textos. Cuando la tabla vive
 dentro de una tarjeta con su propio título (Datos y Productos del pedido,
-Datos y Materiales del gasto, los tres paneles de Inicio), el título va
+Datos y Materiales del gasto, los tres paneles de Inicio, INGRESOS y
+GASTOS de Finanzas), el título va
 en `EncabezadoDeTarjeta` (`componentes/`): una franja `#8C5A66` con el
 título en blanco a 17px, `nota` opcional al lado y lo que va a la derecha
 como `children`; la tarjeta lleva `overflow: 'hidden'` para que la franja
 tome las esquinas. Debajo, los títulos de columna van en gris `#857078`
 sobre blanco con una línea `#F0E2E4` de 2px, y el total de la tabla lleva
-la misma línea arriba, sin fondo. Las tablas de Finanzas, los modales Ver
-de pedido y de gasto y los encabezados del acordeón de la ficha de
-producto quedan como estaban (decidido por la usuaria).
+la misma línea arriba, sin fondo. Los paneles de Finanzas se sumaron
+después, a pedido de la usuaria, para que se vean como los de Inicio; las
+tarjetas de PERÍODO y EVOLUCIÓN siguen con su título rosa sobre blanco. Los
+modales Ver de pedido y de gasto y los encabezados del acordeón de la ficha
+de producto quedan como estaban (decidido por la usuaria).
 
 **El aviso de disponibilidad baja de Materiales muestra cuatro filas**
 (`AvisoReponer`, pedido de la usuaria): de la quinta en adelante se ven
@@ -1965,8 +1977,11 @@ la página 1. Si la etapa elegida se queda sin piezas, la tabla dice
 `ChipFiltro`, que salió de `Clientes.jsx` a `componentes/` al tener este
 segundo uso. PRÓXIMAS ENTREGAS ya no muestra "Cobrar al entregar" debajo
 del estado (pedido de la usuaria; diferencia con el prototipo). **Cada
-cambio de etapa avisa** con el aviso flotante: "Aros de Luna pasó a
-Secado", y Terminado, con Deshacer, como siempre.
+cambio de etapa avisa con Deshacer** (pedido de la usuaria): "Aros de
+Luna pasó a Secado" o "Aros de Luna terminado". Deshacer manda el mismo
+PATCH con la etapa que la pieza tenía antes del cambio. Antes solo
+Terminado lo llevaba, porque es el único cambio con el que la fila se va
+de la tabla.
 
 **El aviso flotante (`Toast`) va en el medio de la pantalla** (pedido de
 la usuaria: quería algo más grande que un toast, más verde y que se fuera
@@ -1976,9 +1991,11 @@ nada. Entra con un saltito y el tilde se dibuja solo, con
 `element.animate()`, la API de animaciones del navegador (sin estado de
 React ni `index.css`); se vuelve a animar con cada texto nuevo. Dura
 1,4 segundos (cada pantalla tiene su temporizador en `mostrarToast`); el
-de copiar el email y el de "Cobro registrado", 0,93; el de Terminado con
-Deshacer, 3. Lo usan las pantallas de la gestión; el catálogo tiene el
-suyo, `ToastCatalogo`.
+de copiar el email ("Email copiado", en Clientes y en `ModalCobros`) y
+los del listado de Pedidos ("Cobro registrado" y el cambio de estado,
+"Pedido listo"), 0,93; los de cambio de etapa en
+Inicio, que llevan Deshacer, 1,5, para que dé tiempo a tocarlo. Lo usan las
+pantallas de la gestión; el catálogo tiene el suyo, `ToastCatalogo`.
 
 **Patrón de modal:** cabecera `#8C5A66` con título blanco y cruz, cuerpo
 con campos apilados, pie con Cancelar y la acción principal. Fondo

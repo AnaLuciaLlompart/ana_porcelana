@@ -774,7 +774,7 @@ export default function Inicio() {
     temporizador.current = setTimeout(() => {
       setToast('')
       setHayDeshacer(false)
-    }, conDeshacer ? 3000 : 1400)
+    }, conDeshacer ? 1500 : 1400)
   }
 
   // Manda la etapa nueva al backend con el PATCH de Pedidos y, si salió
@@ -808,16 +808,17 @@ export default function Inicio() {
 
     if (!salioBien) return
 
+    // Todas las etapas avisan con Deshacer, que vuelve a la etapa que la
+    // pieza tenía antes de este cambio.
+    pendienteDeDeshacer.current = { producto, estado: producto.estado }
+
     if (estado === 'TERMINADO') {
-      pendienteDeDeshacer.current = { producto, estado: producto.estado }
       mostrarToast(`${producto.producto_nombre} terminado`, true)
       return
     }
 
-    // Las otras etapas avisan sin Deshacer: la fila sigue en la tabla, con
-    // su selector para volver atrás.
     const etapa = ETAPAS.find((e) => e.valor === estado)
-    mostrarToast(`${producto.producto_nombre} pasó a ${etapa.label}`)
+    mostrarToast(`${producto.producto_nombre} pasó a ${etapa.label}`, true)
   }
 
   // Deshacer no tiene endpoint propio: es el mismo PATCH con la etapa que

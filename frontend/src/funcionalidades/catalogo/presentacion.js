@@ -1,6 +1,6 @@
 // Todo lo que comparten los archivos del catálogo público para MOSTRAR los
 // datos: colores, iconos y armado de textos. Los valores y los textos
-// salen del diseño (disenio/Catalogo.dc.html), no se inventan acá.
+// salen del diseño, no se inventan acá.
 //
 // Es .js y no .jsx porque no tiene una sola línea de JSX.
 

@@ -1,7 +1,8 @@
 // El encabezado de una tarjeta con título: una franja rosa oscuro con el
 // título en blanco, como la cabecera de los modales, para que cada sección
 // de una pantalla se reconozca de un vistazo. Lo usan las fichas de pedido y
-// de gasto (Datos y la tabla de cada una) y los tres paneles de Inicio.
+// de gasto (Datos y la tabla de cada una), los tres paneles de Inicio y los
+// dos de Finanzas (INGRESOS y GASTOS).
 //
 // nota es la aclaración chica al lado del título (opcional), y children lo
 // que va a la derecha, como el botón de agregar. La tarjeta que lo contiene

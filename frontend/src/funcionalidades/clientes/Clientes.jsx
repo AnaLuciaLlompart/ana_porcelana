@@ -558,7 +558,7 @@ export default function Clientes() {
   async function copiarEmail(c) {
     try {
       await navigator.clipboard.writeText(c.email)
-      mostrarToast(`${c.email} copiado`)
+      mostrarToast('Email copiado')
     } catch {
       setError('No se pudo copiar el email.')
     }

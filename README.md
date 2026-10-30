@@ -228,7 +228,6 @@ ana_porcelana/
 │       ├── rutas.jsx            el árbol de direcciones, armado como router de datos
 │       └── main.jsx
 │
-├── disenio/                     prototipos de interfaz de cada módulo
 ├── docker-compose.yml           los tres contenedores: frontend, backend y db
 ├── docker-compose.servidor.yml  ajustes solo para el servidor (certificado)
 ├── .env.produccion.ejemplo      plantilla de variables para producción
@@ -537,9 +536,9 @@ Chrome de un teléfono y de una tableta en ambas orientaciones.
 del proyecto, y sirve de referencia tanto para el desarrollo como para
 las herramientas de asistencia empleadas.
 
-`disenio/` contiene los prototipos de interfaz de cada módulo, que se
-implementan con fidelidad. Las diferencias deliberadas respecto de un
-prototipo se documentan junto con su fundamento.
+Cada módulo se implementó a partir de un prototipo de interfaz. Las
+diferencias deliberadas respecto de un prototipo se documentan junto con
+su fundamento.
 
 ---
 

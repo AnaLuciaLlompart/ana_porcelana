@@ -1,8 +1,8 @@
 """Armado del PDF del comprobante de compra de un pedido (CU60).
 
-El aspecto sale de disenio/Comprobante de compra.dc.html. Este archivo no
-decide nada sobre el pedido: recibe uno ya cargado y lo dibuja. Tampoco
-calcula importes: todos salen de las propiedades del modelo.
+Este archivo no decide nada sobre el pedido: recibe uno ya cargado y lo
+dibuja. Tampoco calcula importes: todos salen de las propiedades del
+modelo.
 
 ReportLab arma el documento con una lista de bloques (un párrafo, una
 tabla, un espacio) que va apilando de arriba hacia abajo, y cuando una

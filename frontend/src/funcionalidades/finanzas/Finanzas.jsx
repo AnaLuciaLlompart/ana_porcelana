@@ -20,6 +20,7 @@ import { formatearPrecio } from '../productos/presentacion'
 import { fmtFechaLarga } from '../pedidos/presentacion'
 
 import BotonesExportar from '../../componentes/BotonesExportar'
+import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
 import Paginacion, { paginar } from '../../componentes/Paginacion'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
@@ -50,6 +51,9 @@ const estiloTituloSeccion = {
   color: '#8C5A66',
 }
 
+// Los títulos de columna van en gris sobre blanco, con una línea rosa
+// debajo, como en los paneles de Inicio: el que manda es el encabezado rosa
+// oscuro del panel.
 const estiloTh = {
   padding: '10px 8px',
   textAlign: 'left',
@@ -58,7 +62,8 @@ const estiloTh = {
   fontWeight: 600,
   fontSize: 13,
   letterSpacing: '.06em',
-  color: '#8C5A66',
+  color: '#857078',
+  borderBottom: '2px solid #F0E2E4',
 }
 
 const estiloTd = {
@@ -405,9 +410,7 @@ function Evolucion({ evolucion }) {
 function Panel({ titulo, children }) {
   return (
     <div style={{ ...estiloTarjeta, overflow: 'hidden', minWidth: 0 }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EBE0E2' }}>
-        <h2 style={estiloTituloSeccion}>{titulo}</h2>
-      </div>
+      <EncabezadoDeTarjeta titulo={titulo} />
       {children}
     </div>
   )
@@ -503,7 +506,7 @@ function TablaCobros({ cobros, onVerPedido }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', minWidth: 520, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#F0E2E4' }}>
+            <tr>
               <th style={{ ...estiloTh, width: '22%', padding: '10px 20px' }}>FECHA</th>
               <th style={{ ...estiloTh, width: '13%' }}>PEDIDO</th>
               <th style={{ ...estiloTh, width: '25%' }}>CLIENTE</th>
@@ -611,7 +614,7 @@ function TablaGastos({ gastos }) {
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', minWidth: 520, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#F0E2E4' }}>
+            <tr>
               <th style={{ ...estiloTh, width: '22%', padding: '10px 20px' }}>FECHA</th>
               <th style={{ ...estiloTh, width: '26%' }}>TIPO</th>
               <th style={{ ...estiloTh, width: '34%', whiteSpace: 'normal' }}>DESCRIPCIÓN</th>

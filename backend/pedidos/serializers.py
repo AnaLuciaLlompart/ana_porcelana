@@ -345,10 +345,19 @@ class PedidoDetalleSerializer(PedidoListaSerializer):
     productos = ProductoDelPedidoSerializer(many=True, read_only=True)
     cobros = CobroSerializer(many=True, read_only=True)
 
+    # El email del cliente, para copiarlo desde el modal de Cobros y
+    # mandarle el comprobante. Va solo en la ficha: el listado no lo muestra.
+    # Sin email cargado viaja vacío ('').
+    cliente_email = serializers.CharField(
+        source='cliente.email',
+        read_only=True,
+    )
+
     # Meta hereda de la del listado, así que no se repite el model ni los
     # diecisiete campos: solo se suma el que falta.
     class Meta(PedidoListaSerializer.Meta):
         fields = PedidoListaSerializer.Meta.fields + [
+            'cliente_email',
             'productos',
             'cobros',
         ]

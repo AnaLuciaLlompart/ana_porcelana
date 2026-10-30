@@ -738,14 +738,14 @@ export default function Pedidos() {
     navegar(`${BASE_GESTION}/pedidos/${pedido.id}`)
   }
 
-  // duracion es opcional: el cambio de estado dura lo de siempre y el
-  // cobro registrado, un tercio menos.
-  function mostrarToast(texto, duracion = 1400) {
+  // Los dos avisos del listado, el cambio de estado y el cobro registrado,
+  // duran un tercio menos que los de otras pantallas.
+  function mostrarToast(texto) {
     setToast(texto)
     // Se cancela el anterior, como en la ficha: si no, el temporizador de un
     // aviso viejo apagaría el nuevo antes de tiempo.
     clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => setToast(''), duracion)
+    temporizador.current = setTimeout(() => setToast(''), 930)
   }
 
   // El selector de ESTADO de la fila (CU42). Llama a cambiar_estado, que
@@ -1143,8 +1143,9 @@ export default function Pedidos() {
           onCerrar={cerrarCobros}
           onPedidoActualizado={(actualizado, aviso) => {
             setPedidoCobros(actualizado)
-            if (aviso) mostrarToast(aviso, 930)
+            if (aviso) mostrarToast(aviso)
           }}
+          onAviso={mostrarToast}
         />
       )}
 
