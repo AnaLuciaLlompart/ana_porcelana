@@ -11,7 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent
 
 def main():
     """Run administrative tasks."""
-    load_dotenv(BASE_DIR / '.env')
+    # El .env está en la raíz del repositorio, al lado de backend/ (ver config/settings/base.py).
+    load_dotenv(BASE_DIR.parent / '.env')
     entorno = os.getenv('ENTORNO', 'desarrollo') #busca de .env que entorno tiene que usar
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'config.settings.{entorno}')    #setea desarrollo por defecto
     try:

@@ -6,7 +6,10 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-load_dotenv(BASE_DIR / '.env')
+# El .env está en la raíz del repositorio, un nivel arriba de backend/
+# (BASE_DIR). En el contenedor BASE_DIR es /app, /.env no existe y esto no
+# hace nada: las variables llegan de Compose.
+load_dotenv(BASE_DIR.parent / '.env')
 
 
 # Quick-start development settings - unsuitable for production
