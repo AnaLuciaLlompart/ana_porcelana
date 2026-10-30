@@ -9,7 +9,8 @@ backend/cache/
 htmlcov/
 node_modules/
 frontend/.env
-.env.produccion
+.env.*
+!.env.dist
 docker-compose.override.yml
 respaldo*.sql
 respaldo-media*/

@@ -4,20 +4,22 @@
 # está en docker-compose.servidor.yml.
 #
 # No hay contraseñas ni dominios acá: todo lo que cambia entre máquinas
-# está en .env.produccion (ver .env.produccion.ejemplo), que Compose les
-# pasa a los contenedores con env_file.
+# está en .env (ver .env.dist), que Compose les pasa a los contenedores
+# con env_file.
 
 services:
 
   # PostgreSQL 17, la misma versión que en desarrollo. La imagen oficial
   # crea la base y la usuaria la primera vez, con las variables POSTGRES_*
-  # de .env.produccion. Los datos viven en el volumen "base": el
+  # de .env. Los datos viven en el volumen "base": el
   # contenedor se puede borrar y recrear sin perderlos.
   db:
     image: postgres:17
-    env_file: .env.produccion
+    env_file: .env
     volumes:
       - base:/var/lib/postgresql/data
+    networks:
+      - interna
     # pg_isready responde cuando la base acepta conexiones. El backend
     # espera a esto (service_healthy) antes de arrancar: si no, migrate
     # correría contra una base que todavía está iniciando y fallaría.
@@ -38,9 +40,20 @@ services:
   # "backend". Las fotos van al volumen "media", que comparte con nginx.
   backend:
     build: ./backend
-    env_file: .env.produccion
+    env_file: .env
+    # La usuaria y la contraseña con las que Django se conecta a la base
+    # salen de las POSTGRES_* del .env, así la contraseña se escribe una
+    # sola vez. ${...} lo completa Compose al leer este archivo, con el
+    # .env de esta carpeta, y environment le gana a env_file. DB_NAME no
+    # está acá: sigue en el .env, para poder apuntar el backend a otra
+    # base del mismo contenedor cambiando una línea (DESPLIEGUE.md).
+    environment:
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - media:/app/media
+    networks:
+      - interna
     depends_on:
       db:
         condition: service_healthy
@@ -57,6 +70,8 @@ services:
       - "443:443"
     volumes:
       - media:/var/www/media:ro
+    networks:
+      - interna
     depends_on:
       - backend
     restart: unless-stopped
@@ -68,3 +83,11 @@ services:
 volumes:
   base:
   media:
+
+# La red por la que se hablan los tres contenedores (corrección F16).
+# Compose ya armaba una por su cuenta (ana_porcelana_default); declarada
+# acá se ve en el archivo y tiene nombre. Docker le pone adelante el de la
+# carpeta: ana_porcelana_interna. Adentro cada uno encuentra a los otros
+# por el nombre del servicio (db en DB_HOST, backend en nginx).
+networks:
+  interna:

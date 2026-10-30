@@ -5,4 +5,4 @@
 *.conf text eol=lf
 Dockerfile text eol=lf
 .dockerignore text eol=lf
-.env.produccion.ejemplo text eol=lf
+.env.dist text eol=lf

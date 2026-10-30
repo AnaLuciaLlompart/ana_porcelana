@@ -50,6 +50,8 @@ colgados sin error.
 
 Windows 11, PowerShell en VS Code. El venv está en la raíz del
 proyecto y se activa desde `backend/` con `..\venv\Scripts\Activate.ps1`.
+El `.env` también está en la raíz, uno por máquina, con la plantilla en
+`.env.dist` (ver Despliegue).
 
 Dos terminales en paralelo:
 
@@ -1729,7 +1731,7 @@ llamando a las mismas funciones del ViewSet (`_revisar_estado`,
 llaman `prueba-*` en `media/productos/`: PNG de un color, o con
 `--fotos-reales` copias achicadas de las fotos reales de esa carpeta
 (las originales no se tocan). Para usarla: `ana_porcelana_prueba` existe
-en PostgreSQL; `DB_NAME=ana_porcelana_prueba` en el `.env` (y reiniciar
+en PostgreSQL; `DB_NAME=ana_porcelana_prueba` en el `.env` de la raíz (y reiniciar
 `runserver`), `createsuperuser`, cargar; para empezar de nuevo,
 `flush --no-input` (borra también la usuaria) y
 `Remove-Item media\productos\prueba-*`. Al terminar,
@@ -1750,8 +1752,9 @@ de DonWeb, Ubuntu 24.04, 2 vCPU, 4 GB, anaporcelana.com.ar (con `www`).
 **Tres contenedores con Compose, y nada más:** `frontend` (nginx con el
 React compilado, único expuesto, 80/443), `backend` (Django + gunicorn,
 sin puerto publicado) y `db` (postgres:17). Dos volúmenes, `base` y
-`media`. Archivos: `docker-compose.yml`, `docker-compose.servidor.yml`,
-`.env.produccion.ejemplo`, `.gitattributes`, `backend/Dockerfile`,
+`media`, y una red, `interna`. Archivos: `docker-compose.yml`,
+`docker-compose.servidor.yml`, `.env.dist`, `.gitattributes`,
+`backend/Dockerfile`,
 `backend/arrancar.sh`, `backend/.dockerignore`, `frontend/Dockerfile`,
 `frontend/.dockerignore`, `frontend/nginx/{sitio,http,https}.conf`,
 `frontend/nginx/elegir-config.sh`, `config/ip.py`.
@@ -1769,8 +1772,9 @@ nginx. Los dos montajes van en `docker-compose.servidor.yml`, que en el
 servidor se copia como `docker-compose.override.yml` (Compose lo suma
 solo si existe; está en `.gitignore`): en la PC esas carpetas no existen
 y un bind mount a una ruta Linux inexistente en Windows crea carpetas
-raras. El `docker-compose.yml` base es idéntico en los dos lados y no
-usa `${}`.
+raras. El `docker-compose.yml` base es idéntico en los dos lados. Usa
+`${}` solo para `DB_USER` y `DB_PASSWORD` del backend (ver `.env`, más
+abajo).
 
 **nginx elige su configuración al arrancar según exista el certificado.**
 nginx no arranca si un `ssl_certificate` apunta a un archivo que no
@@ -1782,7 +1786,7 @@ sola vez en `sitio.conf`, incluido por los dos. Así `docker compose up`
 es el mismo comando en la PC, en el servidor antes del certificado y
 después; tras emitirlo hace falta `docker compose restart frontend`. El
 dominio está escrito en `https.conf` y en `elegir-config.sh`; para
-Django, en `.env.produccion`.
+Django, en `.env`.
 
 **`HTTPS_ACTIVO`** (variable de entorno, por defecto `si`) gobierna en
 `produccion.py` las cuatro opciones que dependen del certificado:
@@ -1846,21 +1850,60 @@ vacía (nginx no manda una cabecera vacía); en `/api/` se descartan con
 `proxy_hide_header` las copias que manda Django, para que no salgan dos
 veces; `server_tokens off` oculta la versión.
 
-**`.env.produccion`** (git-ignorado; ejemplo en
-`.env.produccion.ejemplo`): `ENTORNO`, `SECRET_KEY`
+**Un solo `.env` por máquina, en la raíz del repositorio** (correcciones
+F14 y F15, octubre de 2026). Antes eran dos: `backend/.env` para
+desarrollo y `.env.produccion` para Compose. Ahora en la PC lo lee Django
+(`settings/base.py` y `manage.py` lo buscan en `BASE_DIR.parent`; en el
+contenedor `BASE_DIR` es `/app`, `/.env` no existe y `load_dotenv` no hace
+nada) y en el servidor Compose, que se lo pasa a `db` y `backend` con
+`env_file`. Variables: `ENTORNO`, `SECRET_KEY`
 (`secrets.token_urlsafe(50)`: 67 caracteres sin nada que `.env` o Compose
-interpreten), `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `HTTPS_ACTIVO` y
-la base en dos ternas, `POSTGRES_*` (las lee la imagen de PostgreSQL al
-crear la base) y `DB_*` (las lee Django), que tienen que coincidir: con
-ese nombre de archivo Compose no interpola `${}` (solo lo hace desde un
-`.env` de la raíz o con `--env-file` en cada comando), así que no hay
-forma de escribirlas una vez. El healthcheck de db usa
+interpreten), `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `HTTPS_ACTIVO`,
+`POSTGRES_*` (las lee la imagen de PostgreSQL al crear la base) y `DB_*`
+(las lee Django). La plantilla es **`.env.dist`**, versionada y sin
+secretos: cada variable con su valor de desarrollo, de producción y, si
+cambia, de la prueba en la PC; trae escrito el valor cuando es uno solo y
+no es secreto, y `HTTPS_ACTIVO=si`, porque vacía valdría `no`. `.gitignore`
+ignora `.env` y `.env.*` salvo `!.env.dist`, así ningún `.env.algo` llega
+a git.
+
+**La contraseña de la base se escribe una sola vez.** Como el archivo se
+llama `.env` y está al lado de `docker-compose.yml`, Compose completa los
+`${}` con él: el `environment` del backend toma `DB_USER` y `DB_PASSWORD`
+de `POSTGRES_USER` y `POSTGRES_PASSWORD` (le gana a `env_file`), y en el
+`.env` del servidor esas dos líneas no van. Antes, con el nombre
+`.env.produccion`, Compose no interpolaba y había dos ternas que tenían
+que coincidir. **`DB_NAME` queda en el `.env`**, también en el servidor:
+la usuaria apunta el backend a otra base del mismo contenedor cambiando
+solo esa línea (cargó `ana_porcelana_prueba` el 24/10 y el 29/10 para
+medir con 1.500 pedidos; DESPLIEGUE.md, "Apuntar el backend a otra
+base"), y si saliera de `POSTGRES_DB` en el `environment` le ganaría al
+`.env`. Normalmente es igual a `POSTGRES_DB`. En la PC, sin Compose,
+Django lee las tres `DB_*` del `.env`.
+
+**La prueba con Docker en la PC cambia de archivo.** Como el `.env` de la
+PC es el de desarrollo, mientras dura la prueba se aparta como
+`.env.desarrollo` y se copia en su lugar `.env.prueba` (uno de producción
+con los valores "Prueba en la PC"); al terminar, se repone. En la PC
+cualquier `docker compose` con el `.env` de desarrollo avisa que faltan
+las `POSTGRES_*`: es lo esperado.
+
+El healthcheck de db usa
 `pg_isready -h localhost`: por TCP, porque la primera vez la imagen
 levanta un servidor provisorio sin TCP que sin `-h` ya contestaría que
 sí.
 
+**La red `interna`** (corrección F16). Está declarada en
+`docker-compose.yml` y los tres servicios están conectados a ella; Docker
+la llama `ana_porcelana_interna`. Antes Compose armaba una por su cuenta
+(`ana_porcelana_default`) y funcionaba igual: declarada se ve en el
+archivo y tiene nombre. Adentro cada uno encuentra a los otros por el
+nombre del servicio (`db` en `DB_HOST`, `backend` en el `proxy_pass` de
+nginx); desde afuera solo se llega a los puertos de `frontend`.
+
 **`.gitattributes`** fija `eol=lf` en `*.sh`, `*.conf`, `Dockerfile`,
-`.dockerignore` y `.env.produccion.ejemplo`: con `core.autocrlf=true`
+`.dockerignore` y `.env.dist` (en el servidor se copia como `.env`, y con
+CRLF cada valor terminaría con un carácter invisible): con `core.autocrlf=true`
 saldrían con CRLF y un script con CRLF no arranca en Linux. Los dos `.sh`
 están en git con modo 100755.
 

@@ -79,7 +79,8 @@ Internet  →  frontend              →  backend              →  db
 
 Solo `frontend` es accesible desde Internet; nginx sirve el React
 compilado y las imágenes, y cumple la función de proxy inverso hacia
-`backend`, que se comunica con `db` por la red interna de Docker. Los
+`backend`, que se comunica con `db` por la red interna de Docker que
+declara Compose (`interna`). Los
 datos persisten en dos volúmenes, uno para la base de datos y otro para
 las imágenes, que sobreviven a la destrucción y reconstrucción de los
 contenedores en cada actualización. El certificado HTTPS lo emite y
@@ -186,8 +187,7 @@ ana_porcelana/
 │   ├── .coveragerc              configuración de la cobertura de pruebas
 │   ├── Dockerfile               imagen del backend (Django + gunicorn)
 │   ├── arrancar.sh              arranque del contenedor: migraciones y gunicorn
-│   ├── .dockerignore
-│   └── .env                     (fuera de control de versiones)
+│   └── .dockerignore
 │
 ├── frontend/
 │   ├── index.html
@@ -230,7 +230,8 @@ ana_porcelana/
 │
 ├── docker-compose.yml           los tres contenedores: frontend, backend y db
 ├── docker-compose.servidor.yml  ajustes solo para el servidor (certificado)
-├── .env.produccion.ejemplo      plantilla de variables para producción
+├── .env.dist                    plantilla de las variables de entorno, para desarrollo y producción
+├── .env                         variables de entorno de cada máquina (fuera de control de versiones)
 ├── .gitattributes               fin de línea LF para scripts y configuraciones
 ├── DESPLIEGUE.md                guía paso a paso para poner el sistema en el servidor
 ├── CLAUDE.md                    convenciones y decisiones cerradas
@@ -268,6 +269,9 @@ source venv/bin/activate           # Linux y macOS
 cd backend
 pip install -r requirements.txt
 ```
+
+Copiar `.env.dist` como `.env` en la raíz del repositorio y completarlo
+con los valores de desarrollo que indica cada variable.
 
 ```bash
 python manage.py migrate
@@ -576,9 +580,12 @@ ya contempla.
 
 **Variables de producción.** Toda la configuración que cambia entre
 máquinas —clave criptográfica, dominios permitidos, orígenes de
-confianza, credenciales de la base de datos— se lee del entorno; en el
-servidor, de un archivo `.env.produccion` que no forma parte del
-repositorio (`.env.produccion.ejemplo` documenta cada variable).
+confianza, credenciales de la base de datos— se lee del entorno: de un
+archivo `.env`, uno por máquina, ubicado en la raíz del proyecto y
+excluido del repositorio (`.env.dist` documenta cada variable con su
+valor de desarrollo y de producción). En el servidor, la contraseña de la
+base se escribe una sola vez: Compose se la pasa al backend desde la
+variable con la que PostgreSQL crea la base.
 `produccion.py` desactiva el modo de depuración, restringe las cookies al
 transporte cifrado, fuerza la redirección a HTTPS y declara la política
 de transporte estricto; `python manage.py check --deploy` no informa

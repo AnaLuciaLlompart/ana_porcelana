@@ -19,6 +19,11 @@ Tres contenedores de Docker, definidos en `docker-compose.yml`:
 | `backend` | Django con gunicorn. | Solo nginx, por la red interna de Docker. |
 | `db` | PostgreSQL 17. | Solo el backend. |
 
+Los tres están conectados a la red `interna`, declarada en
+`docker-compose.yml` (Docker la llama `ana_porcelana_interna`): adentro se
+encuentran por el nombre del servicio (`db`, `backend`), y desde afuera
+solo se llega a los puertos de `frontend`.
+
 Y dos volúmenes, que es donde viven los datos. Los contenedores se pueden
 borrar y volver a crear; los volúmenes quedan:
 
@@ -47,8 +52,10 @@ echo | openssl s_client -connect anaporcelana.com.ar:443 -servername anaporcelan
 ```
 
 Las contraseñas y el dominio no están en ningún archivo del repositorio.
-Están en `.env.produccion`, que se escribe a mano en cada máquina
-copiando `.env.produccion.ejemplo`.
+Están en `.env`, en la carpeta del proyecto, que se escribe a mano en
+cada máquina copiando `.env.dist`. La contraseña de la base se escribe
+una sola vez, en `POSTGRES_PASSWORD`: `docker-compose.yml` se la pasa al
+backend.
 
 ---
 
@@ -136,20 +143,30 @@ deploy-hook del paso 9.
 ### 4. Las variables de producción
 
 ```bash
-cp .env.produccion.ejemplo .env.produccion
-nano .env.produccion
+cp .env.dist .env
+nano .env
 ```
 
-Hay que completar dos cosas; lo demás ya viene con los valores del
-servidor:
+Cada variable dice en su comentario qué va en producción. Hay que
+completar:
 
+- `ENTORNO=produccion`.
 - `SECRET_KEY`: una clave nueva. Se genera con
   `python3 -c "import secrets; print(secrets.token_urlsafe(50))"` y se
   pega después del `=`.
-- `POSTGRES_PASSWORD` y `DB_PASSWORD`: la contraseña de la base, larga y
-  la **misma** en las dos.
+- `ALLOWED_HOSTS` y `CSRF_TRUSTED_ORIGINS`: los valores que dicen
+  "Producción".
+- `POSTGRES_PASSWORD`: la contraseña de la base, larga. Va una sola vez:
+  el backend la toma de acá.
+- `DB_HOST=db`.
 
-En `nano`: Ctrl+O y Enter guarda, Ctrl+X sale.
+Y borrar las líneas `DB_USER` y `DB_PASSWORD`: en el servidor no van,
+porque `docker-compose.yml` las arma con `POSTGRES_USER` y
+`POSTGRES_PASSWORD`. Las demás (`HTTPS_ACTIVO`, `POSTGRES_DB`,
+`POSTGRES_USER`, `DB_NAME`, `DB_PORT`) ya vienen con su valor.
+
+En `nano`: Ctrl+O y Enter guarda, Ctrl+X sale, y Ctrl+K borra la línea
+donde está el cursor.
 
 ### 5. Las carpetas de certbot y el archivo del servidor
 
@@ -357,7 +374,7 @@ qué cambió:
   Si las dos listas salen vacías (`Producto []` y `Material []`), se
   actualiza como cualquier cambio de código. Si no, primero se renombran
   los repetidos desde la gestión.
-- **Solo `.env.produccion`**: `docker compose up -d`, sin `--build`. Las
+- **Solo `.env`**: `docker compose up -d`, sin `--build`. Las
   imágenes son las mismas; cambian las variables con las que arrancan.
 - **Parches de seguridad de las imágenes base** (nginx, Python, Node,
   PostgreSQL): `docker compose up -d --build` no los trae, porque reusa
@@ -403,8 +420,79 @@ git checkout <hash>
 docker compose up -d --build
 ```
 
-Para retomar después la rama principal, `git checkout main` y otra vez
-`docker compose up -d --build`.
+`git checkout <hash>` deja a git fuera de la rama (lo llama "detached
+HEAD"): sirve para levantar la versión vieja, pero `git pull` no anda así.
+Para retomar después la rama principal, `git checkout main`, `git pull`
+y otra vez `docker compose up -d --build`.
+
+### Una sola vez: de `.env.produccion` a `.env`
+
+Hasta octubre de 2026 el servidor tenía las variables en
+`.env.produccion`, con la contraseña de la base escrita dos veces
+(`POSTGRES_PASSWORD` y `DB_PASSWORD`). Con las correcciones F14 a F16 el
+archivo se llama `.env`, la contraseña va una sola vez y los contenedores
+están en la red `interna`. El cambio en el servidor se hace una vez, así:
+
+```bash
+cd /srv/ana_porcelana
+docker compose exec backend sh -c 'test "$DB_USER" = "$POSTGRES_USER" && test "$DB_PASSWORD" = "$POSTGRES_PASSWORD" && echo coinciden'
+```
+
+Tiene que decir `coinciden`: las dos líneas que se van a borrar repiten
+las `POSTGRES_*`, así que no se pierde nada. Compara sin mostrar la
+contraseña. Si no dice nada, parar acá.
+
+```bash
+docker compose exec -T db pg_dump -U ana_porcelana -d ana_porcelana --no-owner --no-acl > ~/respaldos/base-$(date +%F)-antes.sql
+cp -p .env.produccion ~/env-produccion-antes
+git pull
+ls -l .env.produccion
+mv .env.produccion .env
+ls -l .env
+```
+
+Las dos primeras son las copias para volver atrás (`-p` conserva los
+permisos y el dueño). `mv` en la misma carpeta solo cambia el nombre: los
+dos `ls -l` tienen que mostrar los mismos permisos y el mismo dueño.
+
+Después, `nano .env` y borrar **solo** las líneas `DB_USER` y
+`DB_PASSWORD` (Ctrl+K), guardar (Ctrl+O, Enter) y salir (Ctrl+X).
+`DB_NAME` se queda: ver "Apuntar el backend a otra base".
+
+```bash
+grep '^DB_' .env
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
+```
+
+`grep` tiene que mostrar `DB_NAME`, `DB_HOST=db` y `DB_PORT=5432`, y
+nada más. `config --quiet` no tiene que mostrar nada: si falta una
+variable, avisa con `WARN`. Al levantar se recrean los tres contenedores
+(se suman a la red nueva) y el sitio se corta unos segundos. Para
+verificar:
+
+```bash
+docker compose logs --tail 30 backend
+docker compose exec backend sh -c 'test -n "$DB_PASSWORD" && test "$DB_PASSWORD" = "$POSTGRES_PASSWORD" && echo coinciden'
+docker compose exec backend printenv DB_NAME
+docker network ls
+docker network inspect ana_porcelana_interna --format '{{range .Containers}}{{.Name}} {{end}}'
+```
+
+El log, sin errores y con gunicorn arrancando; `coinciden`; el mismo
+`DB_NAME` de antes; `ana_porcelana_interna` en la lista, con los tres
+contenedores. Si en la lista sigue `ana_porcelana_default`, ya no la usa
+nadie: `docker network rm ana_porcelana_default`. Y en el navegador, el
+catálogo y la gestión. Al día siguiente, `ls -lh ~/respaldos` tiene que
+mostrar los respaldos de esa noche; con eso se borran las copias:
+`rm ~/env-produccion-antes ~/respaldos/base-FECHA-antes.sql`.
+
+**Si algo falla al levantar:** `git log --oneline -3` para ver el hash
+anterior, `git checkout <hash>`, `cp -p ~/env-produccion-antes
+.env.produccion` y `docker compose up -d --build`. Una vez arreglado,
+`git checkout main`, `git pull`, `rm .env.produccion` (queda el `.env`) y
+se sigue desde `docker compose config --quiet`.
 
 ---
 
@@ -562,17 +650,88 @@ del paso 7.
 
 ---
 
-## Probar en la PC con Docker Desktop
+## Apuntar el backend a otra base
 
-Es el mismo `docker compose up`, con `.env.produccion` armado para la PC:
-en `.env.produccion.ejemplo`, las líneas que empiezan con `PC:` dicen qué
-valor usar (`localhost`, `http://localhost`, `HTTPS_ACTIVO=no`, porque en
-la PC no hay certificado).
+Para medir el rendimiento en el servidor con muchos datos (los de
+`cargar_datos_prueba`, por ejemplo 1.500 pedidos) sin tocar la base real:
+se carga la base de prueba en el mismo contenedor `db`, al lado de la
+real, y se le cambia al backend solo `DB_NAME`. Funciona porque `DB_NAME`
+está en el `.env` y no en el `environment` de `docker-compose.yml`; la
+usuaria y la contraseña son las mismas para las dos bases.
+
+En la PC, el respaldo de la base de prueba y la subida:
 
 ```powershell
-Copy-Item .env.produccion.ejemplo .env.produccion
+& "C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" -U postgres --no-owner --no-acl -f base-prueba.sql ana_porcelana_prueba
+scp base-prueba.sql anaporcelana:~/respaldos/
+```
+
+En el servidor, crear la base vacía y cargarla:
+
+```bash
+cd /srv/ana_porcelana
+docker compose exec db psql -U ana_porcelana -d postgres -c "CREATE DATABASE ana_porcelana_prueba;"
+docker compose exec -T db psql -U ana_porcelana -d ana_porcelana_prueba -v ON_ERROR_STOP=1 < ~/respaldos/base-prueba.sql
+```
+
+Si la base de prueba quedó de una medición anterior, el `CREATE` falla
+porque ya existe: con el backend apuntando a la real, se agrega
+`-c "DROP DATABASE ana_porcelana_prueba;"` antes del `-c` del `CREATE`,
+como en "Restaurar la base".
+
+Apuntar el backend a la de prueba:
+
+```bash
+sed -i 's/^DB_NAME=.*/DB_NAME=ana_porcelana_prueba/' .env
+docker compose up -d --no-deps backend
+docker compose exec backend printenv DB_NAME
+```
+
+`sed -i` reemplaza en el archivo la línea que empieza con `DB_NAME=` por
+la nueva. `up -d --no-deps backend` recrea solo el backend, con la
+variable nueva; `--no-deps` no toca `db` ni `frontend`. `printenv` tiene
+que decir `ana_porcelana_prueba`. Mientras tanto el sitio muestra los
+datos de prueba: la base real queda intacta al lado.
+
+Para volver, lo mismo con la real:
+
+```bash
+sed -i 's/^DB_NAME=.*/DB_NAME=ana_porcelana/' .env
+docker compose up -d --no-deps backend
+docker compose exec backend printenv DB_NAME
+```
+
+Tiene que decir `ana_porcelana`. La base de prueba queda en el contenedor
+para la próxima medición; si ya no sirve, `docker compose exec db psql -U
+ana_porcelana -d postgres -c "DROP DATABASE ana_porcelana_prueba;"`.
+
+---
+
+## Probar en la PC con Docker Desktop
+
+Es el mismo `docker compose up`, con un `.env` de producción armado para
+la PC: en `.env.dist`, las líneas "Prueba en la PC" dicen qué valor usar
+(`localhost`, `http://localhost`, `HTTPS_ACTIVO=no`, porque en la PC no
+hay certificado). Como hay un solo `.env` por máquina y el de la PC es el
+de desarrollo, mientras dura la prueba se lo aparta con otro nombre y se
+pone el de prueba en su lugar. Mientras tanto no se corre `manage.py` en
+la PC: leería el de prueba.
+
+La primera vez se arma el de prueba, `.env.prueba`, como el del servidor
+(paso 4 de "Primera vez en el servidor") pero con los valores "Prueba en
+la PC". Queda fuera de git, como todo `.env.*` salvo `.env.dist`:
+
+```powershell
+Copy-Item .env.dist .env.prueba
 .\venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(50))"
-# editar .env.produccion: la clave, la contraseña (dos veces) y los valores PC:
+# editar .env.prueba: ENTORNO=produccion, la clave, la contraseña y los valores "Prueba en la PC"
+```
+
+Cada prueba:
+
+```powershell
+Rename-Item .env .env.desarrollo
+Copy-Item .env.prueba .env
 docker compose up --build
 ```
 
@@ -590,7 +749,16 @@ cuatro avisos, que son exactamente los de HTTPS apagado.
 
 `docker compose down` apaga y borra los contenedores pero conserva los
 volúmenes (la base y las fotos siguen al volver a levantar);
-`docker compose down -v` borra también los volúmenes.
+`docker compose down -v` borra también los volúmenes. Al terminar, se
+vuelve a poner el `.env` de desarrollo:
+
+```powershell
+docker compose down
+Move-Item -Force .env.desarrollo .env
+```
+
+`-Force` deja que pise el `.env` de prueba, que es una copia de
+`.env.prueba`.
 
 ---
 
@@ -598,8 +766,15 @@ volúmenes (la base y las fotos siguen al volver a levantar);
 
 - **Un contenedor no queda `Up`** o se reinicia a cada rato: `docker
   compose logs <nombre>` muestra por qué. Lo más común: una variable mal
-  escrita en `.env.produccion` (la base rechaza la contraseña) o la base
-  todavía iniciando.
+  escrita en `.env` (la base rechaza la contraseña, o `DB_NAME` apunta a
+  una base que no existe) o la base todavía iniciando.
+- **Compose avisa `The "POSTGRES_PASSWORD" variable is not set`** (o
+  `POSTGRES_USER`): el `.env` de la carpeta no tiene esa variable, o el
+  comando se corrió en otra carpeta. En la PC es lo esperado con el `.env`
+  de desarrollo, que no las lleva: pasa si se corre `docker compose` sin
+  el cambio de "Probar en la PC". En el servidor,
+  `grep -c '^POSTGRES_PASSWORD=.' .env` tiene que dar `1` (cuenta la línea
+  con valor, sin mostrar la contraseña).
 - **`502 Bad Gateway`**: nginx no pudo hablar con el backend. Pasa unos
   segundos al arrancar, mientras corren las migraciones; si sigue,
   `docker compose logs backend`.
