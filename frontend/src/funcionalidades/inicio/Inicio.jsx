@@ -675,8 +675,8 @@ export default function Inicio() {
   const [hayDeshacer, setHayDeshacer] = useState(false)
   const temporizador = useRef(null)
 
-  // El producto que se acaba de marcar Terminado y la etapa que tenía, por
-  // si toca Deshacer. Va en un ref y no en estado porque no se dibuja.
+  // El producto al que se le acaba de cambiar la etapa y la etapa que tenía,
+  // por si toca Deshacer. Va en un ref y no en estado porque no se dibuja.
   const pendienteDeDeshacer = useRef(null)
 
   // Al abrir la pantalla: el resumen (las cuatro tarjetas, los números de
@@ -761,8 +761,8 @@ export default function Inicio() {
   }
 
   // conDeshacer decide las dos cosas que distinguen a ese aviso: que lleve
-  // el botón, y que dure 6 segundos en vez de 2,6. Es el mismo criterio de
-  // la ficha del gasto.
+  // el botón, y que dure 1,5 segundos en vez de 1,4, para que dé tiempo a
+  // tocarlo.
   function mostrarToast(texto, conDeshacer = false) {
     setToast(texto)
     setHayDeshacer(conDeshacer)
@@ -799,10 +799,10 @@ export default function Inicio() {
     return true
   }
 
-  // Solo Terminado avisa, y con Deshacer: es el único cambio con el que la
-  // fila desaparece de la tabla, y después de eso ya no queda selector acá
-  // para volver atrás. Las otras etapas no avisan, como en la ficha del
-  // pedido: el selector ya muestra el cambio.
+  // Todos los cambios de etapa avisan, y todos con Deshacer (pedido de la
+  // usuaria). Terminado es el único con el que la fila desaparece de la
+  // tabla y ya no queda selector acá para volver atrás; en los demás el
+  // selector también serviría, pero Deshacer es más rápido.
   async function cambiarEtapa(producto, estado) {
     const salioBien = await aplicarEtapa(producto, estado)
 

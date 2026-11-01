@@ -4,13 +4,14 @@ from django.db.models import Case, Count, Exists, Max, Min, OuterRef, Q, Subquer
 from django.db.models.functions import Coalesce
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import ParseError, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from categorias.models import Categoria
 from categorias.serializers import CategoriaSerializer
 from config.exportar import Columna, ExportarMixin, describir_rango
+from config.hijos import error_de_fila, es_fila_nueva, fila_guardada, ids_que_vienen
 from config.listados import leer_importe, ordenar
 from config.paginacion import PaginacionDeListado
 from materiales.models import Material
@@ -20,6 +21,7 @@ from .serializers import (
     ImagenProductoCrearSerializer,
     ImagenProductoModificarSerializer,
     ImagenProductoSerializer,
+    ListasDeHijosDeProducto,
     MaterialProductoSerializer,
     ProductoDetalleSerializer,
     ProductoListaSerializer,
@@ -59,9 +61,10 @@ def _catalogo_para_exportar(producto):
     return 'Sin publicar'
 
 
-# Las cuatro operaciones del CRUD no llevan docstring con su CU porque
-# no están escritas acá: las hereda el ModelViewSet de DRF. La
-# correspondencia es esta, para no tener que deducirla:
+# De las cuatro operaciones del CRUD, list es la única que se hereda tal
+# cual del ModelViewSet de DRF y por eso no lleva docstring con su CU;
+# create, update y destroy están escritas más abajo. La correspondencia
+# es esta, para no tener que deducirla:
 #
 #   list      GET    /productos/       CU18 - buscar
 #   create    POST   /productos/       CU17 - alta
@@ -363,16 +366,170 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
         return Response(ResumenDeProductosSerializer(datos).data)
 
     # -----------------------------------------------------------------
-    # Sobreescribo update, ya que no puedo modificar productos de baja
+    # El alta y el guardado de la ficha: el producto con sus materiales,
+    # fotos y categorías en un solo pedido a la API
+    # -----------------------------------------------------------------
+
+    def create(self, request, *args, **kwargs):
+        """CU17 - Registrar un producto, con sus materiales, fotos y categorías, en un solo pedido a la API.
+
+        Además de los datos del producto, el cuerpo puede traer tres
+        listas: 'materiales' ([{material, cantidad}]), 'categorias' ([id,
+        id]) e 'imagenes' ([{archivo, titulo, tipo, orden}], donde
+        'archivo' es el nombre del campo del multipart que trae la foto:
+        foto_0, foto_1…). Como van fotos, el cuerpo es multipart y las
+        listas llegan como texto JSON (ListasDelAltaDeProducto las parsea).
+        Todo se guarda en la misma transacción (ATOMIC_REQUESTS): si una
+        fila falla, la respuesta es 400 con la clave de su lista y el
+        número de la fila, y no queda nada. Sin listas es el alta de
+        siempre.
+
+        Las fotos se validan TODAS antes de escribir nada (imagen real, 15
+        MB y el achicado, en memoria): la transacción deshace las filas
+        pero no sabe de archivos, así que lo que puede fallar por una foto
+        tiene que fallar antes de guardarla. Y si algo falla después de
+        escribir alguna (una categoría repetida, un error de la base), el
+        except borra del disco las que se alcanzaron a guardar y relanza:
+        la señal post_delete no interviene porque no hubo DELETE, y Django
+        no tiene un on_rollback.
+
+        Corrección del tutor: antes el frontend creaba el producto y
+        después mandaba un pedido por material, foto y categoría. Las
+        reglas de cada fila siguen en _asignar_material,
+        _asignar_categoria e ImagenProductoCrearSerializer, los mismos que
+        usan las acciones de a una fila.
+        """
+        listas = ListasDeHijosDeProducto(data=request.data)
+        listas.is_valid(raise_exception=True)
+        materiales = listas.validated_data.get('materiales', [])
+        imagenes = listas.validated_data.get('imagenes', [])
+        categorias = listas.validated_data.get('categorias', [])
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        fotos = []
+        for numero, datos in enumerate(imagenes, start=1):
+            try:
+                fotos.append(self._validar_foto(datos))
+            except (ParseError, ValidationError) as error:
+                raise error_de_fila('imagenes', numero, self._nombre_de_la_foto(datos), error)
+
+        producto = serializer.save()
+        guardadas = []
+
+        # En el orden de los pasos del alta: materiales, fotos, categorías.
+        try:
+            for numero, datos in enumerate(materiales, start=1):
+                try:
+                    self._asignar_material(producto, datos)
+                except (ParseError, ValidationError) as error:
+                    raise error_de_fila('materiales', numero, self._nombre_del_material(datos), error)
+
+            for foto in fotos:
+                guardadas.append(foto.save(producto=producto).imagen)
+
+            for numero, categoria_id in enumerate(categorias, start=1):
+                try:
+                    self._asignar_categoria(producto, categoria_id)
+                except (ParseError, ValidationError) as error:
+                    raise error_de_fila('categorias', numero, self._nombre_de_la_categoria(categoria_id), error)
+        except Exception:
+            for archivo in guardadas:
+                archivo.storage.delete(archivo.name)
+            raise
+
+        return Response(self.get_serializer(producto).data, status=status.HTTP_201_CREATED)
+
+    def _validar_foto(self, datos):
+        """Un ImagenProductoCrearSerializer ya validado para una foto nueva, sin guardarla.
+
+        'archivo' dice en qué campo del multipart viene la foto; 'titulo',
+        'tipo' y 'orden' son opcionales, como en subir_imagen. Validar acá y
+        guardar después es lo que deja validar todas las fotos antes de
+        escribir la primera, en el alta y en el guardado de la ficha.
+        """
+        if not isinstance(datos, dict):
+            raise ParseError('El cuerpo tiene que ser un objeto JSON.')
+
+        clave = datos.get('archivo')
+
+        if not isinstance(clave, str) or clave not in self.request.FILES:
+            raise ParseError('Falta el archivo de la foto.')
+
+        campos = {'imagen': self.request.FILES[clave]}
+        for campo in ('titulo', 'tipo', 'orden'):
+            if campo in datos:
+                campos[campo] = datos[campo]
+
+        serializer = ImagenProductoCrearSerializer(data=campos)
+        serializer.is_valid(raise_exception=True)
+        return serializer
+
+    # Los tres nombres son para el mensaje de error ("Fila 2 (Porcelana): …"),
+    # o '' si la fila no llegó a tener uno.
+
+    @staticmethod
+    def _nombre_del_material(datos):
+        material_id = datos.get('material') if isinstance(datos, dict) else None
+
+        if not isinstance(material_id, int):
+            return ''
+
+        return Material.objects.filter(pk=material_id).values_list('nombre', flat=True).first() or ''
+
+    @staticmethod
+    def _nombre_de_la_categoria(categoria_id):
+        if not isinstance(categoria_id, int):
+            return ''
+
+        return Categoria.objects.filter(pk=categoria_id).values_list('nombre', flat=True).first() or ''
+
+    def _nombre_de_la_foto(self, datos):
+        """El nombre del archivo de una foto nueva, o el título de una guardada, o ''."""
+        if not isinstance(datos, dict):
+            return ''
+
+        clave = datos.get('archivo')
+        if isinstance(clave, str) and clave in self.request.FILES:
+            return self.request.FILES[clave].name
+
+        titulo = datos.get('titulo')
+        return titulo if isinstance(titulo, str) else ''
+
+    # -----------------------------------------------------------------
+    # Sobreescribo update: un producto de baja no se modifica, y el
+    # guardado de la ficha trae los hijos en el mismo pedido
     # -----------------------------------------------------------------
 
     def update(self, request, *args, **kwargs):
-        """Impide modificar un producto dado de baja.
+        """CU19 - Modificar un producto, con sus materiales, fotos y categorías, en un solo pedido a la API.
 
-        Un producto de baja queda de solo lectura. Para volver a
-        editarlo hay que reactivarlo primero.
+        Impide modificar un producto dado de baja: queda de solo lectura, y
+        para volver a editarlo hay que reactivarlo primero. Cubre PUT y
+        PATCH: DRF resuelve el PATCH llamando a update.
 
-        Cubre PUT y PATCH: DRF resuelve el PATCH llamando a update.
+        Además de los datos, el cuerpo (multipart, como el alta) puede traer
+        las tres listas COMPLETAS tal como quedaron en la ficha:
+        'materiales' ([{id, material, cantidad}]), 'categorias' ([id, id]) e
+        'imagenes' ([{id, archivo, titulo, tipo, orden}]: las guardadas con
+        su id, las nuevas con el campo del multipart que trae la foto).
+        Cada lista se compara con lo guardado y se quita, modifica y agrega
+        lo que haga falta, en la misma transacción que los datos
+        (ATOMIC_REQUESTS): si una fila falla, 400 con la clave de su lista y
+        el número de la fila, y el producto queda como estaba. Una lista que
+        no viene no se toca; sin listas es el PUT de siempre.
+
+        Con los archivos, lo mismo que en create(): las fotos nuevas se
+        validan todas antes de escribir nada, y si algo falla después de
+        guardar alguna se borran del disco. Las guardadas que no vienen se
+        borran de la base acá, y su archivo lo borra la señal post_delete
+        recién al confirmar: si la transacción revierte, la fila vuelve y
+        el archivo sigue estando.
+
+        Corrección del tutor: antes la ficha mandaba el PUT de los datos y
+        después un pedido por material, foto y categoría, y un fallo a
+        mitad dejaba lo anterior guardado.
         """
         producto = self.get_object()
 
@@ -383,7 +540,127 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return super().update(request, *args, **kwargs)
+        listas = ListasDeHijosDeProducto(data=request.data)
+        listas.is_valid(raise_exception=True)
+        materiales = listas.validated_data.get('materiales')
+        imagenes = listas.validated_data.get('imagenes')
+        categorias = listas.validated_data.get('categorias')
+
+        serializer = self.get_serializer(producto, data=request.data, partial=kwargs.pop('partial', False))
+        serializer.is_valid(raise_exception=True)
+
+        # Las fotos nuevas, validadas antes de escribir nada, por número de
+        # fila: _sincronizar_imagenes las guarda cuando llega a esa fila.
+        fotos_nuevas = {}
+        for numero, datos in enumerate(imagenes or [], start=1):
+            if es_fila_nueva(datos):
+                try:
+                    fotos_nuevas[numero] = self._validar_foto(datos)
+                except (ParseError, ValidationError) as error:
+                    raise error_de_fila('imagenes', numero, self._nombre_de_la_foto(datos), error)
+
+        serializer.save()
+
+        # Lo que trajo el prefetch de get_object() quedó atrás de las
+        # escrituras: se vacía para que las comparaciones lean la base.
+        producto.refresh_from_db()
+
+        escritas = []
+        try:
+            if materiales is not None:
+                self._sincronizar_materiales(producto, materiales)
+
+            if imagenes is not None:
+                self._sincronizar_imagenes(producto, imagenes, fotos_nuevas, escritas)
+
+            if categorias is not None:
+                self._sincronizar_categorias(producto, categorias)
+        except Exception:
+            for archivo in escritas:
+                archivo.storage.delete(archivo.name)
+            raise
+
+        return Response(self.get_serializer(producto).data)
+
+    def _sincronizar_materiales(self, producto, lineas):
+        """Deja los materiales del producto como dice la lista completa de la ficha.
+
+        La línea guardada cuyo id no viene se quita; la que viene con el id
+        de una guardada cambia su cantidad con _modificar_cantidad, como el
+        PATCH; la nueva se agrega con _asignar_material. Un id que no es de
+        este producto responde 400, como las acciones. Las quitadas van
+        primero, así un material que se sacó y se volvió a agregar no cuenta
+        como repetido. Un error en una fila sale con su número en la lista.
+        """
+        guardadas = {linea.pk: linea for linea in producto.materiales_usados.all()}
+        conservadas = ids_que_vienen(lineas)
+
+        for linea_id, linea in guardadas.items():
+            if linea_id not in conservadas:
+                linea.delete()
+
+        for numero, datos in enumerate(lineas, start=1):
+            try:
+                if es_fila_nueva(datos):
+                    self._asignar_material(producto, datos)
+                else:
+                    guardada = fila_guardada(datos, guardadas)
+                    if guardada is None:
+                        raise ParseError('Esa línea no pertenece a los materiales de este producto.')
+                    self._modificar_cantidad(guardada, datos)
+            except (ParseError, ValidationError) as error:
+                raise error_de_fila('materiales', numero, self._nombre_del_material(datos), error)
+
+    def _sincronizar_imagenes(self, producto, filas, fotos_nuevas, escritas):
+        """Deja las fotos del producto como dice la lista completa de la ficha.
+
+        La guardada cuyo id no viene se borra (su archivo lo borra la señal
+        post_delete al confirmar); la que viene con el id de una guardada
+        cambia título, tipo u orden con _modificar_imagen, como el PATCH; la
+        nueva se guarda con el serializer que update() ya validó para esa
+        fila (fotos_nuevas, por número), y su archivo se anota en escritas
+        para que update() lo borre del disco si algo falla después. Un id
+        que no es de este producto responde 400, como las acciones.
+        """
+        guardadas = {imagen.pk: imagen for imagen in producto.imagenes.all()}
+        conservadas = ids_que_vienen(filas)
+
+        for imagen_id, imagen in guardadas.items():
+            if imagen_id not in conservadas:
+                imagen.delete()
+
+        for numero, datos in enumerate(filas, start=1):
+            try:
+                if numero in fotos_nuevas:
+                    escritas.append(fotos_nuevas[numero].save(producto=producto).imagen)
+                else:
+                    guardada = fila_guardada(datos, guardadas)
+                    if guardada is None:
+                        raise ParseError('Esa imagen no pertenece a este producto.')
+                    self._modificar_imagen(guardada, datos)
+            except (ParseError, ValidationError) as error:
+                raise error_de_fila('imagenes', numero, self._nombre_de_la_foto(datos), error)
+
+    def _sincronizar_categorias(self, producto, ids):
+        """Deja las categorías del producto como dice la lista completa de ids de la ficha.
+
+        La guardada cuyo id no viene se quita; la que ya está se deja; la
+        que no estaba se asigna con _asignar_categoria, que rechaza un id
+        que no existe. Un error en una fila sale con su número en la lista.
+        """
+        guardadas = {categoria.pk: categoria for categoria in producto.categorias.all()}
+
+        for categoria_id, categoria in guardadas.items():
+            if categoria_id not in ids:
+                producto.categorias.remove(categoria)
+
+        for numero, categoria_id in enumerate(ids, start=1):
+            if isinstance(categoria_id, int) and categoria_id in guardadas:
+                continue
+            try:
+                self._asignar_categoria(producto, categoria_id)
+            except (ParseError, ValidationError) as error:
+                raise error_de_fila('categorias', numero, self._nombre_de_la_categoria(categoria_id), error)
 
     # -----------------------------------------------------------------
     # Sobreescribo destroy, para explicar por qué no se puede eliminar
@@ -557,6 +834,42 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
             CategoriaSerializer(producto.categorias.all(), many=True).data
         )
 
+    def _asignar_categoria(self, producto, categoria_id):
+        """Asigna una categoría al producto con las reglas de CU25.
+
+        Es la única puerta para asignar una categoría: la usan
+        asignar_categoria (una por pedido a la API) y create() (todas las
+        del alta, en una transacción). Rechaza con ParseError y no con una
+        respuesta: es lo que hace que la transacción revierta
+        (ATOMIC_REQUESTS), y la respuesta es la misma, {'detail': …}.
+
+        Se permite asignar una categoría dada de baja: el producto
+        simplemente queda fuera del catálogo mientras eso dure. La
+        visibilidad se evalúa al consultar, nunca se propaga por
+        escritura.
+        """
+        if not categoria_id:
+            raise ParseError('Falta el id de la categoría.')
+
+        try:
+            categoria = Categoria.objects.get(pk=categoria_id)
+        # TypeError: el id llegó como lista u objeto JSON, y Django no lo
+        # convierte a número.
+        except (Categoria.DoesNotExist, ValueError, TypeError):
+            raise ParseError('No existe una categoría con ese id.')
+
+        # En Python y no con .filter().exists(): desde la acción,
+        # get_object() ya trajo las categorías con el prefetch, y un
+        # .filter() encima armaría una consulta nueva que ignora lo ya
+        # traído. Desde el alta no hay prefetch y esta misma línea consulta
+        # la base, que es lo que detecta una repetida dentro del mismo cuerpo.
+        if categoria in producto.categorias.all():
+            raise ParseError(
+                f'El producto ya tiene asignada la categoría «{categoria.nombre}».'
+            )
+
+        producto.categorias.add(categoria)
+
     # El mapping le dice al router: misma URL que 'categorias', pero
     # cuando el método sea POST, ejecutá esta otra función. Así cada
     # caso de uso queda en su propio método, sin un if adentro.
@@ -565,12 +878,8 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
         """CU25 - Asignar una categoría al producto.
 
         El id de la categoría llega en el cuerpo, en la clave
-        'categoria'.
-
-        Se permite asignar una categoría dada de baja: el producto
-        simplemente queda fuera del catálogo mientras eso dure. La
-        visibilidad se evalúa al consultar, nunca se propaga por
-        escritura.
+        'categoria'. Las reglas están en _asignar_categoria, que comparte
+        con el alta.
         """
         producto = self.get_object()
 
@@ -583,35 +892,7 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        categoria_id = request.data.get('categoria')
-
-        if not categoria_id:
-            return Response(
-                {'detail': 'Falta el id de la categoría.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            categoria = Categoria.objects.get(pk=categoria_id)
-        # TypeError: el id llegó como lista u objeto JSON, y Django no lo
-        # convierte a número.
-        except (Categoria.DoesNotExist, ValueError, TypeError):
-            return Response(
-                {'detail': 'No existe una categoría con ese id.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # En Python y no con .filter().exists(): get_object() ya trajo
-        # las categorías con el prefetch, y un .filter() encima armaría
-        # una consulta nueva que ignora lo ya traído.
-        if categoria in producto.categorias.all():
-            return Response(
-                {'detail': f'El producto ya tiene asignada la categoría '
-                           f'«{categoria.nombre}».'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        producto.categorias.add(categoria)
+        self._asignar_categoria(producto, request.data.get('categoria'))
 
         # add() escribió en la base, pero las categorías que trajo el
         # prefetch siguen cacheadas en memoria, sin la recién agregada.
@@ -721,16 +1002,67 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
 
 
-    @materiales.mapping.post
-    def asignar_material(self, request, pk=None):
-        """CU28 - Agregar un material al producto.
+    def _asignar_material(self, producto, datos):
+        """Crea una línea de MaterialProducto con las reglas de CU28 y la devuelve.
 
-        En el cuerpo llegan 'material' (el id) y 'cantidad' (texto
-        libre, opcional: "dos gotas", "media plancha").
+        Es la única puerta para agregar un material: la usan
+        asignar_material (una línea por pedido a la API) y create() (todas
+        las del alta, en una transacción). Rechaza con ParseError y no con
+        una respuesta: es lo que hace que la transacción revierta
+        (ATOMIC_REQUESTS), y la respuesta es la misma, {'detail': …}.
+
+        En datos llegan 'material' (el id) y 'cantidad' (texto libre,
+        opcional: "dos gotas", "media plancha").
 
         Se permite agregar un material discontinuado: los materiales
         del producto son el registro de cómo se hace la pieza, y la
         propiedad materiales_discontinuados es la que después avisa.
+        """
+        # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
+        # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
+        if not isinstance(datos, dict):
+            raise ParseError('El cuerpo tiene que ser un objeto JSON.')
+
+        material_id = datos.get('material')
+
+        if not material_id:
+            raise ParseError('Falta el id del material.')
+
+        try:
+            material = Material.objects.get(pk=material_id)
+        # TypeError: el id llegó como lista u objeto JSON, y Django no lo
+        # convierte a número.
+        except (Material.DoesNotExist, ValueError, TypeError):
+            raise ParseError('No existe un material con ese id.')
+
+        # Este chequeo es el que evita el IntegrityError crudo del
+        # UniqueConstraint (producto, material). Sin él, PostgreSQL
+        # rechaza la fila, Django levanta la excepción y el frontend
+        # recibe un 500 en vez de un mensaje que se pueda mostrar. Desde el
+        # alta no hay prefetch y la línea consulta la base: así detecta un
+        # material repetido dentro del mismo cuerpo.
+        if material in producto.materiales.all():
+            raise ParseError(
+                f'El producto ya tiene «{material.nombre}» entre sus materiales.'
+            )
+
+        # Se guarda con el serializer y no con .objects.create(), para que
+        # la cantidad pase por la validación del modelo (texto de hasta 50
+        # caracteres): sin eso, una más larga la rechaza PostgreSQL y el
+        # frontend recibe un 500 en vez de un mensaje.
+        serializer = MaterialProductoSerializer(data={
+            'material': material.pk,
+            'cantidad': datos.get('cantidad') or '',
+        })
+        serializer.is_valid(raise_exception=True)
+        return serializer.save(producto=producto)
+
+    @materiales.mapping.post
+    def asignar_material(self, request, pk=None):
+        """CU28 - Agregar un material al producto.
+
+        En el cuerpo llegan 'material' (el id) y 'cantidad'. Las reglas
+        están en _asignar_material, que comparte con el alta.
         """
         producto = self.get_object()
 
@@ -741,51 +1073,36 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        material_id = request.data.get('material')
-
-        if not material_id:
-            return Response(
-                {'detail': 'Falta el id del material.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            material = Material.objects.get(pk=material_id)
-        # TypeError: el id llegó como lista u objeto JSON, y Django no lo
-        # convierte a número.
-        except (Material.DoesNotExist, ValueError, TypeError):
-            return Response(
-                {'detail': 'No existe un material con ese id.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Este chequeo es el que evita el IntegrityError crudo del
-        # UniqueConstraint (producto, material). Sin él, PostgreSQL
-        # rechaza la fila, Django levanta la excepción y el frontend
-        # recibe un 500 en vez de un mensaje que se pueda mostrar.
-        if material in producto.materiales.all():
-            return Response(
-                {'detail': f'El producto ya tiene «{material.nombre}» '
-                           f'entre sus materiales.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Se guarda con el serializer y no con .objects.create(), para que
-        # la cantidad pase por la validación del modelo (texto de hasta 50
-        # caracteres): sin eso, una más larga la rechaza PostgreSQL y el
-        # frontend recibe un 500 en vez de un mensaje.
-        serializer = MaterialProductoSerializer(data={
-            'material': material.pk,
-            'cantidad': request.data.get('cantidad') or '',
-        })
-        serializer.is_valid(raise_exception=True)
-        serializer.save(producto=producto)
+        self._asignar_material(producto, request.data)
 
         producto.refresh_from_db()
 
         return Response(self.get_serializer(producto).data)
 
 
+
+    def _modificar_cantidad(self, linea, datos):
+        """Cambia la cantidad de una línea de materiales con las reglas de CU30 y la devuelve.
+
+        Es la única puerta para modificar una línea: la usan
+        modificar_cantidad (el PATCH de una) y _sincronizar_materiales (el
+        guardado de la ficha). Rechaza con ParseError, como las demás.
+        """
+        # Se exige que la clave venga, aunque su valor pueda ser vacío:
+        # mandar un PATCH sin 'cantidad' es un error de quien llama, no
+        # una forma de borrar la cantidad.
+        if 'cantidad' not in datos:
+            raise ParseError('Falta la cantidad.')
+
+        # Igual que al asignar: por el serializer, con partial=True porque
+        # solo viaja la cantidad, así la valida el modelo y no la base.
+        serializer = MaterialProductoSerializer(
+            linea,
+            data={'cantidad': datos.get('cantidad') or ''},
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        return serializer.save()
 
     @action(detail=True, methods=['patch'],
             url_path=r'materiales/(?P<linea_id>\d+)')
@@ -794,7 +1111,8 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         Solo se cambia la cantidad. El material de una línea no se
         cambia: se quita la línea y se agrega otra, porque cambiarlo
-        serían otros materiales.
+        serían otros materiales. Las reglas están en _modificar_cantidad,
+        que comparte con el guardado de la ficha.
         """
         producto = self.get_object()
 
@@ -813,24 +1131,7 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Se exige que la clave venga, aunque su valor pueda ser vacío:
-        # mandar un PATCH sin 'cantidad' es un error de quien llama, no
-        # una forma de borrar la cantidad.
-        if 'cantidad' not in request.data:
-            return Response(
-                {'detail': 'Falta la cantidad.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Igual que al asignar: por el serializer, con partial=True porque
-        # solo viaja la cantidad, así la valida el modelo y no la base.
-        serializer = MaterialProductoSerializer(
-            linea,
-            data={'cantidad': request.data.get('cantidad') or ''},
-            partial=True,
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        self._modificar_cantidad(linea, request.data)
 
         producto.refresh_from_db()
 
@@ -945,14 +1246,30 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         return Response(self.get_serializer(producto).data)
 
+    def _modificar_imagen(self, imagen, datos):
+        """Cambia el título, el tipo o el orden de una imagen con las reglas de CU34 y la devuelve.
+
+        Es la única puerta para modificar una imagen: la usan
+        modificar_imagen (el PATCH de una) y _sincronizar_imagenes (el
+        guardado de la ficha). El archivo no se cambia: para eso se borra
+        la imagen y se sube otra. La garantía es estructural, porque
+        ImagenProductoModificarSerializer no tiene el campo del archivo.
+        """
+        serializer = ImagenProductoModificarSerializer(
+            imagen,
+            data=datos,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        return serializer.save()
+
     @action(detail=True, methods=['patch'],
             url_path=r'imagenes/(?P<imagen_id>\d+)')
     def modificar_imagen(self, request, pk=None, imagen_id=None):
         """CU34 - Cambiar el título, el tipo o el orden de una imagen.
 
-        El archivo no se cambia: para eso se borra la imagen y se sube
-        otra. La garantía es estructural, porque
-        ImagenProductoModificarSerializer no tiene el campo del archivo.
+        Las reglas están en _modificar_imagen, que comparte con el guardado
+        de la ficha.
         """
         producto = self.get_object()
 
@@ -971,13 +1288,7 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = ImagenProductoModificarSerializer(
-            imagen,
-            data=request.data,
-            partial=True,
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        self._modificar_imagen(imagen, request.data)
 
         producto.refresh_from_db()
 
@@ -989,9 +1300,9 @@ class ProductoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         Si era la principal, pasa a serlo la siguiente por orden.
 
-        OJO: esto borra la fila, no el archivo del disco. El archivo
-        queda huérfano en media/productos/. Está pendiente decidir qué
-        hacer con eso.
+        El archivo del disco lo borra la señal post_delete que conecta
+        productos/apps.py (config/limpieza_archivos.py), recién cuando la
+        transacción confirma.
         """
         producto = self.get_object()
 

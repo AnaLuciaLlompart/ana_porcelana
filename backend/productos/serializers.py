@@ -289,6 +289,42 @@ class ProductoDetalleSerializer(ProductoListaSerializer):
         ]
 
 
+class ListasDeHijosDeProducto(serializers.Serializer):
+    """Las tres listas de hijos que el alta y el guardado de la ficha traen en el mismo pedido (CU17, CU19).
+
+    Corrección del tutor: crear y guardar son un solo pedido a la API y una
+    sola transacción. Como llevan fotos, el cuerpo es multipart y cada lista
+    llega como texto JSON; JSONField la parsea. Con un cuerpo JSON llega ya
+    como lista y pasa tal cual. Las tres son opcionales y sin valor por
+    defecto a propósito: la que no viene no está en validated_data, y para
+    el guardado eso quiere decir "no tocar esa lista", distinto de [], que
+    quiere decir "quitar todo".
+
+    Acá se mira solo la forma, que cada una sea una lista. Las reglas de
+    cada fila (material existente y no repetido, categoría existente y no
+    repetida, imagen real de hasta 15 MB) las aplican los métodos del
+    ViewSet, los mismos que usan las acciones de a una fila.
+    """
+
+    materiales = serializers.JSONField(required=False)
+    categorias = serializers.JSONField(required=False)
+    imagenes = serializers.JSONField(required=False)
+
+    def _lista(self, valor):
+        if not isinstance(valor, list):
+            raise serializers.ValidationError('Tiene que ser una lista.')
+        return valor
+
+    def validate_materiales(self, valor):
+        return self._lista(valor)
+
+    def validate_categorias(self, valor):
+        return self._lista(valor)
+
+    def validate_imagenes(self, valor):
+        return self._lista(valor)
+
+
 class ResumenDeProductosSerializer(serializers.Serializer):
     """La línea de arriba del listado de productos y el rango del deslizador (CU18).
 

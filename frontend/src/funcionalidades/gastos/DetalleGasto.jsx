@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 
-import {
-  obtenerGasto,
-  modificarGasto,
-  registrarMaterialDelGasto,
-  modificarMaterialDelGasto,
-  quitarMaterialDelGasto,
-  marcarDisponibilidadAlta,
-} from './api'
+import { obtenerGasto, modificarGasto } from './api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
@@ -57,10 +50,12 @@ function datosCambiaron(borrador, original) {
   )
 }
 
-// Lo que hay que mandar para que lo guardado quede como el borrador: las
-// filas que se quitaron, las que cambiaron (solo cantidad y precio unitario,
-// que es lo que se puede modificar), las nuevas, que son las de id
-// provisorio negativo, y las marcadas para pasar a disponibilidad Alta.
+// En qué difieren las filas del borrador de las guardadas: las que se
+// quitaron, las que cambiaron (cantidad y precio unitario, que es lo que se
+// puede modificar), las nuevas, que son las de id provisorio negativo, y las
+// marcadas para pasar a disponibilidad Alta. Es para saber si hay cambios
+// sin guardar; lo que viaja al guardar es la lista entera, y el backend hace
+// esta misma comparación contra la base.
 function cambiosEnFilas(guardadas, enBorrador) {
   const idsEnBorrador = enBorrador.map((fila) => fila.id)
   const quitadas = guardadas.filter((g) => !idsEnBorrador.includes(g.id))
@@ -83,6 +78,14 @@ function cambiosEnFilas(guardadas, enBorrador) {
   }
 
   return { quitadas, modificadas, nuevas, aAlta }
+}
+
+// La clave del error de campo, o '' si fue una regla de negocio ({'detail'}).
+// Al guardar, 'materiales' dice que falló una fila de la tabla y no un dato.
+function claveDelError(err) {
+  const datos = err.response?.data
+  if (!datos || datos.detail) return ''
+  return Object.keys(datos)[0] || ''
 }
 
 
@@ -110,7 +113,6 @@ export default function DetalleGasto() {
   // guardar; el gasto es lo último que confirmó el backend.
   const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
-  const [avance, setAvance] = useState('')
 
   // Todos los materiales del sistema, para el desplegable del modal.
   const [materiales, setMateriales] = useState([])
@@ -277,123 +279,56 @@ export default function DetalleGasto() {
     guardar()
   }
 
-  // Guardar es una cadena de los endpoints que ya existen, como Crear en el
-  // alta: el PUT de los datos si cambiaron, después quitar, modificar y
-  // agregar filas, y al final pasar a Alta las marcadas. No es atómico: si
-  // algo falla a mitad, lo anterior quedó guardado. Por eso, a medida que
-  // avanza, la ficha se queda con la última respuesta del backend, y cada
-  // fila nueva que se crea recibe su id real en el borrador: volver a tocar
-  // Guardar sigue desde ahí, sin duplicar nada.
+  // Guardar es un solo PUT con los datos y, si el gasto es de materiales, la
+  // lista completa de filas del borrador con sus marcas de pasar a Alta: el
+  // backend la compara con lo guardado, quita, modifica y registra lo que
+  // haga falta, recalcula el monto y pasa a Alta las marcadas, todo en una
+  // transacción (corrección del tutor). Si una fila falla, el gasto queda
+  // como estaba y el error va pegado a la tabla; si fallan los datos, en la
+  // tarjeta Datos.
   async function guardar() {
     setPreguntarSinMateriales(false)
     setGuardando(true)
 
-    let actual = gasto
-    let filas = borrador.materiales
-
-    if (datosCambiaron(borrador, borradorDe(gasto))) {
-      const datos = {
-        tipo: borrador.tipo,
-        fecha: borrador.fecha,
-        descripcion: borrador.descripcion.trim(),
-      }
-
-      // En un gasto de materiales el monto NO viaja: lo calcula el backend, y
-      // si fuera en el cuerpo lo ignoraría.
-      if (borrador.tipo !== 'MATERIALES') datos.monto = borrador.monto
-
-      try {
-        setAvance('Guardando datos…')
-        actual = (await modificarGasto(id, datos)).data
-      } catch (err) {
-        setError(mensajeDeError(err))
-        setGuardando(false)
-        setAvance('')
-        return
-      }
+    const datos = {
+      tipo: borrador.tipo,
+      fecha: borrador.fecha,
+      descripcion: borrador.descripcion.trim(),
     }
 
-    // Con publicidad u otro no hay filas que mandar: el tipo de un gasto de
-    // materiales no se puede cambiar, así que no puede haber filas guardadas.
-    const esDeMateriales = borrador.tipo === 'MATERIALES'
-    const { quitadas, modificadas, nuevas } = esDeMateriales
-      ? cambiosEnFilas(gasto.materiales, filas)
-      : { quitadas: [], modificadas: [], nuevas: [] }
+    // En un gasto de materiales el monto NO viaja: lo calcula el backend, y
+    // si fuera en el cuerpo lo ignoraría. Con publicidad u otro no hay filas
+    // que mandar: el tipo de un gasto de materiales no se puede cambiar, así
+    // que no puede haber filas guardadas. Las filas nuevas van con su id
+    // provisorio negativo, que es como el backend las distingue.
+    if (borrador.tipo === 'MATERIALES') {
+      datos.materiales = borrador.materiales.map((fila) => ({
+        id: fila.id,
+        material: fila.material,
+        cantidad: fila.cantidad,
+        precio_unitario: fila.precio_unitario,
+        pasar_a_alta: Boolean(fila.pasar_a_alta),
+      }))
+    } else {
+      datos.monto = borrador.monto
+    }
 
-    const total = quitadas.length + modificadas.length + nuevas.length
-    let hechos = 0
-    let enCurso = null
-    let pasaronAAlta = 0
-
+    let actual
     try {
-      for (const fila of quitadas) {
-        enCurso = fila
-        hechos += 1
-        setAvance(`Guardando materiales (${hechos} de ${total})…`)
-        actual = (await quitarMaterialDelGasto(id, fila.id)).data
-      }
-
-      for (const fila of modificadas) {
-        enCurso = fila
-        hechos += 1
-        setAvance(`Guardando materiales (${hechos} de ${total})…`)
-        actual = (await modificarMaterialDelGasto(id, fila.id, {
-          cantidad: fila.cantidad,
-          precio_unitario: fila.precio_unitario,
-        })).data
-      }
-
-      for (const fila of nuevas) {
-        enCurso = fila
-        hechos += 1
-        setAvance(`Guardando materiales (${hechos} de ${total})…`)
-        const idsAntes = actual.materiales.map((f) => f.id)
-        actual = (await registrarMaterialDelGasto(id, {
-          material: fila.material,
-          cantidad: fila.cantidad,
-          precio_unitario: fila.precio_unitario,
-        })).data
-
-        // La fila creada es la que no estaba antes. Su id real reemplaza al
-        // provisorio en el borrador.
-        const creada = actual.materiales.find((f) => !idsAntes.includes(f.id))
-        filas = filas.map((f) => (f.id === fila.id ? { ...f, id: creada.id } : f))
-      }
-
-      // Al final, las marcadas para pasar a Alta, de a una y con su id ya
-      // real. La respuesta dice cuántos materiales cambiaron de verdad.
-      if (esDeMateriales) {
-        for (const fila of filas.filter((f) => f.pasar_a_alta)) {
-          enCurso = fila
-          setAvance('Pasando materiales a disponibilidad Alta…')
-          const respuesta = (await marcarDisponibilidadAlta(id, fila.id)).data
-          actual = respuesta.gasto
-          pasaronAAlta += respuesta.materiales_cambiados.length
-          filas = filas.map((f) =>
-            f.id === fila.id
-              ? { ...f, pasar_a_alta: false, material_disponibilidad: 'ALTA', material_disponibilidad_display: 'Alta' }
-              : f
-          )
-        }
-      }
+      actual = (await modificarGasto(id, datos)).data
     } catch (err) {
-      setErrorMateriales(
-        `No se pudo guardar «${enCurso.material_nombre}»: ${mensajeDeError(err)} ` +
-          'Lo anterior quedó guardado.'
-      )
-      setGasto(actual)
-      setBorrador({ ...borrador, materiales: filas })
+      if (claveDelError(err) === 'materiales') setErrorMateriales(mensajeDeError(err))
+      else setError(mensajeDeError(err))
       setGuardando(false)
-      setAvance('')
       return
     }
 
     // Todo guardado: se vuelve al listado, que avisa con un modal y dice
-    // cuántos materiales pasaron a Alta. Sin bloqueo: ya no queda nada sin
-    // guardar.
+    // cuántos materiales pasaron a Alta, los que el backend cambió de
+    // verdad. Sin bloqueo: ya no queda nada sin guardar.
     saltearBloqueo.current = true
     navegar(`${BASE_GESTION}/gastos`, {
-      state: { guardado: actual.id, pasaronAAlta },
+      state: { guardado: actual.id, pasaronAAlta: actual.materiales_cambiados.length },
     })
   }
 
@@ -557,7 +492,7 @@ export default function DetalleGasto() {
               fontSize: 15,
             }}
           >
-            {guardando ? avance || 'Guardando…' : 'Guardar'}
+            {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </div>

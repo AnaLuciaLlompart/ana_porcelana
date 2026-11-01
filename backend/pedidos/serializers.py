@@ -353,8 +353,8 @@ class PedidoDetalleSerializer(PedidoListaSerializer):
         read_only=True,
     )
 
-    # Meta hereda de la del listado, así que no se repite el model ni los
-    # diecisiete campos: solo se suma el que falta.
+    # Meta hereda de la del listado, así que no se repite el model ni sus
+    # campos: solo se suman los tres que faltan.
     class Meta(PedidoListaSerializer.Meta):
         fields = PedidoListaSerializer.Meta.fields + [
             'cliente_email',

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate } from 'react-router-dom'
 
-import { crearGasto, eliminarGasto, registrarMaterialDelGasto } from './api'
+import { crearGasto } from './api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
 // El mismo import que cruza de funcionalidad en la ficha: la lista de
@@ -35,9 +35,9 @@ function borradorVacio() {
 
 // El alta de un gasto (CU52). Es la misma pantalla que la ficha, con los
 // datos y los materiales en un solo formulario, y se crea recién al tocar
-// "Crear gasto": un POST del gasto y, si es de materiales, uno por fila,
-// con los endpoints de la ficha. Si uno falla, se borra el gasto y queda
-// todo cargado para corregir.
+// "Crear gasto": un solo POST con los datos y, si es de materiales, las
+// filas adentro, que el backend guarda en una transacción. Si algo falla,
+// no queda nada creado y todo sigue cargado para corregir.
 export default function AltaGasto() {
   const navegar = useNavigate()
 
@@ -58,11 +58,9 @@ export default function AltaGasto() {
   const [error, setError] = useState('')
   const [errorMateriales, setErrorMateriales] = useState('')
 
-  // Mientras se crea, el pie queda apagado y muestra el avance. Si falló una
-  // fila y tampoco se pudo borrar el gasto, acá queda su id.
+  // Mientras se crea, el pie queda apagado y muestra el avance.
   const [creando, setCreando] = useState(false)
   const [avance, setAvance] = useState('')
-  const [creadoAMedias, setCreadoAMedias] = useState(null)
 
   // El modal de "Crear sin materiales": un gasto de materiales sin filas se
   // puede crear, pero antes se pregunta. La pregunta de salir no va acá: la
@@ -77,15 +75,13 @@ export default function AltaGasto() {
     listarMateriales().then((res) => setMateriales(res.data)).catch(() => {})
   }, [])
 
-  // Hay algo cargado si el borrador difiere del vacío. Si el gasto quedó
-  // creado a medias, ya no hay nada que perder al salir.
+  // Hay algo cargado si el borrador difiere del vacío.
   const hayAlgo =
-    creadoAMedias === null &&
-    (borrador.tipo !== vacio.tipo ||
-      borrador.fecha !== vacio.fecha ||
-      borrador.monto !== '' ||
-      borrador.descripcion !== '' ||
-      borrador.materiales.length > 0)
+    borrador.tipo !== vacio.tipo ||
+    borrador.fecha !== vacio.fecha ||
+    borrador.monto !== '' ||
+    borrador.descripcion !== '' ||
+    borrador.materiales.length > 0
 
   // Recargar o cerrar la pestaña pierde todo, así que mientras haya algo
   // cargado (o se esté creando) el navegador pregunta antes, con su propio
@@ -137,13 +133,6 @@ export default function AltaGasto() {
   // listado, y el bloqueo de arriba es el que pregunta.
   function salir() {
     navegar(`${BASE_GESTION}/gastos`)
-  }
-
-  // Con el gasto creado a medias, el botón principal lleva a su ficha: no se
-  // sale sin crear, así que no se pregunta.
-  function irAlCreado() {
-    saltearBloqueo.current = true
-    navegar(`${BASE_GESTION}/gastos/${creadoAMedias}`)
   }
 
 
@@ -198,8 +187,10 @@ export default function AltaGasto() {
     crear()
   }
 
-  // La cadena de creación. Se anota en qué parte está cada llamada para
-  // mostrar el error al lado de lo que falló.
+  // Un solo POST con los datos y, si es de materiales, las filas adentro: el
+  // backend lo guarda todo en una transacción, así que si algo falla no
+  // queda nada creado. Si el error viene con la clave 'materiales', fue una
+  // fila y va pegado a la tabla; si no, fue el gasto y va en los datos.
   async function crear() {
     setModalSinFilas(false)
     setCreando(true)
@@ -207,61 +198,36 @@ export default function AltaGasto() {
     const esDeMateriales = borrador.tipo === 'MATERIALES'
 
     // Como en la ficha: en un gasto de materiales el monto NO viaja, lo
-    // calcula el backend sumando las filas.
+    // calcula el backend sumando las filas, que van en el mismo cuerpo.
     const datos = {
       tipo: borrador.tipo,
       fecha: borrador.fecha,
       descripcion: borrador.descripcion.trim(),
     }
-    if (!esDeMateriales) datos.monto = borrador.monto
-
-    let id = null
-    let enPaso = 'datos'
+    if (esDeMateriales) {
+      datos.materiales = borrador.materiales.map((fila) => ({
+        material: fila.material,
+        cantidad: fila.cantidad,
+        precio_unitario: fila.precio_unitario,
+      }))
+    } else {
+      datos.monto = borrador.monto
+    }
 
     try {
-      setAvance('Creando…')
+      setAvance('Creando gasto…')
       const res = await crearGasto(datos)
-      id = res.data.id
-
-      if (esDeMateriales) {
-        enPaso = 'materiales'
-        let hechas = 0
-        for (const fila of borrador.materiales) {
-          hechas += 1
-          setAvance(`Guardando materiales (${hechas} de ${borrador.materiales.length})…`)
-          await registrarMaterialDelGasto(id, {
-            material: fila.material,
-            cantidad: fila.cantidad,
-            precio_unitario: fila.precio_unitario,
-          })
-        }
-      }
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
       // formulario lleno de lo que ya se creó. Sin bloqueo: se vuelve al
       // listado, que muestra el aviso que le llega en el state, como en
       // pedidos.
       saltearBloqueo.current = true
-      navegar(`${BASE_GESTION}/gastos`, { replace: true, state: { creado: id } })
+      navegar(`${BASE_GESTION}/gastos`, { replace: true, state: { creado: res.data.id } })
     } catch (err) {
-      let mensaje = `No se pudo crear el gasto: ${mensajeDeError(err)}`
+      const mensaje = `No se pudo crear el gasto: ${mensajeDeError(err)}`
 
-      // Deshacer: el DELETE borra en cascada las filas que se alcanzaron a
-      // guardar. Si tampoco se puede, el gasto queda a medias y se dice.
-      if (id !== null) {
-        try {
-          await eliminarGasto(id)
-        } catch {
-          setCreadoAMedias(id)
-          mensaje =
-            'No se pudo terminar de cargar el gasto y tampoco se pudo deshacer: ' +
-            'quedó creado a medias. Revisalo desde el listado.'
-        }
-      }
-
-      // El error va al lado de lo que falló: pegado a la tabla si fue una
-      // fila, en el formulario si fue el gasto.
-      if (enPaso === 'materiales') setErrorMateriales(mensaje)
+      if (err.response?.data?.materiales) setErrorMateriales(mensaje)
       else setError(mensaje)
     } finally {
       setCreando(false)
@@ -360,8 +326,7 @@ export default function AltaGasto() {
         )}
 
         {/* El pie del formulario, como el de la ficha pero para crear:
-            Cancelar quiere decir "no lo crees", y el bloqueo pregunta. Con
-            el gasto creado a medias, el botón principal lleva a su ficha. */}
+            Cancelar quiere decir "no lo crees", y el bloqueo pregunta. */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
           <button
             onClick={salir}
@@ -383,7 +348,7 @@ export default function AltaGasto() {
           </button>
 
           <button
-            onClick={creadoAMedias ? irAlCreado : terminar}
+            onClick={terminar}
             disabled={creando}
             style={{
               padding: '10px 20px',
@@ -398,7 +363,7 @@ export default function AltaGasto() {
               fontSize: 15,
             }}
           >
-            {creando ? avance : creadoAMedias ? 'Ir al gasto' : 'Crear gasto'}
+            {creando ? avance : 'Crear gasto'}
           </button>
         </div>
       </div>

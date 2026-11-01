@@ -1,17 +1,23 @@
+import threading
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
+from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.db import connection
 from django.utils import timezone
 from openpyxl import load_workbook
 from rest_framework import status
+from rest_framework.test import APIClient, APITransactionTestCase
 
 from clientes.models import Cliente
 from pruebas.base import TIPO_EXCEL, USUARIA, PruebaConSesion, PruebaSinSesion, celdas_del_excel
 from productos.models import Producto
 
 from .models import Cobro, Pedido, ProductoDelPedido
+from .views import PedidoViewSet
 
 LISTA = '/api/pedidos/'
 
@@ -81,6 +87,53 @@ class IdDeProductoInvalido(PruebaDePedido):
         self.assertEqual(ProductoDelPedido.objects.count(), 0)
 
 
+class AltaDePedidoCompleta(PruebaDePedido):
+    """El alta trae los productos en el mismo POST y se guarda entera o no se guarda (CU40, CU44)."""
+
+    def test_el_alta_crea_el_pedido_con_sus_productos(self):
+        """CU40: un POST con dos productos (uno sin precio, otro en Secado) responde 201 con los dos, el precio congelado del catálogo y la etapa con su fecha."""
+        respuesta = self.client.post(LISTA, {
+            'cliente': self.cliente.id,
+            'productos': [
+                {'producto': self.producto.id, 'cantidad': 2},
+                {'producto': self.producto.id, 'precio': '4000.00', 'descripcion': 'verde',
+                 'estado': ProductoDelPedido.Estado.SECADO},
+            ],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(respuesta.data['productos']), 2)
+
+        nuevo = Pedido.objects.get(pk=respuesta.data['id'])
+        primera, segunda = nuevo.productos.order_by('id')
+        self.assertEqual(primera.precio, Decimal('5000.00'))
+        self.assertEqual(primera.cantidad, 2)
+        self.assertEqual(primera.estado, ProductoDelPedido.Estado.PENDIENTE)
+        self.assertEqual(segunda.precio, Decimal('4000.00'))
+        self.assertEqual(segunda.estado, ProductoDelPedido.Estado.SECADO)
+        self.assertEqual(segunda.fecha_cambio_estado, timezone.localdate())
+        self.assertEqual(nuevo.total, Decimal('14000.00'))
+
+    def test_si_falla_un_producto_no_queda_el_pedido(self):
+        """CU40: con la segunda fila inválida responde 400 con la fila y no queda ni el pedido ni la primera fila; 'productos' que no es lista da 400; sin 'productos' el POST crea el pedido solo."""
+        respuesta = self.client.post(LISTA, {
+            'cliente': self.cliente.id,
+            'productos': [{'producto': self.producto.id}, {'producto': 999999}],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['productos'], ['Fila 2: No existe un producto con ese id.'])
+        self.assertEqual(Pedido.objects.count(), 1)   # el del setUp
+        self.assertEqual(ProductoDelPedido.objects.count(), 0)
+
+        respuesta = self.client.post(LISTA, {'cliente': self.cliente.id, 'productos': 'aros'}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], "'productos' tiene que ser una lista.")
+        self.assertEqual(Pedido.objects.count(), 1)
+
+        respuesta = self.client.post(LISTA, {'cliente': self.cliente.id}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Pedido.objects.count(), 2)
+
+
 class CobrosDelPedido(PruebaDePedido):
     """El saldo y las dos reglas entre filas de los cobros (CU48)."""
 
@@ -127,6 +180,12 @@ class CobrosDelPedido(PruebaDePedido):
         respuesta = self.cobrar('10000.00', Cobro.Tipo.PAGO_RESTANTE)
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertEqual(respuesta.data['saldo'], '0.00')
+
+    def test_un_cobro_sin_tipo_es_una_sena(self):
+        """CU48: un cobro sin 'tipo' en el cuerpo se registra como seña, el default del modelo (antes daba 500)."""
+        respuesta = self.client.post(url(self.pedido, 'cobros/'), {'monto': '3000.00'}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(Cobro.objects.get().tipo, Cobro.Tipo.SENA)
 
 
 class EstadoDelPedido(PruebaDePedido):
@@ -232,6 +291,89 @@ class FormaDeEntrega(PruebaDePedido):
         self.assertEqual(self.pedido.forma_entrega, Pedido.FormaEntrega.RETIRO)
 
 
+class GuardadoDePedidoCompleto(PruebaDePedido):
+    """La ficha se guarda con un solo PUT que trae la lista completa de
+    productos, y se aplica entero o no se aplica (CU42, CU44, CU46, CU47;
+    corrección del tutor).
+
+    Arranca con un pedido Listo con dos piezas terminadas.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.terminada = self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
+        self.otra = self.agregar_pieza(cantidad=2, estado=ProductoDelPedido.Estado.TERMINADO)
+        self.pedido.estado = Pedido.Estado.LISTO
+        self.pedido.save()
+
+    def fila(self, linea, **cambios):
+        """Una fila guardada tal como la manda la ficha, con lo que cambie."""
+        datos = {
+            'id': linea.id, 'producto': linea.producto_id, 'cantidad': linea.cantidad,
+            'precio': str(linea.precio), 'descripcion': linea.descripcion, 'estado': linea.estado,
+        }
+        datos.update(cambios)
+        return datos
+
+    def test_el_put_quita_modifica_y_agrega_productos_en_un_pedido(self):
+        """CU42, CU46, CU47 y CU44: un PUT con la lista completa cambia los datos, quita la fila que no viene, cambia cantidad y etapa de la que sigue, agrega la nueva con su etapa y, como quedaron piezas sin terminar, baja el pedido Listo a En producción."""
+        respuesta = self.client.put(url(self.pedido), {
+            'cliente': self.cliente.id,
+            'fecha_entrega_estimada': '2026-12-20',
+            'productos': [
+                self.fila(self.terminada, cantidad=3, estado=ProductoDelPedido.Estado.SECADO),
+                {'producto': self.producto.id, 'cantidad': 2, 'estado': ProductoDelPedido.Estado.MODELADO},
+            ],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['fecha_entrega_estimada'], '2026-12-20')
+        self.assertEqual(respuesta.data['estado'], Pedido.Estado.EN_PRODUCCION)
+        self.assertEqual(len(respuesta.data['productos']), 2)
+
+        self.assertFalse(ProductoDelPedido.objects.filter(pk=self.otra.pk).exists())
+        self.terminada.refresh_from_db()
+        self.assertEqual(
+            (self.terminada.cantidad, self.terminada.estado, self.terminada.fecha_cambio_estado),
+            (3, ProductoDelPedido.Estado.SECADO, timezone.localdate()),
+        )
+        nueva = self.pedido.productos.exclude(pk=self.terminada.pk).get()
+        self.assertEqual(
+            (nueva.cantidad, nueva.estado, str(nueva.precio)),
+            (2, ProductoDelPedido.Estado.MODELADO, '5000.00'),
+        )
+
+    def test_si_falla_una_fila_el_pedido_queda_como_estaba(self):
+        """CU42: con una fila de un producto inexistente el PUT responde 400 con 'productos' y su fila, y ni los datos, ni las piezas, ni el estado cambian."""
+        respuesta = self.client.put(url(self.pedido), {
+            'cliente': self.cliente.id,
+            'fecha_entrega_estimada': '2026-12-20',
+            'productos': [self.fila(self.terminada, cantidad=3), {'producto': 999999}],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['productos'], ['Fila 2: No existe un producto con ese id.'])
+
+        self.pedido.refresh_from_db()
+        self.assertIsNone(self.pedido.fecha_entrega_estimada)
+        self.assertEqual(self.pedido.estado, Pedido.Estado.LISTO)
+        self.terminada.refresh_from_db()
+        self.assertEqual(self.terminada.cantidad, 1)
+        self.assertEqual(self.pedido.productos.count(), 2)
+
+    def test_un_put_sin_productos_no_toca_las_piezas(self):
+        """CU42: un PUT con los datos y sin la clave 'productos' cambia la entrega estimada y deja las dos piezas y el estado como estaban."""
+        respuesta = self.client.put(
+            url(self.pedido), {'cliente': self.cliente.id, 'fecha_entrega_estimada': '2026-12-20'},
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['fecha_entrega_estimada'], '2026-12-20')
+        self.assertEqual(respuesta.data['estado'], Pedido.Estado.LISTO)
+        self.assertEqual(
+            sorted((linea.cantidad, linea.estado) for linea in self.pedido.productos.all()),
+            [(1, ProductoDelPedido.Estado.TERMINADO), (2, ProductoDelPedido.Estado.TERMINADO)],
+        )
+
+
 class ComprobanteSinSesion(PruebaSinSesion):
     """El comprobante es un endpoint de gestión (CU60)."""
 
@@ -304,7 +446,7 @@ class RendimientoDelListado(PruebaSinSesion):
         self.client.force_authenticate(get_user_model().objects.create_user(USUARIA))
 
     def test_el_listado_hace_una_cantidad_fija_de_consultas(self):
-        """CU41: con tres pedidos con productos y cobros, el listado hace 5 consultas.
+        """CU41: con tres pedidos con productos y cobros, el listado hace 5 consultas (más las 2 de la transacción por pedido).
 
         El COUNT de la paginación, los pedidos de la página con su cliente
         (un JOIN por select_related) y sus totales (subconsultas de la misma
@@ -324,7 +466,10 @@ class RendimientoDelListado(PruebaSinSesion):
                 )
             Cobro.objects.create(pedido=pedido, monto='1000.00')
 
-        with self.assertNumQueries(5):
+        # 5 del listado más las 2 de la transacción por pedido
+        # (ATOMIC_REQUESTS): dentro de un TestCase son un SAVEPOINT y su
+        # RELEASE, y assertNumQueries los cuenta.
+        with self.assertNumQueries(7):
             respuesta = self.client.get(LISTA, {'pagina': 1})
         self.assertEqual(len(respuesta.data['results']), 3)
 
@@ -544,3 +689,80 @@ class ExportarPedidos(PruebaDePedido):
         self.assertEqual(nombre.value, '=1+1')
         # 's' es texto; una fórmula vendría como 'f'.
         self.assertEqual(nombre.data_type, 's')
+
+
+class CobrosSimultaneos(APITransactionTestCase):
+    """Dos cobros al mismo tiempo no pueden pasarse del total (CU48).
+
+    Sobre APITransactionTestCase y no sobre PruebaConSesion: dos pedidos de
+    verdad simultáneos necesitan dos conexiones y transacciones de verdad,
+    y APITestCase envuelve cada prueba en una sola. Por eso la clase arma
+    sus datos a mano y cada hilo tiene su propio APIClient.
+    """
+
+    def setUp(self):
+        cache.clear()
+
+    def test_dos_cobros_a_la_vez_no_pasan_el_total(self):
+        """CU48: dos cobros de $6.000 sobre $10.000 lanzados a la vez: uno entra (200), el otro responde 400, y queda un solo cobro."""
+        usuaria = get_user_model().objects.create_user(USUARIA)
+        cliente = Cliente.objects.create(instagram='sofi.delgado', nombre='Sofía')
+        producto = Producto.objects.create(
+            nombre='Aros Hedwig', precio_actual='5000.00',
+            dificultad=Producto.Dificultad.MEDIA,
+        )
+        pedido = Pedido.objects.create(cliente=cliente)
+        ProductoDelPedido.objects.create(
+            pedido=pedido, producto=producto, precio='5000.00', cantidad=2,
+        )
+
+        # Para que los dos pedidos se superpongan de verdad, _revisar_cobro
+        # espera en una barrera de dos hasta 2 segundos. Con el candado de
+        # _bloquear el segundo hilo nunca llega a la barrera (está esperando
+        # la fila del pedido), el primero sigue al vencer la espera y
+        # confirma, y el segundo recién entonces lee: ve el cobro del otro y
+        # lo rechaza. Sin el candado, los dos cruzan la barrera juntos, los
+        # dos leen cobrado $0 y los dos entran: la prueba falla.
+        barrera = threading.Barrier(2, timeout=2)
+        revisar_original = PedidoViewSet._revisar_cobro
+
+        def revisar_esperando(vista, *args, **kwargs):
+            try:
+                barrera.wait()
+            except threading.BrokenBarrierError:
+                pass
+            return revisar_original(vista, *args, **kwargs)
+
+        respuestas = []
+
+        def cobrar():
+            try:
+                api = APIClient()
+                api.force_authenticate(usuaria)
+                respuesta = api.post(
+                    url(pedido, 'cobros/'), {'monto': '6000.00', 'tipo': Cobro.Tipo.SENA},
+                    format='json',
+                )
+                respuestas.append((respuesta.status_code, respuesta.data))
+            finally:
+                # Cada hilo abre su conexión a la base; se cierra para no
+                # dejarla colgada al terminar la prueba.
+                connection.close()
+
+        with mock.patch.object(PedidoViewSet, '_revisar_cobro', revisar_esperando):
+            hilos = [threading.Thread(target=cobrar) for _ in range(2)]
+            for hilo in hilos:
+                hilo.start()
+            for hilo in hilos:
+                hilo.join()
+
+        self.assertCountEqual(
+            [codigo for codigo, _ in respuestas],
+            [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST],
+        )
+        rechazo = next(datos for codigo, datos in respuestas if codigo == status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            rechazo['detail'],
+            'No se puede cobrar $6.000: el pedido es de $10.000 y falta cobrar $4.000.',
+        )
+        self.assertEqual(Cobro.objects.count(), 1)

@@ -151,8 +151,8 @@ function Contenido({ producto }) {
 
 // El producto en solo lectura (CU18): datos, fotos y categorías. El
 // listado no trae todas las fotos, así que al abrirse pide la ficha, con
-// el patrón de tres estados. Editar lleva a la ficha; un producto de baja
-// no lo ofrece, porque su ficha es de solo lectura.
+// el patrón de tres estados. No tiene pie: para editar está el lápiz de la
+// fila, que un producto de baja no tiene porque su ficha es de solo lectura.
 export default function ModalVerProducto({ producto, onCerrar }) {
   const [ficha, setFicha] = useState(null)
   const [cargando, setCargando] = useState(true)

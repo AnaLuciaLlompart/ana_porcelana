@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate } from 'react-router-dom'
 
-import {
-  listarProductos,
-  crearProducto,
-  eliminarProducto,
-  asignarMaterialAProducto,
-  subirImagenDeProducto,
-  asignarCategoriaAProducto,
-} from './api'
+import { listarProductos, crearProducto } from './api'
 
 // Los mismos imports que cruzan de funcionalidad en la ficha: las listas
 // completas para elegir qué agregarle al producto.
@@ -63,8 +56,9 @@ const BORRADOR_VACIO = {
 
 // El backend contesta de dos formas según qué falló: las reglas de negocio
 // mandan {'detail': '...'} y los errores de campo mandan
-// {'imagen': ['La imagen pesa 20.0 MB...']}. La subida de fotos usa la
-// segunda, así que hay que mirar las dos para no tragarse el mensaje.
+// {'imagen': ['La imagen pesa 20.0 MB...']}. Las filas del alta (materiales,
+// fotos y categorías) usan la segunda, con la clave de su lista, así que hay
+// que mirar las dos para no tragarse el mensaje.
 function mensajeDeError(err) {
   const datos = err.response?.data
   if (!datos) return 'No se pudo completar la acción.'
@@ -76,11 +70,21 @@ function mensajeDeError(err) {
   return 'No se pudo completar la acción.'
 }
 
+// La clave del error de campo, o '' si fue una regla de negocio ({'detail'}).
+// En el alta dice de qué lista es la fila que falló ('materiales',
+// 'imagenes' o 'categorias'), que es el paso al que hay que volver.
+function claveDelError(err) {
+  const datos = err.response?.data
+  if (!datos || datos.detail) return ''
+  return Object.keys(datos)[0] || ''
+}
+
 
 // El alta de un producto (CU17), por pasos. Todo se junta en memoria y el
-// producto se crea recién con el botón del último paso: un POST del producto
-// y después uno por material, foto y categoría, con los endpoints de la
-// ficha. Si uno falla, se borra el producto y se vuelve al paso del ítem.
+// producto se crea recién con el botón del último paso, con un solo POST
+// que lleva los datos, los materiales, las fotos y las categorías: el
+// backend lo guarda todo en una transacción, y si una fila falla no queda
+// nada y se vuelve al paso de esa fila (corrección del tutor).
 export default function AltaProducto() {
   const navegar = useNavigate()
 
@@ -101,11 +105,8 @@ export default function AltaProducto() {
   const [error, setError] = useState('')
   const [errorImagen, setErrorImagen] = useState(null)
 
-  // Mientras se crea, el pie queda apagado y muestra el avance. Si falló un
-  // ítem y tampoco se pudo borrar el producto, acá queda su id.
+  // Mientras se crea, el pie queda apagado y el botón dice que está creando.
   const [creando, setCreando] = useState(false)
-  const [avance, setAvance] = useState('')
-  const [creadoAMedias, setCreadoAMedias] = useState(null)
 
   // El modal de "Crear sin fotos": un producto sin fotos se puede crear,
   // pero antes se pregunta.
@@ -131,19 +132,17 @@ export default function AltaProducto() {
     return () => imagenesActuales.current.forEach((foto) => URL.revokeObjectURL(foto.imagen))
   }, [])
 
-  // Hay algo cargado si el borrador difiere del vacío. Si el producto quedó
-  // creado a medias, ya no hay nada que perder al salir.
+  // Hay algo cargado si el borrador difiere del vacío.
   const hayAlgo =
-    creadoAMedias === null &&
-    (borrador.nombre !== '' ||
-      borrador.descripcion !== '' ||
-      borrador.precio !== '' ||
-      borrador.dificultad !== '' ||
-      borrador.paso_a_paso !== '' ||
-      borrador.es_personalizado ||
-      borrador.materiales.length > 0 ||
-      borrador.imagenes.length > 0 ||
-      borrador.categorias.length > 0)
+    borrador.nombre !== '' ||
+    borrador.descripcion !== '' ||
+    borrador.precio !== '' ||
+    borrador.dificultad !== '' ||
+    borrador.paso_a_paso !== '' ||
+    borrador.es_personalizado ||
+    borrador.materiales.length > 0 ||
+    borrador.imagenes.length > 0 ||
+    borrador.categorias.length > 0
 
   // Recargar o cerrar la pestaña pierde todo, así que mientras haya algo
   // cargado (o se esté creando) el navegador pregunta antes, con su propio
@@ -212,13 +211,6 @@ export default function AltaProducto() {
   // listado, y el bloqueo de arriba es el que pregunta.
   function salir() {
     navegar(`${BASE_GESTION}/productos`)
-  }
-
-  // Con el producto creado a medias, el último botón lleva a su ficha: no
-  // se sale sin crear, así que no se pregunta.
-  function irAlCreado() {
-    saltearBloqueo.current = true
-    navegar(`${BASE_GESTION}/productos/${creadoAMedias}`)
   }
 
 
@@ -298,8 +290,9 @@ export default function AltaProducto() {
     crear()
   }
 
-  // La cadena de creación. Se anota en qué paso está cada llamada para
-  // volver ahí si falla; en las fotos, también el grupo.
+  // Un solo POST con todo el borrador. Si una fila falla, el backend dice de
+  // qué lista es y en qué número, y se vuelve a ese paso con el borrador
+  // entero para corregir.
   async function crear() {
     setModalSinFotos(false)
 
@@ -323,44 +316,21 @@ export default function AltaProducto() {
       es_personalizado: borrador.es_personalizado,
     }
 
-    let id = null
-    let enPaso = 'datos'
-    let tipoDeFoto = null
+    // Cada grupo se numera por separado desde 0, que es como la ficha
+    // muestra las fotos: en el orden del arreglo. Primero las de resultado
+    // y después las de referencia, el orden de PestanaImagenes.
+    const fotos = TIPOS_DE_IMAGEN.flatMap((tipo) =>
+      borrador.imagenes
+        .filter((foto) => foto.tipo === tipo)
+        .map((foto, orden) => ({ archivo: foto.archivo, titulo: foto.titulo, tipo, orden }))
+    )
 
     try {
-      setAvance('Creando…')
-      const res = await crearProducto(datos)
-      id = res.data.id
-
-      enPaso = 'materiales'
-      let hechos = 0
-      for (const linea of borrador.materiales) {
-        hechos += 1
-        setAvance(`Guardando materiales (${hechos} de ${borrador.materiales.length})…`)
-        await asignarMaterialAProducto(id, linea.material, linea.cantidad)
-      }
-
-      // Cada grupo se numera por separado desde 0, que es como la ficha
-      // muestra las fotos: en el orden del arreglo.
-      enPaso = 'imagenes'
-      hechos = 0
-      for (const tipo of TIPOS_DE_IMAGEN) {
-        const fotos = borrador.imagenes.filter((foto) => foto.tipo === tipo)
-        for (const [orden, foto] of fotos.entries()) {
-          hechos += 1
-          tipoDeFoto = tipo
-          setAvance(`Subiendo foto ${hechos} de ${borrador.imagenes.length}…`)
-          const datosFoto = { imagen: foto.archivo, tipo, orden }
-          if (foto.titulo) datosFoto.titulo = foto.titulo
-          await subirImagenDeProducto(id, datosFoto)
-        }
-      }
-
-      enPaso = 'categorias'
-      setAvance('Guardando categorías…')
-      for (const categoria of borrador.categorias) {
-        await asignarCategoriaAProducto(id, categoria.id)
-      }
+      await crearProducto(datos, {
+        materiales: borrador.materiales.map((linea) => ({ material: linea.material, cantidad: linea.cantidad })),
+        categorias: borrador.categorias.map((categoria) => categoria.id),
+        imagenes: fotos,
+      })
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
       // formulario lleno de lo que ya se creó. Sin bloqueo: se vuelve al
@@ -368,27 +338,24 @@ export default function AltaProducto() {
       saltearBloqueo.current = true
       navegar(`${BASE_GESTION}/productos`, { replace: true, state: { creado: borrador.nombre.trim() } })
     } catch (err) {
-      let mensaje = `No se pudo crear el producto: ${mensajeDeError(err)}`
+      const mensaje = `No se pudo crear el producto: ${mensajeDeError(err)}`
+      const clave = claveDelError(err)
 
-      // Deshacer: el DELETE borra en cascada lo que se alcanzó a guardar. Si
-      // tampoco se puede, el producto queda a medias y se dice.
-      if (id !== null) {
-        try {
-          await eliminarProducto(id)
-        } catch {
-          setCreadoAMedias(id)
-          mensaje =
-            'No se pudo terminar de cargar el producto y tampoco se pudo deshacer: ' +
-            'quedó creado a medias. Revisalo desde el listado.'
-        }
+      if (clave === 'imagenes') {
+        // El mensaje empieza con "Fila N": esa foto es fotos[N - 1], y el
+        // error va en su grupo. Si no se puede saber, en el primero.
+        const fila = Number(/^Fila (\d+)/.exec(mensajeDeError(err))?.[1])
+        setErrorImagen({ tipo: fotos[fila - 1]?.tipo ?? TIPOS_DE_IMAGEN[0], mensaje })
+        setPaso('imagenes')
+      } else if (clave === 'materiales' || clave === 'categorias') {
+        setError(mensaje)
+        setPaso(clave)
+      } else {
+        setError(mensaje)
+        setPaso('datos')
       }
-
-      if (enPaso === 'imagenes') setErrorImagen({ tipo: tipoDeFoto, mensaje })
-      else setError(mensaje)
-      setPaso(enPaso)
     } finally {
       setCreando(false)
-      setAvance('')
     }
   }
 
@@ -496,10 +463,10 @@ export default function AltaProducto() {
         paso={paso}
         onIr={irAlPaso}
         onCancelar={salir}
-        onTerminar={creadoAMedias ? irAlCreado : terminar}
-        textoTerminar={creadoAMedias ? 'Ir al producto' : 'Crear producto'}
+        onTerminar={terminar}
+        textoTerminar="Crear producto"
         ocupado={creando}
-        textoOcupado={avance}
+        textoOcupado="Creando producto…"
       />
 
       {modalMaterial && (

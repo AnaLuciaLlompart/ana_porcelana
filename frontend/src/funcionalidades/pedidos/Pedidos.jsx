@@ -150,7 +150,7 @@ function colorSelectorEstado(estado) {
 // lectura; Editar, la ficha, igual que el número de la primera columna;
 // Cobros, el modal de los cobros. El estado se cambia en su propia columna,
 // con el selector. Lo que no entra va en el ⋯: el comprobante del último
-// pago, que se abre en otra pestaña, y eliminar.
+// pago, que se abre en otra pestaña (en el celular se comparte), y eliminar.
 function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onCompartirComprobante }) {
   // En el celular, si el navegador comparte archivos, el último comprobante
   // se comparte en vez de abrirse (corrección E11). El 768 es el mismo de

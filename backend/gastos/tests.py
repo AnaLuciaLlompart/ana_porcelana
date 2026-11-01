@@ -49,6 +49,57 @@ class AltaDeGasto(PruebaConSesion):
         self.assertEqual(respuesta.data['materiales'], [])
 
 
+class AltaDeGastoCompleta(PruebaConSesion):
+    """El alta trae los materiales en el mismo POST y se guarda entera o no se guarda (CU52, CU56)."""
+
+    def setUp(self):
+        super().setUp()
+        self.porcelana = Material.objects.create(nombre='Porcelana')
+        self.barniz = Material.objects.create(nombre='Barniz')
+
+    def test_el_alta_crea_el_gasto_con_sus_materiales(self):
+        """CU52: un POST de materiales con dos filas responde 201 con las dos y el monto ya sumado, también en la base."""
+        respuesta = self.client.post(LISTA, {
+            'tipo': Gasto.Tipo.MATERIALES,
+            'materiales': [
+                {'material': self.porcelana.id, 'cantidad': 2, 'precio_unitario': '800.00'},
+                {'material': self.barniz.id, 'cantidad': 1, 'precio_unitario': '1500.00'},
+            ],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(respuesta.data['materiales']), 2)
+        self.assertEqual(respuesta.data['monto'], '3100.00')
+        self.assertEqual(str(Gasto.objects.get().monto), '3100.00')
+
+    def test_si_falla_una_fila_no_queda_el_gasto(self):
+        """CU52: con el mismo material dos veces responde 400 con la fila y no queda ni el gasto ni la primera fila; un gasto de publicidad con filas también da 400."""
+        respuesta = self.client.post(LISTA, {
+            'tipo': Gasto.Tipo.MATERIALES,
+            'materiales': [
+                {'material': self.porcelana.id, 'cantidad': 2, 'precio_unitario': '800.00'},
+                {'material': self.porcelana.id, 'cantidad': 1, 'precio_unitario': '800.00'},
+            ],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['materiales'], [
+            'Fila 2 (Porcelana): El gasto ya tiene «Porcelana» entre sus materiales. '
+            'Si compraste más, corregí la cantidad.',
+        ])
+        self.assertEqual(Gasto.objects.count(), 0)
+        self.assertEqual(MaterialDelGasto.objects.count(), 0)
+
+        respuesta = self.client.post(LISTA, {
+            'tipo': Gasto.Tipo.PUBLICIDAD, 'monto': '500.00',
+            'materiales': [{'material': self.porcelana.id, 'cantidad': 1, 'precio_unitario': '800.00'}],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['materiales'], [
+            'Fila 1 (Porcelana): Solo un gasto de materiales lleva materiales del gasto. '
+            'Este es de Publicidad.',
+        ])
+        self.assertEqual(Gasto.objects.count(), 0)
+
+
 class GastoDeMateriales(PruebaConSesion):
     """Base: un gasto de materiales vacío y un ayudante para cargarle filas."""
 
@@ -201,6 +252,98 @@ class DisponibilidadAltaDesdeElGasto(GastoDeMateriales):
         self.assertEqual(respuesta.data['materiales_cambiados'], [])
 
 
+class GuardadoDeGastoCompleto(GastoDeMateriales):
+    """La ficha se guarda con un solo PUT que trae la lista completa de
+    materiales, y se aplica entero o no se aplica (CU54, CU56, CU58, CU59;
+    corrección del tutor).
+
+    Arranca con dos filas, 3 × $800 de porcelana (en disponibilidad Baja) y
+    2 × $150 de acrílico: $2.700.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.porcelana = Material.objects.create(
+            nombre='Porcelana', disponibilidad=Material.Disponibilidad.BAJA,
+        )
+        self.acrilico = Material.objects.create(nombre='Acrílico')
+        self.barniz = Material.objects.create(nombre='Barniz')
+        self.fila_porcelana = MaterialDelGasto.objects.create(
+            gasto=self.gasto, material=self.porcelana, cantidad=3, precio_unitario='800.00',
+        )
+        self.fila_acrilico = MaterialDelGasto.objects.create(
+            gasto=self.gasto, material=self.acrilico, cantidad=2, precio_unitario='150.00',
+        )
+        self.gasto.monto = '2700.00'
+        self.gasto.save()
+
+    def test_el_put_quita_modifica_y_registra_materiales_y_marca_la_disponibilidad(self):
+        """CU54, CU58, CU59 y CU56: un PUT con la lista completa cambia la descripción, quita la fila que no viene, cambia cantidad y precio de la que sigue y la pasa a Alta, registra la nueva, recalcula el monto y responde con materiales_cambiados."""
+        respuesta = self.client.put(self.url, {
+            'tipo': Gasto.Tipo.MATERIALES,
+            'descripcion': 'Compra de octubre',
+            'materiales': [
+                {'id': self.fila_porcelana.id, 'material': self.porcelana.id,
+                 'cantidad': 4, 'precio_unitario': '100.00', 'pasar_a_alta': True},
+                {'material': self.barniz.id, 'cantidad': 1, 'precio_unitario': '50.00'},
+            ],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['descripcion'], 'Compra de octubre')
+        self.assertEqual(respuesta.data['monto'], '450.00')
+        self.assertEqual(self.monto_en_la_base(), '450.00')
+        self.assertEqual([c['nombre'] for c in respuesta.data['materiales_cambiados']], ['Porcelana'])
+
+        self.assertFalse(MaterialDelGasto.objects.filter(pk=self.fila_acrilico.pk).exists())
+        self.fila_porcelana.refresh_from_db()
+        self.assertEqual((self.fila_porcelana.cantidad, str(self.fila_porcelana.precio_unitario)), (4, '100.00'))
+        self.assertEqual(self.gasto.materiales.get(material=self.barniz).cantidad, 1)
+        self.porcelana.refresh_from_db()
+        self.assertEqual(self.porcelana.disponibilidad, Material.Disponibilidad.ALTA)
+
+    def test_si_falla_una_fila_el_gasto_queda_como_estaba(self):
+        """CU54: con un material repetido el PUT responde 400 con 'materiales' y su fila, y ni la descripción, ni las filas, ni el monto, ni la disponibilidad cambian."""
+        respuesta = self.client.put(self.url, {
+            'tipo': Gasto.Tipo.MATERIALES,
+            'descripcion': 'Compra de octubre',
+            'materiales': [
+                {'id': self.fila_porcelana.id, 'material': self.porcelana.id,
+                 'cantidad': 4, 'precio_unitario': '100.00', 'pasar_a_alta': True},
+                {'material': self.porcelana.id, 'cantidad': 1, 'precio_unitario': '50.00'},
+            ],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['materiales'], [
+            'Fila 2 (Porcelana): El gasto ya tiene «Porcelana» entre sus materiales. '
+            'Si compraste más, corregí la cantidad.',
+        ])
+
+        self.gasto.refresh_from_db()
+        self.assertEqual((self.gasto.descripcion, str(self.gasto.monto)), ('', '2700.00'))
+        self.fila_porcelana.refresh_from_db()
+        self.assertEqual(self.fila_porcelana.cantidad, 3)
+        self.assertEqual(self.gasto.materiales.count(), 2)
+        self.porcelana.refresh_from_db()
+        self.assertEqual(self.porcelana.disponibilidad, Material.Disponibilidad.BAJA)
+
+    def test_un_put_sin_materiales_no_toca_las_filas(self):
+        """CU54: un PUT con los datos y sin la clave 'materiales' cambia la descripción y deja las dos filas, el monto y la disponibilidad como estaban, con materiales_cambiados vacío."""
+        respuesta = self.client.put(
+            self.url, {'tipo': Gasto.Tipo.MATERIALES, 'descripcion': 'Compra de octubre'},
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['descripcion'], 'Compra de octubre')
+        self.assertEqual(respuesta.data['monto'], '2700.00')
+        self.assertEqual(respuesta.data['materiales_cambiados'], [])
+        self.assertEqual(
+            sorted((fila.material.nombre, fila.cantidad) for fila in self.gasto.materiales.all()),
+            [('Acrílico', 2), ('Porcelana', 3)],
+        )
+        self.porcelana.refresh_from_db()
+        self.assertEqual(self.porcelana.disponibilidad, Material.Disponibilidad.BAJA)
+
+
 class RendimientoDelListado(PruebaSinSesion):
     """El listado no hace una consulta por gasto (CU53).
 
@@ -213,7 +356,7 @@ class RendimientoDelListado(PruebaSinSesion):
         self.client.force_authenticate(get_user_model().objects.create_user(USUARIA))
 
     def test_el_listado_hace_una_cantidad_fija_de_consultas(self):
-        """CU53: con tres gastos de dos materiales cada uno, el listado hace 3 consultas.
+        """CU53: con tres gastos de dos materiales cada uno, el listado hace 3 consultas (más las 2 de la transacción por pedido).
 
         Gastos, sus filas de materiales del gasto y los materiales de
         esas filas: lo que prefetch_related('materiales__material') trae.
@@ -226,7 +369,10 @@ class RendimientoDelListado(PruebaSinSesion):
                     gasto=gasto, material=material, cantidad=1, precio_unitario='100.00',
                 )
 
-        with self.assertNumQueries(3):
+        # 3 del listado más las 2 de la transacción por pedido
+        # (ATOMIC_REQUESTS): dentro de un TestCase son un SAVEPOINT y su
+        # RELEASE, y assertNumQueries los cuenta.
+        with self.assertNumQueries(5):
             respuesta = self.client.get(LISTA)
         self.assertEqual(len(respuesta.data), 3)
 

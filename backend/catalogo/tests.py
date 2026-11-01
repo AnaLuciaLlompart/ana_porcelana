@@ -160,7 +160,7 @@ class RendimientoDelCatalogo(PruebaSinSesion):
     """El listado no hace una consulta por producto."""
 
     def test_el_listado_hace_una_cantidad_fija_de_consultas(self):
-        """Tres consultas haya los productos que haya: productos, categorías e imágenes."""
+        """Tres consultas del listado haya los productos que haya: productos, categorías e imágenes (más las 2 de la transacción por pedido)."""
         categorias = [Categoria.objects.create(nombre=n) for n in ('Aros', 'Dijes')]
         for numero in range(3):
             producto = crear_producto(f'Pieza {numero}')
@@ -170,7 +170,10 @@ class RendimientoDelCatalogo(PruebaSinSesion):
                     producto=producto, imagen=imagen_png(), orden=orden,
                 )
 
-        with self.assertNumQueries(3):
+        # 3 del listado más las 2 de la transacción por pedido
+        # (ATOMIC_REQUESTS): dentro de un TestCase son un SAVEPOINT y su
+        # RELEASE, y assertNumQueries los cuenta.
+        with self.assertNumQueries(5):
             respuesta = self.client.get(LISTA)
         self.assertEqual(len(respuesta.data), 3)
 

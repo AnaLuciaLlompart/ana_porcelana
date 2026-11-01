@@ -138,6 +138,16 @@ class SeguridadDeLaSesion(PruebaSinSesion):
         intento = AccessAttempt.objects.get(username=USUARIA)
         self.assertGreaterEqual(intento.failures_since_start, limite)
 
+    def test_un_login_fallido_queda_registrado_aunque_responda_401(self):
+        """django-axes con ATOMIC_REQUESTS: el 401 del login es un return, no una excepción, así la transacción confirma y el intento fallido queda guardado."""
+        self._crear_usuaria()
+
+        respuesta = self._login('incorrecta')
+        self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        intento = AccessAttempt.objects.get(username=USUARIA)
+        self.assertEqual(intento.failures_since_start, 1)
+
     def test_el_usuario_no_distingue_mayusculas_y_la_contrasena_si(self):
         """CU01: la contraseña en otra mayúscula y un usuario que no existe dan 401; el usuario en mayúsculas entra."""
         self._crear_usuaria()

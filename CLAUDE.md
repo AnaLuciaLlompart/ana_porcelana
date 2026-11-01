@@ -181,17 +181,22 @@ como acciones). Datos y Productos del pedido se editan sobre un mismo
 borrador y se guardan con un único Guardar, abajo de todo; el pie salió
 de la tarjeta Datos. Agregar, editar, cambiar la etapa y quitar un
 producto escriben en el borrador, como en el alta (`lineaEnMemoria`, en
-`pedidos/presentacion.js`, la comparten los dos). Guardar es una cadena de
-los endpoints de siempre, como Crear en el alta: el PUT de los datos si
-cambiaron, y después quitar, modificar (solo lo que cambió) y agregar
-productos, con el PATCH de etapa de las piezas nuevas que no son
-Pendiente; el botón muestra el avance. No es atómico: si algo falla a
-mitad, lo anterior queda guardado, la ficha se queda con la última
-respuesta y cada pieza nueva ya creada recibe su id real en el borrador,
-así reintentar no duplica nada. El error de datos va en la tarjeta Datos;
-el de un producto, pegado a la tabla, con "Lo anterior quedó guardado.".
-Si todo sale bien, vuelve al listado, que muestra el modal "Cambios
-guardados" (y, si el backend bajó el pedido a En producción, lo dice).
+`pedidos/presentacion.js`, la comparten los dos). Guardar es un solo `PUT
+/api/pedidos/<id>/` con los datos y la lista COMPLETA de productos del
+borrador, cada uno con su `id` (las piezas nuevas con el provisorio
+negativo y su etapa): `update()` bloquea la fila, guarda los datos y
+`_sincronizar_productos` compara la lista con lo guardado dentro de la
+transacción (quita las que no vienen, modifica las que siguen con
+`_modificar_producto`, agrega las nuevas con `_agregar_producto`), y al
+final `_bajar_si_quedo_incompleto` corre una sola vez (corrección del
+tutor, noviembre de 2026; antes era una cadena de los endpoints de
+siempre, no atómica, que avisaba "Lo anterior quedó guardado."). Si una
+fila falla, 400 con la clave `productos` y "Fila N (nombre): …", el pedido
+queda como estaba y el error va pegado a la tabla; el de los datos, en la
+tarjeta Datos. Sin `productos`, el PUT de siempre no toca las piezas. El
+botón dice "Guardando…". Si todo sale bien, vuelve al listado, que muestra
+el modal "Cambios guardados" (y, si el backend bajó el pedido a En
+producción, lo dice).
 Salir con cambios sin guardar pregunta "Salir sin guardar" con el mismo
 `useBlocker` de las altas, solo cuando hay cambios, y el navegador avisa
 con `beforeunload`. La ficha de gasto funciona igual (ver Módulo Gastos),
@@ -216,14 +221,24 @@ propio Guardar.
 
 Todo se edita sobre un borrador (datos, `materiales`, `imagenes` y
 `categorias`), con las mismas funciones en memoria del alta y los ids
-provisorios negativos. Guardar encadena: el PUT de los datos si
-cambiaron; quitar, cambiar la cantidad y asignar materiales; borrar fotos,
-modificar título u orden y subir las nuevas (cada grupo se renumera solo
-si su orden cambió o tiene fotos nuevas); sacar y agregar categorías. El
-botón muestra el avance ("Subiendo foto 2 de 5…"). Si algo falla, el
-error va en su sección, que se abre, con "Lo anterior quedó guardado.", y
-lo ya creado recibe su id real en el borrador, como en pedido y gasto.
-Descartar repone el borrador y vuelve a montar las secciones (`version`
+provisorios negativos. Guardar es un solo `PUT` multipart, que
+`modificarProducto` arma con el mismo `formularioDeProducto` del alta: los
+datos y las tres listas COMPLETAS (`materiales` con su `id`, `categorias`
+como ids, `imagenes` con las guardadas por `id` y las nuevas con su
+`archivo`; el orden de cada foto es su posición dentro de su grupo, la
+regla del alta). `update()` compara cada lista con lo guardado dentro de
+la transacción (`_sincronizar_materiales`, `_sincronizar_imagenes`,
+`_sincronizar_categorias`, con los métodos de las acciones de a una:
+`_asignar_material`, `_modificar_cantidad`, `_modificar_imagen`,
+`_asignar_categoria`); las fotos nuevas se validan antes de escribir y se
+borran del disco si algo falla después, y las quitadas las borra la señal
+`post_delete` recién al confirmar, así una transacción que revierte no
+pierde ninguna. Una lista que no viene no se toca. Si una fila falla, el
+producto queda como estaba y el error va en su sección, que se abre
+(`imagenes`, en el grupo de la foto que dice "Fila N"); el de los datos,
+en Datos. El botón dice "Guardando…" (antes era una cadena por sección,
+no atómica, con "Lo anterior quedó guardado."). Descartar repone el
+borrador y vuelve a montar las secciones (`version`
 en su `key`), así los campos de cada fila también vuelven a lo guardado.
 Las vistas previas de las fotos nuevas se revocan al quitarlas, al
 descartar y al salir. Guardar valida nombre, precio y dificultad (y abre
@@ -288,6 +303,52 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   (pedido del tutor): `iniciar_sesion` busca el nombre con
   `username__iexact` y le pasa a `authenticate` el guardado, así axes
   cuenta "Ana" y "ana" en el mismo bloqueo.
+- **Cada pedido a la API es una transacción** (`ATOMIC_REQUESTS = True`
+  en `base.py`; corrección del tutor, noviembre de 2026): lo que una vista
+  escribe queda todo o no queda nada. Por eso las altas y los guardados de
+  las tres fichas traen los hijos en el mismo pedido, con `config/hijos.py`
+  (ver "Crear es un solo POST" en Las altas, y las tres fichas en Patrón
+  a seguir). Las acciones de a una fila siguen en los ViewSets y en los
+  `api.js` (una función por endpoint), y comparten sus métodos con
+  `create()` y `update()`, una puerta por regla; de la gestión solo Inicio
+  llama a una, el PATCH de etapa de una pieza; las demás, como `publicar` y
+  `quitar_del_catalogo`, no las llama ninguna pantalla. Funciona porque
+  DRF marca la
+  transacción para revertir cuando la vista lanza una de sus excepciones
+  (`ParseError`, `ValidationError`, `Http404`, `PermissionDenied`,
+  `Throttled`: `set_rollback()` en su `exception_handler`); un `return
+  Response(status=4xx)` termina la vista normalmente y confirma lo que
+  escribió antes. Por eso una regla que rechaza después de escribir tiene
+  que lanzar, nunca devolver; al activarlo se relevaron todas las vistas y
+  ninguna escribía antes de un `return 4xx`. El 401 del login es un
+  `return` a propósito: dentro de esa misma transacción axes guardó el
+  intento fallido, y con un `raise` el conteo se desharía y el bloqueo
+  dejaría de funcionar (hay una prueba que lo cuida). Las señales de
+  `limpieza_archivos` borran los archivos con `transaction.on_commit`:
+  con la transacción por pedido corren recién al confirmar, y si revierte
+  no borran nada. En las pruebas, la transacción del pedido es un
+  `SAVEPOINT` y su `RELEASE` dentro de la del `TestCase`, y
+  `assertNumQueries` los cuenta: las cuatro pruebas de rendimiento esperan
+  2 consultas más que las del listado.
+- **Las reglas entre filas se revisan con la fila bloqueada** (misma
+  corrección del tutor). Dos pedidos simultáneos leerían los dos antes de
+  que uno escriba, y los dos pasarían: dos cobros que juntos superan el
+  total, un Listo y una pieza Pendiente agregada a la vez, dos materiales
+  del gasto cuyo `_recalcular_monto` suma cada uno sin el otro. Por eso
+  `_bloquear(pedido)` en `PedidoViewSet` y `_bloquear(gasto)` en
+  `GastoViewSet` hacen `refresh_from_db(from_queryset=….select_for_update())`
+  apenas después de `get_object()`: toma la fila con `FOR UPDATE` hasta
+  que termine la transacción (el segundo pedido espera y recién entonces
+  lee) y vacía el prefetch, que se leyó antes del candado. Lo llaman las
+  tres acciones de cobros, `cambiar_estado`, las tres de productos del
+  pedido, las tres de materiales del gasto y el `update()` del gasto. Las
+  reglas mismas (`_revisar_cobro`, `_revisar_estado`,
+  `_bajar_si_quedo_incompleto`, `_recalcular_monto`) no cambiaron:
+  `cargar_datos_prueba` las sigue llamando con un ViewSet vacío dentro de
+  su propio `atomic`. Los duplicados (material del producto, material del
+  gasto, nombre único) no necesitan candado: los garantiza la base. La
+  prueba `CobrosSimultaneos` (dos hilos, una barrera en `_revisar_cobro`)
+  falla si se saca el candado.
 - **Modelo de usuario propio** heredando de `AbstractUser`, en la app
   `usuarios`. Conserva grupos y permisos de Django: no los desactives.
 - **Baja lógica** en las entidades que la tienen. Se conserva el
@@ -510,6 +571,27 @@ unidades iguales.
 
 **El precio se congela** al registrar el producto del pedido.
 
+**El alta trae los productos en el mismo POST** (corrección del tutor,
+noviembre de 2026). `POST /api/pedidos/` acepta `productos`, una lista
+con lo mismo que recibe `agregar_producto` por fila más `estado`, y
+`create()` guarda el pedido y las filas en la misma transacción: si una
+falla, responde 400 con `{'productos': ['Fila 2 (Aros Hedwig): …']}` y no
+queda nada. Las reglas de la fila (el precio congelado, la cantidad
+mínima, la etapa con su fecha) viven en `_agregar_producto`, la misma
+función que usa la acción de una fila, que ahora lanza `ParseError` en vez
+de devolver el 400 (misma respuesta, y es lo que revierte).
+`config/hijos.py` tiene lo que se repite entre las altas: `leer_lista`
+(la lista del cuerpo, o 400 si no es una lista) y `error_de_fila` (el
+error de un hijo con la clave de su lista y el número de fila, como un
+error de campo, para que `mensajeDeError` lo lea sin cambios). La pieza
+sigue naciendo Pendiente (`estado` es de solo lectura en el serializer de
+alta): si vino otra etapa, `_agregar_producto` la aplica después por el
+camino del PATCH, con su fecha, así que el alta ya no manda un PATCH
+aparte. Sin `productos`, el POST es el de siempre. El frontend
+(`AltaPedido.jsx`) hace una sola llamada y, si el error trae la clave
+`productos`, lo muestra pegado a la tabla; si no, en Datos. Salieron la
+cadena, el `DELETE` de deshacer y "Ir al pedido".
+
 **Los materiales de cada pieza se ven desde Inicio.** En la tabla
 PRODUCTOS EN ELABORACIÓN, la columna MATERIALES lleva "Ver/Editar Materiales", que
 enlaza a `/materiales?producto=X`, ya implementado en Materiales; no
@@ -534,17 +616,20 @@ saldo, la columna SALDO de los dos listados y los chips.
 puede dejar el pedido saldado**: el cobro que termina de pagar es el
 pago restante o el pago completo. Las dos reglas las revisa el ViewSet
 al registrar y al modificar, porque son reglas entre filas y no de una
-fila sola.
+fila sola, y con la fila del pedido bloqueada (`_bloquear`; ver "Las
+reglas entre filas se revisan con la fila bloqueada" en Decisiones
+cerradas), así dos cobros a la vez no pueden pasarse del total.
 
 El saldo todavía puede quedar negativo por otro camino: bajarle el total
 a un pedido ya cobrado, que se permite para poder corregir una carga mal
 hecha. Por eso el chip conserva su tercera cara, "A favor $X".
 
-**Pendiente del backend:** `POST /api/pedidos/<id>/cobros/` sin `tipo`
-responde 500 y no 400, porque la vista lee `datos['tipo']` y DRF no
-completa el default del modelo. `ModalCobro` siempre manda `tipo`, así que
-la pantalla no lo sufre. Se encontró al revisar los endpoints para el alta
-en memoria y queda anotado, sin arreglar.
+**Un cobro sin `tipo` queda como Seña**, el default del modelo: DRF no
+pone en `validated_data` un campo con default que no vino, así que
+`registrar_cobro` revisa la regla con ese mismo default
+(`datos.get('tipo', Cobro.Tipo.SENA)`) y el serializer lo guarda igual.
+Hasta noviembre de 2026 leía `datos['tipo']` y respondía 500; `ModalCobro`
+siempre manda `tipo`, así que la pantalla no lo sufría.
 
 **Lo que propone el modal de cobro al registrar.** La seña propone la
 mitad de lo que falta cobrar (`PORCENTAJE_SENA`, en
@@ -793,39 +878,55 @@ al volver a Materiales reaparecen.
 unitario de las filas. Es la única cuenta del backend escrita por segunda
 vez en el navegador; las tablas de productos del pedido suman el
 subtotal de sus filas, que es la misma suma que hace el backend. Una
-pieza nueva nace Pendiente: si se le cambia la etapa antes de crear, va
-un PATCH después de su POST, que es lo que hace el selector en la ficha.
+pieza nueva nace Pendiente: si se le cambia la etapa antes de crear,
+viaja con su `estado` en la misma fila y el backend la aplica (ver "El
+alta trae los productos en el mismo POST", en Módulo Pedidos).
 En el alta de gastos no se ofrece "Marcar en disponibilidad Alta": esos
 endpoints necesitan un gasto creado, y escribir sobre Materiales antes de
 registrar la compra no corresponde; se marca desde la ficha. Por eso
 `MaterialesDelGasto` recibe `onAlta` y `onAltaTodos` opcionales, y sin
 ellos no dibuja esos botones.
 
-**Crear es una cadena de los endpoints de la ficha**, porque el backend no
-tiene transacciones ni escrituras anidadas y cada POST hijo ya acepta todo
-en una llamada (`cantidad`; `titulo`, `tipo` y `orden`; `precio` y
-`descripcion`; `material`, `cantidad` y `precio_unitario`). Productos:
-POST del producto → materiales → fotos → categorías. Pedidos: POST del
-pedido → productos del pedido (y el PATCH de etapa). Gastos: POST del
-gasto → materiales del gasto; el POST va sin `monto` cuando es de
-materiales, porque el serializer lo descarta y los validadores de campo
-corren antes. Mientras tanto los botones del pie están apagados y el
-principal muestra el avance ("Subiendo foto 2 de 5…", "Agregando
-productos (1 de 2)…", "Guardando materiales (1 de 2)…"). Si un POST hijo
-falla, se hace el DELETE del registro (borra en cascada lo que se alcanzó
-a guardar) y se muestra "No se pudo crear el …: <mensaje del backend>",
-con el borrador entero para corregir y volver a tocar Crear: en productos
-se vuelve al paso del ítem y en fotos el error va en el grupo que falló;
-en pedidos y gastos el error va pegado a la tabla. Si falla el POST
-principal, el error va en la tarjeta o el paso de Datos. Lo que se cede:
-no es atómico en la base. Hay una ventana de milisegundos a segundos en
-que el registro existe incompleto, y si falla un ítem y también falla el
-DELETE (se cayó la red entre los dos), el registro queda a medias: la
-pantalla lo dice, el botón pasa a "Ir al producto" / "Ir al pedido" /
-"Ir al gasto", y se arregla desde la ficha. Se eligió esto y no un
-endpoint anidado con `transaction.atomic` porque el backend no se toca,
-las pruebas siguen valiendo, y cada regla (duplicados, achicado de la
-imagen, precio congelado, `_recalcular_monto`) sigue con una sola puerta.
+**Crear es un solo POST, que se guarda entero o no se guarda** (corrección
+del tutor, noviembre de 2026). Antes era una cadena de los endpoints de la
+ficha, con un DELETE para deshacer si una fila fallaba, y se cedía que no
+fuera atómico: había una ventana en que el registro existía incompleto y,
+si también fallaba el DELETE, quedaba a medias con un botón "Ir al …".
+Ahora el `POST` del listado de cada módulo acepta, además de los datos, las
+listas de hijos del borrador, y el `create()` del ViewSet guarda todo en
+la transacción del pedido (`ATOMIC_REQUESTS`): si una fila falla, responde
+400 con la clave de su lista y "Fila N (nombre): <mensaje>"
+(`config/hijos.py`) y no queda nada. Pedidos y gastos van en JSON (ver "El
+alta trae los productos en el mismo POST" y "El alta trae los materiales en
+el mismo POST"; el de gasto va sin `monto` cuando es de materiales, porque
+el serializer lo descarta). Productos va en multipart, porque lleva las
+fotos: los seis campos, `materiales`, `categorias` e `imagenes` como texto
+JSON (`ListasDelAltaDeProducto`, con `JSONField`, los parsea; con un cuerpo
+JSON llegan como listas), y cada foto en su campo `foto_N`, que la fila de
+`imagenes` nombra en `archivo`; `crearProducto` en `productos/api.js` arma
+el `FormData`. Las reglas de cada fila viven en métodos compartidos con las
+acciones de a una, que lanzan `ParseError` en vez de devolver el 400:
+`_agregar_producto`, `_registrar_material`, `_asignar_material`,
+`_asignar_categoria`, y `ImagenProductoCrearSerializer` para las fotos. En
+productos las fotos se validan TODAS antes de escribir nada (imagen real,
+15 MB y el achicado, en memoria), y las filas se guardan en el orden de los
+pasos (materiales, fotos, categorías); si algo falla después de escribir
+alguna foto, `create()` borra del disco las guardadas y relanza, porque la
+transacción deshace las filas pero no sabe de archivos, y la señal
+`post_delete` no interviene sin un DELETE. Mientras viaja el POST los
+botones del pie están apagados y el principal dice "Creando producto…" /
+"Creando pedido…" / "Creando gasto…", sin porcentaje (decidido por la
+usuaria). Si el error trae la clave de una lista, la pantalla vuelve a ese
+paso con el borrador entero para corregir y volver a tocar Crear: en
+productos, `imagenes` va a `errorImagen` del grupo de la foto que dice el
+mensaje ("Fila N" es `fotos[N - 1]`, las de resultado primero), y
+`materiales` y `categorias` debajo de su paso; en pedidos y gastos el error
+va pegado a la tabla. Si no trae clave de lista, va en Datos. Medido con
+diez fotos de 13,9 MB (el máximo son 15) contra el backend de desarrollo:
+la vista tarda 4,7 s, con el parseo del multipart, Pillow diez veces y las
+diez escrituras, lejos del timeout de 30 s de gunicorn, que no se tocó.
+Para que entren esas fotos nginx acepta 160 MB solo en `/api/productos/`
+(ver Despliegue).
 
 **Después de crear, las tres vuelven al listado con un modal de aviso**
 (corrección del tutor del 28/10/2026, A8-b y A9, para productos y
@@ -851,8 +952,7 @@ registro en edición. El cliente se nombra con su usuario de Instagram
 no el aviso flotante porque, al cambiar de pantalla, el aviso de 2,6
 segundos abajo pasaba desapercibido (pedido de la usuaria); la excepción
 al criterio de Clientes es la misma que la bajada automática del pedido:
-el efecto queda en otra pantalla. "Ir al …" del registro a medias sigue
-yendo a la ficha.
+el efecto queda en otra pantalla.
 
 **Ningún paso ni sección es obligatorio.** En productos, la barra marca
 hecho lo que está antes del actual, y "Siguiente" en Datos hace las
@@ -890,9 +990,8 @@ router repone la dirección, también después de un Atrás) y "Salir sin
 crear" a `proceed()`. Así Cancelar y el breadcrumb (que solo navegan al
 listado), el menú lateral y el Atrás del navegador pasan todos por el
 mismo lugar. No frena dos navegaciones: la de después de crear (al
-listado, y la de "Ir al …" con el registro a medias), con el ref
-`saltearBloqueo`, y la del login, porque al cerrar sesión desde un alta la
-sesión ya no está. Las tres fichas usan el mismo bloqueo,
+listado), con el ref `saltearBloqueo`, y la del login, porque al cerrar
+sesión desde un alta la sesión ya no está. Las tres fichas usan el mismo bloqueo,
 pero solo con cambios sin guardar ("Salir sin guardar"). `useBlocker`
 exige un data router: por eso `rutas.jsx` usa `createBrowserRouter` (ver
 Rutas, en Catálogo público). Un router admite un solo bloqueo a la vez, y
@@ -974,10 +1073,32 @@ al leer es lo que deja los informes como una suma directa de la columna.
 
 **`_recalcular_monto` es la única puerta al monto de un gasto de
 materiales.** Vive en `GastoViewSet` y se llama desde cinco lugares:
-`perform_create`, `perform_update`, y las tres acciones que tocan los
-materiales del gasto (registrar, modificar, quitar). Son los primeros
-`perform_*` del proyecto: son los ganchos que DRF deja para actuar sobre
-el objeto recién guardado sin reescribir `create()` ni `update()`. El
+`create()` (una vez, al final, con todas las filas del alta), `update()`
+(una vez, al final, después de sincronizar las filas que trae la ficha;
+es también lo que pone el monto en 0 cuando un gasto de publicidad u otro
+pasa a materiales), y las tres acciones que tocan los materiales del gasto
+(registrar, modificar, quitar). El `update()` del gasto está escrito
+entero, sin `perform_update`: antes ese gancho recalculaba después del
+`save()`, y con las filas en el mismo PUT la suma tiene que correr después
+de ellas. Las tres acciones y `update()` bloquean antes la fila del gasto
+(`_bloquear`, ver Decisiones cerradas): dos filas registradas a la vez
+sumarían cada una sin la otra.
+
+**El alta trae los materiales en el mismo POST** (corrección del tutor,
+noviembre de 2026), como el pedido: `POST /api/gastos/` acepta
+`materiales`, una lista con lo mismo que recibe `registrar_material` por
+fila, y `create()` guarda el gasto y las filas en la misma transacción y
+recalcula el monto una sola vez al final. Si una fila falla, responde 400
+con `{'materiales': ['Fila 2 (Porcelana): …']}` y no queda nada; un gasto
+de publicidad u otro con `materiales` responde lo mismo que la acción
+("Solo un gasto de materiales lleva…"). Las reglas de la fila (tipo,
+material existente, no repetido, cantidad y precio) viven en
+`_registrar_material`, la misma función que usa la acción, que lanza
+`ParseError` en vez de devolver el 400; como relee las filas del gasto en
+cada alta, un material repetido dentro del mismo cuerpo también se
+rechaza. El frontend (`AltaGasto.jsx`) hace una sola llamada y, si el
+error trae la clave `materiales`, lo muestra pegado a la tabla; si no, en
+Datos. Salieron la cadena, el `DELETE` de deshacer e "Ir al gasto". El
 candado del otro lado está en `GastoSerializer.validate()`: cuando el tipo
 efectivo es MATERIALES, el monto que venga en el cuerpo se descarta, así
 un PUT no puede pisar lo calculado. Es el `read_only` condicional, con el
@@ -1116,13 +1237,20 @@ tarjetas apiladas, Datos y Materiales del gasto, y abajo un solo pie
 Descartar / Guardar; el pie salió de `DatosDelGasto`, y "Eliminar gasto"
 salió de la ficha (queda la papelera del listado). Agregar, editar y
 quitar filas escriben en el borrador (`filaEnMemoria`, compartida con el
-alta); Guardar encadena el PUT de los datos si cambiaron, quitar,
-modificar (cantidad y precio unitario) y registrar filas, y al final pasa
-a Alta las marcadas. Mismo manejo que la de pedido si algo falla a mitad
-(lo anterior queda guardado, las filas nuevas reciben su id real, el
-error va pegado a la tabla), misma vuelta al listado con el modal
-"Cambios guardados" y el mismo "Salir sin guardar". Quitar el último
-material no pregunta: pregunta Guardar si el gasto queda sin materiales.
+alta); Guardar es un solo `PUT /api/gastos/<id>/` con los datos y, si el
+gasto es de materiales, la lista COMPLETA de filas con su `id` y su
+`pasar_a_alta` (corrección del tutor, noviembre de 2026; antes era una
+cadena no atómica con "Lo anterior quedó guardado."). `update()` bloquea
+la fila, guarda los datos, `_sincronizar_materiales` quita, modifica
+(`_modificar_material`) y registra (`_registrar_material`) lo que haga
+falta y pasa a Alta las marcadas, y `_recalcular_monto` corre una sola vez
+al final; la respuesta es el gasto más `materiales_cambiados`. Si una fila
+falla, 400 con la clave `materiales` y "Fila N (nombre): …", el gasto
+queda como estaba y el error va pegado a la tabla; el de los datos, en
+Datos. Sin `materiales` (publicidad u otro), el PUT no toca las filas.
+Misma vuelta al listado con el modal "Cambios guardados" y el mismo "Salir
+sin guardar". Quitar el último material no pregunta: pregunta Guardar si
+el gasto queda sin materiales.
 
 **El monto de un gasto de materiales se calcula en el navegador mientras
 se edita**, con `montoEnMemoria` sobre el borrador, en el campo apagado de
@@ -1151,14 +1279,17 @@ materiales activos que todavía no están en el borrador.
 flecha de cada fila marca o desmarca `pasar_a_alta` en el borrador, y la
 celda DISPONIBILIDAD lo muestra ("Baja → Alta", en verde); "Marcar todos
 en disponibilidad Alta" marca todas las que se pueden. Nada cambia en
-Materiales hasta Guardar, que al final de la cadena llama a
-`marcarDisponibilidadAlta` por cada fila marcada, ya con su id real (así
-sirve también para una fila nueva), y suma los `materiales_cambiados`.
+Materiales hasta Guardar: cada fila del PUT viaja con su `pasar_a_alta`,
+`_sincronizar_materiales` pasa a Alta las marcadas al final, con la misma
+regla de los dos endpoints de disponibilidad (`_marcar_disponibilidad_alta`),
+y la respuesta trae `materiales_cambiados`, los que cambiaron de verdad.
 El modal "Cambios guardados" dice cuántos pasaron a Alta. Ya no hay
-Deshacer: si fue un error, se corrige desde Materiales. El endpoint de
-"todas" y `cambiarDisponibilidad` siguen en sus `api.js` (una función por
-endpoint), pero ninguna pantalla los llama. Los avisos flotantes de la
-ficha desaparecieron: todo se confirma con el modal del listado.
+Deshacer: si fue un error, se corrige desde Materiales. Los dos endpoints
+de disponibilidad (`marcarDisponibilidadAlta`,
+`marcarTodosDisponibilidadAlta`) y `cambiarDisponibilidad` siguen en sus
+`api.js` (una función por endpoint), pero ninguna pantalla los llama. Los
+avisos flotantes de la ficha desaparecieron: todo se confirma con el modal
+del listado.
 
 **Dos props opcionales en los componentes compartidos.** `Toast` recibe
 `accion` y `onAccion`; sin ellas se dibuja igual. `BotonAccion` recibe
@@ -1677,7 +1808,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 149 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 168 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -1704,7 +1835,12 @@ azar. `PruebaConSesion` además crea la usuaria y entra con `force_login`:
 Las de rendimiento (`assertNumQueries`) autentican con
 `force_authenticate`, que no toca la base, para contar solo las
 consultas del ViewSet: la sesión suma las suyas (leerla, leer la usuaria
-y renovarla por `SESSION_SAVE_EVERY_REQUEST`). Para las exportaciones,
+y renovarla por `SESSION_SAVE_EVERY_REQUEST`). Esperan 2 consultas más
+que las del listado, las de la transacción por pedido (ver
+`ATOMIC_REQUESTS` en Decisiones cerradas). `CobrosSimultaneos`, en
+pedidos, es la única sobre `APITransactionTestCase`: dos hilos con dos
+conexiones necesitan transacciones de verdad, y `APITestCase` envuelve
+cada prueba en una; arma sus datos a mano y cada hilo cierra su conexión. Para las exportaciones,
 `celdas_del_excel(respuesta, primera_columna)` devuelve las filas de
 datos de la planilla (las que van debajo de la fila cuya primera celda es
 esa) y `TIPO_EXCEL` es el content-type del `.xlsx`.
@@ -1844,9 +1980,19 @@ del mismo proceso, que en un contenedor que corre solo Django no hay.
 **Frontend:** dos etapas, `node:24-alpine` (`npm ci`, `npm run build`)
 y `nginx:1.30-alpine`. En `sitio.conf`: `client_max_body_size 16m` (15
 MB de imagen más el sobre del multipart, así rechaza Django con su
-mensaje y nginx solo frena lo absurdo con 413); gzip de css, js, json y
-svg; `/api/` con `resolver 127.0.0.11` y `proxy_pass` por variable, para
-que un backend recreado con otra IP no deje 502; `/media/` con `alias` al
+mensaje y nginx solo frena lo absurdo con 413), salvo en `location ^~
+/api/productos/`, que acepta 160m porque el alta y el guardado de la ficha
+traen todas las fotos en un pedido (diez de 15 MB más el sobre) y es la
+única ruta con ese tope,
+así un pedido grande sin sesión no puede ocupar disco en cualquier
+dirección (`^~` le gana a `/api/` por ser más largo y frena las locations
+con expresión regular); gzip de css, js, json y svg; las dos locations de
+la API incluyen `proxy-api.conf` (`resolver 127.0.0.11` y `proxy_pass`
+por variable, para que un backend recreado con otra IP no deje 502, los
+tres `proxy_set_header` y los cuatro `proxy_hide_header`), porque nginx no
+hereda esas directivas entre locations hermanas, y la de productos incluye
+además `cabeceras.conf` aunque no tenga `add_header` propio, por
+seguridad; `/media/` con `alias` al
 volumen, 30 días (el storage reutiliza un nombre solo tras borrar el
 archivo), nosniff y sin autoindex; `/assets/` un año e `immutable` (Vite
 pone un hash en el nombre); `/` con `try_files $uri /index.html` y

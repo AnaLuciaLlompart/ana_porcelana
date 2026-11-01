@@ -40,8 +40,8 @@ const estiloTarjeta = {
   borderRadius: 8,
 }
 
-// Los títulos en mayúsculas de cada sección: PERÍODO, EVOLUCIÓN, INGRESOS,
-// GASTOS.
+// Los títulos en mayúsculas de las tarjetas PERÍODO y EVOLUCIÓN. INGRESOS y
+// GASTOS van en EncabezadoDeTarjeta, como los paneles de Inicio.
 const estiloTituloSeccion = {
   margin: 0,
   fontFamily: QUICKSAND,

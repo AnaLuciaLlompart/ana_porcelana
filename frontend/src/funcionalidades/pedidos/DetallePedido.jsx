@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 
-import {
-  obtenerPedido,
-  modificarPedido,
-  agregarProductoAlPedido,
-  modificarProductoDelPedido,
-  quitarProductoDelPedido,
-} from './api'
+import { obtenerPedido, modificarPedido } from './api'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
 // endpoint pertenece a esa app y ahí se queda. Acá hace falta la lista
@@ -73,9 +67,11 @@ function datosCambiaron(borrador, original) {
   )
 }
 
-// Lo que hay que mandar para que lo guardado quede como el borrador: las
-// filas que se quitaron, las que cambiaron (solo con lo que cambió) y las
-// nuevas, que son las de id provisorio negativo.
+// En qué difieren los productos del borrador de los guardados: las filas
+// que se quitaron, las que cambiaron (con lo que cambió) y las nuevas, que
+// son las de id provisorio negativo. Es para saber si hay cambios sin
+// guardar; lo que viaja al guardar es la lista entera, y el backend hace
+// esta misma comparación contra la base.
 function cambiosEnProductos(guardados, enBorrador) {
   const idsEnBorrador = enBorrador.map((linea) => linea.id)
   const quitados = guardados.filter((g) => !idsEnBorrador.includes(g.id))
@@ -116,6 +112,14 @@ function mensajeDeError(err) {
   return 'No se pudo completar la acción.'
 }
 
+// La clave del error de campo, o '' si fue una regla de negocio ({'detail'}).
+// Al guardar, 'productos' dice que falló una fila de la tabla y no un dato.
+function claveDelError(err) {
+  const datos = err.response?.data
+  if (!datos || datos.detail) return ''
+  return Object.keys(datos)[0] || ''
+}
+
 
 // La ficha de un pedido que ya existe (/pedidos/:id). El alta vive aparte,
 // en AltaPedido: junta todo en memoria y lo crea al final.
@@ -144,7 +148,6 @@ export default function DetallePedido() {
   // breadcrumb.
   const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
-  const [avance, setAvance] = useState('')
 
   const [clientes, setClientes] = useState([])
   const [productos, setProductos] = useState([])
@@ -279,98 +282,47 @@ export default function DetallePedido() {
     guardar()
   }
 
-  // Guardar es una cadena de los endpoints que ya existen, como Crear en el
-  // alta: el PUT de los datos si cambiaron, y después quitar, modificar y
-  // agregar productos. No es atómico: si algo falla a mitad, lo anterior
-  // quedó guardado. Por eso, a medida que avanza, la ficha se queda con la
-  // última respuesta del backend, y cada producto nuevo que se crea recibe
-  // su id real en el borrador: volver a tocar Guardar sigue desde ahí, sin
-  // duplicar nada.
+  // Guardar es un solo PUT con los datos y la lista completa de productos
+  // del borrador: el backend la compara con lo guardado y quita, modifica y
+  // agrega lo que haga falta, todo en una transacción (corrección del
+  // tutor). Si una fila falla, el pedido queda como estaba y el error va
+  // pegado a la tabla; si fallan los datos, en la tarjeta Datos.
   async function guardar() {
     setPreguntarSinProductos(false)
     setGuardando(true)
 
     // El estado de antes, para saber al final si el backend lo bajó solo.
     const estadoAntes = pedido.estado
-    let actual = pedido
-    let lineas = borrador.productos
 
-    if (datosCambiaron(borrador, borradorDe(pedido))) {
-      // La entrega estimada y el costo viajan como null cuando están vacíos,
-      // no como cadena vacía: así están declarados en el modelo, y un '' haría
-      // fallar la validación del campo de fecha.
-      //
-      // La entrega real no viaja: no está en el borrador.
-      const datos = {
-        cliente: Number(borrador.cliente),
-        fecha_pedido: borrador.fecha_pedido,
-        fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
-        ...datosDeEntrega(borrador),
-      }
-
-      try {
-        setAvance('Guardando datos…')
-        actual = (await modificarPedido(id, datos)).data
-      } catch (err) {
-        setError(mensajeDeError(err))
-        setGuardando(false)
-        setAvance('')
-        return
-      }
+    // La entrega estimada y el costo viajan como null cuando están vacíos,
+    // no como cadena vacía: así están declarados en el modelo, y un '' haría
+    // fallar la validación del campo de fecha.
+    //
+    // La entrega real no viaja: no está en el borrador. Las piezas nuevas
+    // van con su id provisorio negativo, que es como el backend las
+    // distingue de las guardadas, y con su etapa, que aplica al crearlas.
+    const datos = {
+      cliente: Number(borrador.cliente),
+      fecha_pedido: borrador.fecha_pedido,
+      fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
+      ...datosDeEntrega(borrador),
+      productos: borrador.productos.map((linea) => ({
+        id: linea.id,
+        producto: linea.producto,
+        cantidad: linea.cantidad,
+        precio: linea.precio,
+        descripcion: linea.descripcion,
+        estado: linea.estado,
+      })),
     }
 
-    const { quitados, modificados, nuevos } = cambiosEnProductos(pedido.productos, lineas)
-    const total = quitados.length + modificados.length + nuevos.length
-    let hechos = 0
-    let enCurso = null
-
-    function contar(linea) {
-      enCurso = linea
-      hechos += 1
-      setAvance(`Guardando productos (${hechos} de ${total})…`)
-    }
-
+    let actual
     try {
-      for (const linea of quitados) {
-        contar(linea)
-        actual = (await quitarProductoDelPedido(id, linea.id)).data
-      }
-
-      for (const { linea, cambio } of modificados) {
-        contar(linea)
-        actual = (await modificarProductoDelPedido(id, linea.id, cambio)).data
-      }
-
-      for (const linea of nuevos) {
-        contar(linea)
-        const idsAntes = actual.productos.map((p) => p.id)
-        actual = (await agregarProductoAlPedido(id, {
-          producto: linea.producto,
-          cantidad: linea.cantidad,
-          precio: linea.precio,
-          descripcion: linea.descripcion,
-        })).data
-
-        // La fila creada es la que no estaba antes. Su id real reemplaza al
-        // provisorio en el borrador.
-        const creada = actual.productos.find((p) => !idsAntes.includes(p.id))
-        lineas = lineas.map((l) => (l.id === linea.id ? { ...l, id: creada.id } : l))
-
-        // Una pieza nace Pendiente y la etapa no se puede mandar al crearla:
-        // si se eligió otra, va con un PATCH, como en el alta.
-        if (linea.estado !== 'PENDIENTE') {
-          actual = (await modificarProductoDelPedido(id, creada.id, { estado: linea.estado })).data
-        }
-      }
+      actual = (await modificarPedido(id, datos)).data
     } catch (err) {
-      setErrorProductos(
-        `No se pudo guardar «${enCurso.producto_nombre}»: ${mensajeDeError(err)} ` +
-          'Lo anterior quedó guardado.'
-      )
-      setPedido(actual)
-      setBorrador({ ...borrador, productos: lineas })
+      if (claveDelError(err) === 'productos') setErrorProductos(mensajeDeError(err))
+      else setError(mensajeDeError(err))
       setGuardando(false)
-      setAvance('')
       return
     }
 
@@ -593,7 +545,7 @@ export default function DetallePedido() {
               fontSize: 15,
             }}
           >
-            {guardando ? avance || 'Guardando…' : 'Guardar'}
+            {guardando ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </div>

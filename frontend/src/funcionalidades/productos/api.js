@@ -33,12 +33,42 @@ export function obtenerProducto(id) {
   return cliente.get(`/productos/${id}/`)
 }
 
-export function crearProducto(datos) {
-  return cliente.post('/productos/', datos)
+// El cuerpo del alta y del guardado de la ficha, que traen los materiales,
+// las fotos y las categorías en el mismo pedido (corrección del tutor: un
+// solo pedido a la API, una sola transacción). Va en multipart porque lleva
+// archivos: los campos del producto, cada lista que se pase como texto JSON
+// (el backend la parsea; la que no se pasa no viaja, y en la ficha eso
+// quiere decir "no tocar esa lista") y cada foto nueva en su propio campo,
+// foto_0, foto_1…, que es como su fila de 'imagenes' la nombra en
+// 'archivo'. Las fotos ya guardadas van solo con su id, sin archivo.
+function formularioDeProducto(datos, { materiales, categorias, imagenes }) {
+  const formulario = new FormData()
+
+  Object.entries(datos).forEach(([campo, valor]) => formulario.append(campo, valor))
+
+  if (materiales) formulario.append('materiales', JSON.stringify(materiales))
+  if (categorias) formulario.append('categorias', JSON.stringify(categorias))
+  if (imagenes) {
+    formulario.append(
+      'imagenes',
+      JSON.stringify(imagenes.map((foto, i) => (foto.archivo ? { ...foto, archivo: `foto_${i}` } : foto)))
+    )
+    imagenes.forEach((foto, i) => {
+      if (foto.archivo) formulario.append(`foto_${i}`, foto.archivo)
+    })
+  }
+
+  return formulario
 }
 
-export function modificarProducto(id, datos) {
-  return cliente.put(`/productos/${id}/`, datos)
+// Sin Content-Type a mano, acá y en el PUT: axios lo arma solo, con el
+// boundary del multipart, al ver un FormData.
+export function crearProducto(datos, listas = {}) {
+  return cliente.post('/productos/', formularioDeProducto(datos, listas))
+}
+
+export function modificarProducto(id, datos, listas = {}) {
+  return cliente.put(`/productos/${id}/`, formularioDeProducto(datos, listas))
 }
 
 export function eliminarProducto(id) {
@@ -136,8 +166,9 @@ export function quitarMaterialDeProducto(id, lineaId) {
 // modificarImagenDeProducto   CU34 - modificar título, tipo u orden
 // borrarImagenDeProducto      CU35 - borrar
 //
-// Subir es el único pedido de todo el módulo que no manda JSON: lleva
-// un archivo, y un archivo no entra en un JSON.
+// Subir es, con el alta y el guardado de la ficha del producto, uno de los
+// pedidos del módulo que no mandan JSON: lleva un archivo, y un archivo no
+// entra en un JSON.
 
 export function listarImagenesDeProducto(id) {
   return cliente.get(`/productos/${id}/imagenes/`)
@@ -157,7 +188,8 @@ export function subirImagenDeProducto(id, datos) {
   if (datos.tipo !== undefined) formulario.append('tipo', datos.tipo)
   if (datos.orden !== undefined) formulario.append('orden', datos.orden)
 
-  // No se le pone Content-Type a mano: ver el comentario del final.
+  // No se le pone Content-Type a mano: axios lo arma solo, con el boundary
+  // del multipart, al ver un FormData.
   return cliente.post(`/productos/${id}/imagenes/`, formulario)
 }
 

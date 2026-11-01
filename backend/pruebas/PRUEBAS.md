@@ -12,18 +12,18 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**149 pruebas**, todas en verde, en once apps (`usuarios` 16, `catalogo`
-16, `materiales` 18, `categorias` 5, `productos` 21, `clientes` 7,
-`pedidos` 31, `gastos` 20, `finanzas` 6, `inicio` 4, `pruebas` 5).
+**168 pruebas**, todas en verde, en once apps (`usuarios` 17, `catalogo`
+16, `materiales` 18, `categorias` 5, `productos` 27, `clientes` 7,
+`pedidos` 38, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 79 |
-| validación | 22 |
+| reglas de negocio | 96 |
+| validación | 23 |
 | permisos | 17 |
 | catálogo | 13 |
 | rendimiento | 8 |
-| seguridad | 10 |
+| seguridad | 11 |
 
 **Cobertura: 89 %** del código del backend (2.588 sentencias, 283 sin
 ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye la app
@@ -51,6 +51,7 @@ rendimiento.
 | usuarios | test_post_sin_token_csrf_da_403 | Con sesión pero sin token CSRF, un POST responde 403 | Protección CSRF de SessionAuthentication | seguridad |
 | usuarios | test_cookie_de_sesion_lleva_httponly | La cookie sessionid del login lleva HttpOnly y Max-Age de 24 horas | Autenticación por sesión con cookie HttpOnly; sesión de 24 h | seguridad |
 | usuarios | test_login_bloqueado_tras_intentos_fallidos | Al quinto fallo el login responde 429 con mensaje, y la contraseña correcta tampoco entra | Bloqueo por intentos fallidos (django-axes, CU01) | seguridad |
+| usuarios | test_un_login_fallido_queda_registrado_aunque_responda_401 | Un login con contraseña incorrecta responde 401 y deja una fila de AccessAttempt con un fallo | El 401 del login es un return y no una excepción: con ATOMIC_REQUESTS la transacción confirma y el intento fallido de axes queda (CU01) | seguridad |
 | usuarios | test_el_usuario_no_distingue_mayusculas_y_la_contrasena_si | La contraseña en otra mayúscula y un usuario que no existe dan 401 con el mismo mensaje; el usuario en mayúsculas entra y responde con el nombre guardado | El usuario del login no distingue mayúsculas, la contraseña sí (CU01, pedido del tutor) | seguridad |
 | usuarios | test_los_fallos_con_otras_mayusculas_suman_al_mismo_bloqueo | Los fallos con "Ana", "ANA" y "ana" llegan juntos al bloqueo, en una sola fila de AccessAttempt con el nombre guardado | Bloqueo por intentos fallidos sobre el nombre guardado (django-axes, CU01) | seguridad |
 | usuarios | test_cerrar_sesion_deja_sin_acceso_a_la_gestion | Antes del logout la gestión responde 200; después del POST a /api/auth/logout/, 403 | Cerrar sesión (CU02) | seguridad |
@@ -120,6 +121,12 @@ rendimiento.
 | productos | test_la_cantidad_acepta_texto_libre | La cantidad "dos gotas" se guarda al asignar y "media plancha" al modificar | Cantidad en texto libre (CU28, CU30) | reglas de negocio |
 | productos | test_eliminar_producto_que_figura_en_un_pedido_da_400 | DELETE de un producto con ProductoDelPedido responde 400 "está en 1 pedido" y el producto sigue | Discontinuar ≠ eliminar; FK PROTECT explicada (CU22) | reglas de negocio |
 | productos | test_borrar_una_imagen_borra_el_archivo_de_media | Después del DELETE de la imagen no queda la fila ni el archivo en media | Señal post_delete de productos/apps.py (CU35) | reglas de negocio |
+| productos | test_el_alta_crea_el_producto_con_sus_materiales_fotos_y_categorias | Un POST multipart con dos materiales, una categoría y dos fotos responde 201 y crea todo; las dos fotos quedan en media y la de 3000 px achicada a 1600 | El alta trae los hijos en el mismo POST, en una transacción (CU17, corrección del tutor) | reglas de negocio |
+| productos | test_si_falla_una_fila_no_queda_ni_el_producto_ni_los_archivos | Un material repetido responde 400 "Fila 2 (Porcelana): El producto ya tiene «Porcelana»…" con la clave materiales; una categoría repetida, con la clave categorias; en los dos casos no queda producto, filas ni archivos, tampoco las fotos que ya se habían escrito | ATOMIC_REQUESTS más el borrado de los archivos guardados al revertir (CU17, corrección del tutor) | reglas de negocio |
+| productos | test_una_foto_que_no_es_imagen_da_400_sin_escribir_nada | Un archivo de texto en una fila de imagenes responde 400 "Fila 2 (notas.txt): El archivo adjunto o bien no es una imagen…" y no se crea el producto ni se escribe ningún archivo | Las fotos se validan todas antes de guardar nada (CU17, corrección del tutor) | validación |
+| productos | test_el_put_quita_modifica_y_agrega_en_las_tres_listas | Un PUT multipart con las tres listas completas cambia el nombre, deja porcelana (dos gotas) y barniz, la foto nueva primera y el frente titulado segundo, borra el dorso con su archivo al confirmar, y deja Dijes en lugar de Aros | El guardado de la ficha es un solo pedido: update() y los tres _sincronizar_* (CU19, CU25 a CU35; corrección del tutor) | reglas de negocio |
+| productos | test_si_falla_una_fila_el_producto_queda_como_estaba_tambien_en_media | Con Dijes dos veces en categorias el PUT responde 400 "Fila 2 (Dijes): El producto ya tiene asignada…"; el nombre, las tres listas y los archivos quedan como estaban: la foto nueva ya escrita se borra del disco y la quitada sigue | ATOMIC_REQUESTS más el borrado de los archivos escritos al revertir, y la señal post_delete que recién borra al confirmar (CU19; corrección del tutor) | reglas de negocio |
+| productos | test_un_put_sin_listas_no_toca_materiales_fotos_ni_categorias | Un PUT multipart con los datos y sin ninguna de las tres listas cambia el nombre y deja los dos materiales, las dos fotos (también en el disco) y la categoría como estaban | Una lista que no viene no está en validated_data y no se toca: ListasDeHijosDeProducto sin valor por defecto (CU19) | reglas de negocio |
 | productos | test_la_grilla_deja_afuera_a_los_de_una_categoria_de_baja | estado=ACTIVO trae los activos sin categorías de baja; con BAJA, los de baja y los de una categoría de baja | La regla de la sección de bajas, en _filtrar (CU18, corrección D3) | reglas de negocio |
 | productos | test_sin_estado_devuelve_todos_para_los_desplegables | Sin ?pagina= ni ?estado= el listado devuelve los cuatro productos | Los desplegables y el alta piden todos (CU18, corrección D3) | reglas de negocio |
 | productos | test_filtra_por_categoria_tipo_y_precio | Categoría, tipo y rango de precio dejan solo los que cumplen | _filtrar de ProductoViewSet (CU18, corrección D3) | reglas de negocio |
@@ -141,6 +148,13 @@ rendimiento.
 | pedidos | test_el_saldo_se_calcula_con_varios_cobros | Dos señas de $3.000 y $2.000 sobre $10.000 dan cobrado $5.000 y saldo $5.000; el pago restante deja saldo $0 y esta_al_dia | Propiedades cobrado y saldo de Pedido (CU48) | reglas de negocio |
 | pedidos | test_no_se_puede_cobrar_mas_que_el_total | Un cobro de $12.000 sobre $10.000 responde 400 con las tres cifras y no se registra | No se puede cobrar más que el total (CU48) | reglas de negocio |
 | pedidos | test_una_sena_no_puede_dejar_el_pedido_saldado | Una seña de $10.000 sobre $10.000 responde 400 con mensaje; el mismo monto como Pago restante entra y salda | Una seña no puede dejar el pedido saldado (CU48) | reglas de negocio |
+| pedidos | test_el_alta_crea_el_pedido_con_sus_productos | Un POST con dos productos (uno sin precio, otro en Secado) responde 201 con los dos, el precio congelado del catálogo y la etapa con su fecha | El alta trae los productos en el mismo POST, en una transacción (CU40, CU44) | reglas de negocio |
+| pedidos | test_si_falla_un_producto_no_queda_el_pedido | Con la segunda fila inválida responde 400 con "Fila 2: …" y no queda ni el pedido ni la primera fila; 'productos' que no es lista da 400; sin 'productos' el POST crea el pedido solo | ATOMIC_REQUESTS revierte el alta entera (CU40) | reglas de negocio |
+| pedidos | test_un_cobro_sin_tipo_es_una_sena | Un cobro sin 'tipo' en el cuerpo responde 200 y queda como Seña | El default del modelo también vale para la regla de cobro (CU48); antes daba 500 | reglas de negocio |
+| pedidos | test_dos_cobros_a_la_vez_no_pasan_el_total | Dos cobros de $6.000 sobre $10.000 lanzados a la vez desde dos hilos: uno responde 200, el otro 400 con las tres cifras, y queda un solo cobro | El candado de select_for_update en _bloquear (CU48); sin él los dos entran | reglas de negocio |
+| pedidos | test_el_put_quita_modifica_y_agrega_productos_en_un_pedido | Un PUT con la lista completa de productos cambia la entrega estimada, quita la pieza que no viene, cambia cantidad y etapa (con su fecha) de la que sigue, agrega la nueva con su etapa y precio congelado, y baja el pedido Listo a En producción | El guardado de la ficha es un solo pedido: update() y _sincronizar_productos (CU42, CU44, CU46, CU47; corrección del tutor) | reglas de negocio |
+| pedidos | test_si_falla_una_fila_el_pedido_queda_como_estaba | Con una fila de un producto inexistente el PUT responde 400 "Fila 2: No existe un producto con ese id." y ni la entrega estimada, ni las piezas, ni el estado cambian | ATOMIC_REQUESTS revierte el guardado entero (CU42; corrección del tutor) | reglas de negocio |
+| pedidos | test_un_put_sin_productos_no_toca_las_piezas | Un PUT con los datos y sin la clave 'productos' cambia la entrega estimada y deja las dos piezas y el estado Listo como estaban | Una lista que no viene no se toca: leer_lista_si_vino en update() (CU42) | reglas de negocio |
 | pedidos | test_no_pasa_a_listo_con_piezas_sin_terminar | Sin productos y con una pieza sin terminar, cambiar_estado a Listo responde 400 con mensaje; con todo terminado pasa | _revisar_estado (CU42) | reglas de negocio |
 | pedidos | test_agregar_una_pieza_a_un_pedido_listo_lo_baja_a_en_produccion | Agregar un producto a un pedido Listo lo devuelve a En producción | _bajar_si_quedo_incompleto (CU44) | reglas de negocio |
 | pedidos | test_la_fecha_de_entrega_real_solo_la_escribe_entregado | Un PUT con fecha_entrega_real la ignora; pasar a Entregado escribe hoy; volver a Listo la borra | fecha_entrega_real read_only; _guardar_estado (CU42) | reglas de negocio |
@@ -172,6 +186,11 @@ rendimiento.
 | gastos | test_un_gasto_de_materiales_no_puede_cambiar_de_tipo | PUT y PATCH con otro tipo responden 400 con mensaje y el gasto sigue siendo de materiales | GastoViewSet.update (CU54) | reglas de negocio |
 | gastos | test_publicidad_u_otro_con_monto_cero_o_negativo_da_400 | Publicidad u otro con monto 0 o negativo responden 400 en 'monto' y no crean la fila; con $500 se crea | GastoSerializer.validate: monto mayor a cero salvo materiales (CU52) | validación |
 | gastos | test_un_gasto_de_materiales_nuevo_vale_cero | POST de un gasto de materiales sin materiales responde 201 con monto 0.00 y lista vacía | Un gasto de materiales recién creado vale 0 y es válido (CU52) | reglas de negocio |
+| gastos | test_el_alta_crea_el_gasto_con_sus_materiales | Un POST de materiales con dos filas responde 201 con las dos y el monto ya sumado, también en la base | El alta trae los materiales en el mismo POST, en una transacción (CU52, CU56) | reglas de negocio |
+| gastos | test_si_falla_una_fila_no_queda_el_gasto | Con el mismo material dos veces responde 400 con "Fila 2 (Porcelana): …" y no queda ni el gasto ni la primera fila; un gasto de publicidad con filas también da 400 | ATOMIC_REQUESTS revierte el alta entera (CU52) | reglas de negocio |
+| gastos | test_el_put_quita_modifica_y_registra_materiales_y_marca_la_disponibilidad | Un PUT con la lista completa cambia la descripción, quita la fila que no viene, cambia cantidad y precio de la que sigue y la pasa a Alta, registra la nueva, deja el monto en $450 y responde con materiales_cambiados | El guardado de la ficha es un solo pedido: update() y _sincronizar_materiales (CU54, CU56, CU58, CU59; corrección del tutor) | reglas de negocio |
+| gastos | test_si_falla_una_fila_el_gasto_queda_como_estaba | Con un material repetido el PUT responde 400 "Fila 2 (Porcelana): El gasto ya tiene…" y ni la descripción, ni las filas, ni el monto, ni la disponibilidad cambian | ATOMIC_REQUESTS revierte el guardado entero (CU54; corrección del tutor) | reglas de negocio |
+| gastos | test_un_put_sin_materiales_no_toca_las_filas | Un PUT con los datos y sin la clave 'materiales' cambia la descripción y deja las dos filas, el monto de $2.700 y la disponibilidad como estaban, con materiales_cambiados vacío | Una lista que no viene no se toca: leer_lista_si_vino en update() (CU54) | reglas de negocio |
 | gastos | test_un_gasto_de_publicidad_puede_pasar_a_materiales | PATCH de un gasto de publicidad de $500 a tipo materiales responde 200 con monto 0.00 | El camino inverso se permite; perform_update recalcula (CU54) | reglas de negocio |
 | gastos | test_registrar_el_mismo_material_dos_veces_da_400 | La segunda fila del mismo material responde 400 con mensaje y queda una sola fila | UniqueConstraint (gasto, material) explicada (CU56) | reglas de negocio |
 | gastos | test_un_id_de_material_que_es_lista_u_objeto_da_400 | POST {"material": [1]} y {"material": {"id": 1}} responden 400 "No existe un material con ese id." y no crean la fila | TypeError atrapado en registrar_material (CU56) | validación |

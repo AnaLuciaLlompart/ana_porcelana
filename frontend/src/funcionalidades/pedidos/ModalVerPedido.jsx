@@ -210,7 +210,8 @@ function Contenido({ pedido }) {
 
 // El pedido en solo lectura (CU41): datos, productos y cobros. El listado
 // no trae los productos ni los cobros, así que al abrirse pide la ficha,
-// con el patrón de tres estados. Editar lleva a la ficha.
+// con el patrón de tres estados. No tiene pie: para editar está el lápiz
+// de la fila.
 export default function ModalVerPedido({ pedido, onCerrar }) {
   const [ficha, setFicha] = useState(null)
   const [cargando, setCargando] = useState(true)

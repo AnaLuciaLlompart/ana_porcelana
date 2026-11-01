@@ -1,18 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 
-import {
-  obtenerProducto,
-  modificarProducto,
-  asignarMaterialAProducto,
-  modificarCantidadDeMaterial,
-  quitarMaterialDeProducto,
-  asignarCategoriaAProducto,
-  quitarCategoriaDeProducto,
-  subirImagenDeProducto,
-  modificarImagenDeProducto,
-  borrarImagenDeProducto,
-} from './api'
+import { obtenerProducto, modificarProducto } from './api'
 
 // Tercer import que cruza de funcionalidad, con el mismo criterio de
 // siempre: el endpoint pertenece a esa app y ahí se queda. Acá hacen falta
@@ -83,9 +72,12 @@ function datosCambiaron(borrador, original) {
   )
 }
 
-// Lo que hay que mandar para que los materiales guardados queden como los
-// del borrador: los quitados, los de cantidad cambiada y los nuevos, que son
-// los de id provisorio negativo.
+// En qué difieren los materiales del borrador de los guardados: los
+// quitados, los de cantidad cambiada y los nuevos, que son los de id
+// provisorio negativo. Esta y las dos que siguen son para saber qué
+// secciones tienen cambios sin guardar; lo que viaja al guardar son las
+// tres listas enteras, y el backend hace esta misma comparación contra la
+// base.
 function cambiosEnMateriales(guardados, enBorrador) {
   const ids = enBorrador.map((linea) => linea.id)
   return {
@@ -98,12 +90,10 @@ function cambiosEnMateriales(guardados, enBorrador) {
   }
 }
 
-// Lo mismo con las fotos. Una foto cuyo título cambió va en modificadas con
-// el título. El orden se toca solo si en su grupo cambió la secuencia (se
-// movió alguna) o hay fotos nuevas: ahí el grupo se renumera, y el orden de
-// cada foto pasa a ser su posición, la misma regla del alta. Si no, los
-// números guardados se respetan aunque estén salteados (0, 2, 3 después de
-// borrar una), que ordenan igual.
+// Lo mismo con las fotos. Una foto cuyo título cambió va en modificadas.
+// Cuenta como movida solo si en su grupo cambió la secuencia o hay fotos
+// nuevas: los números guardados pueden estar salteados (0, 2, 3 después de
+// borrar una) y ordenan igual, así que eso solo no es un cambio.
 function cambiosEnImagenes(guardadas, enBorrador) {
   const ids = enBorrador.map((foto) => foto.id)
   const modificadas = []
@@ -150,8 +140,9 @@ function cambiosEnCategorias(guardadas, enBorrador) {
 
 // El backend contesta de dos formas según qué falló: las reglas de negocio
 // mandan {'detail': '...'} y los errores de campo mandan
-// {'imagen': ['La imagen pesa 20.0 MB...']}. La subida de fotos usa la
-// segunda, así que hay que mirar las dos para no tragarse el mensaje.
+// {'imagen': ['La imagen pesa 20.0 MB...']}. Las filas del guardado
+// (materiales, fotos y categorías) usan la segunda, con la clave de su
+// lista, así que hay que mirar las dos para no tragarse el mensaje.
 function mensajeDeError(err) {
   const datos = err.response?.data
   if (!datos) return 'No se pudo completar la acción.'
@@ -161,6 +152,15 @@ function mensajeDeError(err) {
   if (Array.isArray(primerCampo) && primerCampo.length > 0) return primerCampo[0]
 
   return 'No se pudo completar la acción.'
+}
+
+// La clave del error de campo, o '' si fue una regla de negocio ({'detail'}).
+// Al guardar dice de qué lista es la fila que falló ('materiales',
+// 'imagenes' o 'categorias'), que es la sección que hay que abrir.
+function claveDelError(err) {
+  const datos = err.response?.data
+  if (!datos || datos.detail) return ''
+  return Object.keys(datos)[0] || ''
 }
 
 function plural(n, uno, varios) {
@@ -433,7 +433,6 @@ export default function DetalleProducto() {
   // desmonta, y si viviera adentro se perdería lo cargado.
   const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
-  const [avance, setAvance] = useState('')
 
   // Las filas de materiales y las tarjetas de fotos guardan lo que se está
   // escribiendo hasta salir del campo. Descartar cambia esta versión, que va
@@ -634,118 +633,66 @@ export default function DetalleProducto() {
     guardar()
   }
 
-  // Guardar es una cadena de los endpoints que ya existen, como Crear en el
-  // alta: el PUT de los datos si cambiaron, y después materiales, fotos y
-  // categorías. No es atómico: si algo falla a mitad, lo anterior quedó
-  // guardado. Por eso, a medida que avanza, la ficha se queda con la última
-  // respuesta del backend (todos estos endpoints devuelven la ficha
-  // completa), y lo nuevo que se crea recibe su id real en el borrador:
-  // volver a tocar Guardar sigue desde ahí, sin duplicar nada.
+  // Guardar es un solo PUT multipart con los datos y las tres listas
+  // completas del borrador: el backend las compara con lo guardado y quita,
+  // modifica y agrega lo que haga falta, todo en una transacción
+  // (corrección del tutor). Si una fila falla, el producto queda como
+  // estaba y el error va en su sección, que se abre; si fallan los datos,
+  // en Datos.
   async function guardar() {
     setPreguntarSinFotos(false)
     setGuardando(true)
 
-    let actual = producto
-    let lineas = borrador.materiales
-    let fotos = borrador.imagenes
+    const datos = {
+      nombre: borrador.nombre.trim(),
+      descripcion: borrador.descripcion.trim(),
+      precio_actual: borrador.precio,
+      dificultad: borrador.dificultad,
+      paso_a_paso: borrador.paso_a_paso,
+      es_personalizado: borrador.es_personalizado,
+    }
 
-    // Dónde está la cadena, para mostrar el error al lado de lo que falló.
-    let enCurso = { seccion: 'datos' }
+    // El orden de cada foto es su posición dentro de su grupo, la misma
+    // regla del alta: las de resultado primero y después las de referencia,
+    // el orden de PestanaImagenes. Las guardadas van con su id y las nuevas
+    // con su archivo y el id provisorio negativo, que es como el backend las
+    // distingue.
+    const fotos = TIPOS_DE_IMAGEN.flatMap((tipo) =>
+      borrador.imagenes
+        .filter((foto) => foto.tipo === tipo)
+        .map((foto, orden) => ({ id: foto.id, archivo: foto.archivo, titulo: foto.titulo, tipo, orden }))
+    )
 
+    let actual
     try {
-      if (datosCambiaron(borrador, borradorDe(producto))) {
-        setAvance('Guardando datos…')
-        actual = (await modificarProducto(id, {
-          nombre: borrador.nombre.trim(),
-          descripcion: borrador.descripcion.trim(),
-          precio_actual: borrador.precio,
-          dificultad: borrador.dificultad,
-          paso_a_paso: borrador.paso_a_paso,
-          es_personalizado: borrador.es_personalizado,
-        })).data
-      }
-
-      const m = cambiosEnMateriales(producto.materiales_usados, lineas)
-      setAvance('Guardando materiales…')
-
-      for (const linea of m.quitados) {
-        enCurso = { seccion: 'materiales', nombre: linea.material_nombre }
-        actual = (await quitarMaterialDeProducto(id, linea.id)).data
-      }
-      for (const linea of m.modificados) {
-        enCurso = { seccion: 'materiales', nombre: linea.material_nombre }
-        actual = (await modificarCantidadDeMaterial(id, linea.id, linea.cantidad)).data
-      }
-      for (const linea of m.nuevos) {
-        enCurso = { seccion: 'materiales', nombre: linea.material_nombre }
-        const idsAntes = actual.materiales_usados.map((l) => l.id)
-        actual = (await asignarMaterialAProducto(id, linea.material, linea.cantidad)).data
-        const creada = actual.materiales_usados.find((l) => !idsAntes.includes(l.id))
-        lineas = lineas.map((l) => (l.id === linea.id ? { ...l, id: creada.id } : l))
-      }
-
-      // Las fotos: primero las borradas, después las que cambiaron de
-      // título o de lugar, y al final las nuevas, que suben con su orden.
-      const f = cambiosEnImagenes(producto.imagenes, fotos)
-      const totalFotos = f.borradas.length + f.modificadas.length + f.nuevas.length
-      let hechas = 0
-
-      for (const foto of f.borradas) {
-        enCurso = { seccion: 'imagenes', tipo: foto.tipo }
-        hechas += 1
-        setAvance(`Guardando fotos (${hechas} de ${totalFotos})…`)
-        actual = (await borrarImagenDeProducto(id, foto.id)).data
-      }
-      for (const { foto, cambio } of f.modificadas) {
-        enCurso = { seccion: 'imagenes', tipo: foto.tipo }
-        hechas += 1
-        setAvance(`Guardando fotos (${hechas} de ${totalFotos})…`)
-        actual = (await modificarImagenDeProducto(id, foto.id, cambio)).data
-      }
-      for (const foto of f.nuevas) {
-        enCurso = { seccion: 'imagenes', tipo: foto.tipo }
-        hechas += 1
-        setAvance(`Subiendo foto ${hechas} de ${totalFotos}…`)
-        const orden = fotos.filter((otra) => otra.tipo === foto.tipo).findIndex((otra) => otra.id === foto.id)
-        const datosFoto = { imagen: foto.archivo, tipo: foto.tipo, orden }
-        if (foto.titulo) datosFoto.titulo = foto.titulo
-        const idsAntes = actual.imagenes.map((i) => i.id)
-        actual = (await subirImagenDeProducto(id, datosFoto)).data
-        const subida = actual.imagenes.find((i) => !idsAntes.includes(i.id))
-        fotos = fotos.map((otra) => (otra.id === foto.id ? { ...otra, id: subida.id } : otra))
-      }
-
-      const c = cambiosEnCategorias(producto.categorias, borrador.categorias)
-      setAvance('Guardando categorías…')
-
-      for (const categoria of c.salen) {
-        enCurso = { seccion: 'categorias', nombre: categoria.nombre }
-        actual = (await quitarCategoriaDeProducto(id, categoria.id)).data
-      }
-      for (const categoria of c.entran) {
-        enCurso = { seccion: 'categorias', nombre: categoria.nombre }
-        actual = (await asignarCategoriaAProducto(id, categoria.id)).data
-      }
+      actual = (await modificarProducto(id, datos, {
+        materiales: borrador.materiales.map((linea) => ({
+          id: linea.id,
+          material: linea.material,
+          cantidad: linea.cantidad,
+        })),
+        categorias: borrador.categorias.map((categoria) => categoria.id),
+        imagenes: fotos,
+      })).data
     } catch (err) {
       const mensaje = mensajeDeError(err)
+      const clave = claveDelError(err)
+      const seccion = ['materiales', 'imagenes', 'categorias'].includes(clave) ? clave : 'datos'
 
-      if (enCurso.seccion === 'datos') {
+      if (seccion === 'datos') {
         setError(mensaje)
-      } else if (enCurso.seccion === 'imagenes') {
-        setErrorImagen({ tipo: enCurso.tipo, mensaje: `${mensaje} Lo anterior quedó guardado.` })
+      } else if (seccion === 'imagenes') {
+        // El mensaje empieza con "Fila N": esa foto es fotos[N - 1], y el
+        // error va en su grupo. Si no se puede saber, en el primero.
+        const fila = Number(/^Fila (\d+)/.exec(mensaje)?.[1])
+        setErrorImagen({ tipo: fotos[fila - 1]?.tipo ?? TIPOS_DE_IMAGEN[0], mensaje })
       } else {
-        setErrorSeccion({
-          seccion: enCurso.seccion,
-          mensaje: `No se pudo guardar «${enCurso.nombre}»: ${mensaje} Lo anterior quedó guardado.`,
-        })
+        setErrorSeccion({ seccion, mensaje })
       }
 
       // La sección del error se abre, para que se vea.
-      setAbiertas({ ...abiertas, [enCurso.seccion]: true })
-      setProducto(actual)
-      setBorrador({ ...borrador, materiales: lineas, imagenes: fotos })
+      setAbiertas({ ...abiertas, [seccion]: true })
       setGuardando(false)
-      setAvance('')
       return
     }
 
@@ -1078,7 +1025,7 @@ export default function DetalleProducto() {
             fontSize: 15,
           }}
         >
-          {guardando ? avance || 'Guardando…' : 'Guardar'}
+          {guardando ? 'Guardando…' : 'Guardar'}
         </button>
       </div>
 

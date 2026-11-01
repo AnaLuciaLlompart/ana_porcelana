@@ -6,11 +6,14 @@ from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import ParseError, ValidationError
 from rest_framework.response import Response
 
 from clientes.models import Cliente
 from config.exportar import Columna, ExportarMixin, describir_rango
+from config.hijos import (
+    error_de_fila, es_fila_nueva, fila_guardada, ids_que_vienen, leer_lista, leer_lista_si_vino,
+)
 from config.listados import leer_importe, ordenar
 from config.paginacion import PaginacionDeListado
 from inicio.views import DIAS_ENTREGAS_PROXIMAS
@@ -255,6 +258,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
           cliente=id               uno solo
           estado=LISTO             se puede repetir: cualquiera de los elegidos
           entrega=atrasados        o proximos
+          forma_entrega=RETIRO     se puede repetir: cualquiera de las elegidas
           saldo=pendiente          o al_dia; se puede repetir, y cada uno saca
                                    lo que no cumple, como en la pantalla
           total_desde, total_hasta los extremos del rango, inclusive
@@ -399,6 +403,121 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         return filtros
 
     # -----------------------------------------------------------------
+    # El alta y el guardado de la ficha: el pedido y sus productos en un
+    # solo pedido a la API
+    # -----------------------------------------------------------------
+
+    def create(self, request, *args, **kwargs):
+        """CU40 - Registrar un pedido, con sus productos, en un solo pedido a la API.
+
+        Además de los datos del pedido, el cuerpo puede traer 'productos':
+        una lista con lo mismo que recibe agregar_producto por fila
+        ('producto', 'cantidad', 'precio', 'descripcion', 'estado'). Todo se
+        guarda en la misma transacción (ATOMIC_REQUESTS): si una fila
+        falla, la respuesta es 400 con la clave 'productos' y el número de
+        la fila, y no queda ni el pedido. Sin 'productos' es el alta de
+        siempre.
+
+        Corrección del tutor: antes el frontend creaba el pedido y después
+        mandaba una fila por pedido, y un fallo a mitad dejaba un pedido a
+        medias. Las reglas de cada fila siguen en _agregar_producto, la
+        misma función que usa la acción de una fila.
+
+        No llama a _bajar_si_quedo_incompleto: un pedido nuevo nace
+        Pendiente (el estado es de solo lectura) y no puede estar Listo.
+        """
+        lineas = leer_lista(request.data, 'productos')
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pedido = serializer.save()
+
+        for numero, datos in enumerate(lineas, start=1):
+            try:
+                self._agregar_producto(pedido, datos)
+            except (ParseError, ValidationError) as error:
+                raise error_de_fila('productos', numero, self._nombre_del_producto(datos), error)
+
+        return Response(self.get_serializer(pedido).data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        """CU42 - Modificar un pedido, con sus productos, en un solo pedido a la API.
+
+        Además de los datos, el cuerpo puede traer 'productos': la lista
+        COMPLETA de productos tal como quedó en la ficha, cada uno con lo
+        mismo que recibe agregar_producto y, si ya estaba guardado, su 'id'.
+        _sincronizar_productos la compara con lo guardado y quita, modifica
+        y agrega lo que haga falta, en la misma transacción que los datos
+        (ATOMIC_REQUESTS): si una fila falla, 400 con la clave 'productos' y
+        el número de la fila, y el pedido queda como estaba. Sin 'productos'
+        es el PUT de siempre, que no toca los productos. Cubre PUT y PATCH:
+        DRF resuelve el PATCH llamando a update.
+
+        Corrección del tutor: antes la ficha mandaba el PUT de los datos y
+        después un pedido por producto quitado, modificado o agregado, y un
+        fallo a mitad dejaba lo anterior guardado.
+
+        La fila del pedido se bloquea antes, como en las acciones, y al
+        final _bajar_si_quedo_incompleto revisa una sola vez si con los
+        cambios el pedido dejó de estar completo.
+        """
+        lineas = leer_lista_si_vino(request.data, 'productos')
+
+        pedido = self.get_object()
+        self._bloquear(pedido)
+
+        serializer = self.get_serializer(pedido, data=request.data, partial=kwargs.pop('partial', False))
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        if lineas is not None:
+            self._sincronizar_productos(pedido, lineas)
+            self._bajar_si_quedo_incompleto(pedido)
+
+        return Response(self.get_serializer(pedido).data)
+
+    def _sincronizar_productos(self, pedido, lineas):
+        """Deja los productos del pedido como dice la lista completa que mandó la ficha.
+
+        Se compara con lo guardado, con la fila del pedido ya bloqueada: la
+        guardada cuyo id no viene se quita; la que viene con el id de una
+        guardada se modifica con _modificar_producto, como el PATCH; la que
+        no trae id, o trae el provisorio negativo del borrador, se agrega
+        con _agregar_producto, con su etapa. Un id que no es de este pedido
+        responde 400, como las acciones. Un error en una fila sale con su
+        número en la lista. Quien llama revisa después, una sola vez, si el
+        pedido quedó incompleto.
+        """
+        guardadas = {linea.pk: linea for linea in pedido.productos.all()}
+        conservadas = ids_que_vienen(lineas)
+
+        for linea_id, linea in guardadas.items():
+            if linea_id not in conservadas:
+                linea.delete()
+
+        for numero, datos in enumerate(lineas, start=1):
+            try:
+                if es_fila_nueva(datos):
+                    self._agregar_producto(pedido, datos)
+                else:
+                    guardada = fila_guardada(datos, guardadas)
+                    if guardada is None:
+                        raise ParseError('Ese producto no pertenece a este pedido.')
+                    self._modificar_producto(guardada, datos)
+            except (ParseError, ValidationError) as error:
+                raise error_de_fila('productos', numero, self._nombre_del_producto(datos), error)
+
+    @staticmethod
+    def _nombre_del_producto(datos):
+        """El nombre del producto de una fila del alta, para el mensaje de error, o ''."""
+        producto_id = datos.get('producto') if isinstance(datos, dict) else None
+
+        if not isinstance(producto_id, int):
+            return ''
+
+        return Producto.objects.filter(pk=producto_id).values_list('nombre', flat=True).first() or ''
+
+    # -----------------------------------------------------------------
     # Los números del encabezado del listado
     # -----------------------------------------------------------------
 
@@ -436,6 +555,30 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
     # El estado del pedido, que es parte de CU42
     # -----------------------------------------------------------------
 
+    # -----------------------------------------------------------------
+    # El candado de las reglas entre filas
+    # -----------------------------------------------------------------
+
+    def _bloquear(self, pedido):
+        """Bloquea la fila del pedido hasta que termine la transacción.
+
+        Las reglas de cobro y de estado miran varias filas a la vez (el
+        total, lo cobrado, las piezas sin terminar) y después escriben. Dos
+        pedidos al mismo tiempo las leerían las dos antes de que una
+        escriba, y los dos pasarían: dos cobros que juntos superan el
+        total, o un Listo y una pieza Pendiente agregada a la vez. Con
+        select_for_update el segundo espera a que el primero confirme, y
+        recién entonces lee.
+
+        Se usa refresh_from_db y no una consulta aparte porque además
+        vacía el prefetch que trajo get_object(): esos productos y cobros
+        se leyeron ANTES del candado, y hay que volver a leerlos después.
+        Pedido.objects, sin el select_related del queryset del ViewSet,
+        para que el FOR UPDATE tome solo la fila del pedido y no la del
+        cliente.
+        """
+        pedido.refresh_from_db(from_queryset=Pedido.objects.select_for_update())
+
     @action(detail=True, methods=['post'])
     def cambiar_estado(self, request, pk=None):
         """Cambiar el estado del pedido. Es parte de CU42 - Modificar pedido.
@@ -450,6 +593,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         El estado llega en el cuerpo, en la clave 'estado'.
         """
         pedido = self.get_object()
+        self._bloquear(pedido)
 
         # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
         # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
@@ -607,55 +751,43 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
             ).data
         )
 
-    # El mapping le dice al router: misma URL que 'productos', pero
-    # cuando el método sea POST, ejecutá esta otra función. Así cada caso
-    # de uso queda en su propio método, sin un if adentro.
-    @productos.mapping.post
-    def agregar_producto(self, request, pk=None):
-        """CU44 - Agregar un producto al pedido.
+    def _agregar_producto(self, pedido, datos):
+        """Crea una fila de ProductoDelPedido con las reglas de CU44 y la devuelve.
 
-        En el cuerpo llegan 'producto' (el id) y, opcionalmente,
-        'cantidad', 'precio' y 'descripcion'.
+        Es la única puerta para agregar una pieza a un pedido: la usan
+        agregar_producto (una fila por pedido a la API) y create() (todas
+        las filas del alta, en una transacción). Rechaza con ParseError y
+        no con una respuesta: es lo que hace que la transacción revierta
+        (ATOMIC_REQUESTS), y la respuesta es la misma, {'detail': …}.
 
-        ACÁ SE CONGELA EL PRECIO: si el cuerpo no trae uno, se copia el
+        ACÁ SE CONGELA EL PRECIO: si datos no trae uno, se copia el
         precio_actual del producto. A partir de ese momento la línea
         conserva ese número, aunque el del catálogo cambie mañana.
 
-        No se rechaza un producto que ya figura en el pedido. A
-        diferencia de los materiales de un producto, acá no hay
-        restricción de unicidad: la misma pieza puede ir en dos filas si
-        difieren en variante, precio o etapa productiva.
+        'estado' es opcional. La pieza nace Pendiente (el campo es de solo
+        lectura en el serializer de alta) y, si vino otra etapa, se aplica
+        después por el mismo camino que modificar_producto_del_pedido, con
+        su fecha. Antes el frontend hacía ese PATCH aparte.
         """
-        pedido = self.get_object()
-
         # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
         # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
-        if not isinstance(request.data, dict):
-            return Response(
-                {'detail': 'El cuerpo tiene que ser un objeto JSON.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if not isinstance(datos, dict):
+            raise ParseError('El cuerpo tiene que ser un objeto JSON.')
 
-        producto_id = request.data.get('producto')
+        producto_id = datos.get('producto')
 
         if not producto_id:
-            return Response(
-                {'detail': 'Falta el id del producto.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ParseError('Falta el id del producto.')
 
         try:
             producto = Producto.objects.get(pk=producto_id)
         except (Producto.DoesNotExist, ValueError, TypeError):
-            return Response(
-                {'detail': 'No existe un producto con ese id.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ParseError('No existe un producto con ese id.')
 
         # Se copia el cuerpo para poder completarlo sin tocar el
         # original. request.data puede ser un QueryDict inmutable, y su
         # .copy() devuelve uno que sí se puede modificar.
-        datos = request.data.copy()
+        datos = datos.copy()
 
         # Se completa solo lo que NO vino: None o vacío. Un 0 sí vino (una
         # pieza regalada tiene precio 0, y una cantidad 0 la tiene que
@@ -665,6 +797,11 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         if datos.get('cantidad') in (None, ''):
             datos['cantidad'] = 1
+
+        # La etapa se saca del cuerpo antes de validar: el serializer de
+        # alta la tiene de solo lectura y la ignoraría. Se aplica abajo.
+        estado = datos.get('estado')
+        datos.pop('estado', None)
 
         # Se guarda con el serializer y no con .objects.create() porque
         # acá hay números que validar. Sin esto, una cantidad en 0 la
@@ -677,42 +814,56 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         # El pedido no viene en el cuerpo: sale de la URL, y se lo
         # pasamos acá para que nadie pueda agregarle un producto a otro
         # pedido mandándolo en el formulario.
-        serializer.save(pedido=pedido)
+        linea = serializer.save(pedido=pedido)
 
-        # create() escribió en la base, pero los productos que trajo el
-        # prefetch siguen cacheados en memoria, sin la línea recién
-        # agregada. refresh_from_db() vacía esa caché, así el serializer
-        # recalcula el total contra la base.
-        pedido.refresh_from_db()
+        if estado and estado != ProductoDelPedido.Estado.PENDIENTE:
+            # El serializer de modificación valida la etapa (ChoiceField):
+            # un valor fuera de la lista responde 400, como en el PATCH.
+            cambio = ProductoDelPedidoModificarSerializer(linea, data={'estado': estado}, partial=True)
+            cambio.is_valid(raise_exception=True)
+            linea = cambio.save()
+            linea.fecha_cambio_estado = timezone.localdate()
+            linea.save(update_fields=['fecha_cambio_estado'])
 
-        # Después del refresh y no antes: la comprobación tiene que ver la
+        return linea
+
+    # El mapping le dice al router: misma URL que 'productos', pero
+    # cuando el método sea POST, ejecutá esta otra función. Así cada caso
+    # de uso queda en su propio método, sin un if adentro.
+    @productos.mapping.post
+    def agregar_producto(self, request, pk=None):
+        """CU44 - Agregar un producto al pedido.
+
+        En el cuerpo llegan 'producto' (el id) y, opcionalmente,
+        'cantidad', 'precio', 'descripcion' y 'estado'. Las reglas, el
+        precio congelado incluido, están en _agregar_producto, que comparte
+        con el alta.
+
+        No se rechaza un producto que ya figura en el pedido. A
+        diferencia de los materiales de un producto, acá no hay
+        restricción de unicidad: la misma pieza puede ir en dos filas si
+        difieren en variante, precio o etapa productiva.
+        """
+        pedido = self.get_object()
+        self._bloquear(pedido)
+
+        self._agregar_producto(pedido, request.data)
+
+        # Después de escribir y no antes: la comprobación tiene que ver la
         # pieza recién agregada, que nace Pendiente y puede dejar al pedido
-        # sin estar listo.
+        # sin estar listo. Lee de la base: _bloquear ya vació el prefetch.
         self._bajar_si_quedo_incompleto(pedido)
 
         return Response(self.get_serializer(pedido).data)
 
-    @action(detail=True, methods=['patch'],
-            url_path=r'productos/(?P<linea_id>\d+)')
-    def modificar_producto_del_pedido(self, request, pk=None, linea_id=None):
-        """CU46 - Modificar un producto del pedido.
+    def _modificar_producto(self, linea, datos):
+        """Modifica una fila de ProductoDelPedido con las reglas de CU46 y la devuelve.
 
-        Se pueden cambiar la cantidad, el precio, la descripción y la
-        etapa productiva. El producto no: para encargar otra pieza se
-        quita esta línea y se agrega otra.
-
-        Si la etapa cambia, se actualiza la fecha del cambio de estado.
+        Es la única puerta para modificar una pieza: la usan
+        modificar_producto_del_pedido (el PATCH de una fila) y
+        _sincronizar_productos (el guardado de la ficha). Si la etapa
+        cambia, se actualiza la fecha del cambio de estado.
         """
-        pedido = self.get_object()
-
-        linea = self._buscar_producto_del_pedido(pedido, linea_id)
-
-        if linea is None:
-            return Response(
-                {'detail': 'Ese producto no pertenece a este pedido.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         # Se guarda ANTES de escribir, porque después de save() la línea
         # ya tiene el estado nuevo y no habría con qué comparar.
         estado_anterior = linea.estado
@@ -724,7 +875,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         # cualquier valor fuera de la lista.
         serializer = ProductoDelPedidoModificarSerializer(
             linea,
-            data=request.data,
+            data=datos,
             partial=True,
         )
         serializer.is_valid(raise_exception=True)
@@ -736,6 +887,31 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         if linea.estado != estado_anterior:
             linea.fecha_cambio_estado = timezone.localdate()
             linea.save(update_fields=['fecha_cambio_estado'])
+
+        return linea
+
+    @action(detail=True, methods=['patch'],
+            url_path=r'productos/(?P<linea_id>\d+)')
+    def modificar_producto_del_pedido(self, request, pk=None, linea_id=None):
+        """CU46 - Modificar un producto del pedido.
+
+        Se pueden cambiar la cantidad, el precio, la descripción y la
+        etapa productiva. El producto no: para encargar otra pieza se
+        quita esta línea y se agrega otra. Las reglas están en
+        _modificar_producto, que comparte con el guardado de la ficha.
+        """
+        pedido = self.get_object()
+        self._bloquear(pedido)
+
+        linea = self._buscar_producto_del_pedido(pedido, linea_id)
+
+        if linea is None:
+            return Response(
+                {'detail': 'Ese producto no pertenece a este pedido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        self._modificar_producto(linea, request.data)
 
         pedido.refresh_from_db()
 
@@ -755,6 +931,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         PROTECT de la clave foránea.
         """
         pedido = self.get_object()
+        self._bloquear(pedido)
 
         linea = self._buscar_producto_del_pedido(pedido, linea_id)
 
@@ -890,6 +1067,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         últimas se revisan acá.
         """
         pedido = self.get_object()
+        self._bloquear(pedido)
 
         # Se guarda con el serializer y no con .objects.create() porque
         # hay un número que validar: sin esto, un monto en cero lo
@@ -899,7 +1077,11 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         datos = serializer.validated_data
-        error = self._revisar_cobro(pedido, datos['tipo'], datos['monto'])
+        # Sin 'tipo' en el cuerpo, DRF no lo pone en validated_data (el
+        # campo tiene default en el modelo): la regla se revisa con ese
+        # mismo default, Seña, que es lo que después guarda el serializer.
+        tipo = datos.get('tipo', Cobro.Tipo.SENA)
+        error = self._revisar_cobro(pedido, tipo, datos['monto'])
 
         if error:
             return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
@@ -922,6 +1104,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         cobro mal anotado se arregla, no se borra y se vuelve a cargar.
         """
         pedido = self.get_object()
+        self._bloquear(pedido)
 
         cobro = self._buscar_cobro(pedido, cobro_id)
 
@@ -969,6 +1152,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         el saldo que tenía antes de registrarlo.
         """
         pedido = self.get_object()
+        self._bloquear(pedido)
 
         cobro = self._buscar_cobro(pedido, cobro_id)
 

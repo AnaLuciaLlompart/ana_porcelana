@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate } from 'react-router-dom'
 
-import {
-  crearPedido,
-  eliminarPedido,
-  agregarProductoAlPedido,
-  modificarProductoDelPedido,
-} from './api'
+import { crearPedido } from './api'
 
 // Los mismos imports que cruzan de funcionalidad en la ficha: los clientes
 // para el desplegable y el catálogo para el modal de agregar.
@@ -64,10 +59,10 @@ function mensajeDeError(err) {
 
 // El alta de un pedido (CU40). Es la misma pantalla que la ficha, con los
 // datos y los productos en un solo formulario, y se crea recién al tocar
-// "Crear pedido": un POST del pedido y después uno por producto, con los
-// endpoints de la ficha. Si uno falla, se borra el pedido y queda todo
-// cargado para corregir. Los cobros no van acá: se registran después, desde
-// el listado.
+// "Crear pedido": un solo POST con los datos y los productos adentro, que
+// el backend guarda en una transacción. Si algo falla, no queda nada creado
+// y todo sigue cargado para corregir. Los cobros no van acá: se registran
+// después, desde el listado.
 export default function AltaPedido() {
   const navegar = useNavigate()
 
@@ -86,11 +81,9 @@ export default function AltaPedido() {
   const [error, setError] = useState('')
   const [errorProductos, setErrorProductos] = useState('')
 
-  // Mientras se crea, el pie queda apagado y muestra el avance. Si falló un
-  // producto y tampoco se pudo borrar el pedido, acá queda su id.
+  // Mientras se crea, el pie queda apagado y muestra el avance.
   const [creando, setCreando] = useState(false)
   const [avance, setAvance] = useState('')
-  const [creadoAMedias, setCreadoAMedias] = useState(null)
 
   // El modal de "Crear sin productos": un pedido sin productos se puede
   // crear, pero antes se pregunta.
@@ -105,17 +98,15 @@ export default function AltaPedido() {
     listarProductos().then((res) => setProductos(res.data)).catch(() => {})
   }, [])
 
-  // Hay algo cargado si el borrador difiere del vacío. Si el pedido quedó
-  // creado a medias, ya no hay nada que perder al salir.
+  // Hay algo cargado si el borrador difiere del vacío.
   const hayAlgo =
-    creadoAMedias === null &&
-    (borrador.cliente !== vacio.cliente ||
-      borrador.fecha_pedido !== vacio.fecha_pedido ||
-      borrador.fecha_entrega_estimada !== vacio.fecha_entrega_estimada ||
-      borrador.forma_entrega !== vacio.forma_entrega ||
-      borrador.direccion_entrega !== vacio.direccion_entrega ||
-      borrador.costo_entrega !== vacio.costo_entrega ||
-      borrador.productos.length > 0)
+    borrador.cliente !== vacio.cliente ||
+    borrador.fecha_pedido !== vacio.fecha_pedido ||
+    borrador.fecha_entrega_estimada !== vacio.fecha_entrega_estimada ||
+    borrador.forma_entrega !== vacio.forma_entrega ||
+    borrador.direccion_entrega !== vacio.direccion_entrega ||
+    borrador.costo_entrega !== vacio.costo_entrega ||
+    borrador.productos.length > 0
 
   // Recargar o cerrar la pestaña pierde todo, así que mientras haya algo
   // cargado (o se esté creando) el navegador pregunta antes, con su propio
@@ -160,13 +151,6 @@ export default function AltaPedido() {
   // listado, y el bloqueo de arriba es el que pregunta.
   function salir() {
     navegar(`${BASE_GESTION}/pedidos`)
-  }
-
-  // Con el pedido creado a medias, el botón principal lleva a su ficha: no
-  // se sale sin crear, así que no se pregunta.
-  function irAlCreado() {
-    saltearBloqueo.current = true
-    navegar(`${BASE_GESTION}/pedidos/${creadoAMedias}`)
   }
 
 
@@ -222,72 +206,46 @@ export default function AltaPedido() {
     crear()
   }
 
-  // La cadena de creación. Si falla el POST del pedido, el error va en los
-  // datos; si falla un producto, pegado a la tabla.
+  // Un solo POST con los datos y los productos adentro: el backend lo guarda
+  // todo en una transacción, así que si algo falla no queda nada creado. Si
+  // el error viene con la clave 'productos', fue una fila y va pegado a la
+  // tabla; si no, fue el pedido y va en los datos.
   async function crear() {
     setModalSinProductos(false)
     setCreando(true)
 
     // Como en la ficha: la entrega estimada y el costo viajan como null
-    // cuando están vacíos, que es como los declara el modelo.
+    // cuando están vacíos, que es como los declara el modelo. Cada producto
+    // viaja con su etapa: una pieza nace Pendiente y el backend le aplica la
+    // etapa elegida en el mismo pedido.
     const datos = {
       cliente: Number(borrador.cliente),
       fecha_pedido: borrador.fecha_pedido,
       fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
       ...datosDeEntrega(borrador),
+      productos: borrador.productos.map((linea) => ({
+        producto: linea.producto,
+        cantidad: linea.cantidad,
+        precio: linea.precio,
+        descripcion: linea.descripcion,
+        estado: linea.estado,
+      })),
     }
 
-    let id = null
-
     try {
-      setAvance('Creando…')
+      setAvance('Creando pedido…')
       const res = await crearPedido(datos)
-      id = res.data.id
-
-      let hechos = 0
-      for (const linea of borrador.productos) {
-        hechos += 1
-        setAvance(`Agregando productos (${hechos} de ${borrador.productos.length})…`)
-        const respuesta = await agregarProductoAlPedido(id, {
-          producto: linea.producto,
-          cantidad: linea.cantidad,
-          precio: linea.precio,
-          descripcion: linea.descripcion,
-        })
-
-        // Una pieza nace Pendiente y la etapa no se puede mandar al crearla:
-        // si acá se eligió otra, va con el PATCH que usa la ficha. La fila
-        // recién creada es la de id más alto de la respuesta.
-        if (linea.estado !== 'PENDIENTE') {
-          const nueva = respuesta.data.productos.reduce((a, b) => (a.id > b.id ? a : b))
-          await modificarProductoDelPedido(id, nueva.id, { estado: linea.estado })
-        }
-      }
 
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
       // formulario lleno de lo que ya se creó. Sin bloqueo: se vuelve al
       // listado, que muestra el aviso que le llega en el state.
       saltearBloqueo.current = true
-      navegar(`${BASE_GESTION}/pedidos`, { replace: true, state: { creado: id } })
+      navegar(`${BASE_GESTION}/pedidos`, { replace: true, state: { creado: res.data.id } })
     } catch (err) {
-      let mensaje = `No se pudo crear el pedido: ${mensajeDeError(err)}`
+      const mensaje = `No se pudo crear el pedido: ${mensajeDeError(err)}`
 
-      // Deshacer: el DELETE borra en cascada lo que se alcanzó a guardar. Si
-      // tampoco se puede, el pedido queda a medias y se dice.
-      if (id !== null) {
-        try {
-          await eliminarPedido(id)
-        } catch {
-          setCreadoAMedias(id)
-          mensaje =
-            'No se pudo terminar de cargar el pedido y tampoco se pudo deshacer: ' +
-            'quedó creado a medias. Revisalo desde el listado.'
-        }
-      }
-
-      // Sin id falló el pedido mismo: el error es de los datos.
-      if (id === null) setError(mensaje)
-      else setErrorProductos(mensaje)
+      if (err.response?.data?.productos) setErrorProductos(mensaje)
+      else setError(mensaje)
     } finally {
       setCreando(false)
       setAvance('')
@@ -371,8 +329,7 @@ export default function AltaPedido() {
         />
 
         {/* El pie del formulario, como el de la ficha pero para crear:
-            Cancelar quiere decir "no lo crees", y el bloqueo pregunta. Con
-            el pedido creado a medias, el botón principal lleva a su ficha. */}
+            Cancelar quiere decir "no lo crees", y el bloqueo pregunta. */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
           <button
             onClick={salir}
@@ -394,7 +351,7 @@ export default function AltaPedido() {
           </button>
 
           <button
-            onClick={creadoAMedias ? irAlCreado : terminar}
+            onClick={terminar}
             disabled={creando}
             style={{
               padding: '10px 20px',
@@ -409,7 +366,7 @@ export default function AltaPedido() {
               fontSize: 15,
             }}
           >
-            {creando ? avance : creadoAMedias ? 'Ir al pedido' : 'Crear pedido'}
+            {creando ? avance : 'Crear pedido'}
           </button>
         </div>
       </div>

@@ -100,6 +100,13 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
+        # Cada pedido a la API es una transacción (pedido del tutor): si la
+        # vista lanza una excepción, nada de lo que escribió queda. DRF
+        # revierte con sus excepciones (ParseError, ValidationError); un
+        # return Response(status=400) NO revierte, por eso las reglas lanzan.
+        # El login devuelve su 401 con return a propósito: así el intento
+        # fallido que guarda axes se confirma. Detalle en CLAUDE.md.
+        'ATOMIC_REQUESTS': True,
     }
 }
 

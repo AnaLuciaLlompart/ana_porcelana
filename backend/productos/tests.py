@@ -1,7 +1,9 @@
+import json
 import os
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -9,7 +11,7 @@ from categorias.models import Categoria
 from clientes.models import Cliente
 from pruebas.base import (
     TIPO_EXCEL, USUARIA, PruebaConSesion, PruebaSinSesion, celdas_del_excel,
-    imagen_png, media_temporal,
+    foto_jpeg, imagen_png, media_temporal,
 )
 from materiales.models import Material
 from pedidos.models import Pedido, ProductoDelPedido
@@ -94,7 +96,7 @@ class RendimientoDelListado(PruebaSinSesion):
         self.client.force_authenticate(get_user_model().objects.create_user(USUARIA))
 
     def test_el_listado_hace_una_cantidad_fija_de_consultas(self):
-        """CU18: con tres productos con categorías, materiales e imágenes, el listado hace 4 consultas.
+        """CU18: con tres productos con categorías, materiales e imágenes, el listado hace 4 consultas (más las 2 de la transacción por pedido).
 
         Productos, categorías, materiales e imágenes: lo que
         get_queryset trae con prefetch_related.
@@ -109,7 +111,10 @@ class RendimientoDelListado(PruebaSinSesion):
             for orden in range(2):
                 ImagenProducto.objects.create(producto=producto, imagen=imagen_png(), orden=orden)
 
-        with self.assertNumQueries(4):
+        # 4 del listado más las 2 de la transacción por pedido
+        # (ATOMIC_REQUESTS): dentro de un TestCase son un SAVEPOINT y su
+        # RELEASE, y assertNumQueries los cuenta.
+        with self.assertNumQueries(6):
             respuesta = self.client.get(LISTA)
         self.assertEqual(len(respuesta.data), 3)
 
@@ -246,6 +251,242 @@ class BorrarImagen(PruebaConSesion):
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertFalse(ImagenProducto.objects.filter(pk=imagen.pk).exists())
         self.assertFalse(os.path.exists(ruta))
+
+
+def archivos_en_media():
+    """Los archivos que hay en media/productos/, o ninguno si la carpeta no existe todavía.
+
+    Se compara antes y después de cada POST, y no contra la carpeta vacía:
+    la base se revierte al terminar cada prueba, pero los archivos que una
+    prueba anterior de la misma clase dejó en la carpeta temporal siguen ahí.
+    """
+    carpeta = os.path.join(settings.MEDIA_ROOT, 'productos')
+    return set(os.listdir(carpeta)) if os.path.isdir(carpeta) else set()
+
+
+@media_temporal
+class AltaDeProductoCompleta(PruebaConSesion):
+    """El alta trae los materiales, las fotos y las categorías en el mismo
+    POST, y se guarda entera o no se guarda (CU17, corrección del tutor)."""
+
+    def setUp(self):
+        super().setUp()
+        self.porcelana = Material.objects.create(nombre='Porcelana')
+        self.acrilico = Material.objects.create(nombre='Acrílico')
+        self.aros = Categoria.objects.create(nombre='Aros')
+
+    def cuerpo(self, **cambios):
+        """El multipart de un alta completa: los datos, dos materiales, una categoría y dos fotos.
+
+        Las listas van como texto JSON, que es como viajan en un multipart,
+        y cada foto en el campo que su fila nombra en 'archivo'.
+        """
+        datos = {
+            'nombre': 'Aros Luna',
+            'precio_actual': '1500.00',
+            'dificultad': Producto.Dificultad.MEDIA,
+            'materiales': json.dumps([
+                {'material': self.porcelana.id, 'cantidad': 'dos gotas'},
+                {'material': self.acrilico.id},
+            ]),
+            'categorias': json.dumps([self.aros.id]),
+            'imagenes': json.dumps([
+                {'archivo': 'foto_0', 'tipo': 'RESULTADO', 'orden': 0, 'titulo': 'Frente'},
+                {'archivo': 'foto_1', 'tipo': 'REFERENCIA', 'orden': 0},
+            ]),
+            'foto_0': imagen_png('frente.png'),
+            'foto_1': imagen_png('guia.png'),
+        }
+        datos.update(cambios)
+        return datos
+
+    def nada_creado(self):
+        self.assertEqual(Producto.objects.count(), 0)
+        self.assertEqual(MaterialProducto.objects.count(), 0)
+        self.assertEqual(ImagenProducto.objects.count(), 0)
+
+    def test_el_alta_crea_el_producto_con_sus_materiales_fotos_y_categorias(self):
+        """CU17: un POST multipart con dos materiales, una categoría y dos fotos responde 201 y crea todo; las fotos quedan en media, achicadas."""
+        antes = archivos_en_media()
+        respuesta = self.client.post(LISTA, self.cuerpo(foto_0=foto_jpeg()), format='multipart')
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
+
+        producto = Producto.objects.get(nombre='Aros Luna')
+        self.assertEqual(
+            sorted((linea.material.nombre, linea.cantidad) for linea in producto.materiales_usados.all()),
+            [('Acrílico', ''), ('Porcelana', 'dos gotas')],
+        )
+        self.assertEqual(list(producto.categorias.all()), [self.aros])
+
+        imagenes = list(producto.imagenes.all())
+        self.assertEqual(
+            [(imagen.tipo, imagen.orden, imagen.titulo) for imagen in imagenes],
+            [('RESULTADO', 0, 'Frente'), ('REFERENCIA', 0, '')],
+        )
+        self.assertEqual(len(archivos_en_media() - antes), 2)
+        # La foto de 3000 px pasó por achicar_imagen al validarse.
+        self.assertEqual(imagenes[0].imagen.width, 1600)
+        self.assertEqual(len(respuesta.data['imagenes']), 2)
+        self.assertEqual(len(respuesta.data['materiales_usados']), 2)
+
+    def test_si_falla_una_fila_no_queda_ni_el_producto_ni_los_archivos(self):
+        """CU17: un material repetido responde 400 con 'materiales' y su fila; una categoría repetida, con 'categorias'. En los dos casos no queda nada, tampoco las fotos que ya se habían escrito."""
+        antes = archivos_en_media()
+
+        repetido = json.dumps([{'material': self.porcelana.id}, {'material': self.porcelana.id}])
+        respuesta = self.client.post(LISTA, self.cuerpo(materiales=repetido), format='multipart')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['materiales'], [
+            'Fila 2 (Porcelana): El producto ya tiene «Porcelana» entre sus materiales.',
+        ])
+        self.nada_creado()
+
+        # Las categorías se asignan después de guardar las fotos: cuando esta
+        # falla, las dos fotos ya están en el disco y el alta las borra.
+        repetida = json.dumps([self.aros.id, self.aros.id])
+        respuesta = self.client.post(LISTA, self.cuerpo(categorias=repetida), format='multipart')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['categorias'], [
+            'Fila 2 (Aros): El producto ya tiene asignada la categoría «Aros».',
+        ])
+        self.nada_creado()
+        self.assertEqual(archivos_en_media(), antes)
+
+    def test_una_foto_que_no_es_imagen_da_400_sin_escribir_nada(self):
+        """CU17: un archivo que no es imagen responde 400 con 'imagenes' y su fila, y no se crea el producto ni se escribe ningún archivo: las fotos se validan antes de guardar nada."""
+        antes = archivos_en_media()
+        texto = SimpleUploadedFile('notas.txt', b'esto no es una foto', content_type='text/plain')
+
+        respuesta = self.client.post(LISTA, self.cuerpo(foto_1=texto), format='multipart')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['imagenes'], [
+            'Fila 2 (notas.txt): El archivo adjunto o bien no es una imagen o bien está dañado.',
+        ])
+        self.nada_creado()
+        self.assertEqual(archivos_en_media(), antes)
+
+
+@media_temporal
+class GuardadoDeProductoCompleto(PruebaConSesion):
+    """La ficha se guarda con un solo PUT multipart que trae las tres listas
+    completas, y se aplica entero o no se aplica (CU19, CU25 a CU35;
+    corrección del tutor).
+
+    Arranca con un producto con dos materiales, una categoría y dos fotos.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.producto = crear_producto()
+        self.porcelana = Material.objects.create(nombre='Porcelana')
+        self.acrilico = Material.objects.create(nombre='Acrílico')
+        self.barniz = Material.objects.create(nombre='Barniz')
+        self.linea_porcelana = MaterialProducto.objects.create(
+            producto=self.producto, material=self.porcelana, cantidad='una',
+        )
+        self.linea_acrilico = MaterialProducto.objects.create(producto=self.producto, material=self.acrilico)
+        self.aros = Categoria.objects.create(nombre='Aros')
+        self.dijes = Categoria.objects.create(nombre='Dijes')
+        self.producto.categorias.add(self.aros)
+        self.frente = ImagenProducto.objects.create(
+            producto=self.producto, imagen=imagen_png('frente.png'), orden=0,
+        )
+        self.dorso = ImagenProducto.objects.create(
+            producto=self.producto, imagen=imagen_png('dorso.png'), orden=1,
+        )
+        self.url = f'{LISTA}{self.producto.id}/'
+
+    def cuerpo(self, **cambios):
+        """El multipart de un guardado que toca las tres listas.
+
+        Cambia el nombre; en materiales, cambia la cantidad de la porcelana,
+        quita el acrílico y agrega barniz; en fotos, titula el frente y lo
+        pasa al segundo lugar, quita el dorso y sube una nueva primera; y
+        cambia Aros por Dijes. Las filas nuevas llevan el id provisorio
+        negativo de la pantalla.
+        """
+        datos = {
+            'nombre': 'Aros Luna',
+            'precio_actual': '1500.00',
+            'dificultad': Producto.Dificultad.MEDIA,
+            'materiales': json.dumps([
+                {'id': self.linea_porcelana.id, 'material': self.porcelana.id, 'cantidad': 'dos gotas'},
+                {'id': -1, 'material': self.barniz.id, 'cantidad': ''},
+            ]),
+            'categorias': json.dumps([self.dijes.id]),
+            'imagenes': json.dumps([
+                {'id': -2, 'archivo': 'foto_0', 'tipo': 'RESULTADO', 'orden': 0},
+                {'id': self.frente.id, 'titulo': 'Frente', 'tipo': 'RESULTADO', 'orden': 1},
+            ]),
+            'foto_0': imagen_png('nueva.png'),
+        }
+        datos.update(cambios)
+        return datos
+
+    def test_el_put_quita_modifica_y_agrega_en_las_tres_listas(self):
+        """CU19, CU28, CU30, CU31, CU32, CU34, CU35, CU25 y CU27: un PUT con las tres listas completas cambia el nombre, deja porcelana (dos gotas) y barniz, la foto nueva primera y el frente titulado segundo, borra el dorso con su archivo al confirmar, y deja Dijes en lugar de Aros."""
+        ruta_dorso = self.dorso.imagen.path
+        antes = archivos_en_media()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            respuesta = self.client.put(self.url, self.cuerpo(), format='multipart')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.nombre, 'Aros Luna')
+        self.assertEqual(
+            sorted((linea.material.nombre, linea.cantidad) for linea in self.producto.materiales_usados.all()),
+            [('Barniz', ''), ('Porcelana', 'dos gotas')],
+        )
+        self.assertEqual(list(self.producto.categorias.all()), [self.dijes])
+        self.assertEqual(
+            [(imagen.titulo, imagen.orden) for imagen in self.producto.imagenes.all()],
+            [('', 0), ('Frente', 1)],
+        )
+        self.assertFalse(ImagenProducto.objects.filter(pk=self.dorso.pk).exists())
+        self.assertFalse(os.path.exists(ruta_dorso))
+        self.assertEqual(len(archivos_en_media() - antes), 1)
+
+    def test_si_falla_una_fila_el_producto_queda_como_estaba_tambien_en_media(self):
+        """CU19: con Dijes dos veces en 'categorias' el PUT responde 400 con 'categorias' y su fila, y el nombre, las tres listas y los archivos quedan como estaban: la foto nueva, que ya se había escrito, se borra del disco, y la quitada sigue."""
+        ruta_dorso = self.dorso.imagen.path
+        antes = archivos_en_media()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            respuesta = self.client.put(
+                self.url, self.cuerpo(categorias=json.dumps([self.dijes.id, self.dijes.id])),
+                format='multipart',
+            )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['categorias'], [
+            'Fila 2 (Dijes): El producto ya tiene asignada la categoría «Dijes».',
+        ])
+
+        self.producto.refresh_from_db()
+        self.assertEqual(self.producto.nombre, 'Aros Hedwig')
+        self.assertEqual(self.producto.materiales_usados.count(), 2)
+        self.assertEqual(list(self.producto.categorias.all()), [self.aros])
+        self.assertEqual(self.producto.imagenes.count(), 2)
+        self.assertTrue(os.path.exists(ruta_dorso))
+        self.assertEqual(archivos_en_media(), antes)
+
+    def test_un_put_sin_listas_no_toca_materiales_fotos_ni_categorias(self):
+        """CU19: un PUT con los datos y sin ninguna de las tres listas cambia el nombre y deja los dos materiales, las dos fotos (también en el disco) y la categoría como estaban."""
+        antes = archivos_en_media()
+        respuesta = self.client.put(self.url, {
+            'nombre': 'Aros Luna', 'precio_actual': '1500.00', 'dificultad': Producto.Dificultad.MEDIA,
+        }, format='multipart')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['nombre'], 'Aros Luna')
+
+        self.producto.refresh_from_db()
+        self.assertEqual(
+            sorted((linea.material.nombre, linea.cantidad) for linea in self.producto.materiales_usados.all()),
+            [('Acrílico', ''), ('Porcelana', 'una')],
+        )
+        self.assertEqual(list(self.producto.categorias.all()), [self.aros])
+        self.assertEqual(list(self.producto.imagenes.all()), [self.frente, self.dorso])
+        self.assertEqual(archivos_en_media(), antes)
 
 
 class ListadoEnLaBase(PruebaConSesion):

@@ -70,9 +70,10 @@ export const FILTROS_VACIOS = {
 // filtros de la pantalla a los nombres de la URL. Cada criterio vacío no
 // viaja.
 //
-// Va en un URLSearchParams y no en un objeto común porque estado y saldo se
-// repiten (?estado=LISTO&estado=PENDIENTE): con un arreglo en un objeto,
-// Axios escribiría estado[]=, que Django no lee como la misma clave.
+// Va en un URLSearchParams y no en un objeto común porque estado, forma de
+// entrega y saldo se repiten (?estado=LISTO&estado=PENDIENTE): con un
+// arreglo en un objeto, Axios escribiría estado[]=, que Django no lee como
+// la misma clave.
 export function parametrosDelListado({ filtros, busqueda, orden, pagina, porPagina }) {
   const parametros = new URLSearchParams()
 

@@ -176,7 +176,7 @@ ana_porcelana/
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
 │   │   ├── tests.py             las 5 generales; las otras 141, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 149 y cómo correrlas
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 168 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -464,10 +464,9 @@ los materiales, las fotos y las categorías del producto, los productos y
 los cobros del pedido, o los materiales del gasto—, y el registro se crea
 recién al confirmar el último. Hasta entonces todo se conserva en la
 memoria de la pantalla, de modo que abandonar el recorrido no deja
-registros incompletos. Al confirmar, la interfaz encadena las mismas
-operaciones que emplea la ficha de edición: crea el registro y después
-cada uno de sus elementos. Si el servidor rechaza alguno, elimina el
-registro —la eliminación arrastra lo que se alcanzó a guardar— y vuelve
+registros incompletos. Al confirmar, la interfaz envía un único pedido
+con el registro y todos sus elementos, que el servidor guarda dentro de
+una transacción. Si rechaza alguno, no se crea nada: la pantalla vuelve
 al paso correspondiente con el mensaje del servidor y lo cargado intacto.
 Se prefirió a una operación única en el servidor porque así cada regla de
 negocio conserva una sola vía de verificación: las operaciones que
@@ -551,19 +550,20 @@ su fundamento.
 
 ## Limitaciones conocidas
 
-El sistema no contempla la edición concurrente. Si un mismo registro se
-modifica desde dos sesiones simultáneas, la última en guardar
-prevalece sobre la anterior. La restricción no resulta significativa
-con una única usuaria, y las validaciones del backend impiden en
-cualquier caso que la base de datos quede en un estado inconsistente.
+El sistema no contempla la edición concurrente de un mismo registro: si
+se modifica desde dos sesiones simultáneas, la última en guardar
+prevalece. La restricción no resulta significativa con una única
+usuaria. Las reglas que involucran varias filas —el total cobrado de un
+pedido, su estado frente a las piezas sin terminar, el monto de un
+gasto— sí se protegen: cada pedido a la API es una transacción y esas
+reglas se verifican con la fila bloqueada, de modo que dos operaciones
+simultáneas no pueden dejar la base inconsistente.
 
-El alta de un registro junto con sus elementos no es atómica en la base
-de datos. Entre la creación del registro y la de su último elemento
-transcurre un intervalo breve en que el registro existe incompleto, y si
-la eliminación que deshace un alta fallida también fallara —por ejemplo,
-por una interrupción de la conexión entre ambas operaciones—, el
-registro quedaría creado a medias. La pantalla lo informa y ofrece
-abrirlo, para completarlo o eliminarlo desde su ficha.
+El alta y la modificación de un registro junto con sus elementos se
+realizan en un único pedido a la API, dentro de una transacción: si
+falla alguno de los elementos, no se guarda nada. En el producto, las
+fotos nuevas se validan antes de escribir y, si la transacción se
+revierte después de haberlas guardado, se eliminan del disco.
 
 ---
 
