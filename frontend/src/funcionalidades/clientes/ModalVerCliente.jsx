@@ -1,6 +1,5 @@
 import {
   CAMPOS,
-  estiloAyuda,
   estiloCampo,
   estiloEtiqueta,
   estiloNombreCampo,
@@ -24,7 +23,7 @@ function textoPedidos(cliente) {
 }
 
 
-export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
+export default function ModalVerCliente({ cliente, onCerrar }) {
   const chip = chipSaldo(cliente.saldo)
 
   return (
@@ -115,7 +114,6 @@ export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
             <div key={campo.clave}>
               <label style={estiloEtiqueta}>
                 <span style={estiloNombreCampo}>{campo.etiqueta}</span>
-                <span style={estiloAyuda}>{campo.ayuda}</span>
               </label>
 
               <input
@@ -163,51 +161,6 @@ export default function ModalVerCliente({ cliente, onCerrar, onEditar }) {
               {chip.texto}
             </span>
           </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 12,
-            padding: '16px 24px',
-            flexShrink: 0,
-            borderTop: '1px solid #EBE0E2',
-          }}
-        >
-          <button
-            onClick={onCerrar}
-            style={{
-              padding: '10px 18px',
-              border: '1px solid #EBE0E2',
-              background: 'white',
-              color: '#8C5A66',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            Cerrar
-          </button>
-
-          <button
-            onClick={onEditar}
-            style={{
-              padding: '10px 18px',
-              border: 0,
-              background: '#8C5A66',
-              color: 'white',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            Editar
-          </button>
         </div>
       </div>
     </div>

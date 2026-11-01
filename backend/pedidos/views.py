@@ -307,6 +307,14 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 raise ParseError('La entrega tiene que ser atrasados o proximos.')
             queryset = queryset.filter(condicion_de_entrega(entrega, timezone.localdate()))
 
+        # La forma de entrega se puede repetir, como el estado: cualquiera de
+        # las elegidas.
+        formas = parametros.getlist('forma_entrega')
+        if formas:
+            if any(forma not in Pedido.FormaEntrega.values for forma in formas):
+                raise ParseError('Una de las formas de entrega no existe.')
+            queryset = queryset.filter(forma_entrega__in=formas)
+
         saldos = parametros.getlist('saldo')
         if any(saldo not in ('pendiente', 'al_dia') for saldo in saldos):
             raise ParseError('El saldo tiene que ser pendiente o al_dia.')
@@ -369,6 +377,12 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
             filtros.append('Entrega: atrasados')
         if entrega == 'proximos':
             filtros.append(f'Entrega: próximos {DIAS_ENTREGAS_PROXIMAS} días')
+
+        formas = parametros.getlist('forma_entrega')
+        if formas:
+            filtros.append(
+                'Forma de entrega: ' + ', '.join(Pedido.FormaEntrega(forma).label for forma in formas)
+            )
 
         saldos = parametros.getlist('saldo')
         if 'pendiente' in saldos:

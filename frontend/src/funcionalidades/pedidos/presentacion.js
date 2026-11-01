@@ -31,6 +31,15 @@ export const ESTADOS = [
   { valor: 'ENTREGADO', label: 'Entregado' },
 ]
 
+// Las tres formas de entrega, para el filtro. Como ESTADOS, las usan el
+// modal para los chips y la pantalla para la etiqueta del filtro aplicado.
+// Las etiquetas son las del backend (get_forma_entrega_display).
+export const FORMAS_ENTREGA = [
+  { valor: 'RETIRO', label: 'Retiro' },
+  { valor: 'MIO', label: 'Envío a cargo mío' },
+  { valor: 'CLIENTE', label: 'Envío a cargo del cliente' },
+]
+
 // Los extremos de los deslizadores del filtro por total.
 export const TOTAL_MIN = 0
 

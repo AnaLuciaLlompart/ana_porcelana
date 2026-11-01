@@ -402,6 +402,19 @@ class ListadoEnLaBase(PruebaDePedido):
         self.assertEqual(self.ids({'entrega': 'atrasados'}), [self.pedido.id])
         self.assertEqual(self.ids({'entrega': 'proximos'}), [proximo.id])
 
+    def test_filtra_por_forma_de_entrega(self):
+        """CU41: una forma que no existe da 400; forma_entrega deja los de esa forma, y repetida, los de cualquiera."""
+        respuesta = self.client.get(LISTA, {'forma_entrega': 'MOTO'})
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'Una de las formas de entrega no existe.')
+
+        # self.pedido queda con la forma por defecto, envío a cargo del cliente.
+        retiro = Pedido.objects.create(cliente=self.cliente, forma_entrega=Pedido.FormaEntrega.RETIRO)
+        mio = Pedido.objects.create(cliente=self.cliente, forma_entrega=Pedido.FormaEntrega.MIO)
+
+        self.assertEqual(self.ids({'forma_entrega': 'RETIRO'}), [retiro.id])
+        self.assertCountEqual(self.ids({'forma_entrega': ['RETIRO', 'MIO']}), [retiro.id, mio.id])
+
     def test_busca_por_numero_cliente_y_producto(self):
         """CU41: la búsqueda encuentra por número con o sin #, por instagram y por nombre de producto."""
         self.agregar_pieza()

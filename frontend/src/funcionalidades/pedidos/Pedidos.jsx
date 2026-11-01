@@ -24,6 +24,7 @@ import {
 import {
   COLOR_ESTADO,
   ESTADOS,
+  FORMAS_ENTREGA,
   ICONO_BORRAR,
   ICONO_BUSCAR,
   ICONO_COBRO,
@@ -848,6 +849,17 @@ export default function Pedidos() {
     })
   }
 
+  filtros.formas.forEach((valor) => {
+    const forma = FORMAS_ENTREGA.find((f) => f.valor === valor)
+
+    chips.push({
+      clave: `forma-${valor}`,
+      label: forma.label,
+      onQuitar: () =>
+        cambiarFiltros({ ...filtros, formas: filtros.formas.filter((v) => v !== valor) }),
+    })
+  })
+
   filtros.saldo.forEach((valor) => {
     const opcion = OPCIONES_SALDO.find((o) => o.valor === valor)
 
@@ -1133,7 +1145,6 @@ export default function Pedidos() {
         <ModalVerPedido
           pedido={pedidoViendo}
           onCerrar={() => setPedidoViendo(null)}
-          onEditar={() => verPedido(pedidoViendo)}
         />
       )}
 

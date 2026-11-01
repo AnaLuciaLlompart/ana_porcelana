@@ -855,7 +855,6 @@ export default function Gastos() {
         <ModalVerGasto
           gasto={gastoViendo}
           onCerrar={() => setGastoViendo(null)}
-          onEditar={() => verGasto(gastoViendo)}
         />
       )}
 

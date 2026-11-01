@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FILTROS_VACIOS, OPCIONES_ENTREGA, PASO, topeDelTotal } from './filtros'
 import {
   ESTADOS,
+  FORMAS_ENTREGA,
   OPCIONES_SALDO,
   TOTAL_MIN,
   formatearPrecio,
@@ -88,6 +89,16 @@ export default function ModalFiltros({
       estados: actual.estados.includes(valor)
         ? actual.estados.filter((v) => v !== valor)
         : actual.estados.concat(valor),
+    }))
+  }
+
+  // Lo mismo para la forma de entrega: se pueden marcar varias.
+  function alternarForma(valor) {
+    setBorrador((actual) => ({
+      ...actual,
+      formas: actual.formas.includes(valor)
+        ? actual.formas.filter((v) => v !== valor)
+        : actual.formas.concat(valor),
     }))
   }
 
@@ -277,6 +288,20 @@ export default function ModalFiltros({
                   label={o.label}
                   activo={borrador.entrega === o.valor}
                   onClick={() => elegirEntrega(o.valor)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div style={separador}>
+            <p style={estiloTitulo}>FORMA DE ENTREGA</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {FORMAS_ENTREGA.map((f) => (
+                <Chip
+                  key={f.valor}
+                  label={f.label}
+                  activo={borrador.formas.includes(f.valor)}
+                  onClick={() => alternarForma(f.valor)}
                 />
               ))}
             </div>

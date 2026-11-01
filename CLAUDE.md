@@ -284,6 +284,10 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   aplica: tengo origen único. Ya lo descartamos dos veces.
 - **Denegación por defecto:** `IsAuthenticated` global en DRF. Los
   endpoints públicos del catálogo llevarán `AllowAny` explícito.
+- **El usuario del login no distingue mayúsculas; la contraseña sí**
+  (pedido del tutor): `iniciar_sesion` busca el nombre con
+  `username__iexact` y le pasa a `authenticate` el guardado, así axes
+  cuenta "Ana" y "ana" en el mismo bloqueo.
 - **Modelo de usuario propio** heredando de `AbstractUser`, en la app
   `usuarios`. Conserva grupos y permisos de Django: no los desactives.
 - **Baja lógica** en las entidades que la tienen. Se conserva el
@@ -572,7 +576,7 @@ columna ESTADO"). El ojo (`onVer`) abre `ModalVerPedido`, de solo
 lectura, que pide la ficha al abrirse (el listado no trae productos ni
 cobros) con los tres estados adentro, y muestra los chips de estado y de
 saldo, los datos, los productos con su etapa, los cobros, total y
-cobrado; su Editar lleva a la ficha. El lápiz y el número (`onEditar`)
+cobrado; no tiene pie (ver "Patrón de modal"). El lápiz y el número (`onEditar`)
 abren la ficha. El $ (Cobros) pide el pedido completo, abre `ModalCobros`
 y al cerrarlo recarga el listado, porque el saldo pudo cambiar y con un
 filtro de saldo la fila puede irse; abre `ModalCobros` y no un
@@ -686,7 +690,12 @@ el pedido completo, y se lo entrega a quien lo abrió con
 registrado"; editar y quitar no avisan) lo muestra quien lo abrió.
 `ModalCobro` queda abierto mientras viaja el cobro y el error del backend
 se ve adentro (props `error` y `enviando`, la segunda apaga Registrar para
-que un doble clic no cobre dos veces); el de quitar, arriba de la lista.
+que un doble clic no cobre dos veces). **Quitar un cobro pregunta antes**
+(pedido de la usuaria): la cruz de la fila abre `ModalQuitarCobro`, con
+"¿Quitar el cobro de $X del <fecha>?", Cancelar y "Quitar cobro" en rojo,
+como los modales de eliminar, porque borra el cobro. No llama a la API:
+como `ModalCobro`, recibe `error` y `enviando` de `ModalCobros`, que hace
+el `borrarCobro`; queda abierto mientras viaja y el rechazo se ve adentro.
 En A7 lo abría un botón en la cabecera de la ficha; en A1, el ⋯; hoy, el $
 de la fila.
 
@@ -702,7 +711,7 @@ que en Clientes. El email lo trae
 `PedidoDetalleSerializer` en `cliente_email`, solo en la ficha: el listado
 no lo muestra. El aviso "Email copiado" lo muestra quien abrió el modal,
 por la prop `onAviso`, como "Cobro registrado"; si copiar falla, el error
-va arriba de la lista, como el de quitar un cobro.
+va arriba de la lista.
 
 **El error de los productos va pegado a su tabla.** `PestanaProductos`
 recibe una prop opcional `error` (`errorProductos` en la ficha), copiada
@@ -1076,8 +1085,8 @@ número (`onEditar`) abren la ficha. El modal no pide nada: la fila ya
 trae el gasto con sus materiales. Muestra fecha, tipo, descripción y monto
 en `readOnly disabled` con "Sin cargar" de placeholder, y si es de
 materiales, la tabla sin botones (decidido por la usuaria; el pedido del
-tutor decía solo los datos). El pie es Cerrar y Editar, que lleva a la
-ficha, como el Ver de Clientes.
+tutor decía solo los datos). No tiene pie, como ningún modal de ver (ver
+"Patrón de modal").
 
 **El tope del deslizador de monto sale de los datos.** `topeDelMonto`, en
 `filtros.js`, toma el gasto más caro (`monto_maximo`, que desde D3 manda
@@ -1648,11 +1657,12 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ### Pendientes
 
-- **Los 11 errores de `npm run lint`** (medidos el 29/10/2026). Siete
+- **Los 10 errores de `npm run lint`** (medidos el 29/10/2026; eran 11,
+  y uno se fue el 1/11 con `estiloAyuda`). Seis
   vienen de antes del catálogo y no son de él:
   `react-refresh/only-export-components` en `componentes/Paginacion.jsx`
   (línea 11), `contexto/AuthContext.jsx` (39) y
-  `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23, 31 y 36). Los
+  `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23 y 31). Los
   otros cuatro son de D3, `react-hooks/set-state-in-effect`: un `setState`
   sincrónico al principio de un efecto, para vaciar una lista cuando no
   hay nada que pedir, en `componentes/LayoutPublico.jsx` (251),
@@ -1667,7 +1677,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 146 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 149 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -2049,7 +2059,12 @@ rosa (ver "Cuatro componentes compartidos" en Las altas). **`ModalCobros`
 no tiene pie**: su único botón era Cerrar, que repetía la cruz de la
 cabecera, y la usuaria lo sacó, en la compu y en el celular. Cada cobro
 se guarda en el momento, así que no hay ninguna acción principal que
-poner abajo.
+poner abajo. **Los cinco modales de ver tampoco tienen pie**
+(`ModalVerCliente`, `ModalVerMaterial`, `ModalVerGasto`, `ModalVerPedido`
+y `ModalVerProducto`; regla de la usuaria): un modal de ver no da acceso
+a editar, y Cerrar repetía la cruz. Antes los de cliente, gasto, pedido y
+producto tenían Cerrar y Editar, y el de material, Cerrar. Para editar
+está el lápiz de la fila.
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
@@ -2107,8 +2122,8 @@ lleva ojo, lápiz, dar de baja y papelera, en la grilla y en la tabla
 `ModalVerProducto`, que pide la ficha al abrirse (el listado no trae
 todas las fotos) con los tres estados adentro, y muestra precio,
 dificultad, catálogo, descripción, paso a paso, las fotos de cada grupo y
-las categorías; su Editar lleva a la ficha y no aparece en un producto de
-baja. La foto y el nombre siguen abriendo la ficha (`onEditar`). En la
+las categorías; no tiene pie (ver "Patrón de modal"). La foto y el nombre
+siguen abriendo la ficha (`onEditar`). En la
 sección de bajas, el ojo de un producto de baja abre el mismo modal y no
 la ficha, así que su ficha, de solo lectura, ya no se abre desde ninguna
 pantalla.
@@ -2179,7 +2194,14 @@ bajas solo con `?estado=` (la grilla pide `ACTIVO`; la sección, que se
 pide recién al abrirla, `BAJA`, sin filtros). Materiales pide dos listas,
 los activos paginados y los discontinuados enteros para su sección, con
 los mismos filtros. Pedidos pide los clientes del filtro recién al abrir
-el modal. Categorías busca en el backend con `?busqueda=` y no pagina. El
+el modal, y filtra además por **forma de entrega** (pedido de la
+usuaria): `?forma_entrega=RETIRO`, `MIO` o `CLIENTE`, que se repite como
+`?estado=` (cualquiera de las elegidas; una que no existe da 400). En el
+modal es la sección FORMA DE ENTREGA, debajo de ENTREGA (atrasados /
+próximos, que sigue porque es con la que entran las tarjetas de Inicio),
+con un chip por forma que se marcan varias, como ESTADO;
+`FORMAS_ENTREGA`, en `pedidos/presentacion.js`, tiene las etiquetas del
+backend, y el PDF y el Excel dicen "Forma de entrega: …". Categorías busca en el backend con `?busqueda=` y no pagina. El
 catálogo va de a 20 con "Cargar más" (ver Catálogo público).
 
 **El patrón de las pantallas.** `parametrosDelListado(...)`, en el
@@ -2375,7 +2397,7 @@ dice.
 - `fila-pestanas`: la `BarraDePasos` del alta de producto (la ficha ya no
   tiene pestañas: es un acordeón); se desliza de lado, con los pasos sin
   partirse y menos padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 31
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 32
   modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
   se dibujen en varios lugares); 8px de aire y hasta 96dvh de alto (dvh y
   no vh, por el mismo motivo del 100dvh del Layout: vh no descuenta la

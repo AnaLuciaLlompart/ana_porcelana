@@ -45,11 +45,13 @@ const estiloTd = {
 const estiloVacio = { margin: 0, fontSize: 15, color: '#857078' }
 
 
-function Campo({ etiqueta, valor }) {
+// vacio es lo que se lee cuando no hay valor: "Sin cargar", salvo donde
+// otra frase lo dice mejor (la entrega real, "Sin entregar").
+function Campo({ etiqueta, valor, vacio = 'Sin cargar' }) {
   return (
     <div>
       <span style={estiloEtiqueta}>{etiqueta}</span>
-      <input value={valor || ''} readOnly disabled placeholder="Sin cargar" style={estiloCampo} />
+      <input value={valor || ''} readOnly disabled placeholder={vacio} style={estiloCampo} />
     </div>
   )
 }
@@ -111,6 +113,7 @@ function Contenido({ pedido }) {
         <Campo
           etiqueta="ENTREGA REAL"
           valor={pedido.fecha_entrega_real && fmtFechaLarga(pedido.fecha_entrega_real)}
+          vacio="Sin entregar"
         />
         <Campo etiqueta="FORMA DE ENTREGA" valor={pedido.forma_entrega_display} />
         {esEnvio && (
@@ -208,7 +211,7 @@ function Contenido({ pedido }) {
 // El pedido en solo lectura (CU41): datos, productos y cobros. El listado
 // no trae los productos ni los cobros, así que al abrirse pide la ficha,
 // con el patrón de tres estados. Editar lleva a la ficha.
-export default function ModalVerPedido({ pedido, onCerrar, onEditar }) {
+export default function ModalVerPedido({ pedido, onCerrar }) {
   const [ficha, setFicha] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -304,51 +307,6 @@ export default function ModalVerPedido({ pedido, onCerrar, onEditar }) {
           {cargando && <p style={estiloVacio}>Cargando…</p>}
           {error && <p style={{ margin: 0, fontSize: 15, color: '#C0442F' }}>{error}</p>}
           {ficha && <Contenido pedido={ficha} />}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 12,
-            padding: '16px 24px',
-            flexShrink: 0,
-            borderTop: '1px solid #EBE0E2',
-          }}
-        >
-          <button
-            onClick={onCerrar}
-            style={{
-              padding: '10px 18px',
-              border: '1px solid #EBE0E2',
-              background: 'white',
-              color: '#8C5A66',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            Cerrar
-          </button>
-
-          <button
-            onClick={onEditar}
-            style={{
-              padding: '10px 18px',
-              border: 0,
-              background: '#8C5A66',
-              color: 'white',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontFamily: "'Quicksand', sans-serif",
-              fontWeight: 600,
-              fontSize: 15,
-            }}
-          >
-            Editar
-          </button>
         </div>
       </div>
     </div>

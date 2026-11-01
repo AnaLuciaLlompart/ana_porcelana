@@ -176,7 +176,7 @@ ana_porcelana/
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
 │   │   ├── tests.py             las 5 generales; las otras 141, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 146 y cómo correrlas
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 149 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -303,7 +303,10 @@ resumen de las principales:
 **Autenticación por sesión** en lugar de token autocontenido (JWT). El
 sistema tiene un único backend y una única usuaria; las sesiones manejadas por Django
 ofrecen una cookie inaccesible al código del cliente y un cierre de
-sesión efectivo del lado del servidor.
+sesión efectivo del lado del servidor. El nombre de usuario del inicio de
+sesión no distingue mayúsculas: «ana» y «Ana» ingresan igual; la
+contraseña sí las distingue. Los intentos fallidos de ambas formas suman
+al mismo bloqueo.
 
 **Denegación por defecto** en la API: todo endpoint exige autenticación
 salvo declaración explícita en contra. Una omisión produce un recurso

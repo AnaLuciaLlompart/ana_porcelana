@@ -1159,7 +1159,6 @@ export default function Productos() {
         <ModalVerProducto
           producto={productoViendo}
           onCerrar={() => setProductoViendo(null)}
-          onEditar={() => acciones.onEditar(productoViendo)}
         />
       )}
 

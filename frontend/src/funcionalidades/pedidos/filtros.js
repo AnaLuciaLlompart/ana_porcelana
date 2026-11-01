@@ -52,6 +52,8 @@ export const FILTROS_VACIOS = {
   // Un valor o null, no una lista: atrasado y próximo son excluyentes, así
   // que se elige uno, el otro o ninguno.
   entrega: null,
+  // Una lista como los estados: cualquiera de las formas elegidas.
+  formas: [],
   // Una lista como los estados: el diseño deja marcar las dos opciones
   // a la vez, aunque eso no devuelva nada.
   saldo: [],
@@ -84,6 +86,7 @@ export function parametrosDelListado({ filtros, busqueda, orden, pagina, porPagi
   if (filtros.cliente !== null) parametros.append('cliente', filtros.cliente)
   filtros.estados.forEach((estado) => parametros.append('estado', estado))
   if (filtros.entrega !== null) parametros.append('entrega', filtros.entrega.toLowerCase())
+  filtros.formas.forEach((forma) => parametros.append('forma_entrega', forma))
   filtros.saldo.forEach((saldo) => parametros.append('saldo', saldo.toLowerCase()))
   if (filtros.desde !== '') parametros.append('total_desde', filtros.desde)
   if (filtros.hasta !== '') parametros.append('total_hasta', filtros.hasta)
@@ -105,6 +108,7 @@ export function contarFiltros(filtros) {
     (filtros.cliente !== null ? 1 : 0) +
     filtros.estados.length +
     (filtros.entrega !== null ? 1 : 0) +
+    filtros.formas.length +
     filtros.saldo.length +
     (filtros.desde !== '' || filtros.hasta !== '' ? 1 : 0)
   )

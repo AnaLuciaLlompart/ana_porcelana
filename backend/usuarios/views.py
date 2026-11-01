@@ -10,6 +10,8 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 
+from .models import Usuario
+
 
 class LoginThrottle(AnonRateThrottle):
     scope = 'login'
@@ -90,6 +92,16 @@ def iniciar_sesion(request):
             {'detail': 'Debe indicar usuario y contraseña.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    # El usuario no distingue mayúsculas (pedido del tutor): "Ana" entra como
+    # "ana". Se usa el nombre como está guardado, y así axes también cuenta
+    # los fallos de "Ana" y "ana" juntos. Si no hay exactamente uno, sigue
+    # lo escrito y el error es el de siempre.
+    guardados = list(
+        Usuario.objects.filter(username__iexact=username).values_list('username', flat=True)
+    )
+    if len(guardados) == 1:
+        username = guardados[0]
 
     # si ambos campos fueron llenados, usa authenticate()
     # authenticate toma los campos, revisa que username este en auth_users, calcula el hash y compara con django_auth. Devuelve el objeto o None

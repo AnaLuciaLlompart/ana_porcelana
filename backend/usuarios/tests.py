@@ -77,10 +77,10 @@ class SeguridadDeLaSesion(PruebaSinSesion):
     def _crear_usuaria(self):
         return get_user_model().objects.create_user(USUARIA, password=CONTRASENA)
 
-    def _login(self, password):
+    def _login(self, password, username=USUARIA):
         return self.client.post(
             '/api/auth/login/',
-            {'username': USUARIA, 'password': password},
+            {'username': username, 'password': password},
             format='json',
         )
 
@@ -136,6 +136,53 @@ class SeguridadDeLaSesion(PruebaSinSesion):
         self.assertFalse(respuesta.cookies.get(settings.SESSION_COOKIE_NAME))
 
         intento = AccessAttempt.objects.get(username=USUARIA)
+        self.assertGreaterEqual(intento.failures_since_start, limite)
+
+    def test_el_usuario_no_distingue_mayusculas_y_la_contrasena_si(self):
+        """CU01: la contraseña en otra mayúscula y un usuario que no existe dan 401; el usuario en mayúsculas entra."""
+        self._crear_usuaria()
+
+        respuesta = self._login(CONTRASENA.swapcase(), username=USUARIA.upper())
+        self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(respuesta.data['detail'], 'Usuario o contraseña incorrectos.')
+
+        # El mismo mensaje: no revela qué usuarios existen.
+        respuesta = self._login(CONTRASENA, username='nadie')
+        self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(respuesta.data['detail'], 'Usuario o contraseña incorrectos.')
+
+        respuesta = self._login(CONTRASENA, username=USUARIA.upper())
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['username'], USUARIA)
+
+    def test_los_fallos_con_otras_mayusculas_suman_al_mismo_bloqueo(self):
+        """django-axes: los fallos con "Ana", "ANA" y "ana" llegan juntos al bloqueo, en una sola fila.
+
+        Entre intento e intento se limpia la caché por el throttle de login,
+        como en test_login_bloqueado_tras_intentos_fallidos.
+        """
+        self._crear_usuaria()
+        limite = settings.AXES_FAILURE_LIMIT
+        formas = [USUARIA.capitalize(), USUARIA.upper(), USUARIA]
+
+        for intento in range(1, limite):
+            cache.clear()
+            respuesta = self._login('incorrecta', username=formas[intento % len(formas)])
+            with self.subTest(intento=intento):
+                self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # El fallo que llega al límite ya responde bloqueado, con otra forma.
+        cache.clear()
+        respuesta = self._login('incorrecta', username=USUARIA.capitalize())
+        self.assertEqual(respuesta.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        # Y la contraseña correcta tampoco entra, con ninguna forma.
+        cache.clear()
+        respuesta = self._login(CONTRASENA)
+        self.assertEqual(respuesta.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        intento = AccessAttempt.objects.get()
+        self.assertEqual(intento.username, USUARIA)
         self.assertGreaterEqual(intento.failures_since_start, limite)
 
 

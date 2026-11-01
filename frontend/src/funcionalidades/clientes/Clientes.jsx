@@ -748,10 +748,6 @@ export default function Clientes() {
         <ModalVerCliente
           cliente={clienteViendo}
           onCerrar={() => setClienteViendo(null)}
-          onEditar={() => {
-            setClienteEditando(clienteViendo)
-            setClienteViendo(null)
-          }}
         />
       )}
 

@@ -8,6 +8,7 @@ import {
 } from './api'
 import PestanaCobros from './PestanaCobros'
 import ModalCobro from './ModalCobro'
+import ModalQuitarCobro from './ModalQuitarCobro'
 import { ICONO_COPIAR } from './presentacion'
 import BotonAccion from '../../componentes/BotonAccion'
 import ModalAviso from '../../componentes/ModalAviso'
@@ -49,6 +50,8 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
   // editando, o bien la cadena 'nuevo' para el alta: hacen falta los dos
   // casos y null ya significa "cerrado".
   const [modalCobro, setModalCobro] = useState(null)
+  // El cobro que se está por quitar, mientras se pregunta; null si no.
+  const [cobroQuitando, setCobroQuitando] = useState(null)
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
   // El motivo por el que no se pudo compartir un comprobante, o ''.
@@ -124,16 +127,33 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
     }
   }
 
+  // Quitar pregunta antes (ModalQuitarCobro): borra el cobro y no se puede
+  // deshacer. La pregunta queda abierta mientras viaja, y el error se ve
+  // adentro, como en ModalCobro.
+  function pedirQuitar(cobro) {
+    setError('')
+    setCobroQuitando(cobro)
+  }
+
+  function cerrarQuitar() {
+    setError('')
+    setCobroQuitando(null)
+  }
+
   async function quitarCobro(cobro) {
     // Sin aviso flotante: la fila desaparece de la lista y el saldo se
     // mueve solo.
     setError('')
+    setEnviando(true)
 
     try {
       const res = await borrarCobro(pedido.id, cobro.id)
+      setCobroQuitando(null)
       onPedidoActualizado(res.data, '')
     } catch (err) {
       setError(mensajeDeError(err))
+    } finally {
+      setEnviando(false)
     }
   }
 
@@ -243,7 +263,7 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
             </div>
 
             {/* Con el modal del cobro abierto, el error se ve allá. */}
-            {error && !modalCobro && (
+            {error && !modalCobro && !cobroQuitando && (
               <p role="alert" style={estiloCartelError}>
                 {error}
               </p>
@@ -253,7 +273,7 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
               pedido={pedido}
               onRegistrar={() => abrirCobro('nuevo')}
               onEditar={(cobro) => abrirCobro(cobro)}
-              onQuitar={quitarCobro}
+              onQuitar={pedirQuitar}
               onComprobante={verOCompartirComprobante}
               comprobanteSeComparte={comprobanteSeComparte}
             />
@@ -274,6 +294,16 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
           enviando={enviando}
           onCerrar={cerrarCobro}
           onGuardar={guardarCobro}
+        />
+      )}
+
+      {cobroQuitando && (
+        <ModalQuitarCobro
+          cobro={cobroQuitando}
+          error={error}
+          enviando={enviando}
+          onCerrar={cerrarQuitar}
+          onConfirmar={() => quitarCobro(cobroQuitando)}
         />
       )}
 

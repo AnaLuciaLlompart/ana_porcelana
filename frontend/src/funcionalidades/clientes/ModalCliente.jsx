@@ -5,10 +5,10 @@ import { crearCliente, modificarCliente } from './api'
 // importa esta lista: el modal de ver es este mismo formulario en solo
 // lectura, así que los campos son los del formulario.
 export const CAMPOS = [
-  { clave: 'instagram', etiqueta: 'INSTAGRAM', ayuda: 'obligatorio, único', max: 30, placeholder: 'usuario sin @' },
-  { clave: 'nombre', etiqueta: 'NOMBRE', ayuda: 'obligatorio', max: 50, placeholder: 'Cómo la llamás' },
-  { clave: 'apellido', etiqueta: 'APELLIDO', ayuda: 'opcional', max: 50, placeholder: 'Si te lo dio' },
-  { clave: 'email', etiqueta: 'EMAIL', ayuda: 'opcional, para mandarle el comprobante', max: 254, placeholder: 'nombre@correo.com' },
+  { clave: 'instagram', etiqueta: 'INSTAGRAM', obligatorio: true, max: 30, placeholder: 'usuario sin @' },
+  { clave: 'nombre', etiqueta: 'NOMBRE', obligatorio: true, max: 50, placeholder: 'Cómo la llamás' },
+  { clave: 'apellido', etiqueta: 'APELLIDO', max: 50, placeholder: 'Si te lo dio' },
+  { clave: 'email', etiqueta: 'EMAIL', max: 254, placeholder: 'nombre@correo.com' },
 ]
 
 const VACIO = { instagram: '', nombre: '', apellido: '', email: '' }
@@ -26,11 +26,6 @@ export const estiloNombreCampo = {
   fontSize: 13,
   color: '#857078',
   letterSpacing: '.06em',
-}
-
-export const estiloAyuda = {
-  fontSize: 12,
-  color: '#B08791',
 }
 
 export const estiloCampo = {
@@ -237,8 +232,11 @@ export default function ModalCliente({ cliente, onCerrar, onGuardado }) {
           {CAMPOS.map((campo) => (
             <div key={campo.clave}>
               <label htmlFor={campo.clave} style={estiloEtiqueta}>
-                <span style={estiloNombreCampo}>{campo.etiqueta}</span>
-                <span style={estiloAyuda}>{campo.ayuda}</span>
+                {/* El asterisco marca los obligatorios, como en los demás
+                    formularios ("TIPO *"). El modal de ver no lo lleva. */}
+                <span style={estiloNombreCampo}>
+                  {campo.obligatorio ? `${campo.etiqueta} *` : campo.etiqueta}
+                </span>
               </label>
 
               <input

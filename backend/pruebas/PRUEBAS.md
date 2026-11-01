@@ -12,18 +12,18 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**146 pruebas**, todas en verde, en once apps (`usuarios` 14, `catalogo`
+**149 pruebas**, todas en verde, en once apps (`usuarios` 16, `catalogo`
 16, `materiales` 18, `categorias` 5, `productos` 21, `clientes` 7,
-`pedidos` 30, `gastos` 20, `finanzas` 6, `inicio` 4, `pruebas` 5).
+`pedidos` 31, `gastos` 20, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 78 |
+| reglas de negocio | 79 |
 | validación | 22 |
 | permisos | 17 |
 | catálogo | 13 |
 | rendimiento | 8 |
-| seguridad | 8 |
+| seguridad | 10 |
 
 **Cobertura: 89 %** del código del backend (2.588 sentencias, 283 sin
 ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye la app
@@ -51,6 +51,8 @@ rendimiento.
 | usuarios | test_post_sin_token_csrf_da_403 | Con sesión pero sin token CSRF, un POST responde 403 | Protección CSRF de SessionAuthentication | seguridad |
 | usuarios | test_cookie_de_sesion_lleva_httponly | La cookie sessionid del login lleva HttpOnly y Max-Age de 24 horas | Autenticación por sesión con cookie HttpOnly; sesión de 24 h | seguridad |
 | usuarios | test_login_bloqueado_tras_intentos_fallidos | Al quinto fallo el login responde 429 con mensaje, y la contraseña correcta tampoco entra | Bloqueo por intentos fallidos (django-axes, CU01) | seguridad |
+| usuarios | test_el_usuario_no_distingue_mayusculas_y_la_contrasena_si | La contraseña en otra mayúscula y un usuario que no existe dan 401 con el mismo mensaje; el usuario en mayúsculas entra y responde con el nombre guardado | El usuario del login no distingue mayúsculas, la contraseña sí (CU01, pedido del tutor) | seguridad |
+| usuarios | test_los_fallos_con_otras_mayusculas_suman_al_mismo_bloqueo | Los fallos con "Ana", "ANA" y "ana" llegan juntos al bloqueo, en una sola fila de AccessAttempt con el nombre guardado | Bloqueo por intentos fallidos sobre el nombre guardado (django-axes, CU01) | seguridad |
 | usuarios | test_cerrar_sesion_deja_sin_acceso_a_la_gestion | Antes del logout la gestión responde 200; después del POST a /api/auth/logout/, 403 | Cerrar sesión (CU02) | seguridad |
 | usuarios | test_cambiar_contrasena_exige_la_actual_y_la_nueva_sirve_para_entrar | Con la actual incorrecta 400 con mensaje; con la correcta 200, la sesión sigue viva, la vieja ya no entra y la nueva sí | Modificar contraseña y update_session_auth_hash (CU03) | seguridad |
 | finanzas | test_desde_posterior_a_hasta_da_400 | GET con desde 2026-02-01 y hasta 2026-01-01 responde 400 con mensaje | Validación del período (CU61, CU62) | validación |
@@ -154,6 +156,7 @@ rendimiento.
 | pedidos | test_el_total_y_el_saldo_de_la_base_son_los_de_las_propiedades | con_totales() da el mismo total y saldo que las propiedades, con y sin envío a cobrar | Pedido.objects.con_totales() (CU41, corrección D3) | reglas de negocio |
 | pedidos | test_filtra_por_saldo_y_por_total | saldo=pendiente deja el que debe y al_dia el que no; el rango de total incluye los extremos | _filtrar de PedidoViewSet (CU41, corrección D3) | reglas de negocio |
 | pedidos | test_filtra_por_entrega | atrasados y proximos dejan afuera a los entregados y a los que no tienen fecha | condicion_de_entrega(), la regla de Inicio escrita para la base (CU41, corrección D3) | reglas de negocio |
+| pedidos | test_filtra_por_forma_de_entrega | Una forma que no existe da 400; forma_entrega deja los de esa forma, y repetida, los de cualquiera | _filtrar de PedidoViewSet (CU41) | reglas de negocio |
 | pedidos | test_busca_por_numero_cliente_y_producto | La búsqueda encuentra por número con o sin #, por instagram y por nombre de producto | _filtrar de PedidoViewSet (CU41, corrección D3) | reglas de negocio |
 | pedidos | test_ordena_por_saldo_y_por_estado | orden=-saldo pone primero al que más debe; orden=estado sigue el orden del trabajo | ORDENES de PedidoViewSet (CU41, corrección D3) | reglas de negocio |
 | pedidos | test_un_parametro_invalido_da_400 | Un estado o un orden que no existen responden 400 con mensaje; uno válido pasa | _filtrar y ordenar() de config/listados.py (CU41, corrección D3) | validación |
