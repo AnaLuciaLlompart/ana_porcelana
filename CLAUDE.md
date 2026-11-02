@@ -296,7 +296,13 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
 
 - **Autenticación por sesión, no JWT.** Un solo backend, una sola
   usuaria, cookie HttpOnly, logout efectivo. El argumento de CORS no
-  aplica: tengo origen único. Ya lo descartamos dos veces.
+  aplica: tengo origen único. Ya lo descartamos dos veces. La sesión
+  vence a la hora sin uso (`SESSION_COOKIE_AGE = 60 * 60` en `base.py`;
+  corrección del tutor, noviembre de 2026; antes eran 24 h), y
+  `SESSION_SAVE_EVERY_REQUEST` la renueva en cada pedido a la API, así no
+  corta mientras se trabaja; el catálogo público no toca la sesión. La
+  prueba del `Max-Age` compara contra la hora escrita, no contra el
+  setting.
 - **Denegación por defecto:** `IsAuthenticated` global en DRF. Los
   endpoints públicos del catálogo llevarán `AllowAny` explícito.
 - **El usuario del login no distingue mayúsculas; la contraseña sí**

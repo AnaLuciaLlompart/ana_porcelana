@@ -207,11 +207,12 @@ AXES_LOCKOUT_CALLABLE = 'usuarios.views.respuesta_bloqueo'
 
 
 
-# Sesión: dura 24 horas desde la última acción, no desde el login.
+# Sesión: vence a la hora sin uso (corrección del tutor, noviembre de 2026;
+# antes eran 24 horas), contada desde la última acción y no desde el login.
 # SESSION_SAVE_EVERY_REQUEST renueva el vencimiento en cada request
-# (cuesta un UPDATE en django_session por request). El default de Django
-# son 2 semanas fijas.
-SESSION_COOKIE_AGE = 24 * 60 * 60
+# (cuesta un UPDATE en django_session por request), así no corta mientras
+# se trabaja. El default de Django son 2 semanas fijas.
+SESSION_COOKIE_AGE = 60 * 60
 SESSION_SAVE_EVERY_REQUEST = True
 
 

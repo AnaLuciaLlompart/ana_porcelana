@@ -97,13 +97,15 @@ class SeguridadDeLaSesion(PruebaSinSesion):
         self.assertIn('CSRF', respuesta.data['detail'])
 
     def test_cookie_de_sesion_lleva_httponly(self):
-        """La cookie de sesión no se puede leer desde JavaScript."""
+        """La cookie de sesión no se puede leer desde JavaScript, y vence a la hora sin uso (corrección del tutor)."""
         self._crear_usuaria()
         respuesta = self._login(CONTRASENA)
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         cookie = respuesta.cookies[settings.SESSION_COOKIE_NAME]
         self.assertTrue(cookie['httponly'])
-        self.assertEqual(int(cookie['max-age']), settings.SESSION_COOKIE_AGE)
+        # La hora escrita y no settings.SESSION_COOKIE_AGE: así la prueba
+        # protege la decisión, y no solo copia lo que diga el setting.
+        self.assertEqual(int(cookie['max-age']), 60 * 60)
 
     def test_login_bloqueado_tras_intentos_fallidos(self):
         """django-axes: tras AXES_FAILURE_LIMIT fallos, ni la contraseña correcta entra.
