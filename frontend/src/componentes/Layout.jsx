@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexto/AuthContext'
 import { BASE_GESTION } from '../constantes'
 import { FAVICON_GESTION, cambiarFavicon } from '../favicon'
+import ModalConfirmar from './ModalConfirmar'
 
 // Iconos del menú, tomados del diseño (estilo Heroicons outline)
 const NAV = [
@@ -86,6 +87,9 @@ export default function Layout() {
   const pantallaChica = usePantallaChica()
   const [expandida, setExpandida] = useState(true)
   const [menuAbierto, setMenuAbierto] = useState(false)
+  // Si se está preguntando "¿Cerrar sesión?" (corrección del tutor: cerrar
+  // sesión pregunta antes, en escritorio y en el celular).
+  const [preguntarSalir, setPreguntarSalir] = useState(false)
   const navegar = useNavigate()
   const ubicacion = useLocation()
   const { salir } = useAuth()
@@ -129,7 +133,15 @@ export default function Layout() {
     setMenuAbierto(false)
   }
 
+  // Tocar "Cerrar sesión" no sale: cierra el panel en el celular, como
+  // cualquier opción del menú, y pregunta. Sale recién al confirmar.
+  function pedirSalir() {
+    setMenuAbierto(false)
+    setPreguntarSalir(true)
+  }
+
   async function manejarSalir() {
+    setPreguntarSalir(false)
     await salir()
     navegar(`${BASE_GESTION}/login`)
   }
@@ -190,7 +202,7 @@ export default function Layout() {
             title="Cerrar sesión"
             activo={false}
             expandida={conNombres}
-            onClick={manejarSalir}
+            onClick={pedirSalir}
           />
         </div>
       </aside>
@@ -243,6 +255,16 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {preguntarSalir && (
+        <ModalConfirmar
+          titulo="Cerrar sesión"
+          texto="¿Cerrar sesión?"
+          textoAccion="Cerrar sesión"
+          onCerrar={() => setPreguntarSalir(false)}
+          onConfirmar={manejarSalir}
+        />
+      )}
     </div>
   )
 }

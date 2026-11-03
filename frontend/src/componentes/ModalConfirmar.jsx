@@ -3,8 +3,10 @@
 // cierra al hacer clic), copiado de los modales de eliminar sin la llamada
 // a la API. No sabe de navegación ni de API: quien lo abre decide qué pasa
 // al confirmar. Lo usan las tres altas para salir sin crear y para crear sin
-// el contenido principal (productos, fotos, materiales), y las fichas de
-// pedido y de gasto para quitar el último producto o material.
+// el contenido principal (productos, fotos, materiales); las tres fichas
+// para salir sin guardar y para guardar sin el contenido principal; Inicio
+// y la ficha de pedido para avanzar la etapa de una pieza; y el menú
+// lateral para cerrar sesión.
 export default function ModalConfirmar({ titulo, texto, textoAccion, onCerrar, onConfirmar }) {
   return (
     <div
