@@ -119,3 +119,8 @@ LOGGING = {
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
     'rest_framework.renderers.JSONRenderer',
 ]
+
+
+# Correo: siempre por Gmail (base.py). Sin credenciales en el .env el envío
+# falla y queda en el log de arriba; acá no hay consola que lo reemplace.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

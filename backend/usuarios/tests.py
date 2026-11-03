@@ -1,9 +1,16 @@
+import re
+from datetime import datetime, timedelta
+
 from axes.models import AccessAttempt
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
+from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
 from django.contrib.sessions.backends.db import SessionStore
 from django.contrib.sessions.models import Session
+from django.core import mail
 from django.core.cache import cache
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.test import APIClient
 from single_session.models import UserSession
@@ -342,3 +349,181 @@ class UnaSolaSesion(PruebaSinSesion):
         self.assertEqual(navegador.get('/api/auth/sesion/').status_code, status.HTTP_200_OK)
         self.assertEqual(Session.objects.count(), 1)
         self.assertEqual(UserSession.objects.count(), 1)
+
+
+class RecuperarContrasena(PruebaSinSesion):
+    """Recuperar la contraseña por correo (corrección del tutor; el camino de vuelta a CU01).
+
+    El runner de Django pone el backend de correo en memoria: lo que se
+    manda queda en mail.outbox.
+    """
+
+    CORREO = 'ana@example.com'
+    NUEVA = 'Porcelana-nueva-2027'
+    MENSAJE = 'Si el correo está registrado, te enviamos un enlace para elegir una contraseña nueva.'
+    MENSAJE_INVALIDO = 'El enlace venció o ya se usó. Pedí uno nuevo.'
+
+    def setUp(self):
+        super().setUp()
+        self.usuaria = get_user_model().objects.create_user(
+            USUARIA, email=self.CORREO, password=CONTRASENA,
+        )
+
+    def _pedir_enlace(self, email):
+        return self.client.post('/api/auth/recuperar/', {'email': email}, format='json')
+
+    def _enlace_del_correo(self):
+        """El uid y el token del último correo mandado, sacados del texto plano."""
+        return re.search(r'/gestion/restablecer/([^/\s]+)/([^/\s]+)', mail.outbox[-1].body).groups()
+
+    def _enlace_valido(self):
+        """Un uid y un token armados acá, como los arma el backend.
+
+        Se relee la usuaria antes: el token lleva last_login en su firma, y
+        un login por la API lo cambia en la base sin tocar este objeto.
+        """
+        self.usuaria.refresh_from_db()
+        uid = urlsafe_base64_encode(force_bytes(self.usuaria.pk))
+        return uid, default_token_generator.make_token(self.usuaria)
+
+    def _url(self, uid, token):
+        return f'/api/auth/restablecer/{uid}/{token}/'
+
+    def _login(self, password):
+        return self.client.post(
+            '/api/auth/login/', {'username': USUARIA, 'password': password}, format='json',
+        )
+
+    def test_pedir_el_enlace_responde_igual_exista_o_no_el_correo(self):
+        """Los dos responden 200 con el mismo texto; solo el correo registrado recibe el enlace, en texto plano y en HTML."""
+        respuesta = self._pedir_enlace(self.CORREO)
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['detail'], self.MENSAJE)
+
+        self.assertEqual(len(mail.outbox), 1)
+        correo = mail.outbox[0]
+        self.assertEqual(correo.to, [self.CORREO])
+        self.assertEqual(correo.subject, 'Ana Porcelana · Restablecer tu contraseña')
+        uid, token = self._enlace_del_correo()
+        enlace = f'{settings.URL_SITIO}/gestion/restablecer/{uid}/{token}'
+        self.assertIn(enlace, correo.body)
+        self.assertIn('Vale 15 minutos', correo.body)
+        # La versión en HTML, con el botón y el mismo enlace.
+        html, tipo = correo.alternatives[0]
+        self.assertEqual(tipo, 'text/html')
+        self.assertIn(f'href="{enlace}"', html)
+        self.assertIn('Elegir contraseña nueva', html)
+
+        # Un correo que no está registrado: la misma respuesta y ningún correo más.
+        respuesta = self._pedir_enlace('nadie@example.com')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['detail'], self.MENSAJE)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_el_enlace_cambia_la_contrasena_y_sirve_una_sola_vez(self):
+        """GET 200 con el usuario, POST 200; entra con la nueva y no con la vieja; el mismo enlace después da 400."""
+        self._pedir_enlace(self.CORREO)
+        url = self._url(*self._enlace_del_correo())
+
+        respuesta = self.client.get(url)
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['username'], USUARIA)
+
+        respuesta = self.client.post(url, {'password_nueva': self.NUEVA}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['detail'], 'Contraseña actualizada. Ya podés iniciar sesión.')
+
+        self.assertEqual(self._login(CONTRASENA).status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(self._login(self.NUEVA).status_code, status.HTTP_200_OK)
+
+        for metodo in ('get', 'post'):
+            with self.subTest(metodo=metodo):
+                respuesta = getattr(self.client, metodo)(url, {'password_nueva': self.NUEVA}, format='json')
+                self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(respuesta.data['detail'], self.MENSAJE_INVALIDO)
+
+    def test_un_enlace_vencido_o_mal_armado_da_400(self):
+        """Un token de hace 16 minutos, un uid roto, una usuaria que no existe y un token roto dan 400 con el mismo mensaje; uno fresco pasa."""
+        class GeneradorDeHace16Minutos(PasswordResetTokenGenerator):
+            def _now(self):
+                return datetime.now() - timedelta(minutes=16)
+
+        uid, token = self._enlace_valido()
+        casos = {
+            'vencido': (uid, GeneradorDeHace16Minutos().make_token(self.usuaria)),
+            'uid roto': ('zzz', token),
+            'usuaria que no existe': (urlsafe_base64_encode(force_bytes(9999)), token),
+            'token roto': (uid, 'abc-def'),
+        }
+        for caso, (u, t) in casos.items():
+            with self.subTest(caso=caso):
+                respuesta = self.client.get(self._url(u, t))
+                self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(respuesta.data['detail'], self.MENSAJE_INVALIDO)
+
+        self.assertEqual(self.client.get(self._url(uid, token)).status_code, status.HTTP_200_OK)
+
+    def test_la_contrasena_debil_se_rechaza_y_el_enlace_sigue_valido(self):
+        """Vacía o débil, 400 con el mensaje de los validadores; el mismo enlace acepta después una fuerte."""
+        url = self._url(*self._enlace_valido())
+
+        respuesta = self.client.post(url, {'password_nueva': ''}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'Ingresá la contraseña nueva.')
+
+        respuesta = self.client.post(url, {'password_nueva': '12345678'}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertNotEqual(respuesta.data['detail'], self.MENSAJE_INVALIDO)
+        self.assertIn('contraseña', respuesta.data['detail'].lower())
+        self.assertTrue(self.usuaria.check_password(CONTRASENA))
+
+        respuesta = self.client.post(url, {'password_nueva': self.NUEVA}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+
+    def test_restablecer_cierra_las_sesiones_abiertas(self):
+        """Una sesión abierta por el login queda afuera: 403 en la gestión y 401 en /api/auth/sesion/."""
+        abierta = APIClient()
+        datos = {'username': USUARIA, 'password': CONTRASENA}
+        self.assertEqual(abierta.post('/api/auth/login/', datos, format='json').status_code,
+                         status.HTTP_200_OK)
+        self.assertEqual(abierta.get('/api/materiales/').status_code, status.HTTP_200_OK)
+
+        url = self._url(*self._enlace_valido())
+        respuesta = self.client.post(url, {'password_nueva': self.NUEVA}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(abierta.get('/api/materiales/').status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(abierta.get('/api/auth/sesion/').status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(Session.objects.count(), 0)
+
+    def test_restablecer_libera_el_bloqueo_de_axes(self):
+        """Con la usuaria bloqueada por intentos fallidos, restablecer borra los intentos y el login con la nueva entra.
+
+        Entre intento e intento se limpia la caché por el throttle de login,
+        como en test_login_bloqueado_tras_intentos_fallidos.
+        """
+        for _ in range(settings.AXES_FAILURE_LIMIT):
+            cache.clear()
+            self._login('incorrecta')
+        cache.clear()
+        self.assertEqual(self._login(CONTRASENA).status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+        url = self._url(*self._enlace_valido())
+        cache.clear()
+        respuesta = self.client.post(url, {'password_nueva': self.NUEVA}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertFalse(AccessAttempt.objects.filter(username=USUARIA).exists())
+
+        cache.clear()
+        self.assertEqual(self._login(self.NUEVA).status_code, status.HTTP_200_OK)
+
+    def test_pedir_el_enlace_tiene_un_limite_por_hora(self):
+        """El sexto pedido del enlace en una hora desde la misma IP responde 429 (RecuperarThrottle)."""
+        for intento in range(1, 6):
+            with self.subTest(intento=intento):
+                self.assertEqual(self._pedir_enlace('nadie@example.com').status_code,
+                                 status.HTTP_200_OK)
+
+        respuesta = self._pedir_enlace('nadie@example.com')
+        self.assertEqual(respuesta.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertTrue(respuesta.has_header('Retry-After'))

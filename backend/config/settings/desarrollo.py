@@ -22,3 +22,12 @@ CSRF_TRUSTED_ORIGINS = ['http://localhost:5173']
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Correo: con usuario y contraseña en el .env se manda por Gmail, como en
+# producción; sin ellos, el backend de consola imprime el correo en la
+# terminal del runserver, enlace incluido. Las pruebas no pasan por acá:
+# el runner de Django pone el backend en memoria (mail.outbox).
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

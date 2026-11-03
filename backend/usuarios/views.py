@@ -1,8 +1,12 @@
+from axes.utils import reset as reset_axes
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth.tokens import default_token_generator
+from django.contrib.sessions.models import Session
 from django.http import JsonResponse
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.utils.http import urlsafe_base64_decode
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
@@ -11,11 +15,17 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from single_session.models import UserSession
 
+from .correo import enviar_enlace_de_restablecimiento
 from .models import Usuario
 
 
 class LoginThrottle(AnonRateThrottle):
     scope = 'login'
+
+
+class RecuperarThrottle(AnonRateThrottle):
+    """El límite de pedidos del enlace para restablecer la contraseña: 5 por hora por IP."""
+    scope = 'recuperar'
 
 
 def respuesta_bloqueo(request, respuesta_original, credenciales):
@@ -194,4 +204,108 @@ def cambiar_password(request):
     UserSession.objects.create(session_id=request.session.session_key, user=request.user)
 
     return Response({'detail': 'Contraseña actualizada.'})
+
+
+
+
+# ------------- RECUPERAR LA CONTRASEÑA POR CORREO ----------------------
+# Corrección del tutor (noviembre de 2026). No es un caso de uso del
+# listado: es el camino de vuelta a CU01 cuando se olvidó la contraseña.
+
+MENSAJE_ENLACE_INVALIDO = 'El enlace venció o ya se usó. Pedí uno nuevo.'
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([RecuperarThrottle])
+@csrf_protect
+def recuperar_contrasena(request):
+    """Manda por correo el enlace para elegir una contraseña nueva.
+
+    Responde siempre lo mismo, exista o no el correo: así nadie averigua
+    qué correos tienen cuenta. Si Gmail falla, el envío lo registra en el
+    log y la respuesta tampoco cambia.
+    """
+    if not isinstance(request.data, dict):
+        return Response({'detail': 'El cuerpo tiene que ser un objeto JSON.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    email = request.data.get('email', '')
+    if not isinstance(email, str) or not email.strip():
+        return Response({'detail': 'Ingresá tu correo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # El correo no es único en el modelo: a cada usuaria activa que lo tenga
+    # le llega su enlace, como hace el PasswordResetForm de Django.
+    for usuaria in Usuario.objects.filter(email__iexact=email.strip(), is_active=True):
+        enviar_enlace_de_restablecimiento(usuaria)
+
+    return Response({'detail': 'Si el correo está registrado, te enviamos un enlace '
+                               'para elegir una contraseña nueva.'})
+
+
+def _usuaria_del_enlace(uidb64, token):
+    """La usuaria de un enlace que sirve, o None.
+
+    El uid viene en base64 y el token lo revisa el generador de Django:
+    vence a los PASSWORD_RESET_TIMEOUT segundos y deja de servir cuando
+    cambia la contraseña, porque la lleva en su firma. Un uid roto, una
+    usuaria que no existe y un token vencido o usado dan lo mismo: None.
+    """
+    try:
+        pk = urlsafe_base64_decode(uidb64).decode()
+        usuaria = Usuario.objects.get(pk=pk, is_active=True)
+    except (TypeError, ValueError, OverflowError, Usuario.DoesNotExist):
+        return None
+    if not default_token_generator.check_token(usuaria, token):
+        return None
+    return usuaria
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@throttle_classes([LoginThrottle])
+@csrf_protect
+def restablecer_contrasena(request, uidb64, token):
+    """GET: ¿el enlace sirve? POST: guarda la contraseña nueva.
+
+    La nueva pasa por los mismos validadores que CU03. Al cambiarla se
+    cierran todas las sesiones de la usuaria y se libera su bloqueo de
+    axes, si lo tenía. El enlace sirve una sola vez solo: lleva la
+    contraseña en su firma, y al cambiarla deja de coincidir.
+    """
+    usuaria = _usuaria_del_enlace(uidb64, token)
+    if usuaria is None:
+        return Response({'detail': MENSAJE_ENLACE_INVALIDO}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        return Response({'username': usuaria.username})
+
+    if not isinstance(request.data, dict):
+        return Response({'detail': 'El cuerpo tiene que ser un objeto JSON.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    nueva = request.data.get('password_nueva', '')
+    if not isinstance(nueva, str) or not nueva:
+        return Response({'detail': 'Ingresá la contraseña nueva.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        validate_password(nueva, user=usuaria)
+    except ValidationError as e:
+        return Response({'detail': ' '.join(e.messages)},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    usuaria.set_password(nueva)
+    usuaria.save()
+    # Django ya descarta las sesiones de la usuaria en su próximo pedido,
+    # porque cada una guarda una huella de la contraseña. Acá se borran
+    # además las que anotó django-single-session, para no dejar filas
+    # muertas; restablecer no llama a login(), así que la librería no
+    # interviene, y el próximo login anota la sesión nueva como siempre.
+    Session.objects.filter(usersession__user=usuaria).delete()
+    # Si estaba bloqueada por intentos fallidos, el login no entraría ni con
+    # la contraseña nueva: AXES_RESET_ON_SUCCESS solo actúa en uno que entra.
+    reset_axes(username=usuaria.username)
+
+    return Response({'detail': 'Contraseña actualizada. Ya podés iniciar sesión.'})
 

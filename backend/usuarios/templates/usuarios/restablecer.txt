@@ -1,0 +1,10 @@
+{% autoescape off %}Hola, {{ nombre }}:
+
+Recibimos un pedido para restablecer la contraseña de tu usuaria «{{ usuario }}» en la gestión de Ana Porcelana.
+
+Para elegir una contraseña nueva entrá a este enlace. Vale {{ minutos }} minutos y sirve una sola vez:
+
+{{ enlace }}
+
+Si no lo pediste vos, no hace falta que hagas nada: tu contraseña sigue igual.
+{% endautoescape %}

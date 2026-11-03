@@ -4,6 +4,8 @@ import { BASE_GESTION } from './constantes'
 import Layout from './componentes/Layout'
 import LayoutPublico from './componentes/LayoutPublico'
 import Login from './funcionalidades/auth/Login'
+import RecuperarContrasena from './funcionalidades/auth/RecuperarContrasena'
+import RestablecerContrasena from './funcionalidades/auth/RestablecerContrasena'
 import MiCuenta from './funcionalidades/auth/MiCuenta'
 import Materiales from './funcionalidades/materiales/Materiales'
 import Categorias from './funcionalidades/categorias/Categorias'
@@ -80,6 +82,10 @@ const router = createBrowserRouter(
 
         <Route element={<Publico />}>
           <Route path="login" element={<Login />} />
+          {/* Recuperar la contraseña por correo: pedir el enlace y, desde el
+              enlace, elegir la nueva. */}
+          <Route path="recuperar" element={<RecuperarContrasena />} />
+          <Route path="restablecer/:uid/:token" element={<RestablecerContrasena />} />
         </Route>
 
         <Route element={<Protegido />}>

@@ -181,6 +181,7 @@ REST_FRAMEWORK = {
         'user': '200/minute', #usuarios: para el modulo de gestion
         'login': '5/minute', #5 intentos de login por minuto
         'catalogo': '60/minute', # el catálogo público: lo comparten las tres vistas de la app catalogo, por IP
+        'recuperar': '5/hour', # pedidos del enlace para restablecer la contraseña, por IP (RecuperarThrottle)
     },
 }
 
@@ -223,6 +224,29 @@ SESSION_SAVE_EVERY_REQUEST = True
 # de qué depende). LOGOUT_ALL_SESSIONS queda en su default, True.
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SINGLE_USER_SESSION = True
+
+
+
+# Correo (django.core.mail): Gmail con la cuenta del emprendimiento y una
+# contraseña de aplicación, que salen del .env. Si Gmail no contesta, el
+# envío falla a los 10 s y no se come los 30 s del timeout de gunicorn.
+# Qué backend manda el correo lo decide cada entorno: desarrollo.py usa la
+# consola si no hay credenciales; produccion.py, siempre SMTP.
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 10
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+# El remitente que ve quien recibe. Sin uno en el .env, la misma cuenta; y
+# sin cuenta (la consola de desarrollo), el default de Django.
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL') or EMAIL_HOST_USER or 'webmaster@localhost'
+
+# Restablecer la contraseña por correo (corrección del tutor, noviembre de
+# 2026): el enlace vale 15 minutos y se arma con URL_SITIO, que sale de la
+# configuración y no del Host del pedido, que cualquiera puede falsificar.
+PASSWORD_RESET_TIMEOUT = 15 * 60
+URL_SITIO = os.getenv('URL_SITIO', 'http://localhost:5173')
 
 
 

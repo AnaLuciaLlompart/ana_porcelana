@@ -28,7 +28,7 @@ cliente.interceptors.response.use(
 
 
 // Creamos las funciones para el cliente HTTP. Estas las usara React y encapsulan las URL (evito de escribirlas en React). 
-// Las 4 devuelven una PROMESA (como Playwright)
+// Las 7 devuelven una PROMESA (como Playwright)
 
 export function consultarSesion() {
   return cliente.get('/auth/sesion/')
@@ -47,6 +47,20 @@ export function cambiarPassword(passwordActual, passwordNueva) {
     password_actual: passwordActual,
     password_nueva: passwordNueva,
   })
+}
+
+// Recuperar la contraseña por correo (corrección del tutor): pedir el
+// enlace, preguntar si el enlace sirve y guardar la contraseña nueva.
+export function pedirEnlaceDeRestablecimiento(email) {
+  return cliente.post('/auth/recuperar/', { email })
+}
+
+export function validarEnlaceDeRestablecimiento(uid, token) {
+  return cliente.get(`/auth/restablecer/${uid}/${token}/`)
+}
+
+export function restablecerContrasena(uid, token, passwordNueva) {
+  return cliente.post(`/auth/restablecer/${uid}/${token}/`, { password_nueva: passwordNueva })
 }
 
 

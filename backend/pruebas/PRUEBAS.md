@@ -12,18 +12,18 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**177 pruebas**, todas en verde, en once apps (`usuarios` 22, `catalogo`
+**184 pruebas**, todas en verde, en once apps (`usuarios` 29, `catalogo`
 16, `materiales` 18, `categorias` 5, `productos` 27, `clientes` 7,
 `pedidos` 42, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
 | reglas de negocio | 100 |
-| validación | 23 |
+| validación | 24 |
 | permisos | 17 |
 | catálogo | 13 |
 | rendimiento | 8 |
-| seguridad | 11 |
+| seguridad | 17 |
 
 **Cobertura: 89 %** del código del backend (2.588 sentencias, 283 sin
 ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye la app
@@ -61,6 +61,13 @@ rendimiento.
 | usuarios | test_cambiar_la_contrasena_cierra_las_otras_sesiones | Con otra sesión abierta que la librería no anotó, cambiar la contraseña deja a la que cambió en 200 y a la otra en 403 | Modificar contraseña cierra las otras sesiones, por la huella de Django (CU03) | seguridad |
 | usuarios | test_despues_de_cambiar_la_contrasena_otro_login_cierra_la_sesion | Después de cambiar la contraseña, un login en otro navegador con la nueva deja a la primera en 401 y a la segunda en 200 | La sesión con clave nueva de update_session_auth_hash queda anotada en UserSession (CU01, CU03) | seguridad |
 | usuarios | test_el_mismo_navegador_puede_iniciar_sesion_dos_veces | Con la sesión abierta, otro login del mismo navegador responde 200, la sesión sigue y queda una sola fila en django_session y una en UserSession | El flush() de iniciar_sesion esquiva el UpdateError del issue #11 de django-single-session (CU01) | seguridad |
+| usuarios | test_pedir_el_enlace_responde_igual_exista_o_no_el_correo | Un correo registrado y uno que no responden 200 con el mismo texto; solo el primero deja un correo, al destinatario correcto, con el enlace en el texto plano y en el HTML (con el botón) | Recuperar la contraseña por correo sin revelar qué correos existen (corrección del tutor) | seguridad |
+| usuarios | test_el_enlace_cambia_la_contrasena_y_sirve_una_sola_vez | GET del enlace 200 con el usuario, POST 200; entra con la nueva y no con la vieja; el mismo enlace después da 400 en GET y en POST | El token de Django lleva la contraseña en su firma: sirve una sola vez | seguridad |
+| usuarios | test_un_enlace_vencido_o_mal_armado_da_400 | Un token de hace 16 minutos, un uid roto, una usuaria que no existe y un token roto dan 400 con el mismo mensaje; uno fresco pasa | PASSWORD_RESET_TIMEOUT de 15 minutos y un solo mensaje para todo enlace que no sirve | seguridad |
+| usuarios | test_la_contrasena_debil_se_rechaza_y_el_enlace_sigue_valido | Vacía o débil, 400 con el mensaje de los validadores y la contraseña no cambia; el mismo enlace acepta después una fuerte | Los validadores de CU03 también al restablecer | validación |
+| usuarios | test_restablecer_cierra_las_sesiones_abiertas | Una sesión abierta por el login queda afuera al restablecer: 403 en la gestión, 401 en /api/auth/sesion/ y ninguna fila en django_session | Restablecer cierra todas las sesiones (la huella de Django y las anotadas por django-single-session) | seguridad |
+| usuarios | test_restablecer_libera_el_bloqueo_de_axes | Con la usuaria bloqueada por cinco fallos, restablecer borra los AccessAttempt y el login con la nueva responde 200 | Restablecer libera el bloqueo de axes (axes.utils.reset) | seguridad |
+| usuarios | test_pedir_el_enlace_tiene_un_limite_por_hora | El sexto pedido del enlace en una hora desde la misma IP responde 429 con Retry-After | RecuperarThrottle: 5 pedidos por hora por IP | seguridad |
 | finanzas | test_desde_posterior_a_hasta_da_400 | GET con desde 2026-02-01 y hasta 2026-01-01 responde 400 con mensaje | Validación del período (CU61, CU62) | validación |
 | finanzas | test_los_totales_del_periodo_son_correctos | Un cobro de $4.000 y un gasto de $1.500 en marzo dan ingresos, gastos y resultado $2.500 con una fila de cada; un cobro de abril y un gasto de febrero quedan afuera | Ingresos = cobros del período; fecha__range inclusivo (CU61, CU62) | reglas de negocio |
 | finanzas | test_exportar_sin_sesion_da_403 | GET /api/finanzas/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (CU61, CU62, corrección E10) | permisos |

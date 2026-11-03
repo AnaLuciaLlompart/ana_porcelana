@@ -349,6 +349,59 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   admin cierra la sesión de la gestión) y no tiene el `flush`; es
   herramienta de desarrollo. En el servidor hace falta reconstruir la
   imagen del backend; la tabla la crea `arrancar.sh` con `migrate`.
+- **La contraseña se recupera por correo** (corrección del tutor,
+  noviembre de 2026), con lo que trae Django y sin librerías. En el login,
+  "¿Olvidaste tu contraseña?" lleva a `/gestion/recuperar`, que pide el
+  correo: `POST /api/auth/recuperar/` responde siempre 200 con el mismo
+  texto, exista o no el correo, para no revelar qué cuentas existen, y
+  manda el enlace a cada usuaria activa con ese correo (`email__iexact`;
+  el campo no es único). El enlace es `URL_SITIO` +
+  `/gestion/restablecer/<uid>/<token>`, con el uid en base64 y el token de
+  `default_token_generator`: vale 15 minutos (`PASSWORD_RESET_TIMEOUT`) y
+  sirve una sola vez, porque lleva la contraseña en su firma. También lleva
+  `last_login`: si antes de usarlo la usuaria entra con la contraseña de
+  siempre, el enlace deja de servir, y está bien, porque ya no lo
+  necesita (en las pruebas, por eso, el token se arma después del login, con
+  la usuaria releída de la base). Esa pantalla
+  hace `GET /api/auth/restablecer/<uid>/<token>/` al entrar (200 con el
+  usuario, o 400 "El enlace venció o ya se usó. Pedí uno nuevo.", el mismo
+  texto para un uid roto, una usuaria inexistente y un token vencido o
+  usado) y `POST` con la nueva, que pasa por los validadores de CU03. Al
+  guardarla se borran las sesiones anotadas por django-single-session
+  (Django ya descarta las demás por la huella de la contraseña;
+  restablecer no llama a `login()`, así que la librería no interviene y
+  el próximo login anota la nueva) y `axes.utils.reset(username=…)`
+  libera el bloqueo, que `AXES_RESET_ON_SUCCESS` no podría porque
+  bloqueada no entra ningún login. Los 400 son `return` antes de escribir
+  nada. El límite es `RecuperarThrottle`, 5 por hora por IP (`'recuperar'`
+  en `DEFAULT_THROTTLE_RATES`); el GET y el POST del enlace comparten
+  `LoginThrottle` con el login. `URL_SITIO` sale del `.env` y no del
+  `Host` del pedido, que se puede falsificar. El correo
+  (`usuarios/correo.py`) va en HTML, con el botón "Elegir contraseña
+  nueva" en rosa y el enlace debajo para copiarlo, y en texto plano como
+  alternativa, con `send_mail(…, html_message=…)` y dos plantillas en
+  `usuarios/templates/usuarios/`, la primera carpeta `templates/` del
+  proyecto (la `.txt` con `autoescape off`; estilos en línea y `Arial`,
+  porque Gmail no lee hojas de estilo); si Gmail falla, se registra en el
+  log y la respuesta no cambia. Las siete pruebas están en
+  `RecuperarContrasena`. En el frontend, las tres pantallas de acceso
+  (`Login`, `RecuperarContrasena` y `RestablecerContrasena`, en
+  `funcionalidades/auth/`) comparten `PaginaDeAcceso` (la hoja: fondo,
+  ícono, título, subtítulo y pie) y los estilos y el ojo de
+  `auth/presentacion.js`; lo que navega en ellas es un botón con
+  `navegar()`, como en toda la gestión, y las rutas `recuperar` y
+  `restablecer/:uid/:token` van bajo `Publico`, como `login` (con sesión
+  abierta mandan a Inicio).
+- **El correo sale por Gmail con una contraseña de aplicación**
+  (`django.core.mail`, en `base.py`): `smtp.gmail.com`, 587, TLS y
+  `EMAIL_TIMEOUT = 10`, para no comerse los 30 s de gunicorn. Usuario,
+  contraseña y `DEFAULT_FROM_EMAIL` salen del `.env` (plantilla en
+  `.env.dist`; la contraseña nunca va al repositorio ni se muestra). En
+  desarrollo, sin credenciales, `desarrollo.py` usa el backend de consola
+  y el correo sale en la terminal del runserver; `produccion.py` usa SMTP
+  siempre; las pruebas usan el de memoria que pone el runner
+  (`mail.outbox`). Los pasos del servidor están en DESPLIEGUE.md, "El
+  correo".
 - **Denegación por defecto:** `IsAuthenticated` global en DRF. Los
   endpoints públicos del catálogo llevarán `AllowAny` explícito.
 - **El usuario del login no distingue mayúsculas; la contraseña sí**
@@ -1911,7 +1964,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 177 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 184 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con

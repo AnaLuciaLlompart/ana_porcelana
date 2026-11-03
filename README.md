@@ -177,7 +177,7 @@ ana_porcelana/
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
 │   │   ├── tests.py             las 5 generales; las otras 141, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 177 y cómo correrlas
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 184 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -310,6 +310,12 @@ contraseña sí las distingue. Los intentos fallidos de ambas formas suman
 al mismo bloqueo. Hay una única sesión por usuaria: iniciar sesión en
 otro navegador o dispositivo cierra la anterior, que vuelve a la pantalla
 de ingreso igual que una sesión vencida por inactividad.
+
+**Recuperación de la contraseña por correo**, con lo que trae Django:
+el enlace lleva un token firmado que vale 15 minutos y sirve una sola
+vez, y el pedido responde siempre lo mismo, exista o no el correo, para
+no revelar qué cuentas existen. Al restablecerla se cierran todas las
+sesiones y se levanta el bloqueo por intentos fallidos.
 
 **Denegación por defecto** en la API: todo endpoint exige autenticación
 salvo declaración explícita en contra. Una omisión produce un recurso

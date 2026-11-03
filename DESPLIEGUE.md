@@ -159,6 +159,10 @@ completar:
 - `POSTGRES_PASSWORD`: la contraseña de la base, larga. Va una sola vez:
   el backend la toma de acá.
 - `DB_HOST=db`.
+- `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` y
+  `URL_SITIO`: el correo que manda el sistema. Se completan con los pasos
+  de "El correo", más abajo; pueden quedar para después, el resto arranca
+  igual.
 
 Y borrar las líneas `DB_USER` y `DB_PASSWORD`: en el servidor no van,
 porque `docker-compose.yml` las arma con `POSTGRES_USER` y
@@ -762,6 +766,76 @@ Move-Item -Force .env.desarrollo .env
 
 ---
 
+## El correo
+
+El sistema manda correo desde la cuenta de Gmail del emprendimiento
+(`ana.porcelanaaaa@gmail.com`): hoy, el enlace de "¿Olvidaste tu
+contraseña?" del login. Lo manda Django por SMTP con una contraseña de
+aplicación de Google; no se instala nada. Siempre desde la carpeta del
+proyecto.
+
+1. **Comprobar que el servidor puede salir a Gmail:**
+
+   ```bash
+   nc -vz smtp.gmail.com 587
+   ```
+
+   Tiene que decir `succeeded` (u `open`). Si se queda esperando o dice
+   `refused`, DonWeb tiene el puerto 587 bloqueado y hay que pedirles que
+   lo habiliten antes de seguir.
+
+2. **Crear la contraseña de aplicación**, en la cuenta de Google del
+   emprendimiento: Cuenta de Google → Seguridad → Verificación en dos
+   pasos (tiene que estar activa) → Contraseñas de aplicaciones. Son 16
+   letras y se muestran una sola vez. No es la contraseña de la cuenta.
+
+3. **Agregar las variables al `.env`** del servidor (`nano .env`), como
+   dice `.env.dist`:
+
+   ```
+   EMAIL_HOST_USER=ana.porcelanaaaa@gmail.com
+   EMAIL_HOST_PASSWORD=<la contraseña de aplicación>
+   DEFAULT_FROM_EMAIL="Ana Porcelana <ana.porcelanaaaa@gmail.com>"
+   URL_SITIO=https://anaporcelana.com.ar
+   ```
+
+   Y recrear el backend con las variables nuevas (sin `--build`: no hay
+   dependencias nuevas):
+
+   ```bash
+   docker compose up -d --no-deps backend
+   ```
+
+4. **Probar el envío** con el comando que trae Django, a tu correo:
+
+   ```bash
+   docker compose exec backend python manage.py sendtestemail analuciallompart@gmail.com
+   ```
+
+   Si no llega, `docker compose logs --tail 50 backend` dice por qué (una
+   contraseña de aplicación mal copiada da `Username and Password not
+   accepted`).
+
+5. **Cargar tu correo en la usuaria**, que es adonde llega el enlace. Va
+   tu correo personal, el que leés, y no el del emprendimiento. La primera
+   línea muestra el que tiene; la segunda lo carga (`Ana` es el usuario
+   con el que entrás, como está escrito):
+
+   ```bash
+   docker compose exec backend python manage.py shell -c "from django.contrib.auth import get_user_model; u = get_user_model().objects.get(username='Ana'); print(repr(u.email))"
+   docker compose exec backend python manage.py shell -c "from django.contrib.auth import get_user_model; u = get_user_model().objects.get(username='Ana'); u.email = 'analuciallompart@gmail.com'; u.save()"
+   ```
+
+Desde entonces, "¿Olvidaste tu contraseña?" en el login manda el enlace a
+ese correo. Vale 15 minutos y sirve una sola vez; al usarlo se cierran
+todas las sesiones y se levanta el bloqueo por intentos fallidos. Si
+Gmail falla, el login responde igual y el motivo queda en
+`docker compose logs backend`.
+
+En la PC no hace falta nada: sin las variables, el correo se imprime en
+la terminal del runserver, enlace incluido. Para probar un envío real
+desde la PC se ponen las mismas cuatro variables en el `.env` de la PC.
+
 ## Si algo sale mal
 
 - **Un contenedor no queda `Up`** o se reinicia a cada rato: `docker
@@ -806,7 +880,9 @@ Move-Item -Force .env.desarrollo .env
   `ALLOWED_HOSTS`, el dominio con y sin `www`.
 - **nginx sigue en http después de emitir el certificado**: falta el
   `docker compose restart frontend` del paso 8.
-- **La contraseña de la usuaria se perdió**:
+- **La contraseña de la usuaria se perdió**: en el login, "¿Olvidaste tu
+  contraseña?" manda el enlace al correo cargado en la usuaria (ver El
+  correo). Si el correo no está cargado o no llega:
   `docker compose exec backend python manage.py changepassword <usuaria>`.
 - **En la PC, el puerto 80 está ocupado**: `netstat -ano | findstr :80`
   dice qué programa lo usa.
