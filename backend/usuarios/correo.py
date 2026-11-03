@@ -4,10 +4,11 @@ import smtplib
 
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+
+from config.correo import armar_correo
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def enlace_de_restablecimiento(usuaria):
 
 
 def enviar_enlace_de_restablecimiento(usuaria):
-    """Manda el correo con el enlace, en HTML y en texto plano.
+    """Manda el correo con el enlace, en HTML (con el logo) y en texto plano.
 
     Devuelve si se pudo mandar. Si Gmail falla, lo registra y devuelve
     False: la vista responde igual, para no revelar qué correos existen.
@@ -39,13 +40,13 @@ def enviar_enlace_de_restablecimiento(usuaria):
         'minutos': settings.PASSWORD_RESET_TIMEOUT // 60,
     }
     try:
-        send_mail(
+        armar_correo(
             ASUNTO,
+            usuaria.email,
             render_to_string('usuarios/restablecer.txt', contexto),
-            None,  # el remitente es DEFAULT_FROM_EMAIL
-            [usuaria.email],
-            html_message=render_to_string('usuarios/restablecer.html', contexto),
-        )
+            'usuarios/restablecer.html',
+            contexto,
+        ).send()
     except (smtplib.SMTPException, OSError):
         logger.exception('No se pudo mandar el correo de restablecimiento (usuaria %s).',
                          usuaria.pk)

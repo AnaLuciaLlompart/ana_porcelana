@@ -379,11 +379,10 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   `Host` del pedido, que se puede falsificar. El correo
   (`usuarios/correo.py`) va en HTML, con el botón "Elegir contraseña
   nueva" en rosa y el enlace debajo para copiarlo, y en texto plano como
-  alternativa, con `send_mail(…, html_message=…)` y dos plantillas en
-  `usuarios/templates/usuarios/`, la primera carpeta `templates/` del
-  proyecto (la `.txt` con `autoescape off`; estilos en línea y `Arial`,
-  porque Gmail no lee hojas de estilo); si Gmail falla, se registra en el
-  log y la respuesta no cambia. Las siete pruebas están en
+  alternativa, con `armar_correo` de `config/correo.py` (ver "El correo
+  sale por Gmail") y dos plantillas en `usuarios/templates/usuarios/` (la
+  `.html` extiende `correo/base.html`; la `.txt` lleva `autoescape off`);
+  si Gmail falla, se registra en el log y la respuesta no cambia. Las siete pruebas están en
   `RecuperarContrasena`. En el frontend, las tres pantallas de acceso
   (`Login`, `RecuperarContrasena` y `RestablecerContrasena`, en
   `funcionalidades/auth/`) comparten `PaginaDeAcceso` (la hoja: fondo,
@@ -401,7 +400,19 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   y el correo sale en la terminal del runserver; `produccion.py` usa SMTP
   siempre; las pruebas usan el de memoria que pone el runner
   (`mail.outbox`). Los pasos del servidor están en DESPLIEGUE.md, "El
-  correo".
+  correo". **Todos los correos se arman con `armar_correo`**
+  (`config/correo.py`): texto plano, HTML sobre la plantilla base
+  `config/templates/correo/base.html` (el fondo, la tarjeta, el logo y
+  "Ana Porcelana"; esa carpeta está en `TEMPLATES['DIRS']`, y cada app
+  pone sus plantillas en su `templates/`) y el logo del sistema arriba
+  de "Ana Porcelana", como en la hoja del login (pedido de la usuaria).
+  El logo es `config/logo_correo.png`, el favicon de la gestión dibujado
+  a 192 px (48 a 4×, para pantallas de alta resolución; Gmail no muestra
+  SVG), pegado adentro del correo como imagen en línea (`Content-ID`
+  `<logo>`, `mixed_subtype = 'related'`, `alt` "Ana Porcelana") y no como
+  enlace al sitio, así se ve también abriendo el correo sin llegar al
+  servidor. Estilos en línea, tablas y `Arial`, porque Gmail no lee hojas
+  de estilo ni carga tipografías.
 - **Denegación por defecto:** `IsAuthenticated` global en DRF. Los
   endpoints públicos del catálogo llevarán `AllowAny` explícito.
 - **El usuario del login no distingue mayúsculas; la contraseña sí**

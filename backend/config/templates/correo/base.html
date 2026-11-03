@@ -1,0 +1,32 @@
+{% comment %}
+La hoja de todos los correos del sistema: el fondo, la tarjeta blanca, el
+logo (la imagen en línea cid:logo que adjunta config/correo.py) y "Ana
+Porcelana" arriba, y el pie. Cada correo pone sus filas en el bloque
+contenido. Tablas y estilos en línea porque Gmail no lee hojas de estilo
+ni carga tipografías.
+{% endcomment %}<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Ana Porcelana{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background:#FAF7F7;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FAF7F7;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;background:#FFFFFF;border:1px solid #EBE0E2;border-radius:10px;">
+        <tr>
+          <td align="center" style="padding:28px 28px 6px;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;color:#8C5A66;">
+            <img src="cid:logo" alt="Ana Porcelana" width="48" height="48" style="display:block;margin:0 auto 10px;border:0;">
+            Ana Porcelana
+          </td>
+        </tr>
+{% block contenido %}{% endblock %}
+      </table>
+      <p style="margin:20px 0 0;font-family:Arial,sans-serif;font-size:13px;color:#B08791;">Accesorios hechos a mano con ♥</p>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

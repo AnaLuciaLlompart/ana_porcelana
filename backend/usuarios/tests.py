@@ -395,7 +395,7 @@ class RecuperarContrasena(PruebaSinSesion):
         )
 
     def test_pedir_el_enlace_responde_igual_exista_o_no_el_correo(self):
-        """Los dos responden 200 con el mismo texto; solo el correo registrado recibe el enlace, en texto plano y en HTML."""
+        """Los dos responden 200 con el mismo texto; solo el correo registrado recibe el enlace, en texto plano y en HTML con el logo."""
         respuesta = self._pedir_enlace(self.CORREO)
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertEqual(respuesta.data['detail'], self.MENSAJE)
@@ -413,6 +413,12 @@ class RecuperarContrasena(PruebaSinSesion):
         self.assertEqual(tipo, 'text/html')
         self.assertIn(f'href="{enlace}"', html)
         self.assertIn('Elegir contraseña nueva', html)
+        # El logo va pegado adentro del correo (Content-ID) y el HTML lo usa.
+        (logo,) = correo.attachments
+        self.assertEqual(logo.get_content_type(), 'image/png')
+        self.assertEqual(logo['Content-ID'], '<logo>')
+        self.assertIn('src="cid:logo"', html)
+        self.assertEqual(correo.message().get_content_type(), 'multipart/related')
 
         # Un correo que no está registrado: la misma respuesta y ningún correo más.
         respuesta = self._pedir_enlace('nadie@example.com')
