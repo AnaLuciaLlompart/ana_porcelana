@@ -2612,8 +2612,13 @@ lo que lo muestra u oculta es un `transform` en CSS, con las clases
 tocar el fondo oscuro o con Escape. **"Cerrar sesión" pregunta antes**
 (corrección del tutor, noviembre de 2026), en escritorio y en el celular:
 el ítem no sale, cierra el panel como cualquier opción y abre
-`ModalConfirmar` ("Cerrar sesión" / "¿Cerrar sesión?" / Cancelar y
-"Cerrar sesión"); sale recién al confirmar (`preguntarSalir`,
+`ModalConfirmar` ("Cerrar sesión" / "¿Deseás cerrar sesión?" / Cancelar y
+"Salir"; el tutor había escrito "¿Cerrar sesión?" y "Cerrar sesión", y la
+usuaria cambió los textos porque el cartel decía tres veces lo mismo; los
+dos botones del pie miden al menos 104px, lo que mide Cancelar,
+`ANCHO_MINIMO_BOTON` en `ModalConfirmar`, así "Salir" no queda más
+angosto que él, y las acciones más largas de los otros modales no
+cambian); sale recién al confirmar (`preguntarSalir`,
 `pedirSalir` y `manejarSalir` en `Layout.jsx`). Si se cierra sesión desde
 un alta o una ficha con cambios sin guardar, se pierden sin otro aviso,
 como antes: el bloqueo de navegación deja pasar la ida al login, y la

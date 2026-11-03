@@ -7,6 +7,10 @@
 // para salir sin guardar y para guardar sin el contenido principal; Inicio
 // y la ficha de pedido para avanzar la etapa de una pieza; y el menú
 // lateral para cerrar sesión.
+
+// Lo que mide "Cancelar" con su padding (medido en el navegador).
+const ANCHO_MINIMO_BOTON = 104
+
 export default function ModalConfirmar({ titulo, texto, textoAccion, onCerrar, onConfirmar }) {
   return (
     <div
@@ -89,9 +93,13 @@ export default function ModalConfirmar({ titulo, texto, textoAccion, onCerrar, o
             borderTop: '1px solid #EBE0E2',
           }}
         >
+          {/* Los dos botones miden al menos lo que mide Cancelar: una acción
+              corta ("Salir") no queda más angosta que él (pedido de la
+              usuaria). Las acciones más largas siguen midiendo lo suyo. */}
           <button
             onClick={onCerrar}
             style={{
+              minWidth: ANCHO_MINIMO_BOTON,
               padding: '10px 18px',
               border: '1px solid #EBE0E2',
               background: 'white',
@@ -109,6 +117,7 @@ export default function ModalConfirmar({ titulo, texto, textoAccion, onCerrar, o
           <button
             onClick={onConfirmar}
             style={{
+              minWidth: ANCHO_MINIMO_BOTON,
               padding: '10px 18px',
               border: 0,
               background: '#8C5A66',

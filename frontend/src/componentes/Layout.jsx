@@ -87,8 +87,8 @@ export default function Layout() {
   const pantallaChica = usePantallaChica()
   const [expandida, setExpandida] = useState(true)
   const [menuAbierto, setMenuAbierto] = useState(false)
-  // Si se está preguntando "¿Cerrar sesión?" (corrección del tutor: cerrar
-  // sesión pregunta antes, en escritorio y en el celular).
+  // Si se está preguntando "¿Deseás cerrar sesión?" (corrección del tutor:
+  // cerrar sesión pregunta antes, en escritorio y en el celular).
   const [preguntarSalir, setPreguntarSalir] = useState(false)
   const navegar = useNavigate()
   const ubicacion = useLocation()
@@ -259,8 +259,8 @@ export default function Layout() {
       {preguntarSalir && (
         <ModalConfirmar
           titulo="Cerrar sesión"
-          texto="¿Cerrar sesión?"
-          textoAccion="Cerrar sesión"
+          texto="¿Deseás cerrar sesión?"
+          textoAccion="Salir"
           onCerrar={() => setPreguntarSalir(false)}
           onConfirmar={manejarSalir}
         />
