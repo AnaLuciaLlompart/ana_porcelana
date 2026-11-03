@@ -11,11 +11,7 @@ const LARGO_TILDE = 20
 const CENTRADO = 'translate(-50%, -50%)'
 
 
-// accion y onAccion son opcionales. Si llega accion, el aviso lleva al final
-// un botón con ese texto, que al tocarlo llama a onAccion: hoy es el
-// «Deshacer» de la ficha de un gasto. Sin ellos se dibuja exactamente igual
-// que siempre, que es como lo usan las demás pantallas.
-export default function Toast({ texto, accion, onAccion }) {
+export default function Toast({ texto }) {
   const caja = useRef(null)
   const tilde = useRef(null)
 
@@ -94,27 +90,6 @@ export default function Toast({ texto, accion, onAccion }) {
       >
         {texto}
       </span>
-
-      {accion && (
-        <button
-          onClick={onAccion}
-          style={{
-            flexShrink: 0,
-            marginLeft: 4,
-            padding: '6px 14px',
-            border: '1px solid #4E8C6A',
-            background: 'white',
-            color: '#4E8C6A',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontFamily: "'Quicksand', sans-serif",
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
-          {accion}
-        </button>
-      )}
     </div>
   )
 }

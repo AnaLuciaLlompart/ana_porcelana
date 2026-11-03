@@ -91,13 +91,12 @@ class AltaDePedidoCompleta(PruebaDePedido):
     """El alta trae los productos en el mismo POST y se guarda entera o no se guarda (CU40, CU44)."""
 
     def test_el_alta_crea_el_pedido_con_sus_productos(self):
-        """CU40: un POST con dos productos (uno sin precio, otro en Secado) responde 201 con los dos, el precio congelado del catálogo y la etapa con su fecha."""
+        """CU40: un POST con dos productos (uno sin precio) responde 201 con los dos Pendientes, y el precio congelado del catálogo en el que no lo trae."""
         respuesta = self.client.post(LISTA, {
             'cliente': self.cliente.id,
             'productos': [
                 {'producto': self.producto.id, 'cantidad': 2},
-                {'producto': self.producto.id, 'precio': '4000.00', 'descripcion': 'verde',
-                 'estado': ProductoDelPedido.Estado.SECADO},
+                {'producto': self.producto.id, 'precio': '4000.00', 'descripcion': 'verde'},
             ],
         }, format='json')
         self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
@@ -107,11 +106,29 @@ class AltaDePedidoCompleta(PruebaDePedido):
         primera, segunda = nuevo.productos.order_by('id')
         self.assertEqual(primera.precio, Decimal('5000.00'))
         self.assertEqual(primera.cantidad, 2)
-        self.assertEqual(primera.estado, ProductoDelPedido.Estado.PENDIENTE)
         self.assertEqual(segunda.precio, Decimal('4000.00'))
-        self.assertEqual(segunda.estado, ProductoDelPedido.Estado.SECADO)
-        self.assertEqual(segunda.fecha_cambio_estado, timezone.localdate())
+        self.assertEqual(
+            [primera.estado, segunda.estado],
+            [ProductoDelPedido.Estado.PENDIENTE, ProductoDelPedido.Estado.PENDIENTE],
+        )
         self.assertEqual(nuevo.total, Decimal('14000.00'))
+
+    def test_una_pieza_nueva_nace_pendiente(self):
+        """CU40: una fila del alta con una etapa que no es Pendiente responde 400 con su fila y no se crea nada; con Pendiente pasa (corrección del tutor)."""
+        cuerpo = {'cliente': self.cliente.id, 'productos': [
+            {'producto': self.producto.id},
+            {'producto': self.producto.id, 'estado': ProductoDelPedido.Estado.SECADO},
+        ]}
+        respuesta = self.client.post(LISTA, cuerpo, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['productos'], [
+            'Fila 2 (Aros Hedwig): Una pieza nueva nace Pendiente: la etapa se avanza después, de a una.',
+        ])
+        self.assertEqual(ProductoDelPedido.objects.count(), 0)
+
+        cuerpo['productos'][1]['estado'] = ProductoDelPedido.Estado.PENDIENTE
+        respuesta = self.client.post(LISTA, cuerpo, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_201_CREATED)
 
     def test_si_falla_un_producto_no_queda_el_pedido(self):
         """CU40: con la segunda fila inválida responde 400 con la fila y no queda ni el pedido ni la primera fila; 'productos' que no es lista da 400; sin 'productos' el POST crea el pedido solo."""
@@ -189,10 +206,38 @@ class CobrosDelPedido(PruebaDePedido):
 
 
 class EstadoDelPedido(PruebaDePedido):
-    """Un pedido no puede estar Listo con piezas sin terminar, en las dos direcciones (CU42, CU44)."""
+    """El estado avanza de a uno, y un pedido no puede estar Listo con piezas sin terminar (CU42, CU44, CU46, CU47)."""
+
+    def test_el_estado_avanza_de_a_uno_sin_saltear_ni_retroceder(self):
+        """CU42: saltear, retroceder y pasar del último dan 400 con el próximo estado; avanzar de a uno pasa (corrección del tutor)."""
+        self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
+
+        rechazos = [
+            (Pedido.Estado.LISTO, 'El pedido está Pendiente: el próximo estado es En producción.'),
+            (Pedido.Estado.EN_PRODUCCION, None),
+            (Pedido.Estado.PENDIENTE, 'El pedido está En producción: el próximo estado es Listo.'),
+            (Pedido.Estado.ENTREGADO, 'El pedido está En producción: el próximo estado es Listo.'),
+            (Pedido.Estado.LISTO, None),
+            (Pedido.Estado.ENTREGADO, None),
+            (Pedido.Estado.LISTO, 'El pedido ya está Entregado: es el último estado.'),
+        ]
+        for estado, mensaje in rechazos:
+            with self.subTest(estado=estado):
+                respuesta = self.cambiar_estado(estado)
+                if mensaje is None:
+                    self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+                    self.assertEqual(respuesta.data['estado'], estado)
+                else:
+                    self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+                    self.assertEqual(respuesta.data['detail'], mensaje)
+
+        self.pedido.refresh_from_db()
+        self.assertEqual(self.pedido.estado, Pedido.Estado.ENTREGADO)
 
     def test_no_pasa_a_listo_con_piezas_sin_terminar(self):
-        """CU42: sin productos o con una pieza sin terminar responde 400; con todo terminado pasa."""
+        """CU42: desde En producción, sin productos o con una pieza sin terminar responde 400; con todo terminado pasa."""
+        self.assertEqual(self.cambiar_estado(Pedido.Estado.EN_PRODUCCION).status_code, status.HTTP_200_OK)
+
         respuesta = self.cambiar_estado(Pedido.Estado.LISTO)
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
@@ -200,7 +245,7 @@ class EstadoDelPedido(PruebaDePedido):
             'No se puede marcar el pedido como Listo: todavía no tiene productos cargados.',
         )
 
-        terminada = self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
+        self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
         pendiente = self.agregar_pieza()
         respuesta = self.cambiar_estado(Pedido.Estado.LISTO)
         self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
@@ -209,7 +254,7 @@ class EstadoDelPedido(PruebaDePedido):
             'No se puede marcar el pedido como Listo: falta terminar 1 de los 2 productos del pedido.',
         )
         self.pedido.refresh_from_db()
-        self.assertEqual(self.pedido.estado, Pedido.Estado.PENDIENTE)
+        self.assertEqual(self.pedido.estado, Pedido.Estado.EN_PRODUCCION)
 
         pendiente.estado = ProductoDelPedido.Estado.TERMINADO
         pendiente.save()
@@ -217,23 +262,79 @@ class EstadoDelPedido(PruebaDePedido):
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertEqual(respuesta.data['estado'], Pedido.Estado.LISTO)
 
-    def test_agregar_una_pieza_a_un_pedido_listo_lo_baja_a_en_produccion(self):
-        """CU44: la pieza nueva nace Pendiente, así que el pedido Listo vuelve a En producción."""
-        self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
+    def test_un_pedido_listo_no_acepta_cambios_en_sus_productos(self):
+        """CU44, CU46 y CU47: con el pedido Listo, agregar, modificar, quitar y el PUT con 'productos' responden 400 y nada cambia; el PUT sin 'productos' sigue cambiando los datos (decisión con la corrección del tutor)."""
+        pieza = self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
+        self.cambiar_estado(Pedido.Estado.EN_PRODUCCION)
         self.assertEqual(self.cambiar_estado(Pedido.Estado.LISTO).status_code, status.HTTP_200_OK)
+        mensaje = 'El pedido está Listo: sus productos ya no se pueden agregar, quitar ni modificar.'
+        fila = url(self.pedido, f'productos/{pieza.id}/')
 
         respuesta = self.client.post(url(self.pedido, 'productos/'), {'producto': self.producto.id})
+        self.assertEqual((respuesta.status_code, respuesta.data['detail']), (status.HTTP_400_BAD_REQUEST, mensaje))
+        respuesta = self.client.patch(fila, {'cantidad': 3})
+        self.assertEqual((respuesta.status_code, respuesta.data['detail']), (status.HTTP_400_BAD_REQUEST, mensaje))
+        respuesta = self.client.delete(fila)
+        self.assertEqual((respuesta.status_code, respuesta.data['detail']), (status.HTTP_400_BAD_REQUEST, mensaje))
+
+        respuesta = self.client.put(url(self.pedido), {
+            'cliente': self.cliente.id,
+            'productos': [{'id': pieza.id, 'producto': self.producto.id, 'cantidad': 1}],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['productos'], [mensaje])
+
+        pieza.refresh_from_db()
+        self.assertEqual(pieza.cantidad, 1)
+        self.assertEqual(self.pedido.productos.count(), 1)
+
+        respuesta = self.client.put(
+            url(self.pedido), {'cliente': self.cliente.id, 'fecha_entrega_estimada': '2026-12-20'},
+            format='json',
+        )
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
-        self.assertEqual(respuesta.data['estado'], Pedido.Estado.EN_PRODUCCION)
-        self.pedido.refresh_from_db()
-        self.assertEqual(self.pedido.estado, Pedido.Estado.EN_PRODUCCION)
+        self.assertEqual(respuesta.data['estado'], Pedido.Estado.LISTO)
+
+
+class EtapaDelProducto(PruebaDePedido):
+    """La etapa de una pieza avanza de a una, por el PATCH de etapa (CU46, corrección del tutor)."""
+
+    def test_la_etapa_avanza_de_a_una_sin_saltear_ni_retroceder(self):
+        """CU46: saltear, retroceder, pasar de Terminado y una etapa que no existe dan 400; avanzar de a una pasa y anota la fecha de hoy."""
+        pieza = self.agregar_pieza()
+        ProductoDelPedido.objects.filter(pk=pieza.pk).update(fecha_cambio_estado='2026-01-01')
+        fila = url(self.pedido, f'productos/{pieza.id}/')
+        Etapa = ProductoDelPedido.Estado
+
+        pasos = [
+            (Etapa.SECADO, '«Aros Hedwig» está en Pendiente: la próxima etapa es Modelado.'),
+            (Etapa.MODELADO, None),
+            (Etapa.PENDIENTE, '«Aros Hedwig» está en Modelado: la próxima etapa es Secado.'),
+            ('PERDIDO', 'Esa no es una etapa válida para un producto del pedido.'),
+            (Etapa.SECADO, None),
+            (Etapa.PINTURA_BARNIZ, None),
+            (Etapa.TERMINADO, None),
+            (Etapa.PINTURA_BARNIZ, '«Aros Hedwig» ya está Terminado: es la última etapa.'),
+        ]
+        for etapa, mensaje in pasos:
+            with self.subTest(etapa=etapa):
+                respuesta = self.client.patch(fila, {'estado': etapa})
+                if mensaje is None:
+                    self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+                    self.assertEqual(respuesta.data['productos'][0]['estado'], etapa)
+                else:
+                    self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+                    self.assertEqual(respuesta.data['detail'], mensaje)
+
+        pieza.refresh_from_db()
+        self.assertEqual((pieza.estado, pieza.fecha_cambio_estado), (Etapa.TERMINADO, timezone.localdate()))
 
 
 class FechaDeEntregaReal(PruebaDePedido):
     """La fecha de entrega real la escribe el pase a Entregado y nadie más (CU42)."""
 
     def test_la_fecha_de_entrega_real_solo_la_escribe_entregado(self):
-        """CU42: un PUT con la fecha la ignora; Entregado escribe hoy; salir de Entregado la borra."""
+        """CU42: un PUT con la fecha la ignora; avanzando de a uno, solo Entregado escribe hoy, y como de Entregado no se sale, la fecha queda."""
         self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
 
         respuesta = self.client.put(
@@ -244,13 +345,19 @@ class FechaDeEntregaReal(PruebaDePedido):
         self.pedido.refresh_from_db()
         self.assertIsNone(self.pedido.fecha_entrega_real)
 
+        for estado in (Pedido.Estado.EN_PRODUCCION, Pedido.Estado.LISTO):
+            respuesta = self.cambiar_estado(estado)
+            self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+            self.assertIsNone(respuesta.data['fecha_entrega_real'])
+
         respuesta = self.cambiar_estado(Pedido.Estado.ENTREGADO)
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertEqual(respuesta.data['fecha_entrega_real'], str(timezone.localdate()))
 
         respuesta = self.cambiar_estado(Pedido.Estado.LISTO)
-        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
-        self.assertIsNone(respuesta.data['fecha_entrega_real'])
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.pedido.refresh_from_db()
+        self.assertEqual(self.pedido.fecha_entrega_real, timezone.localdate())
 
 
 class FormaDeEntrega(PruebaDePedido):
@@ -296,14 +403,16 @@ class GuardadoDePedidoCompleto(PruebaDePedido):
     productos, y se aplica entero o no se aplica (CU42, CU44, CU46, CU47;
     corrección del tutor).
 
-    Arranca con un pedido Listo con dos piezas terminadas.
+    Arranca con un pedido En producción con una pieza terminada y otra, de
+    dos unidades, en Secado. (Uno Listo ya no acepta cambios en sus
+    productos: ver test_un_pedido_listo_no_acepta_cambios_en_sus_productos.)
     """
 
     def setUp(self):
         super().setUp()
         self.terminada = self.agregar_pieza(estado=ProductoDelPedido.Estado.TERMINADO)
-        self.otra = self.agregar_pieza(cantidad=2, estado=ProductoDelPedido.Estado.TERMINADO)
-        self.pedido.estado = Pedido.Estado.LISTO
+        self.otra = self.agregar_pieza(cantidad=2, estado=ProductoDelPedido.Estado.SECADO)
+        self.pedido.estado = Pedido.Estado.EN_PRODUCCION
         self.pedido.save()
 
     def fila(self, linea, **cambios):
@@ -316,13 +425,13 @@ class GuardadoDePedidoCompleto(PruebaDePedido):
         return datos
 
     def test_el_put_quita_modifica_y_agrega_productos_en_un_pedido(self):
-        """CU42, CU46, CU47 y CU44: un PUT con la lista completa cambia los datos, quita la fila que no viene, cambia cantidad y etapa de la que sigue, agrega la nueva con su etapa y, como quedaron piezas sin terminar, baja el pedido Listo a En producción."""
+        """CU42, CU46, CU47 y CU44: un PUT con la lista completa cambia los datos, quita la fila que no viene, cambia la cantidad de la que sigue (su etapa queda) y agrega la nueva, que nace Pendiente con el precio congelado; el estado del pedido no cambia."""
         respuesta = self.client.put(url(self.pedido), {
             'cliente': self.cliente.id,
             'fecha_entrega_estimada': '2026-12-20',
             'productos': [
-                self.fila(self.terminada, cantidad=3, estado=ProductoDelPedido.Estado.SECADO),
-                {'producto': self.producto.id, 'cantidad': 2, 'estado': ProductoDelPedido.Estado.MODELADO},
+                self.fila(self.terminada, cantidad=3),
+                {'producto': self.producto.id, 'cantidad': 2},
             ],
         }, format='json')
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
@@ -333,14 +442,53 @@ class GuardadoDePedidoCompleto(PruebaDePedido):
         self.assertFalse(ProductoDelPedido.objects.filter(pk=self.otra.pk).exists())
         self.terminada.refresh_from_db()
         self.assertEqual(
-            (self.terminada.cantidad, self.terminada.estado, self.terminada.fecha_cambio_estado),
-            (3, ProductoDelPedido.Estado.SECADO, timezone.localdate()),
+            (self.terminada.cantidad, self.terminada.estado),
+            (3, ProductoDelPedido.Estado.TERMINADO),
         )
         nueva = self.pedido.productos.exclude(pk=self.terminada.pk).get()
         self.assertEqual(
             (nueva.cantidad, nueva.estado, str(nueva.precio)),
-            (2, ProductoDelPedido.Estado.MODELADO, '5000.00'),
+            (2, ProductoDelPedido.Estado.PENDIENTE, '5000.00'),
         )
+
+    def test_el_put_no_cambia_la_etapa(self):
+        """CU42 y CU46: una fila guardada con la etapa salteada o retrocedida, o una nueva que no es Pendiente, responde 400 con 'productos' y su fila, y nada cambia; con las etapas de siempre el PUT pasa (corrección del tutor)."""
+        mensaje_guardada = (
+            'Fila 2 (Aros Hedwig): La etapa no se cambia al guardar el pedido: '
+            'se avanza con su botón, de a una.'
+        )
+        for etapa in (ProductoDelPedido.Estado.TERMINADO, ProductoDelPedido.Estado.MODELADO):
+            with self.subTest(etapa=etapa):
+                respuesta = self.client.put(url(self.pedido), {
+                    'cliente': self.cliente.id,
+                    'productos': [self.fila(self.terminada), self.fila(self.otra, cantidad=5, estado=etapa)],
+                }, format='json')
+                self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertEqual(respuesta.data['productos'], [mensaje_guardada])
+
+        respuesta = self.client.put(url(self.pedido), {
+            'cliente': self.cliente.id,
+            'productos': [
+                self.fila(self.terminada), self.fila(self.otra),
+                {'producto': self.producto.id, 'estado': ProductoDelPedido.Estado.SECADO},
+            ],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['productos'], [
+            'Fila 3 (Aros Hedwig): Una pieza nueva nace Pendiente: la etapa se avanza después, de a una.',
+        ])
+
+        self.otra.refresh_from_db()
+        self.assertEqual((self.otra.cantidad, self.otra.estado), (2, ProductoDelPedido.Estado.SECADO))
+        self.assertEqual(self.pedido.productos.count(), 2)
+
+        respuesta = self.client.put(url(self.pedido), {
+            'cliente': self.cliente.id,
+            'productos': [self.fila(self.terminada), self.fila(self.otra, cantidad=5)],
+        }, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.otra.refresh_from_db()
+        self.assertEqual((self.otra.cantidad, self.otra.estado), (5, ProductoDelPedido.Estado.SECADO))
 
     def test_si_falla_una_fila_el_pedido_queda_como_estaba(self):
         """CU42: con una fila de un producto inexistente el PUT responde 400 con 'productos' y su fila, y ni los datos, ni las piezas, ni el estado cambian."""
@@ -354,7 +502,7 @@ class GuardadoDePedidoCompleto(PruebaDePedido):
 
         self.pedido.refresh_from_db()
         self.assertIsNone(self.pedido.fecha_entrega_estimada)
-        self.assertEqual(self.pedido.estado, Pedido.Estado.LISTO)
+        self.assertEqual(self.pedido.estado, Pedido.Estado.EN_PRODUCCION)
         self.terminada.refresh_from_db()
         self.assertEqual(self.terminada.cantidad, 1)
         self.assertEqual(self.pedido.productos.count(), 2)
@@ -367,10 +515,10 @@ class GuardadoDePedidoCompleto(PruebaDePedido):
         )
         self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
         self.assertEqual(respuesta.data['fecha_entrega_estimada'], '2026-12-20')
-        self.assertEqual(respuesta.data['estado'], Pedido.Estado.LISTO)
+        self.assertEqual(respuesta.data['estado'], Pedido.Estado.EN_PRODUCCION)
         self.assertEqual(
             sorted((linea.cantidad, linea.estado) for linea in self.pedido.productos.all()),
-            [(1, ProductoDelPedido.Estado.TERMINADO), (2, ProductoDelPedido.Estado.TERMINADO)],
+            [(1, ProductoDelPedido.Estado.TERMINADO), (2, ProductoDelPedido.Estado.SECADO)],
         )
 
 

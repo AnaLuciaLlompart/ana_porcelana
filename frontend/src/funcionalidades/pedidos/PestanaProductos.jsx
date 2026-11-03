@@ -1,14 +1,15 @@
 import BotonAccion from '../../componentes/BotonAccion'
+import BotonAvanzar from '../../componentes/BotonAvanzar'
 import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
 import { ANCHO_MAXIMO } from '../../constantes'
 import {
   COLOR_ETAPA,
-  ETAPAS,
   ICONO_CRUZ,
   ICONO_EDITAR,
   ICONO_MAS,
   diasEnEtapa,
   formatearPrecio,
+  siguienteEtapa,
 } from './presentacion'
 
 
@@ -40,9 +41,18 @@ const estiloCartelError = {
 
 // Una fila de la tabla: una pieza encargada, con su cantidad, su precio
 // congelado y en qué etapa productiva está.
-function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
+//
+// La etapa es un chip y, debajo, "Avanzar a …" (corrección del tutor: avanza
+// de a una, con confirmación). Es una acción que se aplica al instante,
+// aunque la tabla sea parte del formulario: la excepción a "Formulario o
+// acción" que decidió la usuaria. Sin onAvanzarEtapa (el alta) solo va el
+// chip; en una pieza todavía sin guardar el botón va apagado, porque el
+// PATCH necesita la fila guardada. bloqueado es el motivo por el que el
+// lápiz y la cruz van apagados, o ''.
+function Fila({ producto, bloqueado, onEditar, onAvanzarEtapa, onQuitar }) {
   const etapa = COLOR_ETAPA[producto.estado]
   const desde = diasEnEtapa(producto)
+  const siguiente = siguienteEtapa(producto.estado)
 
   return (
     <tr style={{ borderTop: '1px solid #EBE0E2', verticalAlign: 'top' }}>
@@ -96,16 +106,11 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
       </td>
 
       <td style={{ padding: '11px 8px' }}>
-        <select
-          value={producto.estado}
-          onChange={(e) => onCambiarEtapa(producto, e.target.value)}
+        <span
           style={{
-            width: '100%',
-            maxWidth: 190,
-            padding: '8px 10px',
+            display: 'inline-block',
+            padding: '5px 10px',
             borderRadius: 6,
-            cursor: 'pointer',
-            outline: 'none',
             fontFamily: "'Quicksand', sans-serif",
             fontWeight: 600,
             fontSize: 13,
@@ -114,12 +119,19 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
             color: etapa.color,
           }}
         >
-          {ETAPAS.map((e) => (
-            <option key={e.valor} value={e.valor}>
-              {e.label}
-            </option>
-          ))}
-        </select>
+          {producto.estado_display}
+        </span>
+
+        {onAvanzarEtapa && siguiente && (
+          <div style={{ marginTop: 6 }}>
+            <BotonAvanzar
+              texto={`Avanzar a ${siguiente.label}`}
+              onClick={() => onAvanzarEtapa(producto)}
+              deshabilitado={producto.id < 0}
+              motivo="Guardá el pedido para avanzar esta pieza"
+            />
+          </div>
+        )}
 
         {desde && (
           <p
@@ -139,20 +151,22 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
           <BotonAccion
             onClick={() => onEditar(producto)}
-            titulo="Editar"
+            titulo={bloqueado || 'Editar'}
             color="#8C5A66"
             hover="#F0E2E4"
             tamanoIcono={20}
             icono={ICONO_EDITAR}
+            deshabilitado={Boolean(bloqueado)}
           />
 
           <BotonAccion
             onClick={() => onQuitar(producto)}
-            titulo="Quitar producto"
+            titulo={bloqueado || 'Quitar producto'}
             color="#C0442F"
             hover="#FAEAE8"
             tamanoIcono={20}
             icono={ICONO_CRUZ}
+            deshabilitado={Boolean(bloqueado)}
           />
         </div>
       </td>
@@ -161,13 +175,15 @@ function Fila({ producto, onEditar, onCambiarEtapa, onQuitar }) {
 }
 
 
+// bloqueado y onAvanzarEtapa son opcionales: los pasa la ficha y no el alta.
 export default function PestanaProductos({
   productos,
   subtotal,
   error,
+  bloqueado = '',
   onAgregar,
   onEditar,
-  onCambiarEtapa,
+  onAvanzarEtapa,
   onQuitar,
 }) {
   return (
@@ -184,6 +200,8 @@ export default function PestanaProductos({
       <EncabezadoDeTarjeta titulo="PRODUCTOS DEL PEDIDO">
         <button
           onClick={onAgregar}
+          disabled={Boolean(bloqueado)}
+          title={bloqueado || undefined}
           className="btn-reponer"
           style={{
             display: 'flex',
@@ -195,7 +213,8 @@ export default function PestanaProductos({
             background: 'white',
             color: '#8C5A66',
             borderRadius: 5,
-            cursor: 'pointer',
+            cursor: bloqueado ? 'default' : 'pointer',
+            opacity: bloqueado ? 0.5 : undefined,
             fontFamily: "'Quicksand', sans-serif",
             fontWeight: 600,
             fontSize: 14,
@@ -208,7 +227,7 @@ export default function PestanaProductos({
         </button>
       </EncabezadoDeTarjeta>
 
-      {/* El error de agregar, editar, cambiar la etapa o quitar va acá,
+      {/* El error de guardar los productos o de avanzar una etapa va acá,
           pegado a la tabla, como en los materiales del gasto. */}
       {error && (
         <div style={{ padding: '14px 20px 0' }}>
@@ -231,7 +250,7 @@ export default function PestanaProductos({
             <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ ...estiloTh, width: '37%', padding: '10px 20px', textAlign: 'left' }}>
+                  <th style={{ ...estiloTh, width: '32%', padding: '10px 20px', textAlign: 'left' }}>
                     PRODUCTO
                   </th>
                   <th style={{ ...estiloTh, width: '9%', textAlign: 'center' }}>CANTIDAD</th>
@@ -239,7 +258,9 @@ export default function PestanaProductos({
                     PRECIO UNITARIO
                   </th>
                   <th style={{ ...estiloTh, width: '11%', textAlign: 'right' }}>SUBTOTAL</th>
-                  <th style={{ ...estiloTh, width: '18%', textAlign: 'left' }}>ETAPA</th>
+                  {/* 23 % y no 18: "Avanzar a Pintura-Barniz" mide 191 px y,
+                      con la tabla en su mínimo de 940, necesita 207. */}
+                  <th style={{ ...estiloTh, width: '23%', textAlign: 'left' }}>ETAPA</th>
                   <th style={{ ...estiloTh, width: '10%', textAlign: 'center' }}>ACCIONES</th>
                 </tr>
               </thead>
@@ -252,8 +273,9 @@ export default function PestanaProductos({
                   <Fila
                     key={p.id}
                     producto={p}
+                    bloqueado={bloqueado}
                     onEditar={onEditar}
-                    onCambiarEtapa={onCambiarEtapa}
+                    onAvanzarEtapa={onAvanzarEtapa}
                     onQuitar={onQuitar}
                   />
                 ))}

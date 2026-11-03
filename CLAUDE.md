@@ -170,33 +170,50 @@ y en la pantalla su formulario ya está apagado.
 Revisadas todas las pantallas de la gestión (octubre de 2026), no queda
 otro control instantáneo dentro de un formulario con Guardar. El estado y
 los cobros del pedido son acciones, y desde A1 viven en la fila del
-listado. Las tres fichas (producto, pedido y gasto) son un solo
-formulario, tablas, fotos y categorías incluidas, y no tienen acciones al
-instante. Dar de baja y Reactivar un producto se hacen desde el listado.
+listado; el estado, desde noviembre de 2026, también en la cabecera de la
+ficha, fuera de las tarjetas del formulario. Las tres fichas (producto, pedido y gasto) son un solo
+formulario, tablas, fotos y categorías incluidas. Dar de baja y Reactivar
+un producto se hacen desde el listado.
+
+**La excepción: avanzar la etapa de una pieza en la ficha del pedido**
+(decidida por la usuaria con la corrección del tutor de noviembre de 2026,
+"los estados solo avanzan de a uno"). La tarjeta PRODUCTOS DEL PEDIDO es
+parte del formulario (agregar, editar y quitar esperan a Guardar), pero
+"Avanzar a …" de cada pieza es una acción: confirma con `ModalConfirmar`
+("¿Pasar «Aros Hedwig» a Secado? No se puede volver atrás."), va al
+instante con el PATCH de etapa y avisa con el aviso flotante, igual que en
+Inicio. No toca el resto del borrador: la respuesta reemplaza al pedido
+guardado y en el borrador cambian solo la etapa y su fecha en esa fila. En
+una pieza nueva, todavía sin guardar, el botón va apagado ("Guardá el
+pedido para avanzar esta pieza"). Se aceptó la mezcla porque la etapa no es
+un dato que se edita sino un paso que se da, y el botón se distingue del
+formulario.
 
 **La ficha de pedido es un solo formulario** (decidido por la usuaria
 junto con las correcciones del tutor del 28/10/2026; reemplaza, para el
 pedido, la decisión 10 de esas correcciones, que dejaba los productos
 como acciones). Datos y Productos del pedido se editan sobre un mismo
 borrador y se guardan con un único Guardar, abajo de todo; el pie salió
-de la tarjeta Datos. Agregar, editar, cambiar la etapa y quitar un
-producto escriben en el borrador, como en el alta (`lineaEnMemoria`, en
-`pedidos/presentacion.js`, la comparten los dos). Guardar es un solo `PUT
-/api/pedidos/<id>/` con los datos y la lista COMPLETA de productos del
-borrador, cada uno con su `id` (las piezas nuevas con el provisorio
-negativo y su etapa): `update()` bloquea la fila, guarda los datos y
-`_sincronizar_productos` compara la lista con lo guardado dentro de la
-transacción (quita las que no vienen, modifica las que siguen con
-`_modificar_producto`, agrega las nuevas con `_agregar_producto`), y al
-final `_bajar_si_quedo_incompleto` corre una sola vez (corrección del
-tutor, noviembre de 2026; antes era una cadena de los endpoints de
-siempre, no atómica, que avisaba "Lo anterior quedó guardado."). Si una
-fila falla, 400 con la clave `productos` y "Fila N (nombre): …", el pedido
-queda como estaba y el error va pegado a la tabla; el de los datos, en la
-tarjeta Datos. Sin `productos`, el PUT de siempre no toca las piezas. El
-botón dice "Guardando…". Si todo sale bien, vuelve al listado, que muestra
-el modal "Cambios guardados" (y, si el backend bajó el pedido a En
-producción, lo dice).
+de la tarjeta Datos. Agregar, editar y quitar un producto escriben en el
+borrador, como en el alta (`lineaEnMemoria`, en `pedidos/presentacion.js`,
+la comparten los dos); avanzar su etapa no, es la excepción de arriba.
+Guardar es un solo `PUT /api/pedidos/<id>/` con los datos y la lista
+COMPLETA de productos del borrador, cada uno con su `id` (las piezas
+nuevas con el provisorio negativo) y sin la etapa: `update()` bloquea la
+fila, guarda los datos y `_sincronizar_productos` compara la lista con lo
+guardado dentro de la transacción (quita las que no vienen, modifica las
+que siguen con `_modificar_producto`, agrega las nuevas con
+`_agregar_producto`, que nacen Pendientes) (corrección del tutor,
+noviembre de 2026; antes era una cadena de los endpoints de siempre, no
+atómica, que avisaba "Lo anterior quedó guardado."). Una fila que trae una
+etapa distinta de la guardada responde 400: la etapa no se cambia al
+guardar. Si una fila falla, 400 con la clave `productos` y "Fila N
+(nombre): …", el pedido queda como estaba y el error va pegado a la tabla;
+el de los datos, en la tarjeta Datos. Sin `productos`, el PUT de siempre
+no toca las piezas; un pedido Listo o Entregado no los acepta, y su ficha
+no los manda (ver "Un pedido Listo o Entregado no admite cambios en sus
+productos", en Módulo Pedidos). El botón dice "Guardando…". Si todo sale
+bien, vuelve al listado, que muestra el modal "Cambios guardados".
 Salir con cambios sin guardar pregunta "Salir sin guardar" con el mismo
 `useBlocker` de las altas, solo cuando hay cambios, y el navegador avisa
 con `beforeunload`. La ficha de gasto funciona igual (ver Módulo Gastos),
@@ -317,7 +334,8 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   a seguir). Las acciones de a una fila siguen en los ViewSets y en los
   `api.js` (una función por endpoint), y comparten sus métodos con
   `create()` y `update()`, una puerta por regla; de la gestión solo Inicio
-  llama a una, el PATCH de etapa de una pieza; las demás, como `publicar` y
+  y la ficha del pedido llaman a una, el PATCH de etapa de una pieza, que
+  es la única puerta a la etapa; las demás, como `publicar` y
   `quitar_del_catalogo`, no las llama ninguna pantalla. Funciona porque
   DRF marca la
   transacción para revertir cuando la vista lanza una de sus excepciones
@@ -347,14 +365,32 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   que termine la transacción (el segundo pedido espera y recién entonces
   lee) y vacía el prefetch, que se leyó antes del candado. Lo llaman las
   tres acciones de cobros, `cambiar_estado`, las tres de productos del
-  pedido, las tres de materiales del gasto y el `update()` del gasto. Las
-  reglas mismas (`_revisar_cobro`, `_revisar_estado`,
-  `_bajar_si_quedo_incompleto`, `_recalcular_monto`) no cambiaron:
-  `cargar_datos_prueba` las sigue llamando con un ViewSet vacío dentro de
-  su propio `atomic`. Los duplicados (material del producto, material del
-  gasto, nombre único) no necesitan candado: los garantiza la base. La
-  prueba `CobrosSimultaneos` (dos hilos, una barrera en `_revisar_cobro`)
-  falla si se saca el candado.
+  pedido, las tres de materiales del gasto y los `update()` del pedido y
+  del gasto. Las reglas mismas (`_revisar_cobro`, `_revisar_estado`,
+  `_recalcular_monto`) no dependen del candado: `cargar_datos_prueba` las
+  sigue llamando con un ViewSet vacío dentro de su propio `atomic`. Los
+  duplicados (material del producto, material del gasto, nombre único) no
+  necesitan candado: los garantiza la base. La prueba `CobrosSimultaneos`
+  (dos hilos, una barrera en `_revisar_cobro`) falla si se saca el candado.
+- **El estado del pedido y la etapa de cada pieza solo avanzan de a uno**
+  (corrección del tutor, noviembre de 2026). Estado: Pendiente → En
+  producción → Listo → Entregado; etapa: Pendiente → Modelado → Secado →
+  Pintura-Barniz → Terminado. Desde cada uno se pasa al siguiente: no se
+  saltea, no se vuelve atrás y del último no se sale. El orden es el de las
+  `TextChoices` del modelo, y `_siguiente(opciones, actual)`, en
+  `pedidos/views.py`, da el que sigue. Una puerta para cada uno:
+  `_revisar_estado` (que suma el orden a la regla de las piezas sin
+  terminar) en `cambiar_estado`, y `_revisar_etapa` en `_avanzar_etapa`, que
+  usa solo el PATCH de etapa; los dos responden 400 con el próximo ("El
+  pedido está En producción: el próximo estado es Listo." / "«Aros Hedwig»
+  está en Secado: la próxima etapa es Pintura-Barniz."). La etapa no entra
+  por ningún otro camino: `ProductoDelPedidoModificarSerializer` no la
+  tiene, una pieza nueva nace Pendiente y el POST del alta o el PUT de la
+  ficha con otra etapa responden 400. El sistema tampoco retrocede solo:
+  un pedido Listo o Entregado no admite cambios en sus productos (ver
+  Módulo Pedidos). En pantalla, todo avance es una acción con
+  confirmación: "Avanzar a <siguiente>" y "No se puede volver atrás". El
+  admin de Django puede cambiarlos a mano: es herramienta de desarrollo.
 - **Modelo de usuario propio** heredando de `AbstractUser`, en la app
   `usuarios`. Conserva grupos y permisos de Django: no los desactives.
 - **Baja lógica** en las entidades que la tienen. Se conserva el
@@ -482,17 +518,17 @@ completa al pasar el pedido a Entregado. Con un solo campo se perdería
 la estimación, y con ella la única forma de saber si se entregó a
 tiempo.
 
-**La fecha de entrega real no se carga a mano: la escribe el botón
+**La fecha de entrega real no se carga a mano: la escribe el pase a
 Entregado y nadie más.** La regla es que un pedido tiene fecha de entrega
 real si y solo si está Entregado. Al entrar a Entregado se escribe siempre
-con la fecha de hoy, aunque el campo ya tuviera una; al salir de Entregado
-se borra, también cuando el pedido baja solo a En producción por tener
-piezas sin terminar. Borrarla hace falta porque el campo va `read_only` en
-el serializer, así que no queda ningún otro lugar donde arreglar un
-Entregado tocado por error. Las dos direcciones viven en un solo método,
-`_guardar_estado`, por donde pasan los dos lugares que cambian el estado.
-El formulario de la ficha muestra el campo apagado y la fecha no forma
-parte del borrador, así que no puede viajar en un PUT.
+con la fecha de hoy, aunque el campo ya tuviera una, en `_guardar_estado`.
+Antes también se borraba al salir de Entregado (era la forma de arreglar
+un Entregado tocado por error, y la usaba la bajada automática a En
+producción); desde que el estado solo avanza (corrección del tutor,
+noviembre de 2026) de Entregado no se sale, así que esa rama nunca cambiaba
+nada y se sacó: la regla sigue valiendo por construcción. El formulario de
+la ficha muestra el campo apagado y la fecha no forma parte del borrador,
+así que no puede viajar en un PUT.
 
 **El estado del pedido y el de sus productos son independientes.** El
 primero resume el avance del encargo completo (Pendiente, En producción,
@@ -504,34 +540,35 @@ sin login es el catálogo. Se tocan en un solo punto, el de acá abajo.
 **Un pedido no puede estar Listo ni Entregado con piezas sin terminar.**
 Es el único punto donde los dos estados de arriba se tocan: son
 independientes, pero el pedido no puede decir que está listo si en el
-taller falta pintar algo. La regla tiene dos caras, las dos en
-`PedidoViewSet`. Al cambiar el estado, `_revisar_estado` rechaza con un 400
-que dice cuántas piezas faltan; un pedido sin productos tampoco puede
-estar Listo. Al agregar, modificar o quitar un producto,
-`_bajar_si_quedo_incompleto` devuelve el pedido a En producción si con ese
-cambio dejó de estar completo. Sin la segunda cara, la primera se esquiva
-sola: se marca Listo con todo terminado y después se agrega una pieza
-nueva, que nace Pendiente. La segunda reusa la primera —le pregunta si el
-pedido podría pasar al estado que YA tiene— así que no pueden llegar a
-contradecirse. Solo baja el estado, nunca lo sube: terminar la última
-pieza no pasa el pedido a Listo, porque decidir que un encargo está para
-entregar es de la emprendedora.
+taller falta pintar algo. Al avanzar el estado, `_revisar_estado` rechaza
+con un 400 que dice cuántas piezas faltan; un pedido sin productos tampoco
+puede estar Listo. Terminar la última pieza no pasa el pedido a Listo,
+porque decidir que un encargo está para entregar es de la emprendedora.
 
-La bajada automática se avisa, porque es un cambio que la usuaria no
-pidió: en el modal "Cambios guardados" del listado, después de guardar la
-ficha. Es la excepción al criterio de
-Clientes, donde el aviso flotante se reserva para las acciones sin efecto
-visible: acá el efecto se ve, pero nadie lo pidió, que es el otro motivo
-para avisar.
+**Un pedido Listo o Entregado no admite cambios en sus productos**
+(decidido por la usuaria con la corrección del tutor de noviembre de
+2026). Agregar, modificar (incluida la etapa) y quitar responden 400 con
+"El pedido está Listo: sus productos ya no se pueden agregar, quitar ni
+modificar." (`_revisar_productos_editables`), en las tres acciones y en el
+PUT de la ficha si trae `productos`, aunque la lista sea igual a la
+guardada. Es lo que sostiene la regla de arriba sin que el sistema
+retroceda solo: antes, agregarle una pieza a un pedido Listo (que nace
+Pendiente) lo bajaba a En producción con `_bajar_si_quedo_incompleto`, y
+el modal "Cambios guardados" lo avisaba. Con los estados que solo avanzan,
+esa bajada era un retroceso: salió, y con ella el aviso. En la ficha de un
+pedido así, Agregar producto, el lápiz y la cruz van apagados con ese
+mismo texto en el title (`motivoProductosBloqueados`, en
+`pedidos/presentacion.js`), y Guardar no manda `productos`: los datos se
+siguen pudiendo cambiar.
 
 **`cambiar_estado` es la única puerta al estado del pedido.** El campo va
 `read_only` en el serializer, y el `extra_kwargs` que lo hace vive en
 `PedidoListaSerializer.Meta`, de la que hereda la del detalle, así que
 vale también para el POST y el PUT de la ficha: un `estado` en el cuerpo
-se ignora. Sin ese candado, las dos reglas del estado —esta y la fecha de
-entrega real— tendrían una puerta de atrás. El admin de Django sí lo deja
-cambiar a mano, y se acepta: es herramienta de desarrollo, no interfaz de
-usuaria.
+se ignora. Sin ese candado, las reglas del estado —el orden, las piezas
+sin terminar y la fecha de entrega real— tendrían una puerta de atrás. El
+admin de Django sí lo deja cambiar a mano, y se acepta: es herramienta de
+desarrollo, no interfaz de usuaria.
 
 **La forma de entrega tiene tres valores: retiro, envío a cargo mío y
 envío a cargo del cliente** (corrección del tutor del 28/10/2026, B4).
@@ -579,21 +616,21 @@ unidades iguales.
 
 **El alta trae los productos en el mismo POST** (corrección del tutor,
 noviembre de 2026). `POST /api/pedidos/` acepta `productos`, una lista
-con lo mismo que recibe `agregar_producto` por fila más `estado`, y
-`create()` guarda el pedido y las filas en la misma transacción: si una
-falla, responde 400 con `{'productos': ['Fila 2 (Aros Hedwig): …']}` y no
-queda nada. Las reglas de la fila (el precio congelado, la cantidad
-mínima, la etapa con su fecha) viven en `_agregar_producto`, la misma
-función que usa la acción de una fila, que ahora lanza `ParseError` en vez
-de devolver el 400 (misma respuesta, y es lo que revierte).
-`config/hijos.py` tiene lo que se repite entre las altas: `leer_lista`
-(la lista del cuerpo, o 400 si no es una lista) y `error_de_fila` (el
-error de un hijo con la clave de su lista y el número de fila, como un
-error de campo, para que `mensajeDeError` lo lea sin cambios). La pieza
-sigue naciendo Pendiente (`estado` es de solo lectura en el serializer de
-alta): si vino otra etapa, `_agregar_producto` la aplica después por el
-camino del PATCH, con su fecha, así que el alta ya no manda un PATCH
-aparte. Sin `productos`, el POST es el de siempre. El frontend
+con lo mismo que recibe `agregar_producto` por fila, y `create()` guarda
+el pedido y las filas en la misma transacción: si una falla, responde 400
+con `{'productos': ['Fila 2 (Aros Hedwig): …']}` y no queda nada. Las
+reglas de la fila (el precio congelado, la cantidad mínima) viven en
+`_agregar_producto`, la misma función que usa la acción de una fila, que
+ahora lanza `ParseError` en vez de devolver el 400 (misma respuesta, y es
+lo que revierte). `config/hijos.py` tiene lo que se repite entre las
+altas: `leer_lista` (la lista del cuerpo, o 400 si no es una lista) y
+`error_de_fila` (el error de un hijo con la clave de su lista y el número
+de fila, como un error de campo, para que `mensajeDeError` lo lea sin
+cambios). La pieza nace Pendiente (`estado` es de solo lectura en el
+serializer de alta), y una fila que trae otra etapa responde 400 "Una
+pieza nueva nace Pendiente: la etapa se avanza después, de a una."
+(corrección del tutor: antes el alta aplicaba la etapa elegida en el mismo
+pedido). Sin `productos`, el POST es el de siempre. El frontend
 (`AltaPedido.jsx`) hace una sola llamada y, si el error trae la clave
 `productos`, lo muestra pegado a la tabla; si no, en Datos. Salieron la
 cadena, el `DELETE` de deshacer y "Ir al pedido".
@@ -609,7 +646,8 @@ trae `producto` y `producto_tiene_materiales` (con `len()` sobre los
 materiales prefetcheados, como en Pedidos), y la vista suma
 `prefetch_related('producto__materiales')`. La tabla de Inicio pasó de un
 mínimo de 720 a 940; en la del pedido, ACCIONES (lápiz y cruz) bajó de
-27% a 10% y PRODUCTO subió de 20% a 37%. El "desde" de la etapa ya no
+27% a 10% y PRODUCTO subió de 20% a 37% (después bajó a 32, para que
+ETAPA entrara con "Avanzar a …"). El "desde" de la etapa ya no
 marca en rojo con "· revisar" las piezas con 3 días o más en Secado: la
 usuaria pidió sacarlo, y con eso salió `DIAS_AVISO_SECADO`.
 
@@ -658,12 +696,19 @@ no se ve en el celular, sin productos la lista vacía de cobros lo
 dice, y la frase de la seña sale solo con el botón encendido. Desde que el
 alta de pedido no tiene cobros, se evalúa solo sobre pedidos guardados.
 
-**La fila del listado: ojo, lápiz, $ (Cobros) y ⋯** (corrección del
-tutor del 28/10/2026, A1, con los cambios que pidió la usuaria). Cuatro
-iconos por fila, y lo menos usado va en el ⋯ (`MenuMasAcciones`, en
-`componentes/`): Último comprobante y Eliminar, este en rojo. El estado no
-es un icono: se cambia en su columna (ver "El estado se cambia en la
-columna ESTADO"). El ojo (`onVer`) abre `ModalVerPedido`, de solo
+**La fila del listado: avanzar estado, $ (Cobros), lápiz y ⋯**
+(corrección del tutor del 28/10/2026, A1; el orden y qué queda a la vista
+los eligió la usuaria con la corrección de los estados de noviembre de
+2026). Cuatro iconos por fila, y lo menos usado va en el ⋯
+(`MenuMasAcciones`, en `componentes/`): Ver, Último comprobante y
+Eliminar, este en rojo. A la vista quedan las dos acciones del día a día
+del pedido, avanzar el estado y cobrar, y Editar. Es la única fila de un
+listado que no empieza con el ojo: la ficha (lápiz o número) muestra lo
+mismo y más. Avanzar estado (`ICONO_AVANZAR`, una flecha en un círculo
+que hace pareja con el $) abre `ModalEstadoDelPedido` (ver "El estado se
+avanza desde el modal del estado"); en Entregado va apagado, con "El
+pedido ya está Entregado: es el último estado". Ver (`onVer`), desde el ⋯,
+abre `ModalVerPedido`, de solo
 lectura, que pide la ficha al abrirse (el listado no trae productos ni
 cobros) con los tres estados adentro, y muestra los chips de estado y de
 saldo, los datos, los productos con su etapa, los cobros, total y
@@ -676,8 +721,8 @@ el comprobante del pedido. ACCIONES sigue en 19% (178px en el mínimo de
 940), porque siguen siendo cuatro botones; ese 19% salió en su momento de
 PEDIDO (de 10 a 8), CLIENTE (de 16 a 10) y antes CONTENIDO (de 14 a 12):
 a 384px todavía se lee la primera palabra antes del "+N". Con el selector
-de estado, ESTADO pasó de 13 a 15% a costa de CLIENTE (de 10 a 9) y
-ENTREGA (de 12 a 11).
+de estado, que ya no está, ESTADO pasó de 13 a 15% a costa de CLIENTE (de
+10 a 9) y ENTREGA (de 12 a 11); el chip que lo reemplazó entra igual.
 
 **El ⋯ es `MenuMasAcciones({ items })`.** Cada ítem es `{ texto, icono,
 onClick }` y puede llevar `deshabilitado` con su `motivo` en el title, y
@@ -701,22 +746,26 @@ el material de `ModalMaterial` del gasto (pedido de la usuaria: la lista
 corría los campos de abajo). El de `ModalAgregarMaterial` de producto
 sigue en el flujo, también por decisión de la usuaria.
 
-**El estado se cambia en la columna ESTADO, con un selector** (pedido de
-la usuaria; antes era un icono de dos flechas que abría `ModalEstado`, ya
-borrado, con los cuatro estados como botones). Es un `<select>` como el
-de la etapa de una pieza en Inicio: elegir otro estado llama a
-`cambiar_estado` al instante. El backend devuelve el pedido completo, que
-trae todos los campos del listado, y con eso se reemplaza solo esa fila,
-sin recargar la tabla; avisa "Pedido listo" (o el que sea) con el aviso
-flotante. Si el backend lo rechaza (Listo con piezas sin terminar), el
-motivo va en `ModalAviso` con `error` (triángulo rojo, "No se pudo
-cambiar el estado"), que se ve esté donde esté la fila, y el selector
-vuelve solo al estado anterior porque muestra lo que dice el backend. Va
-neutro, como el de etapa, salvo Entregado, en verde
-(`colorSelectorEstado`, en `Pedidos.jsx`); `COLOR_ESTADO` sigue pintando
-el chip de la ficha y del modal Ver. El estado sigue siendo una acción
-instantánea y no un campo del formulario (ver "Formulario o acción" en
-Patrón a seguir).
+**El estado se avanza desde el modal del estado** (corrección del tutor de
+noviembre de 2026: los estados solo avanzan de a uno, con confirmación; ver
+Decisiones cerradas). La columna ESTADO muestra el chip con `COLOR_ESTADO`,
+el mismo de la ficha y del modal Ver. Antes era un `<select>` con los
+cuatro estados (y antes de eso, un icono de dos flechas que abría
+`ModalEstado`, ya borrado). `ModalEstadoDelPedido` (capa 100) es a la vez
+el modal y la confirmación, sin otro modal encima (pedido de la usuaria):
+el chip del estado actual, "¿Pasar el pedido #14 a Listo? No se puede
+volver atrás." y, en el pie, Cancelar y "Avanzar a Listo"; en Entregado
+dice que es el último estado y no tiene pie. Llama él a `cambiar_estado`
+con el siguiente (`siguienteEstado`, en `pedidos/presentacion.js`), y le
+entrega el pedido que devuelve el backend a quien lo abrió
+(`onEstadoCambiado`), como `ModalCobros`; mientras viaja, el botón se apaga.
+El listado reemplaza solo esa fila, sin recargar la tabla, y avisa "Pedido
+listo" (o el que sea) con el aviso flotante. Si el backend lo rechaza
+(Listo con piezas sin terminar), el motivo se ve adentro del modal. Se
+abre desde el primer botón de la fila y desde la cabecera de la ficha
+(ver "La ficha avanza el estado desde su cabecera"). El estado sigue
+siendo una acción instantánea y no un campo del formulario (ver
+"Formulario o acción" en Patrón a seguir).
 
 **Último comprobante (CU60)** abre en otra pestaña el comprobante de pago
 del cobro más reciente; en el celular lo comparte (ver "En el celular, el
@@ -754,12 +803,25 @@ comparte", en Diseño visual).
 `quitar_del_catalogo`. Esto reemplaza lo que decía el pedido del tutor,
 que conservaba el del pedido en la cabecera de la ficha.
 
-**La ficha no tiene Comprobante, Eliminar, Cobros ni la tarjeta de
-estado** (octubre de 2026): todo eso se hace desde la fila del listado.
-Con el comprobante se fue el motivo "Guardá los cambios para generar el
-comprobante", que solo existía en la ficha. La cabecera muestra el chip de
-estado, solo para leer, al lado del de saldo; cambia solo cuando el
-backend baja el pedido a En producción (ver "La bajada automática").
+**La ficha no tiene Comprobante, Eliminar ni Cobros** (octubre de 2026):
+todo eso se hace desde la fila del listado. Con el comprobante se fue el
+motivo "Guardá los cambios para generar el comprobante", que solo existía
+en la ficha. La tarjeta de estado también salió entonces, y no volvió.
+
+**La ficha avanza el estado desde su cabecera** (pedido de la usuaria con
+la corrección de los estados, noviembre de 2026). Al lado del chip de
+estado va `BotonAvanzar` ("Avanzar a Listo →", el mismo de las etapas),
+que abre el mismo `ModalEstadoDelPedido` del listado con el pedido
+guardado; al terminar, la respuesta reemplaza al pedido (cambia el chip y,
+si pasó a Listo, la tabla de productos queda apagada) y avisa "Pedido
+listo" con el aviso flotante. En Entregado no hay botón. Va en la
+cabecera y no en una tarjeta del formulario, así que no rompe "Formulario
+o acción". Con cambios sin guardar (o mientras guarda) va apagado, con
+"Guardá o descartá los cambios antes de avanzar el estado": pasar a Listo
+bloquea los productos, así que uno agregado o editado sin guardar se
+perdería sin aviso, y el backend decide si puede pasar a Listo mirando las
+piezas guardadas, no las del borrador. Las etapas sí se avanzan con
+cambios pendientes, porque no bloquean nada.
 
 **La ficha no tiene pestañas** (corrección del tutor del 28/10/2026, A7).
 Es como la de Gasto: la cabecera y, apiladas debajo, la tarjeta Datos, la
@@ -884,9 +946,10 @@ al volver a Materiales reaparecen.
 unitario de las filas. Es la única cuenta del backend escrita por segunda
 vez en el navegador; las tablas de productos del pedido suman el
 subtotal de sus filas, que es la misma suma que hace el backend. Una
-pieza nueva nace Pendiente: si se le cambia la etapa antes de crear,
-viaja con su `estado` en la misma fila y el backend la aplica (ver "El
-alta trae los productos en el mismo POST", en Módulo Pedidos).
+pieza nueva nace Pendiente y en el alta se ve solo su chip, sin "Avanzar
+a …" (`PestanaProductos` sin `onAvanzarEtapa`): la etapa se avanza
+después, de a una, desde la ficha o desde Inicio (corrección del tutor;
+antes el alta tenía el selector de etapa y la mandaba en la fila).
 En el alta de gastos no se ofrece "Marcar en disponibilidad Alta": esos
 endpoints necesitan un gasto creado, y escribir sobre Materiales antes de
 registrar la compra no corresponde; se marca desde la ficha. Por eso
@@ -956,9 +1019,8 @@ creado" / "Categoría creada" o "Cambios guardados" según hubiera un
 registro en edición. El cliente se nombra con su usuario de Instagram
 (@sofi.delgado). Es un modal y
 no el aviso flotante porque, al cambiar de pantalla, el aviso de 2,6
-segundos abajo pasaba desapercibido (pedido de la usuaria); la excepción
-al criterio de Clientes es la misma que la bajada automática del pedido:
-el efecto queda en otra pantalla.
+segundos abajo pasaba desapercibido (pedido de la usuaria); es la excepción
+al criterio de Clientes porque el efecto queda en otra pantalla.
 
 **Ningún paso ni sección es obligatorio.** En productos, la barra marca
 hecho lo que está antes del actual, y "Siguiente" en Datos hace las
@@ -1016,8 +1078,10 @@ texto, textoAccion, onCerrar, onConfirmar })` es el patrón de modal con
 una pregunta, Cancelar y la acción en rosa, copiado de los modales de
 eliminar sin la llamada a la API; no sabe de navegación ni de API, quien
 lo abre decide qué pasa al confirmar. Lo usan las tres altas para salir
-sin crear y para crear sin el contenido principal, y las tres fichas
-para salir sin guardar y para guardar sin el contenido principal.
+sin crear y para crear sin el contenido principal, las tres fichas
+para salir sin guardar y para guardar sin el contenido principal, Inicio
+y la ficha de pedido para avanzar la etapa de una pieza, y el menú
+lateral para cerrar sesión (ver Responsive).
 `ModalAviso({ titulo, texto, onCerrar, error })` es su hermano para avisar
 algo que ya pasó: el texto y un solo botón, Aceptar, sin Cancelar porque
 no pregunta nada; capa 100, porque se abre sobre un listado. Es más
@@ -1029,9 +1093,10 @@ verde a 18; el círculo entra con un saltito y el tilde se dibuja solo,
 con `element.animate()` y `pathLength="1"`, como el aviso flotante. El
 texto va centrado y Aceptar sigue en rosa, porque el verde es color de
 estado y no de botón. Con `error` es la misma forma en rojo (franja
-`#FAEAE8`, círculo rojo con el triángulo): la usan Pedidos cuando el
-backend rechaza un cambio de estado y `BotonesExportar` cuando falla un
-Excel. Lo usan los seis listados con alta y
+`#FAEAE8`, círculo rojo con el triángulo): la usan Pedidos cuando falla
+compartir el último comprobante y `BotonesExportar` cuando falla un
+Excel (el rechazo de un cambio de estado, que antes iba acá, ahora se ve
+adentro de `ModalEstadoDelPedido`). Lo usan los seis listados con alta y
 edición (productos, pedidos, gastos, materiales, clientes y categorías)
 para confirmar las dos. Ninguna tarjeta de Datos tiene pie: la
 `PestanaDatos` de pedidos y `DatosDelGasto` lo tienen debajo de la tabla,
@@ -1161,10 +1226,11 @@ vacía. La respuesta es:
   "gasto": { ...el gasto completo con sus filas ya actualizadas... } }
 ```
 
-`materiales_cambiados` es lo que el frontend guarda para el Deshacer del
-aviso flotante. **Deshacer no es un endpoint:** se hace con el PATCH de
-`/api/materiales/<id>/` que ya existe, mandando la disponibilidad
-anterior.
+`materiales_cambiados` es lo que el modal "Cambios guardados" usa para
+decir cuántos pasaron a Alta (hoy lo trae el PUT de la ficha, ver
+"Disponibilidad Alta, parte del Guardar"). Antes servía para un Deshacer
+en el aviso flotante, con el PATCH de `/api/materiales/<id>/` y la
+disponibilidad anterior; salió cuando la ficha pasó a ser un formulario.
 
 **Un solo serializer de Gasto, no dos como Pedido:** el listado necesita
 igual los materiales de cada gasto, porque la tabla muestra cuántos son y
@@ -1297,12 +1363,14 @@ de disponibilidad (`marcarDisponibilidadAlta`,
 avisos flotantes de la ficha desaparecieron: todo se confirma con el modal
 del listado.
 
-**Dos props opcionales en los componentes compartidos.** `Toast` recibe
-`accion` y `onAccion`; sin ellas se dibuja igual. `BotonAccion` recibe
+**Una prop opcional en un componente compartido.** `BotonAccion` recibe
 `deshabilitado`; la opacidad se escribe solo cuando está apagado, porque
 un 1 fijo le ganaría a la regla de `index.css` que baja la opacidad al
-pasar el mouse. `EncabezadoOrdenable` sigue siendo una copia local en cada
-listado (Clientes, Pedidos, Materiales y Gastos).
+pasar el mouse. `Toast` tuvo `accion` y `onAccion` para el Deshacer de la
+ficha de gasto y después el de Inicio; cuando salió el último (los
+estados ya no vuelven atrás) se sacaron. `EncabezadoOrdenable` sigue
+siendo una copia local en cada listado (Clientes, Pedidos, Materiales y
+Gastos).
 
 
 ---
@@ -1814,7 +1882,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 168 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 172 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -1879,7 +1947,12 @@ entrevista (40 pedidos/mes, 2 productos por pedido: 500 pedidos y 150
 productos por año). Se niega a correr si el nombre de la base no termina
 en `_prueba` y pide la base vacía. Respeta las reglas del sistema
 llamando a las mismas funciones del ViewSet (`_revisar_estado`,
-`_revisar_cobro`, `_recalcular_monto`). Las imágenes que genera se
+`_guardar_estado`, `_avanzar_etapa`, `_revisar_cobro`,
+`_recalcular_monto`): cada pedido y cada pieza nacen Pendientes y avanzan
+de a uno hasta el estado y la etapa que les tocan, y después se pisan por
+ORM las fechas históricas (cambio de etapa y entrega real), que esas
+funciones escriben con la de hoy y no son parte de la regla del orden. Con
+el escenario de 3 años tarda unos 22 s. Las imágenes que genera se
 llaman `prueba-*` en `media/productos/`: PNG de un color, o con
 `--fotos-reales` copias achicadas de las fotos reales de esa carpeta
 (las originales no se tocan). Para usarla: `ana_porcelana_prueba` existe
@@ -2181,12 +2254,22 @@ la página 1. Si la etapa elegida se queda sin piezas, la tabla dice
 "Ninguna pieza en …" en vez del vacío del taller. Los chips son
 `ChipFiltro`, que salió de `Clientes.jsx` a `componentes/` al tener este
 segundo uso. PRÓXIMAS ENTREGAS ya no muestra "Cobrar al entregar" debajo
-del estado (pedido de la usuaria; diferencia con el prototipo). **Cada
-cambio de etapa avisa con Deshacer** (pedido de la usuaria): "Aros de
-Luna pasó a Secado" o "Aros de Luna terminado". Deshacer manda el mismo
-PATCH con la etapa que la pieza tenía antes del cambio. Antes solo
-Terminado lo llevaba, porque es el único cambio con el que la fila se va
-de la tabla.
+del estado (pedido de la usuaria; diferencia con el prototipo). **La
+etapa se avanza de a una, con confirmación** (corrección del tutor de
+noviembre de 2026; ver Decisiones cerradas). En ETAPA va el chip de la
+etapa y debajo `BotonAvanzar` ("Avanzar a Secado →", en `componentes/`,
+el mismo de la ficha del pedido); tocarlo abre `ModalConfirmar` ("Avanzar
+etapa" / "¿Pasar «Aros Hedwig» a Secado? No se puede volver atrás.") y al
+confirmar va el PATCH de etapa con la siguiente (`siguienteEtapa`, en
+`pedidos/presentacion.js`). Avisa con el aviso flotante: "Aros de Luna
+pasó a Secado" o "Aros de Luna terminado", que es con la que la fila se va
+de la tabla. Antes la etapa era un selector con las cinco y cada cambio
+avisaba con Deshacer (pedido de la usuaria); Deshacer era un retroceso y
+salió, y la confirmación previa ocupa su lugar. ETAPA pasó de 20 a 23% a
+costa de PRODUCTO (de 27 a 24): "Avanzar a Pintura-Barniz" mide 191px y,
+con la tabla en su mínimo de 940, necesita 207 (medido en el navegador; en
+la ficha del pedido ETAPA pasó de 18 a 23% y PRODUCTO de 37 a 32 por lo
+mismo).
 
 **El aviso flotante (`Toast`) va en el medio de la pantalla** (pedido de
 la usuaria: quería algo más grande que un toast, más verde y que se fuera
@@ -2195,12 +2278,12 @@ el tilde blanco y el texto en verde a 16; no oscurece el fondo ni frena
 nada. Entra con un saltito y el tilde se dibuja solo, con
 `element.animate()`, la API de animaciones del navegador (sin estado de
 React ni `index.css`); se vuelve a animar con cada texto nuevo. Dura
-1,4 segundos (cada pantalla tiene su temporizador en `mostrarToast`); el
+1,4 segundos (cada pantalla tiene su temporizador en `mostrarToast`),
+también los de avanzar una etapa en Inicio y en la ficha del pedido; el
 de copiar el email ("Email copiado", en Clientes y en `ModalCobros`) y
-los del listado de Pedidos ("Cobro registrado" y el cambio de estado,
-"Pedido listo"), 0,93; los de cambio de etapa en
-Inicio, que llevan Deshacer, 1,5, para que dé tiempo a tocarlo. Lo usan las
-pantallas de la gestión; el catálogo tiene el suyo, `ToastCatalogo`.
+los del listado de Pedidos ("Cobro registrado" y el avance de estado,
+"Pedido listo"), 0,93. Lo usan las pantallas de la gestión; el catálogo
+tiene el suyo, `ToastCatalogo`.
 
 **Patrón de modal:** cabecera `#8C5A66` con título blanco y cruz, cuerpo
 con campos apilados, pie con Cancelar y la acción principal. Fondo
@@ -2220,7 +2303,8 @@ está el lápiz de la fila.
 
 **Botones de acción:** cuadrados de 36px con icono. Ver (ojo,
 `#8C5A66`), Editar (lápiz, `#8C5A66`), Copiar (dos hojas superpuestas,
-`#8C5A66`), Cobros (signo $ en un círculo, `#8C5A66`), Comprobante
+`#8C5A66`), Avanzar estado (flecha en un círculo, `#8C5A66`), Cobros
+(signo $ en un círculo, `#8C5A66`), Comprobante
 (hoja con la punta doblada, `#8C5A66`), Compartir (tres círculos unidos,
 `#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar
 (tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`), Más acciones (tres
@@ -2255,9 +2339,10 @@ necesita el despliegue.
 
 **Cuatro iconos por fila, como máximo** (corrección del tutor del
 28/10/2026, A1). Si una fila tiene más acciones, las menos usadas van en
-el ⋯ de `MenuMasAcciones`, con icono y texto. Hoy solo lo usa Pedidos;
-Productos (ojo, lápiz, dar de baja, papelera) y Gastos (ojo, lápiz,
-papelera) entran sin él.
+el ⋯ de `MenuMasAcciones`, con icono y texto. Hoy solo lo usa Pedidos
+(avanzar estado, cobros y lápiz a la vista; Ver, último comprobante y
+eliminar en el ⋯); Productos (ojo, lápiz, dar de baja, papelera) y Gastos
+(ojo, lápiz, papelera) entran sin él.
 
 **Lápiz donde se puede modificar, ojo donde solo se mira.** La acción que
 abre una ficha editable se llama "Editar" (antes "Ver y editar"; desde
@@ -2265,8 +2350,9 @@ que existe el ojo, ver es otra acción) y lleva el lápiz: en los
 listados de Productos (grilla, tabla y el bloque "Baja por su categoría",
 cuyos productos están activos), Pedidos y Gastos. El ojo queda para lo
 que se abre en solo lectura: los modales Ver de Materiales, Clientes,
-Gastos, Productos y Pedidos. El $ de Cobros no son los billetes de Gastos
-a propósito: cobrar es plata que entra y gastar, plata que sale.
+Gastos, Productos y Pedidos (en Pedidos, el ojo va en el ⋯, con su
+texto). El $ de Cobros no son los billetes de Gastos a propósito: cobrar
+es plata que entra y gastar, plata que sale.
 
 En Productos (corrección del tutor del 28/10/2026, A1) un producto activo
 lleva ojo, lápiz, dar de baja y papelera, en la grilla y en la tabla
@@ -2494,7 +2580,15 @@ una franja superior de 48px con el ☰ y el nombre del sistema (salvo en
 Inicio, cuyo título ya lo dice); el `aside` se dibuja siempre expandido, y
 lo que lo muestra u oculta es un `transform` en CSS, con las clases
 `barra-lateral` y `abierta`. El panel se cierra al elegir una opción, al
-tocar el fondo oscuro o con Escape. El alto del Layout es `100dvh` y no
+tocar el fondo oscuro o con Escape. **"Cerrar sesión" pregunta antes**
+(corrección del tutor, noviembre de 2026), en escritorio y en el celular:
+el ítem no sale, cierra el panel como cualquier opción y abre
+`ModalConfirmar` ("Cerrar sesión" / "¿Cerrar sesión?" / Cancelar y
+"Cerrar sesión"); sale recién al confirmar (`preguntarSalir`,
+`pedirSalir` y `manejarSalir` en `Layout.jsx`). Si se cierra sesión desde
+un alta o una ficha con cambios sin guardar, se pierden sin otro aviso,
+como antes: el bloqueo de navegación deja pasar la ida al login, y la
+usuaria decidió que no hacía falta avisarlo. El alto del Layout es `100dvh` y no
 `100vh`, porque `vh` no descuenta la barra del navegador del celular.
 `usePantallaGrande`, en `DetalleProducto.jsx`, es el mismo mecanismo con
 la consulta de 1440: decide si existe el panel con la imagen y el resumen

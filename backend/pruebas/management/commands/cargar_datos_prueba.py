@@ -12,6 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 from django.utils import timezone
 from PIL import Image
+from rest_framework.exceptions import ParseError
 
 from categorias.models import Categoria
 from clientes.models import Cliente
@@ -20,7 +21,7 @@ from gastos.models import Gasto, MaterialDelGasto
 from gastos.views import GastoViewSet
 from materiales.models import Material
 from pedidos.models import Cobro, Pedido, ProductoDelPedido
-from pedidos.views import PedidoViewSet, _revisar_estado
+from pedidos.views import PedidoViewSet, _revisar_estado, _siguiente
 from productos.models import ImagenProducto, MaterialProducto, Producto
 
 # =====================================================================
@@ -36,8 +37,10 @@ from productos.models import ImagenProducto, MaterialProducto, Producto
 #
 # Todo se crea por los modelos. Donde una regla vive en el ViewSet y no
 # en el modelo, se llama a la misma función del ViewSet
-# (_revisar_estado, _revisar_cobro, _recalcular_monto) o se replica con
-# un comentario que dice de dónde sale.
+# (_revisar_estado, _guardar_estado, _avanzar_etapa, _revisar_cobro,
+# _recalcular_monto) o se replica con un comentario que dice de dónde
+# sale. Los pedidos y sus piezas nacen Pendientes y avanzan de a uno hasta
+# su estado, como en la pantalla (corrección del tutor).
 #
 # Con --fotos-reales, cada imagen es una copia de una foto real que ya
 # está en media/productos/ (una al azar entre las que no empiezan con
@@ -363,6 +366,10 @@ class Command(BaseCommand):
         # entran igual: son encargos, y un encargo es justamente un pedido.
         activos = [p for p in productos if p.estado == Producto.Estado.ACTIVO]
 
+        # _guardar_estado y _avanzar_etapa no usan nada del pedido HTTP, así
+        # que alcanza con un ViewSet vacío, como en _registrar_cobro.
+        vista = PedidoViewSet()
+
         for _ in range(cantidad):
             fecha = self._fecha_en_el_periodo()
             antiguedad = (self.hoy - fecha).days
@@ -381,42 +388,53 @@ class Command(BaseCommand):
 
             estimada = None if una_de_cada(10) else fecha + timedelta(days=random.randint(7, 30))
 
-            # Regla de _guardar_estado en PedidoViewSet: un pedido tiene
-            # fecha de entrega real si y solo si está Entregado.
+            # Un pedido tiene fecha de entrega real si y solo si está
+            # Entregado. La escribe _guardar_estado al entregar, con la de
+            # hoy; esta es la histórica que la pisa después.
             if estado == Pedido.Estado.ENTREGADO:
                 base = estimada or fecha + timedelta(days=15)
                 real = base + timedelta(days=random.randint(-3, 3))
             else:
                 real = None
 
+            # Nace Pendiente, como en la pantalla, y avanza de a uno al final.
             envio_mio = una_de_cada(30)
             pedido = Pedido.objects.create(
                 cliente=random.choices(clientes, weights=pesos)[0],
-                estado=estado,
                 fecha_pedido=fecha,
                 fecha_entrega_estimada=estimada,
-                fecha_entrega_real=real,
                 forma_entrega=Pedido.FormaEntrega.MIO if envio_mio else Pedido.FormaEntrega.CLIENTE,
                 direccion_entrega=random.choice(DIRECCIONES) if envio_mio else '',
                 costo_entrega=self._plata(1500, 6000) if envio_mio else None,
             )
 
-            self._crear_productos_del_pedido(pedido, activos, antiguedad)
-
-            # La misma comprobación que hace cambiar_estado: un pedido no
-            # puede estar Listo ni Entregado con piezas sin terminar. Si
-            # el generador la rompiera, acá se frena.
-            error = _revisar_estado(pedido, pedido.estado)
-            if error:
-                raise CommandError(f'Un pedido generado rompería una regla del sistema: {error}')
-
+            self._crear_productos_del_pedido(vista, pedido, estado, activos, antiguedad)
+            self._avanzar_pedido(vista, pedido, estado, real)
             self._crear_cobros(pedido)
 
-    def _crear_productos_del_pedido(self, pedido, activos, antiguedad):
+    @staticmethod
+    def _avanzar_pedido(vista, pedido, hasta, fecha_real):
+        """Avanza el pedido de a un estado hasta el elegido, con las reglas de cambiar_estado.
+
+        _revisar_estado revisa el orden y que no quede Listo ni Entregado
+        con piezas sin terminar: si el generador rompiera una, acá se frena.
+        """
+        while pedido.estado != hasta:
+            siguiente = _siguiente(Pedido.Estado, pedido.estado)
+            error = _revisar_estado(pedido, siguiente)
+            if error:
+                raise CommandError(f'Un pedido generado rompería una regla del sistema: {error}')
+            vista._guardar_estado(pedido, siguiente)
+
+        if fecha_real is not None:
+            pedido.fecha_entrega_real = fecha_real
+            pedido.save(update_fields=['fecha_entrega_real'])
+
+    def _crear_productos_del_pedido(self, vista, pedido, estado_del_pedido, activos, antiguedad):
         # 1 a 4 productos por pedido, con el 2 como lo más común: es el
         # promedio de la entrevista.
         cuantos = random.choices([1, 2, 3, 4], weights=[35, 40, 15, 10])[0]
-        etapas = self._etapas_para(pedido.estado, cuantos)
+        etapas = self._etapas_para(estado_del_pedido, cuantos)
 
         for producto, etapa in zip(random.sample(activos, k=cuantos), etapas):
             # El precio se CONGELA al registrar. En los pedidos de más de
@@ -427,17 +445,28 @@ class Command(BaseCommand):
                 precio = precio * Decimal(random.choice(['0.80', '0.85', '0.90', '0.95', '1.00']))
                 precio = max(precio - precio % 100, Decimal(100))
 
-            ProductoDelPedido.objects.create(
+            cantidad = random.choices([1, 2, 3], weights=[70, 20, 10])[0]
+            desde = pedido.fecha_pedido + timedelta(days=random.randint(0, min(30, antiguedad)))
+
+            # Nace Pendiente y avanza de a una etapa hasta la elegida, por la
+            # misma puerta que el PATCH de etapa.
+            linea = ProductoDelPedido.objects.create(
                 pedido=pedido,
                 producto=producto,
                 precio=precio,
-                cantidad=random.choices([1, 2, 3], weights=[70, 20, 10])[0],
-                estado=etapa,
-                fecha_cambio_estado=pedido.fecha_pedido + timedelta(
-                    days=random.randint(0, min(30, antiguedad))
-                ),
+                cantidad=cantidad,
                 descripcion=random.choice(DESCRIPCIONES_LINEA),
             )
+
+            try:
+                while linea.estado != etapa:
+                    vista._avanzar_etapa(linea, _siguiente(ProductoDelPedido.Estado, linea.estado))
+            except ParseError as error:
+                raise CommandError(f'Una pieza generada rompería una regla del sistema: {error.detail}')
+
+            # _avanzar_etapa anota la fecha de hoy; se pisa con la histórica.
+            linea.fecha_cambio_estado = desde
+            linea.save(update_fields=['fecha_cambio_estado'])
 
     @staticmethod
     def _etapas_para(estado_del_pedido, cuantos):

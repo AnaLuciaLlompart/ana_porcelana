@@ -9,7 +9,7 @@ import {
 
 // Imports que cruzan de funcionalidad, con el mismo criterio de siempre: la
 // pieza se queda en la funcionalidad donde nació y las demás la usan desde
-// ahí. Cambiar la etapa de un producto del pedido es una operación de
+// ahí. Avanzar la etapa de un producto del pedido es una operación de
 // Pedidos, así que va por su api.js. Las etapas, los textos de la columna
 // ENTREGA, el "desde" de cada pieza y el chip del saldo son los mismos que
 // muestra Pedidos, y así las dos pantallas dicen lo mismo. El precio se
@@ -26,13 +26,16 @@ import {
   diasEnEtapa,
   entregaTexto,
   entregaTitle,
+  siguienteEtapa,
 } from '../pedidos/presentacion'
 import { DIAS_ENTREGAS_PROXIMAS } from '../pedidos/filtros'
 import { formatearPrecio } from '../productos/presentacion'
 import { MESES_LARGOS } from '../finanzas/periodos'
 
+import BotonAvanzar from '../../componentes/BotonAvanzar'
 import ChipFiltro from '../../componentes/ChipFiltro'
 import EncabezadoDeTarjeta from '../../componentes/EncabezadoDeTarjeta'
+import ModalConfirmar from '../../componentes/ModalConfirmar'
 import Paginacion from '../../componentes/Paginacion'
 import Toast from '../../componentes/Toast'
 import EnlaceCatalogo from '../../componentes/EnlaceCatalogo'
@@ -373,12 +376,13 @@ function PieDePaginas({ total, pagina, porPagina, onPagina, borde = true }) {
 
 // La tabla EN PRODUCCIÓN: los productos del pedido que todavía no están
 // terminados, del más avanzado al que recién empieza, como los manda el
-// backend. El selector de etapa es el mismo de la pestaña de productos de
-// la ficha, y el "desde" también, con el hoy del servidor.
+// backend. La etapa es el chip con "Avanzar a …" debajo, igual que en la
+// tabla de productos de la ficha, y el "desde" también, con el hoy del
+// servidor. Como acá nunca hay piezas terminadas, siempre hay una siguiente.
 //
 // MATERIALES lleva el botón que antes estaba en la tabla de productos del
 // pedido: en el taller es donde hace falta saber qué lleva cada pieza.
-function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerMateriales }) {
+function TablaEnProduccion({ productos, hoy, onVerPedido, onAvanzarEtapa, onVerMateriales }) {
   if (productos.length === 0) {
     return (
       <Vacio
@@ -393,10 +397,12 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
       <table style={{ width: '100%', minWidth: 940, tableLayout: 'fixed', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            <th style={{ ...estiloTh, width: '27%', padding: '10px 20px' }}>PRODUCTO</th>
+            <th style={{ ...estiloTh, width: '24%', padding: '10px 20px' }}>PRODUCTO</th>
             <th style={{ ...estiloTh, width: '8%', textAlign: 'center' }}>CANT.</th>
             <th style={{ ...estiloTh, width: '10%' }}>PEDIDO</th>
-            <th style={{ ...estiloTh, width: '20%' }}>ETAPA</th>
+            {/* 23 % y no 20: "Avanzar a Pintura-Barniz" mide 191 px y, con
+                la tabla en su mínimo de 940, necesita 207. */}
+            <th style={{ ...estiloTh, width: '23%' }}>ETAPA</th>
             <th style={{ ...estiloTh, width: '14%' }}>DESDE</th>
             <th style={{ ...estiloTh, width: '21%', padding: '10px 20px', textAlign: 'center' }}>MATERIALES</th>
           </tr>
@@ -406,6 +412,7 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
           {productos.map((p) => {
             const etapa = COLOR_ETAPA[p.estado]
             const desde = diasEnEtapa(p, hoy)
+            const siguiente = siguienteEtapa(p.estado)
 
             return (
               // La key es el id del PRODUCTO DEL PEDIDO, no el del producto:
@@ -430,16 +437,11 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
                 </td>
 
                 <td style={{ padding: '9px 8px' }}>
-                  <select
-                    value={p.estado}
-                    onChange={(e) => onCambiarEtapa(p, e.target.value)}
+                  <span
                     style={{
-                      width: '100%',
-                      maxWidth: 190,
-                      padding: '8px 10px',
+                      display: 'inline-block',
+                      padding: '5px 10px',
                       borderRadius: 6,
-                      cursor: 'pointer',
-                      outline: 'none',
                       fontFamily: QUICKSAND,
                       fontWeight: 600,
                       fontSize: 13,
@@ -448,12 +450,14 @@ function TablaEnProduccion({ productos, hoy, onVerPedido, onCambiarEtapa, onVerM
                       color: etapa.color,
                     }}
                   >
-                    {ETAPAS.map((e) => (
-                      <option key={e.valor} value={e.valor}>
-                        {e.label}
-                      </option>
-                    ))}
-                  </select>
+                    {p.estado_display}
+                  </span>
+
+                  {siguiente && (
+                    <div style={{ marginTop: 6 }}>
+                      <BotonAvanzar texto={`Avanzar a ${siguiente.label}`} onClick={() => onAvanzarEtapa(p)} />
+                    </div>
+                  )}
                 </td>
 
                 <td
@@ -668,16 +672,15 @@ export default function Inicio() {
   const [paginaMateriales, setPaginaMateriales] = useState(1)
   const [materiales, setMateriales] = useState(null)
   // Sube en uno cada vez que hay que volver a pedir las piezas (después de
-  // cambiar una etapa o deshacer), aunque la página no haya cambiado.
+  // avanzar una etapa), aunque la página no haya cambiado.
   const [versionPiezas, setVersionPiezas] = useState(0)
 
   const [toast, setToast] = useState('')
-  const [hayDeshacer, setHayDeshacer] = useState(false)
   const temporizador = useRef(null)
 
-  // El producto al que se le acaba de cambiar la etapa y la etapa que tenía,
-  // por si toca Deshacer. Va en un ref y no en estado porque no se dibuja.
-  const pendienteDeDeshacer = useRef(null)
+  // La pieza cuyo "Avanzar a …" se tocó: mientras no es null, se dibuja la
+  // confirmación. No se vuelve atrás, por eso se pregunta antes.
+  const [piezaPorAvanzar, setPiezaPorAvanzar] = useState(null)
 
   // Al abrir la pantalla: el resumen (las cuatro tarjetas, los números de
   // los chips y los totales de cada lista). Las filas las pide cada lista.
@@ -760,77 +763,46 @@ export default function Inicio() {
       .catch(() => setError('No se pudo actualizar el inicio.'))
   }
 
-  // conDeshacer decide las dos cosas que distinguen a ese aviso: que lleve
-  // el botón, y que dure 1,5 segundos en vez de 1,4, para que dé tiempo a
-  // tocarlo.
-  function mostrarToast(texto, conDeshacer = false) {
+  function mostrarToast(texto) {
     setToast(texto)
-    setHayDeshacer(conDeshacer)
 
     // Se cancela el anterior: si no, al hacer dos acciones seguidas el
     // temporizador de la primera apaga el cartel de la segunda antes de
     // tiempo.
     clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => {
-      setToast('')
-      setHayDeshacer(false)
-    }, conDeshacer ? 1500 : 1400)
+    temporizador.current = setTimeout(() => setToast(''), 1400)
   }
 
-  // Manda la etapa nueva al backend con el PATCH de Pedidos y, si salió
-  // bien, vuelve a pedir el resumen entero para que la tabla y su total
-  // queden al día. La respuesta del PATCH es el pedido completo, pero acá no
-  // sirve: lo que muestra esta pantalla es el resumen. Devuelve si salió
-  // bien, para que quien llama sepa si sigue.
-  async function aplicarEtapa(producto, estado) {
+  // "Avanzar a …" ya confirmado (corrección del tutor: las etapas avanzan de
+  // a una y no vuelven, por eso se pregunta antes). Manda la etapa siguiente
+  // con el PATCH de Pedidos, que es el que hace cumplir el orden, y si salió
+  // bien vuelve a pedir el resumen entero para que la tabla y su total
+  // queden al día: la respuesta del PATCH es el pedido completo, que acá no
+  // sirve. Avisa con el aviso flotante: Terminado es la etapa con la que la
+  // fila se va de la tabla.
+  async function avanzarEtapa() {
+    const pieza = piezaPorAvanzar
+    const siguiente = siguienteEtapa(pieza.estado)
+    setPiezaPorAvanzar(null)
     setError('')
 
     try {
-      await modificarProductoDelPedido(producto.pedido, producto.id, { estado })
+      await modificarProductoDelPedido(pieza.pedido, pieza.id, { estado: siguiente.valor })
     } catch (err) {
       // El backend escribe sus mensajes de 400 para que se entiendan, así
       // que se muestran tal cual. Si no hay mensaje, es otra cosa (el
       // servidor caído, la red) y va el texto genérico.
-      setError(err.response?.data?.detail || 'No se pudo cambiar la etapa.')
-      return false
-    }
-
-    await recargar()
-    return true
-  }
-
-  // Todos los cambios de etapa avisan, y todos con Deshacer (pedido de la
-  // usuaria). Terminado es el único con el que la fila desaparece de la
-  // tabla y ya no queda selector acá para volver atrás; en los demás el
-  // selector también serviría, pero Deshacer es más rápido.
-  async function cambiarEtapa(producto, estado) {
-    const salioBien = await aplicarEtapa(producto, estado)
-
-    if (!salioBien) return
-
-    // Todas las etapas avisan con Deshacer, que vuelve a la etapa que la
-    // pieza tenía antes de este cambio.
-    pendienteDeDeshacer.current = { producto, estado: producto.estado }
-
-    if (estado === 'TERMINADO') {
-      mostrarToast(`${producto.producto_nombre} terminado`, true)
+      setError(err.response?.data?.detail || 'No se pudo avanzar la etapa.')
       return
     }
 
-    const etapa = ETAPAS.find((e) => e.valor === estado)
-    mostrarToast(`${producto.producto_nombre} pasó a ${etapa.label}`, true)
-  }
+    await recargar()
 
-  // Deshacer no tiene endpoint propio: es el mismo PATCH con la etapa que
-  // la pieza tenía antes. La fecha del cambio de estado la vuelve a escribir
-  // el backend, así que el "desde" arranca de nuevo.
-  async function deshacer() {
-    clearTimeout(temporizador.current)
-    setToast('')
-    setHayDeshacer(false)
-
-    const { producto, estado } = pendienteDeDeshacer.current
-    await aplicarEtapa(producto, estado)
+    if (siguiente.valor === 'TERMINADO') {
+      mostrarToast(`${pieza.producto_nombre} terminado`)
+    } else {
+      mostrarToast(`${pieza.producto_nombre} pasó a ${siguiente.label}`)
+    }
   }
 
   function verPedido(id) {
@@ -948,7 +920,7 @@ export default function Inicio() {
                   productos={piezas.results}
                   hoy={datos.hoy}
                   onVerPedido={verPedido}
-                  onCambiarEtapa={cambiarEtapa}
+                  onAvanzarEtapa={setPiezaPorAvanzar}
                   onVerMateriales={(producto) => navegar(`${BASE_GESTION}/materiales?producto=${producto}`)}
                 />
                 <PieDePaginas
@@ -1024,13 +996,17 @@ export default function Inicio() {
         </>
       )}
 
-      {toast && (
-        <Toast
-          texto={toast}
-          accion={hayDeshacer ? 'Deshacer' : undefined}
-          onAccion={deshacer}
+      {piezaPorAvanzar && (
+        <ModalConfirmar
+          titulo="Avanzar etapa"
+          texto={`¿Pasar «${piezaPorAvanzar.producto_nombre}» a ${siguienteEtapa(piezaPorAvanzar.estado).label}? No se puede volver atrás.`}
+          textoAccion={`Avanzar a ${siguienteEtapa(piezaPorAvanzar.estado).label}`}
+          onCerrar={() => setPiezaPorAvanzar(null)}
+          onConfirmar={avanzarEtapa}
         />
       )}
+
+      {toast && <Toast texto={toast} />}
     </div>
   )
 }

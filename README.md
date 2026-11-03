@@ -176,7 +176,7 @@ ana_porcelana/
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
 │   │   ├── tests.py             las 5 generales; las otras 141, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 168 y cómo correrlas
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 172 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -354,20 +354,25 @@ pieza puede estar terminada mientras el pedido continúa en producción
 porque otra no lo está, de modo que un único campo no podría
 representar ambas situaciones.
 
+**Los estados avanzan de a uno y no retroceden.** El estado del pedido
+recorre pendiente, en producción, listo y entregado, y la etapa de cada
+pieza recorre pendiente, modelado, secado, pintura y barniz, y
+terminado. Desde cada uno solo se pasa al siguiente: no se saltea ni se
+vuelve atrás, y cada avance se confirma antes de aplicarse. La regla
+reside en el backend, en una única operación para cada uno, de modo que
+ningún camino —la pantalla, el guardado de la ficha, el alta— puede
+eludirla: una pieza nueva nace pendiente, y el guardado del formulario
+no modifica las etapas.
+
 **Un pedido no puede declararse listo con piezas sin terminar.** Es la
 única condición que vincula esos dos estados independientes: el pedido
 no alcanza los estados listo ni entregado mientras alguna de sus piezas
-siga en producción. La condición se verifica en las dos direcciones. Al
-cambiar el estado, la operación se rechaza e informa cuántas piezas
-restan. Al modificar los productos de un pedido ya declarado listo
-—incorporar uno nuevo, retroceder una etapa, retirar el último— el
-pedido regresa automáticamente a producción, porque de otro modo la
-regla se eludiría declarándolo listo y modificándolo a continuación. La
-segunda verificación reutiliza la primera: consulta si el pedido podría
-alcanzar el estado que ya tiene, de manera que ambas no pueden divergir.
-El retroceso opera en un solo sentido; que la última pieza se termine no
-declara listo el pedido, porque esa determinación corresponde a la
-emprendedora.
+siga sin terminar, y la operación se rechaza informando cuántas piezas
+restan. Para que la condición no se eluda declarando listo el pedido y
+modificándolo después, un pedido listo o entregado no admite cambios en
+sus productos; el sistema, por lo tanto, nunca necesita retroceder un
+estado por su cuenta. Que la última pieza se termine no declara listo el
+pedido, porque esa determinación corresponde a la emprendedora.
 
 **Dos fechas de entrega.** La estimada es la que se acuerda con el
 cliente y puede reprogramarse; la real se registra al entregar. Con un
@@ -432,12 +437,12 @@ advierte antes de crearlo y lo señala en el listado.
 **Una única operación escribe sobre otro módulo.** Registrar la compra
 de un material indica que volvió a haber existencias, de modo que desde
 el gasto puede marcarse en disponibilidad alta, de a uno o en conjunto.
-La regla reside en el backend —solo se modifican los materiales activos
-que no estaban ya en ese nivel— y la respuesta informa la disponibilidad
-previa de cada material modificado. Con ese dato la interfaz ofrece
-deshacer la operación sin que exista un endpoint dedicado: restituye
-cada valor mediante la actualización parcial de materiales ya
-disponible.
+La marca forma parte del formulario del gasto y se aplica al guardarlo,
+en la misma transacción que el resto de los cambios. La regla reside en
+el backend —solo se modifican los materiales activos que no estaban ya
+en ese nivel— y la respuesta informa qué materiales cambiaron, para que
+la pantalla lo comunique al volver al listado. Un error se corrige desde
+el módulo de materiales.
 
 **Cantidad en texto libre** en la composición de productos. Las
 cantidades del oficio no admiten una unidad uniforme —«dos gotas»,

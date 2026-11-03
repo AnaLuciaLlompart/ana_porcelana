@@ -80,8 +80,35 @@ export const ETAPAS = [
 ]
 
 
-// El color del selector de etapa. En el diseño solo Terminado se pinta: es
-// el que dice que la pieza ya está. Las otras cuatro quedan neutras.
+// El estado y la etapa solo avanzan de a uno (corrección del tutor), en el
+// orden de ESTADOS y de ETAPAS, que es el del backend. Estas dos dan el que
+// sigue, con su etiqueta, o null en el último: es lo que dice el botón
+// "Avanzar a …". La regla la hace cumplir el backend; acá solo se muestra.
+function siguienteEn(lista, valor) {
+  const posicion = lista.findIndex((opcion) => opcion.valor === valor)
+  return lista[posicion + 1] ?? null
+}
+
+export function siguienteEstado(estado) {
+  return siguienteEn(ESTADOS, estado)
+}
+
+export function siguienteEtapa(etapa) {
+  return siguienteEn(ETAPAS, etapa)
+}
+
+// Por qué los productos del pedido ya no se pueden agregar, quitar ni
+// modificar, o '' si se puede. Un pedido Listo o Entregado no los acepta, y
+// el texto es el mismo que responde el backend.
+export function motivoProductosBloqueados(pedido) {
+  if (pedido.estado !== 'LISTO' && pedido.estado !== 'ENTREGADO') return ''
+
+  return `El pedido está ${pedido.estado_display}: sus productos ya no se pueden agregar, quitar ni modificar.`
+}
+
+
+// El color del chip de etapa. En el diseño solo Terminado se pinta: es el
+// que dice que la pieza ya está. Las otras cuatro quedan neutras.
 //
 // Se escriben las cinco claves aunque cuatro sean iguales, para poder leer
 // el color de cualquier etapa sin preguntar cuál es.
@@ -165,6 +192,11 @@ export const ICONO_COMPARTIR = 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-
 // Dos hojas superpuestas, el de copiar: el mismo de Clientes. Copia el
 // email del cliente en el modal de Cobros.
 export const ICONO_COPIAR = 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z'
+
+// Una flecha dentro de un círculo, el de avanzar el estado del pedido: va
+// primero en la fila del listado y hace pareja con el $ de Cobros, que
+// también es un círculo.
+export const ICONO_AVANZAR = 'M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z'
 
 
 // La fecha de hoy en ISO (aaaa-mm-dd), en hora local.
@@ -353,6 +385,7 @@ export function lineaEnMemoria(id, datos, delCatalogo) {
     subtotal: datos.cantidad * Number(datos.precio),
     descripcion: datos.descripcion,
     estado: 'PENDIENTE',
+    estado_display: 'Pendiente',
     fecha_cambio_estado: hoy(),
   }
 }

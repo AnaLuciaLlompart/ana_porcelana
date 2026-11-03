@@ -34,25 +34,50 @@ from .serializers import (
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
 
 
+def _siguiente(opciones, actual):
+    """El valor que sigue a actual en el orden de las opciones, o None si es el último.
+
+    opciones es una clase TextChoices (Pedido.Estado o ProductoDelPedido.Estado):
+    sus .values vienen en el orden en que están declaradas en el modelo, que es
+    el orden en que avanzan.
+    """
+    valores = opciones.values
+    posicion = valores.index(actual)
+
+    if posicion + 1 == len(valores):
+        return None
+
+    return valores[posicion + 1]
+
+
 def _revisar_estado(pedido, estado):
     """Devuelve el mensaje de error si el pedido no puede pasar a ese estado, o None.
 
-    La regla es una sola: un pedido no puede decir que está Listo ni
-    Entregado mientras le queden piezas sin terminar. El estado del pedido
-    y la etapa productiva de sus piezas son cosas independientes, pero en
-    esta punta no pueden contradecirse: si falta pintar algo, el encargo no
-    está listo para entregar.
+    Son dos reglas, en este orden.
 
-    Pendiente y En producción no se revisan, y por eso devuelven None de
-    entrada: son los estados de un pedido que todavía se está haciendo, así
-    que las piezas sin terminar son justamente lo que se espera ahí.
+    La primera es el orden (corrección del tutor): el estado solo avanza de a
+    uno, Pendiente → En producción → Listo → Entregado. No se saltea ni se
+    vuelve atrás, y de Entregado no se sale.
 
-    Entregado se revisa además de Listo porque sin eso la regla se
-    saltearía sola: alcanzaría con ir de En producción directo a Entregado.
-
-    Un pedido sin productos tampoco puede estar Listo, por el mismo motivo
-    que no se le puede registrar un cobro: no hay nada que entregar.
+    La segunda: un pedido no puede decir que está Listo ni Entregado
+    mientras le queden piezas sin terminar. El estado del pedido y la etapa
+    productiva de sus piezas son cosas independientes, pero en esta punta no
+    pueden contradecirse: si falta pintar algo, el encargo no está listo
+    para entregar. Pendiente y En producción no la revisan: son los estados
+    de un pedido que todavía se está haciendo. Un pedido sin productos
+    tampoco puede estar Listo, por el mismo motivo que no se le puede
+    registrar un cobro: no hay nada que entregar.
     """
+    siguiente = _siguiente(Pedido.Estado, pedido.estado)
+
+    if estado != siguiente:
+        actual = Pedido.Estado(pedido.estado).label
+
+        if siguiente is None:
+            return f'El pedido ya está {actual}: es el último estado.'
+
+        return f'El pedido está {actual}: el próximo estado es {Pedido.Estado(siguiente).label}.'
+
     if estado not in (Pedido.Estado.LISTO, Pedido.Estado.ENTREGADO):
         return None
 
@@ -94,6 +119,49 @@ def _revisar_estado(pedido, estado):
         )
 
     return f'No se puede marcar el pedido como {etiqueta}: {detalle}.'
+
+
+def _revisar_etapa(linea, etapa):
+    """Devuelve el mensaje de error si la pieza no puede pasar a esa etapa, o None.
+
+    La misma regla del orden que _revisar_estado (corrección del tutor): la
+    etapa solo avanza de a una, Pendiente → Modelado → Secado →
+    Pintura-Barniz → Terminado, sin saltear ni volver, y Terminado es la
+    última. La etapa de una pieza no depende del estado del pedido.
+    """
+    if etapa not in ProductoDelPedido.Estado.values:
+        return 'Esa no es una etapa válida para un producto del pedido.'
+
+    siguiente = _siguiente(ProductoDelPedido.Estado, linea.estado)
+
+    if etapa == siguiente:
+        return None
+
+    nombre = linea.producto.nombre
+    actual = ProductoDelPedido.Estado(linea.estado).label
+
+    if siguiente is None:
+        return f'«{nombre}» ya está {actual}: es la última etapa.'
+
+    return f'«{nombre}» está en {actual}: la próxima etapa es {ProductoDelPedido.Estado(siguiente).label}.'
+
+
+def _revisar_productos_editables(pedido):
+    """Devuelve el mensaje de error si los productos del pedido ya no se pueden cambiar, o None.
+
+    Un pedido Listo o Entregado no admite agregar, quitar ni modificar sus
+    productos (decisión de la usuaria con la corrección del tutor). Es lo
+    que sostiene la regla de las piezas sin terminar sin que el sistema
+    tenga que retroceder solo: antes, agregarle una pieza a un pedido Listo
+    lo bajaba a En producción, y el estado ya no vuelve atrás.
+    """
+    if pedido.estado not in (Pedido.Estado.LISTO, Pedido.Estado.ENTREGADO):
+        return None
+
+    return (
+        f'El pedido está {pedido.get_estado_display()}: sus productos ya no '
+        'se pueden agregar, quitar ni modificar.'
+    )
 
 
 # ---------------------------------------------------------------------
@@ -412,19 +480,16 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         Además de los datos del pedido, el cuerpo puede traer 'productos':
         una lista con lo mismo que recibe agregar_producto por fila
-        ('producto', 'cantidad', 'precio', 'descripcion', 'estado'). Todo se
-        guarda en la misma transacción (ATOMIC_REQUESTS): si una fila
-        falla, la respuesta es 400 con la clave 'productos' y el número de
-        la fila, y no queda ni el pedido. Sin 'productos' es el alta de
-        siempre.
+        ('producto', 'cantidad', 'precio', 'descripcion'). Todo se guarda en
+        la misma transacción (ATOMIC_REQUESTS): si una fila falla, la
+        respuesta es 400 con la clave 'productos' y el número de la fila, y
+        no queda ni el pedido. Sin 'productos' es el alta de siempre.
 
         Corrección del tutor: antes el frontend creaba el pedido y después
         mandaba una fila por pedido, y un fallo a mitad dejaba un pedido a
         medias. Las reglas de cada fila siguen en _agregar_producto, la
-        misma función que usa la acción de una fila.
-
-        No llama a _bajar_si_quedo_incompleto: un pedido nuevo nace
-        Pendiente (el estado es de solo lectura) y no puede estar Listo.
+        misma función que usa la acción de una fila. Las piezas nacen
+        Pendientes, como el pedido: las etapas se avanzan después, de a una.
         """
         lineas = leer_lista(request.data, 'productos')
 
@@ -457,14 +522,20 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         después un pedido por producto quitado, modificado o agregado, y un
         fallo a mitad dejaba lo anterior guardado.
 
-        La fila del pedido se bloquea antes, como en las acciones, y al
-        final _bajar_si_quedo_incompleto revisa una sola vez si con los
-        cambios el pedido dejó de estar completo.
+        La fila del pedido se bloquea antes, como en las acciones. Un pedido
+        Listo o Entregado no acepta 'productos' (_revisar_productos_editables):
+        su ficha no los manda, y el error sale con la clave 'productos' para
+        que la pantalla lo muestre pegado a la tabla.
         """
         lineas = leer_lista_si_vino(request.data, 'productos')
 
         pedido = self.get_object()
         self._bloquear(pedido)
+
+        if lineas is not None:
+            error = _revisar_productos_editables(pedido)
+            if error:
+                raise ValidationError({'productos': [error]})
 
         serializer = self.get_serializer(pedido, data=request.data, partial=kwargs.pop('partial', False))
         serializer.is_valid(raise_exception=True)
@@ -472,7 +543,6 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         if lineas is not None:
             self._sincronizar_productos(pedido, lineas)
-            self._bajar_si_quedo_incompleto(pedido)
 
         return Response(self.get_serializer(pedido).data)
 
@@ -483,10 +553,14 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         guardada cuyo id no viene se quita; la que viene con el id de una
         guardada se modifica con _modificar_producto, como el PATCH; la que
         no trae id, o trae el provisorio negativo del borrador, se agrega
-        con _agregar_producto, con su etapa. Un id que no es de este pedido
-        responde 400, como las acciones. Un error en una fila sale con su
-        número en la lista. Quien llama revisa después, una sola vez, si el
-        pedido quedó incompleto.
+        con _agregar_producto, y nace Pendiente. Un id que no es de este
+        pedido responde 400, como las acciones. Un error en una fila sale
+        con su número en la lista.
+
+        La etapa no se cambia al guardar (corrección del tutor): se avanza de
+        a una con su botón, por _avanzar_etapa. Una fila guardada que trae
+        una etapa distinta de la suya responde 400, así quien la mandó se
+        entera de que no se aplicó.
         """
         guardadas = {linea.pk: linea for linea in pedido.productos.all()}
         conservadas = ids_que_vienen(lineas)
@@ -503,6 +577,11 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
                     guardada = fila_guardada(datos, guardadas)
                     if guardada is None:
                         raise ParseError('Ese producto no pertenece a este pedido.')
+                    if 'estado' in datos and datos['estado'] != guardada.estado:
+                        raise ParseError(
+                            'La etapa no se cambia al guardar el pedido: '
+                            'se avanza con su botón, de a una.'
+                        )
                     self._modificar_producto(guardada, datos)
             except (ParseError, ValidationError) as error:
                 raise error_de_fila('productos', numero, self._nombre_del_producto(datos), error)
@@ -584,13 +663,13 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         """Cambiar el estado del pedido. Es parte de CU42 - Modificar pedido.
 
         No es un caso de uso propio, pero va como endpoint aparte por dos
-        motivos. En la pantalla el estado se cambia solo, con efecto
+        motivos. En la pantalla el estado se avanza solo, con efecto
         inmediato, sin pasar por el formulario ni por su botón de
         guardar. Y arrastra un efecto lateral que un PUT no tiene:
-        completar la fecha de entrega real al entregar, y borrarla al
-        sacar el pedido de Entregado.
+        completar la fecha de entrega real al entregar.
 
-        El estado llega en el cuerpo, en la clave 'estado'.
+        El estado llega en el cuerpo, en la clave 'estado', y tiene que ser
+        el siguiente del que tiene (_revisar_estado, corrección del tutor).
         """
         pedido = self.get_object()
         self._bloquear(pedido)
@@ -619,13 +698,13 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # La regla de negocio va acá y no en el serializer, igual que las de
-        # cobro: mira varias filas a la vez —el pedido y todas sus piezas—,
-        # que es lo que un serializer de una fila no puede ver.
+        # Las reglas de negocio van acá y no en el serializer, igual que las
+        # de cobro: la de Listo mira varias filas a la vez —el pedido y todas
+        # sus piezas—, que es lo que un serializer de una fila no puede ver.
         #
         # Este es el único lugar por donde se cambia el estado, porque el
         # campo es de solo lectura en el serializer. Por eso alcanza con
-        # revisarlo una vez.
+        # revisarlo una vez: el orden y las piezas sin terminar.
         error = _revisar_estado(pedido, estado)
 
         if error:
@@ -636,67 +715,28 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         return Response(self.get_serializer(pedido).data)
 
     def _guardar_estado(self, pedido, estado):
-        """Guarda el estado nuevo y acomoda la fecha de entrega real.
+        """Guarda el estado nuevo y, al entregar, la fecha de entrega real.
 
         La fecha no es un dato que se cargue: sale del estado, y la regla es
         que un pedido tiene fecha de entrega real si y solo si está
-        Entregado. Por eso se acomoda en las dos direcciones.
+        Entregado. Al entrar a Entregado se escribe SIEMPRE con la fecha de
+        hoy, aunque el campo ya tuviera una cargada: tocar el botón significa
+        "lo entregué hoy", sin excepciones que haya que recordar.
 
-        Al entrar a Entregado se escribe SIEMPRE con la fecha de hoy, aunque
-        el campo ya tuviera una cargada: tocar el botón significa "lo
-        entregué hoy", sin excepciones que haya que recordar.
-
-        Al salir de Entregado se borra, porque un pedido que no está
-        entregado no tiene fecha de entrega. Además es lo único que permite
-        arreglar un clic equivocado: el campo es de solo lectura en el
-        serializer, así que no hay ningún otro lugar donde corregirla.
+        Antes también la borraba al salir de Entregado. Desde que el estado
+        solo avanza (corrección del tutor), de Entregado no se sale, así que
+        esa rama nunca cambiaba nada y se sacó.
 
         Guardar el estado pasa por acá y no por un save() suelto para que esa
-        regla esté escrita una sola vez. Los dos lugares que cambian el
-        estado —cambiar_estado y _bajar_si_quedo_incompleto— llaman a este
-        método, así que ninguno puede dejar la fecha diciendo otra cosa.
+        regla esté escrita una sola vez. Lo llaman cambiar_estado y
+        cargar_datos_prueba.
         """
         pedido.estado = estado
 
         if estado == Pedido.Estado.ENTREGADO:
             pedido.fecha_entrega_real = timezone.localdate()
-        else:
-            pedido.fecha_entrega_real = None
 
         pedido.save(update_fields=['estado', 'fecha_entrega_real'])
-
-    def _bajar_si_quedo_incompleto(self, pedido):
-        """Devuelve el pedido a En producción si dejó de estar completo.
-
-        Es la otra cara de la regla de arriba. Sin esto se esquivaría sola:
-        se marca el pedido como Listo con todo terminado y después se le
-        agrega una pieza nueva, que nace Pendiente.
-
-        Por eso se llama al final de las tres operaciones sobre los
-        productos del pedido, que son las tres que pueden dejar un pedido
-        Listo con algo sin terminar: la pieza nueva nace Pendiente, a una ya
-        cargada se le puede mover la etapa hacia atrás, y quitando la última
-        el pedido queda vacío.
-
-        La condición no se vuelve a escribir: se le pregunta a
-        _revisar_estado si el pedido podría pasar al estado que YA tiene. Si
-        no podría, tampoco puede quedarse en él. Así las dos caras de la
-        regla son literalmente la misma comprobación y no pueden terminar
-        diciendo cosas distintas.
-
-        Solo baja el estado, nunca lo sube. Terminar la última pieza no pasa
-        el pedido a Listo: bajarlo corrige un dato que quedó falso, pero
-        subirlo sería decidir por la emprendedora que el encargo ya está
-        para entregar, y esa es una decisión suya.
-
-        Si el pedido venía de Entregado, la fecha de entrega real se borra en
-        el mismo movimiento. No es un caso aparte: lo hace _guardar_estado,
-        que es por donde pasan los dos lugares que cambian el estado.
-        """
-        if _revisar_estado(pedido, pedido.estado) is None:
-            return
-
-        self._guardar_estado(pedido, Pedido.Estado.EN_PRODUCCION)
 
     # -----------------------------------------------------------------
     # Los productos del pedido (CU44 a CU47)
@@ -764,10 +804,10 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         precio_actual del producto. A partir de ese momento la línea
         conserva ese número, aunque el del catálogo cambie mañana.
 
-        'estado' es opcional. La pieza nace Pendiente (el campo es de solo
-        lectura en el serializer de alta) y, si vino otra etapa, se aplica
-        después por el mismo camino que modificar_producto_del_pedido, con
-        su fecha. Antes el frontend hacía ese PATCH aparte.
+        La pieza nace Pendiente: el campo es de solo lectura en el serializer
+        de alta. Si datos trae otra etapa, responde 400 en vez de ignorarla
+        en silencio (corrección del tutor: la etapa se avanza después, de a
+        una, por _avanzar_etapa).
         """
         # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
         # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
@@ -798,10 +838,8 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         if datos.get('cantidad') in (None, ''):
             datos['cantidad'] = 1
 
-        # La etapa se saca del cuerpo antes de validar: el serializer de
-        # alta la tiene de solo lectura y la ignoraría. Se aplica abajo.
-        estado = datos.get('estado')
-        datos.pop('estado', None)
+        if datos.get('estado') not in (None, '', ProductoDelPedido.Estado.PENDIENTE):
+            raise ParseError('Una pieza nueva nace Pendiente: la etapa se avanza después, de a una.')
 
         # Se guarda con el serializer y no con .objects.create() porque
         # acá hay números que validar. Sin esto, una cantidad en 0 la
@@ -814,18 +852,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         # El pedido no viene en el cuerpo: sale de la URL, y se lo
         # pasamos acá para que nadie pueda agregarle un producto a otro
         # pedido mandándolo en el formulario.
-        linea = serializer.save(pedido=pedido)
-
-        if estado and estado != ProductoDelPedido.Estado.PENDIENTE:
-            # El serializer de modificación valida la etapa (ChoiceField):
-            # un valor fuera de la lista responde 400, como en el PATCH.
-            cambio = ProductoDelPedidoModificarSerializer(linea, data={'estado': estado}, partial=True)
-            cambio.is_valid(raise_exception=True)
-            linea = cambio.save()
-            linea.fecha_cambio_estado = timezone.localdate()
-            linea.save(update_fields=['fecha_cambio_estado'])
-
-        return linea
+        return serializer.save(pedido=pedido)
 
     # El mapping le dice al router: misma URL que 'productos', pero
     # cuando el método sea POST, ejecutá esta otra función. Así cada caso
@@ -835,9 +862,9 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         """CU44 - Agregar un producto al pedido.
 
         En el cuerpo llegan 'producto' (el id) y, opcionalmente,
-        'cantidad', 'precio', 'descripcion' y 'estado'. Las reglas, el
-        precio congelado incluido, están en _agregar_producto, que comparte
-        con el alta.
+        'cantidad', 'precio' y 'descripcion'. Las reglas, el precio
+        congelado incluido, están en _agregar_producto, que comparte con el
+        alta. Un pedido Listo o Entregado no acepta productos nuevos.
 
         No se rechaza un producto que ya figura en el pedido. A
         diferencia de los materiales de un producto, acá no hay
@@ -847,46 +874,55 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         pedido = self.get_object()
         self._bloquear(pedido)
 
+        error = _revisar_productos_editables(pedido)
+        if error:
+            raise ParseError(error)
+
         self._agregar_producto(pedido, request.data)
 
-        # Después de escribir y no antes: la comprobación tiene que ver la
-        # pieza recién agregada, que nace Pendiente y puede dejar al pedido
-        # sin estar listo. Lee de la base: _bloquear ya vació el prefetch.
-        self._bajar_si_quedo_incompleto(pedido)
-
+        # _bloquear vació el prefetch: la respuesta lee de la base y trae la
+        # pieza recién agregada.
         return Response(self.get_serializer(pedido).data)
 
     def _modificar_producto(self, linea, datos):
         """Modifica una fila de ProductoDelPedido con las reglas de CU46 y la devuelve.
 
-        Es la única puerta para modificar una pieza: la usan
-        modificar_producto_del_pedido (el PATCH de una fila) y
-        _sincronizar_productos (el guardado de la ficha). Si la etapa
-        cambia, se actualiza la fecha del cambio de estado.
+        Es la única puerta para modificar la cantidad, el precio o la
+        descripción de una pieza: la usan modificar_producto_del_pedido (el
+        PATCH de una fila) y _sincronizar_productos (el guardado de la
+        ficha). La etapa no pasa por acá: ProductoDelPedidoModificarSerializer
+        no la tiene entre sus campos, y se avanza por _avanzar_etapa.
         """
-        # Se guarda ANTES de escribir, porque después de save() la línea
-        # ya tiene el estado nuevo y no habría con qué comparar.
-        estado_anterior = linea.estado
-
         # partial=True: es un PATCH, así que lo que no venga en el
         # cuerpo se deja como está. El serializer valida la cantidad y
-        # el precio, por lo mismo que en el alta, y el estado solo: al
-        # tener choices, DRF lo convierte en un ChoiceField que rechaza
-        # cualquier valor fuera de la lista.
+        # el precio, por lo mismo que en el alta.
         serializer = ProductoDelPedidoModificarSerializer(
             linea,
             data=datos,
             partial=True,
         )
         serializer.is_valid(raise_exception=True)
-        linea = serializer.save()
+        return serializer.save()
 
-        # La fecha dice desde cuándo la pieza está en esta etapa, así que
-        # solo se toca cuando la etapa efectivamente cambió. Un PATCH que
-        # corrige la cantidad no tiene por qué mover el reloj del secado.
-        if linea.estado != estado_anterior:
-            linea.fecha_cambio_estado = timezone.localdate()
-            linea.save(update_fields=['fecha_cambio_estado'])
+    def _avanzar_etapa(self, linea, etapa):
+        """Pasa la pieza a la etapa siguiente y anota desde cuándo está ahí. Es parte de CU46.
+
+        Es la única puerta a la etapa de una pieza (corrección del tutor): la
+        usan el PATCH de modificar_producto_del_pedido y cargar_datos_prueba.
+        La regla del orden está en _revisar_etapa; si no se cumple, lanza
+        ParseError y la transacción revierte.
+
+        La fecha dice desde cuándo la pieza está en esta etapa: es lo que
+        muestra el "desde" de Inicio y de la ficha.
+        """
+        error = _revisar_etapa(linea, etapa)
+
+        if error:
+            raise ParseError(error)
+
+        linea.estado = etapa
+        linea.fecha_cambio_estado = timezone.localdate()
+        linea.save(update_fields=['estado', 'fecha_cambio_estado'])
 
         return linea
 
@@ -895,13 +931,20 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
     def modificar_producto_del_pedido(self, request, pk=None, linea_id=None):
         """CU46 - Modificar un producto del pedido.
 
-        Se pueden cambiar la cantidad, el precio, la descripción y la
-        etapa productiva. El producto no: para encargar otra pieza se
-        quita esta línea y se agrega otra. Las reglas están en
-        _modificar_producto, que comparte con el guardado de la ficha.
+        Se pueden cambiar la cantidad, el precio y la descripción, por
+        _modificar_producto, que comparte con el guardado de la ficha, y
+        avanzar la etapa productiva, por _avanzar_etapa: si viene 'estado',
+        tiene que ser la etapa siguiente. Inicio y la ficha mandan solo la
+        etapa. El producto no se cambia: para encargar otra pieza se quita
+        esta línea y se agrega otra. Un pedido Listo o Entregado no acepta
+        cambios en sus productos.
         """
         pedido = self.get_object()
         self._bloquear(pedido)
+
+        error = _revisar_productos_editables(pedido)
+        if error:
+            raise ParseError(error)
 
         linea = self._buscar_producto_del_pedido(pedido, linea_id)
 
@@ -911,14 +954,24 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        self._modificar_producto(linea, request.data)
+        # Un cuerpo que no sea un objeto JSON (una lista, por ejemplo) no
+        # tiene .get(): se rechaza con 400 en vez de dejar que explote en 500.
+        if not isinstance(request.data, dict):
+            raise ParseError('El cuerpo tiene que ser un objeto JSON.')
+
+        cambios = {
+            campo: request.data[campo]
+            for campo in ('cantidad', 'precio', 'descripcion')
+            if campo in request.data
+        }
+
+        if cambios:
+            self._modificar_producto(linea, cambios)
+
+        if 'estado' in request.data:
+            self._avanzar_etapa(linea, request.data['estado'])
 
         pedido.refresh_from_db()
-
-        # Retroceder la etapa de una pieza —de Terminado a Secado, por
-        # ejemplo— puede dejar al pedido diciendo que está listo cuando ya
-        # no lo está.
-        self._bajar_si_quedo_incompleto(pedido)
 
         return Response(self.get_serializer(pedido).data)
 
@@ -928,10 +981,15 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         Borra la línea, no el producto: el producto sigue existiendo en
         el catálogo y puede estar en otros pedidos. Es lo que protege el
-        PROTECT de la clave foránea.
+        PROTECT de la clave foránea. Un pedido Listo o Entregado no acepta
+        que se le quiten productos.
         """
         pedido = self.get_object()
         self._bloquear(pedido)
+
+        error = _revisar_productos_editables(pedido)
+        if error:
+            raise ParseError(error)
 
         linea = self._buscar_producto_del_pedido(pedido, linea_id)
 
@@ -944,10 +1002,6 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         linea.delete()
 
         pedido.refresh_from_db()
-
-        # Quitar la última pieza deja el pedido vacío, y un pedido sin nada
-        # que entregar tampoco puede estar listo.
-        self._bajar_si_quedo_incompleto(pedido)
 
         return Response(self.get_serializer(pedido).data)
 

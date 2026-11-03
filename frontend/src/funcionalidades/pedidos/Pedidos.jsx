@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  cambiarEstadoPedido,
   exportarPedidosAExcel,
   listarPedidos,
   obtenerPedido,
@@ -13,6 +12,7 @@ import {
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
 import ModalCobros from './ModalCobros'
+import ModalEstadoDelPedido from './ModalEstadoDelPedido'
 import ModalVerPedido from './ModalVerPedido'
 import {
   FILTROS_VACIOS,
@@ -31,6 +31,7 @@ import {
   ICONO_COMPARTIR,
   ICONO_COMPROBANTE,
   ICONO_EDITAR,
+  ICONO_AVANZAR,
   ICONO_FILTROS,
   ICONO_NUEVO,
   ICONO_PEDIDOS,
@@ -138,26 +139,21 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 }
 
 
-// Los colores del selector de ESTADO de la fila: los mismos de Entregado en
-// COLOR_ESTADO, y para los otros tres los neutros del selector de etapa.
-function colorSelectorEstado(estado) {
-  if (estado === 'ENTREGADO') return COLOR_ESTADO.ENTREGADO
-  return { color: '#3D3238', fondo: 'white', borde: '#EBE0E2' }
-}
-
-
-// Los cuatro botones de la fila. Ver abre el pedido en un modal de solo
-// lectura; Editar, la ficha, igual que el número de la primera columna;
-// Cobros, el modal de los cobros. El estado se cambia en su propia columna,
-// con el selector. Lo que no entra va en el ⋯: el comprobante del último
-// pago, que se abre en otra pestaña (en el celular se comparte), y eliminar.
-function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onCompartirComprobante }) {
+// Los cuatro botones de la fila, en el orden que eligió la usuaria: avanzar
+// el estado, que abre su modal (apagado en Entregado, el último); Cobros, el
+// modal de los cobros; Editar, la ficha, igual que el número de la primera
+// columna. Lo que no entra va en el ⋯: Ver, que abre el pedido en un modal
+// de solo lectura, el comprobante del último pago, que se abre en otra
+// pestaña (en el celular se comparte), y eliminar.
+function Acciones({ pedido, onVer, onEditar, onEstado, onEliminar, onCobros, onCompartirComprobante }) {
   // En el celular, si el navegador comparte archivos, el último comprobante
   // se comparte en vez de abrirse (corrección E11). El 768 es el mismo de
   // index.css y de PANTALLA_CHICA en Layout.jsx.
   const comprobanteSeComparte = window.matchMedia('(max-width: 768px)').matches && puedeCompartirArchivos()
+  const entregado = pedido.estado === 'ENTREGADO'
 
   const masAcciones = [
+    { texto: 'Ver', icono: ICONO_VER, onClick: () => onVer(pedido) },
     {
       texto: comprobanteSeComparte ? 'Compartir último comprobante' : 'Último comprobante',
       icono: comprobanteSeComparte ? ICONO_COMPARTIR : ICONO_COMPROBANTE,
@@ -173,18 +169,12 @@ function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onCompartirCo
   return (
     <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
       <BotonAccion
-        onClick={() => onVer(pedido)}
-        titulo="Ver"
+        onClick={() => onEstado(pedido)}
+        titulo={entregado ? 'El pedido ya está Entregado: es el último estado' : 'Avanzar estado'}
         color="#8C5A66"
         hover="#F0E2E4"
-        icono={ICONO_VER}
-      />
-      <BotonAccion
-        onClick={() => onEditar(pedido)}
-        titulo="Editar"
-        color="#8C5A66"
-        hover="#F0E2E4"
-        icono={ICONO_EDITAR}
+        icono={ICONO_AVANZAR}
+        deshabilitado={entregado}
       />
       <BotonAccion
         onClick={() => onCobros(pedido)}
@@ -192,6 +182,13 @@ function Acciones({ pedido, onVer, onEditar, onEliminar, onCobros, onCompartirCo
         color="#8C5A66"
         hover="#F0E2E4"
         icono={ICONO_COBRO}
+      />
+      <BotonAccion
+        onClick={() => onEditar(pedido)}
+        titulo="Editar"
+        color="#8C5A66"
+        hover="#F0E2E4"
+        icono={ICONO_EDITAR}
       />
       <MenuMasAcciones items={masAcciones} />
     </div>
@@ -241,7 +238,7 @@ function Tabla({
   onEliminar,
   onCobros,
   onCompartirComprobante,
-  onCambiarEstado,
+  onEstado,
 }) {
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
   const desde = (pagina - 1) * porPagina
@@ -377,38 +374,26 @@ function Tabla({
                     <span style={{ whiteSpace: 'nowrap', fontSize: 15 }}>{entregaTexto(p)}</span>
                   </td>
 
-                  {/* El estado se cambia acá mismo, como la etapa de una
-                      pieza en Inicio: elegir otro lo aplica al instante. El
-                      selector muestra lo que dice el backend, así que si lo
-                      rechaza vuelve solo al estado que tenía. Va neutro,
-                      como el de etapa, salvo Entregado, que es el que
-                      cierra el pedido y va en verde. */}
-                  <td style={{ ...estiloTd, padding: '9px 8px', textAlign: 'center' }}>
-                    <select
-                      value={p.estado}
-                      onChange={(e) => onCambiarEstado(p, e.target.value)}
-                      title="Cambiar estado"
+                  {/* El estado es un chip, con los colores de la ficha y del
+                      modal Ver: se avanza con el primer botón de ACCIONES,
+                      de a uno y con confirmación (corrección del tutor). */}
+                  <td style={{ ...estiloTd, textAlign: 'center' }}>
+                    <span
                       style={{
-                        width: '100%',
-                        maxWidth: 160,
-                        padding: '8px 6px',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        outline: 'none',
+                        display: 'inline-block',
+                        whiteSpace: 'nowrap',
                         fontFamily: "'Quicksand', sans-serif",
                         fontWeight: 600,
-                        fontSize: 13,
-                        border: `1px solid ${colorSelectorEstado(p.estado).borde}`,
-                        background: colorSelectorEstado(p.estado).fondo,
-                        color: colorSelectorEstado(p.estado).color,
+                        fontSize: 14,
+                        borderRadius: 20,
+                        padding: '5px 9px',
+                        border: `1px solid ${COLOR_ESTADO[p.estado].borde}`,
+                        background: COLOR_ESTADO[p.estado].fondo,
+                        color: COLOR_ESTADO[p.estado].color,
                       }}
                     >
-                      {ESTADOS.map((e) => (
-                        <option key={e.valor} value={e.valor}>
-                          {e.label}
-                        </option>
-                      ))}
-                    </select>
+                      {p.estado_display}
+                    </span>
                   </td>
 
                   <td
@@ -447,6 +432,7 @@ function Tabla({
                       pedido={p}
                       onVer={onVer}
                       onEditar={onEditar}
+                      onEstado={onEstado}
                       onEliminar={onEliminar}
                       onCobros={onCobros}
                       onCompartirComprobante={onCompartirComprobante}
@@ -555,9 +541,7 @@ function EstadoVacio({ onNuevo }) {
 
 
 // El título y el texto del modal de aviso, según lo que dejó en el state la
-// pantalla de la que se viene, o null si no dejó nada. Si al guardar el
-// backend bajó el pedido a En producción, el modal lo dice: es un cambio que
-// nadie pidió, y el aviso flotante se perdería al cambiar de pantalla.
+// pantalla de la que se viene, o null si no dejó nada.
 function avisoDeLaNavegacion(state) {
   if (state?.creado) {
     return {
@@ -569,9 +553,7 @@ function avisoDeLaNavegacion(state) {
   if (state?.guardado) {
     return {
       titulo: 'Cambios guardados',
-      texto:
-        `El pedido #${state.guardado} quedó guardado.` +
-        (state.bajoAProduccion ? ' Volvió a En producción porque quedaron piezas sin terminar.' : ''),
+      texto: `El pedido #${state.guardado} quedó guardado.`,
     }
   }
 
@@ -620,9 +602,10 @@ export default function Pedidos() {
   // con sus cobros, que el listado no trae: se pide al abrir.
   const [pedidoViendo, setPedidoViendo] = useState(null)
   const [pedidoCobros, setPedidoCobros] = useState(null)
-  // El motivo por el que el backend rechazó un cambio de estado, o ''.
-  const [errorEstado, setErrorEstado] = useState('')
-  // Lo mismo para compartir el último comprobante desde el celular.
+  // El pedido cuyo estado se está por avanzar, con su modal abierto.
+  const [pedidoEstado, setPedidoEstado] = useState(null)
+  // El motivo por el que falló compartir el último comprobante desde el
+  // celular, o ''.
   const [errorCompartir, setErrorCompartir] = useState('')
 
   const [toast, setToast] = useState('')
@@ -749,22 +732,17 @@ export default function Pedidos() {
     temporizador.current = setTimeout(() => setToast(''), 930)
   }
 
-  // El selector de ESTADO de la fila (CU42). Llama a cambiar_estado, que
-  // devuelve el pedido completo, y con eso se reemplaza esa fila al
+  // ModalEstadoDelPedido ya avanzó el estado (CU42) y entrega el pedido
+  // completo que devolvió cambiar_estado: con eso se reemplaza esa fila al
   // instante. Después se vuelve a pedir la página y el resumen: con un
   // filtro de estado la fila puede tener que irse, y los números de arriba
-  // cambian. Si el backend lo rechaza (Listo con piezas sin terminar), el
-  // motivo va en un modal, que se ve esté donde esté la fila, y el selector
-  // queda como estaba, porque la fila no cambió.
-  async function cambiarEstado(pedido, valor) {
-    try {
-      const res = await cambiarEstadoPedido(pedido.id, valor)
-      setPedidos((lista) => lista.map((p) => (p.id === pedido.id ? res.data : p)))
-      recargar()
-      mostrarToast(`Pedido ${res.data.estado_display.toLowerCase()}`)
-    } catch (err) {
-      setErrorEstado(err.response?.data?.detail || 'No se pudo cambiar el estado.')
-    }
+  // cambian. Si el backend lo rechazó, el motivo se vio adentro del modal y
+  // acá no llega nada.
+  function estadoCambiado(actualizado) {
+    setPedidoEstado(null)
+    setPedidos((lista) => lista.map((p) => (p.id === actualizado.id ? actualizado : p)))
+    recargar()
+    mostrarToast(`Pedido ${actualizado.estado_display.toLowerCase()}`)
   }
 
   // ModalCobros necesita la lista de cobros, que el listado no trae.
@@ -1112,7 +1090,7 @@ export default function Pedidos() {
             onEliminar={(p) => setPedidoEliminando(p)}
             onCobros={abrirCobros}
             onCompartirComprobante={compartirUltimoComprobante}
-            onCambiarEstado={cambiarEstado}
+            onEstado={(p) => setPedidoEstado(p)}
           />
         </>
       )}
@@ -1168,12 +1146,11 @@ export default function Pedidos() {
         />
       )}
 
-      {errorEstado && (
-        <ModalAviso
-          error
-          titulo="No se pudo cambiar el estado"
-          texto={errorEstado}
-          onCerrar={() => setErrorEstado('')}
+      {pedidoEstado && (
+        <ModalEstadoDelPedido
+          pedido={pedidoEstado}
+          onCerrar={() => setPedidoEstado(null)}
+          onEstadoCambiado={estadoCambiado}
         />
       )}
 

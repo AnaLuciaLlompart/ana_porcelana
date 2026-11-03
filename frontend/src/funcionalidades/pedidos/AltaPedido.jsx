@@ -177,10 +177,6 @@ export default function AltaPedido() {
     cambiarLinea(linea, { ...datos, subtotal: datos.cantidad * Number(datos.precio) })
   }
 
-  function cambiarEtapa(linea, estado) {
-    cambiarLinea(linea, { estado, fecha_cambio_estado: hoy() })
-  }
-
   function quitarProducto(linea) {
     setBorrador({ ...borrador, productos: borrador.productos.filter((l) => l.id !== linea.id) })
   }
@@ -215,9 +211,9 @@ export default function AltaPedido() {
     setCreando(true)
 
     // Como en la ficha: la entrega estimada y el costo viajan como null
-    // cuando están vacíos, que es como los declara el modelo. Cada producto
-    // viaja con su etapa: una pieza nace Pendiente y el backend le aplica la
-    // etapa elegida en el mismo pedido.
+    // cuando están vacíos, que es como los declara el modelo. Los productos
+    // no llevan etapa: nacen Pendientes y se avanzan después, de a una
+    // (corrección del tutor).
     const datos = {
       cliente: Number(borrador.cliente),
       fecha_pedido: borrador.fecha_pedido,
@@ -228,7 +224,6 @@ export default function AltaPedido() {
         cantidad: linea.cantidad,
         precio: linea.precio,
         descripcion: linea.descripcion,
-        estado: linea.estado,
       })),
     }
 
@@ -324,7 +319,6 @@ export default function AltaPedido() {
           error={errorProductos}
           onAgregar={() => setModalProducto(true)}
           onEditar={(linea) => setProductoEditando(linea)}
-          onCambiarEtapa={cambiarEtapa}
           onQuitar={quitarProducto}
         />
 

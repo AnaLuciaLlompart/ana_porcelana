@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 
-import { obtenerPedido, modificarPedido } from './api'
+import { obtenerPedido, modificarPedido, modificarProductoDelPedido } from './api'
 
 // Import que cruza de funcionalidad, con el mismo criterio de siempre: el
 // endpoint pertenece a esa app y ahí se queda. Acá hace falta la lista
@@ -10,21 +10,26 @@ import { listarClientes } from '../clientes/api'
 import { listarProductos } from '../productos/api'
 import { ANCHO_MAXIMO, BASE_GESTION } from '../../constantes'
 
+import BotonAvanzar from '../../componentes/BotonAvanzar'
 import ChipCambiosSinGuardar from '../../componentes/ChipCambiosSinGuardar'
 import ModalConfirmar from '../../componentes/ModalConfirmar'
+import Toast from '../../componentes/Toast'
 
 import PestanaDatos from './PestanaDatos'
 import PestanaProductos from './PestanaProductos'
 import ModalAgregarProducto from './ModalAgregarProducto'
 import ModalEditarProductoDelPedido from './ModalEditarProductoDelPedido'
+import ModalEstadoDelPedido from './ModalEstadoDelPedido'
 import {
   COLOR_ESTADO,
   ICONO_FLECHA,
   chipSaldo,
   datosDeEntrega,
   faltaFormaEntrega,
-  hoy,
   lineaEnMemoria,
+  motivoProductosBloqueados,
+  siguienteEstado,
+  siguienteEtapa,
 } from './presentacion'
 
 
@@ -71,7 +76,8 @@ function datosCambiaron(borrador, original) {
 // que se quitaron, las que cambiaron (con lo que cambió) y las nuevas, que
 // son las de id provisorio negativo. Es para saber si hay cambios sin
 // guardar; lo que viaja al guardar es la lista entera, y el backend hace
-// esta misma comparación contra la base.
+// esta misma comparación contra la base. La etapa no cuenta: no es un dato
+// del formulario, se avanza aparte y al instante.
 function cambiosEnProductos(guardados, enBorrador) {
   const idsEnBorrador = enBorrador.map((linea) => linea.id)
   const quitados = guardados.filter((g) => !idsEnBorrador.includes(g.id))
@@ -88,7 +94,6 @@ function cambiosEnProductos(guardados, enBorrador) {
     if (linea.cantidad !== guardada.cantidad) cambio.cantidad = linea.cantidad
     if (Number(linea.precio) !== Number(guardada.precio)) cambio.precio = linea.precio
     if (linea.descripcion !== guardada.descripcion) cambio.descripcion = linea.descripcion
-    if (linea.estado !== guardada.estado) cambio.estado = linea.estado
 
     if (Object.keys(cambio).length > 0) modificados.push({ linea, cambio })
   }
@@ -126,8 +131,10 @@ function claveDelError(err) {
 //
 // Es un solo formulario: los datos y los productos del pedido se editan en
 // el borrador y se guardan juntos con Guardar, que al terminar vuelve al
-// listado con un modal de aviso. El estado y los cobros no están acá: son
-// acciones, y viven en la fila del listado.
+// listado con un modal de aviso. Los cobros no están acá: viven en la fila
+// del listado. Las dos acciones de la ficha, que se aplican al instante
+// (corrección del tutor), son avanzar el estado del pedido, desde la
+// cabecera, y avanzar la etapa de una pieza, desde la tabla.
 export default function DetallePedido() {
   const { id } = useParams()
   const navegar = useNavigate()
@@ -148,6 +155,14 @@ export default function DetallePedido() {
   // breadcrumb.
   const [borrador, setBorrador] = useState(null)
   const [guardando, setGuardando] = useState(false)
+
+  // La pieza cuyo "Avanzar a …" se tocó: mientras no es null, se dibuja la
+  // confirmación. Lo mismo con el estado del pedido, que abre su modal. Y el
+  // aviso flotante que dice a qué etapa o estado pasó.
+  const [piezaPorAvanzar, setPiezaPorAvanzar] = useState(null)
+  const [avanzandoEstado, setAvanzandoEstado] = useState(false)
+  const [toast, setToast] = useState('')
+  const temporizador = useRef(null)
 
   const [clientes, setClientes] = useState([])
   const [productos, setProductos] = useState([])
@@ -218,8 +233,8 @@ export default function DetallePedido() {
   )
 
 
-  // Las cuatro operaciones sobre los productos escriben en el borrador, como
-  // en el alta: nada viaja hasta Guardar.
+  // Las tres operaciones sobre los productos escriben en el borrador, como
+  // en el alta: nada viaja hasta Guardar. Avanzar una etapa no: va abajo.
 
   function agregarProducto(datos) {
     setModalProducto(false)
@@ -241,14 +256,63 @@ export default function DetallePedido() {
     cambiarLinea(linea, { ...datos, subtotal: datos.cantidad * Number(datos.precio) })
   }
 
-  function cambiarEtapa(linea, estado) {
-    cambiarLinea(linea, { estado, fecha_cambio_estado: hoy() })
-  }
-
   // Quitar no pregunta: la pregunta, si el pedido queda sin productos, está
   // al guardar.
   function quitarProducto(linea) {
     setBorrador({ ...borrador, productos: borrador.productos.filter((l) => l.id !== linea.id) })
+  }
+
+  function mostrarToast(texto) {
+    setToast(texto)
+    clearTimeout(temporizador.current)
+    temporizador.current = setTimeout(() => setToast(''), 1400)
+  }
+
+  // "Avanzar a …" ya confirmado (corrección del tutor: la etapa avanza de a
+  // una y no vuelve). Es una acción y no un dato del formulario: va al
+  // instante, con el PATCH de etapa, sin esperar a Guardar. La respuesta es
+  // el pedido guardado, que reemplaza al anterior; en el borrador cambian
+  // solo la etapa y su fecha en esa fila, así no se pierde nada de lo que
+  // todavía no se guardó.
+  async function avanzarEtapa() {
+    const pieza = piezaPorAvanzar
+    const siguiente = siguienteEtapa(pieza.estado)
+    setPiezaPorAvanzar(null)
+    setErrorProductos('')
+
+    let actual
+    try {
+      actual = (await modificarProductoDelPedido(id, pieza.id, { estado: siguiente.valor })).data
+    } catch (err) {
+      setErrorProductos(mensajeDeError(err))
+      return
+    }
+
+    const guardada = actual.productos.find((l) => l.id === pieza.id)
+    setPedido(actual)
+    setBorrador((anterior) => ({
+      ...anterior,
+      productos: anterior.productos.map((l) =>
+        l.id === pieza.id
+          ? { ...l, estado: guardada.estado, estado_display: guardada.estado_display, fecha_cambio_estado: guardada.fecha_cambio_estado }
+          : l
+      ),
+    }))
+    mostrarToast(
+      siguiente.valor === 'TERMINADO'
+        ? `${pieza.producto_nombre} terminado`
+        : `${pieza.producto_nombre} pasó a ${siguiente.label}`
+    )
+  }
+
+  // ModalEstadoDelPedido ya avanzó el estado (corrección del tutor: de a
+  // uno, con confirmación). El estado no está en el borrador, así que alcanza
+  // con reemplazar el pedido guardado: cambia el chip y, si pasó a Listo, la
+  // tabla de productos queda apagada.
+  function estadoCambiado(actualizado) {
+    setAvanzandoEstado(false)
+    setPedido(actualizado)
+    mostrarToast(`Pedido ${actualizado.estado_display.toLowerCase()}`)
   }
 
 
@@ -291,29 +355,31 @@ export default function DetallePedido() {
     setPreguntarSinProductos(false)
     setGuardando(true)
 
-    // El estado de antes, para saber al final si el backend lo bajó solo.
-    const estadoAntes = pedido.estado
-
     // La entrega estimada y el costo viajan como null cuando están vacíos,
     // no como cadena vacía: así están declarados en el modelo, y un '' haría
     // fallar la validación del campo de fecha.
     //
     // La entrega real no viaja: no está en el borrador. Las piezas nuevas
     // van con su id provisorio negativo, que es como el backend las
-    // distingue de las guardadas, y con su etapa, que aplica al crearlas.
+    // distingue de las guardadas, y nacen Pendientes. La etapa no viaja: se
+    // avanza aparte, y el backend rechaza un guardado que la cambie.
     const datos = {
       cliente: Number(borrador.cliente),
       fecha_pedido: borrador.fecha_pedido,
       fecha_entrega_estimada: borrador.fecha_entrega_estimada || null,
       ...datosDeEntrega(borrador),
-      productos: borrador.productos.map((linea) => ({
+    }
+
+    // Un pedido Listo o Entregado no acepta cambios en sus productos: su
+    // tabla está apagada y la lista no viaja, así el PUT cambia solo los datos.
+    if (!motivoProductosBloqueados(pedido)) {
+      datos.productos = borrador.productos.map((linea) => ({
         id: linea.id,
         producto: linea.producto,
         cantidad: linea.cantidad,
         precio: linea.precio,
         descripcion: linea.descripcion,
-        estado: linea.estado,
-      })),
+      }))
     }
 
     let actual
@@ -326,17 +392,10 @@ export default function DetallePedido() {
       return
     }
 
-    // Todo guardado: se vuelve al listado, que avisa con un modal. Si el
-    // backend bajó el pedido a En producción (quedaron piezas sin
-    // terminar), el modal lo dice, porque es un cambio que nadie pidió.
-    // Sin bloqueo: ya no queda nada sin guardar.
+    // Todo guardado: se vuelve al listado, que avisa con un modal. Sin
+    // bloqueo: ya no queda nada sin guardar.
     saltearBloqueo.current = true
-    navegar(`${BASE_GESTION}/pedidos`, {
-      state: {
-        guardado: actual.id,
-        bajoAProduccion: actual.estado === 'EN_PRODUCCION' && estadoAntes !== 'EN_PRODUCCION',
-      },
-    })
+    navegar(`${BASE_GESTION}/pedidos`, { state: { guardado: actual.id } })
   }
 
 
@@ -448,7 +507,12 @@ export default function DetallePedido() {
           >
             <span>{subtitulo}</span>
 
-            {/* El estado se cambia desde el listado: acá solo se lee. */}
+            {/* El estado y, al lado, "Avanzar a …", que abre el mismo modal
+                del listado (corrección del tutor: de a uno, con
+                confirmación). Va en la cabecera y no en una tarjeta del
+                formulario, porque es una acción. Con cambios sin guardar va
+                apagado: pasar a Listo bloquea los productos, y el backend
+                decide mirando las piezas guardadas, no las del borrador. */}
             <span
               style={{
                 whiteSpace: 'nowrap',
@@ -464,6 +528,15 @@ export default function DetallePedido() {
             >
               {pedido.estado_display}
             </span>
+
+            {siguienteEstado(pedido.estado) && (
+              <BotonAvanzar
+                texto={`Avanzar a ${siguienteEstado(pedido.estado).label}`}
+                onClick={() => setAvanzandoEstado(true)}
+                deshabilitado={hayCambios || guardando}
+                motivo="Guardá o descartá los cambios antes de avanzar el estado"
+              />
+            )}
 
             <span
               style={{
@@ -498,9 +571,10 @@ export default function DetallePedido() {
           productos={borrador.productos}
           subtotal={subtotal}
           error={errorProductos}
+          bloqueado={motivoProductosBloqueados(pedido)}
           onAgregar={() => setModalProducto(true)}
           onEditar={(p) => setProductoEditando(p)}
-          onCambiarEtapa={cambiarEtapa}
+          onAvanzarEtapa={setPiezaPorAvanzar}
           onQuitar={quitarProducto}
         />
 
@@ -590,6 +664,26 @@ export default function DetallePedido() {
           onConfirmar={guardar}
         />
       )}
+
+      {avanzandoEstado && (
+        <ModalEstadoDelPedido
+          pedido={pedido}
+          onCerrar={() => setAvanzandoEstado(false)}
+          onEstadoCambiado={estadoCambiado}
+        />
+      )}
+
+      {piezaPorAvanzar && (
+        <ModalConfirmar
+          titulo="Avanzar etapa"
+          texto={`¿Pasar «${piezaPorAvanzar.producto_nombre}» a ${siguienteEtapa(piezaPorAvanzar.estado).label}? No se puede volver atrás.`}
+          textoAccion={`Avanzar a ${siguienteEtapa(piezaPorAvanzar.estado).label}`}
+          onCerrar={() => setPiezaPorAvanzar(null)}
+          onConfirmar={avanzarEtapa}
+        />
+      )}
+
+      {toast && <Toast texto={toast} />}
     </div>
   )
 }

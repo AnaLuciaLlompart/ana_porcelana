@@ -12,13 +12,13 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**168 pruebas**, todas en verde, en once apps (`usuarios` 17, `catalogo`
+**172 pruebas**, todas en verde, en once apps (`usuarios` 17, `catalogo`
 16, `materiales` 18, `categorias` 5, `productos` 27, `clientes` 7,
-`pedidos` 38, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
+`pedidos` 42, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 96 |
+| reglas de negocio | 100 |
 | validación | 23 |
 | permisos | 17 |
 | catálogo | 13 |
@@ -148,16 +148,20 @@ rendimiento.
 | pedidos | test_el_saldo_se_calcula_con_varios_cobros | Dos señas de $3.000 y $2.000 sobre $10.000 dan cobrado $5.000 y saldo $5.000; el pago restante deja saldo $0 y esta_al_dia | Propiedades cobrado y saldo de Pedido (CU48) | reglas de negocio |
 | pedidos | test_no_se_puede_cobrar_mas_que_el_total | Un cobro de $12.000 sobre $10.000 responde 400 con las tres cifras y no se registra | No se puede cobrar más que el total (CU48) | reglas de negocio |
 | pedidos | test_una_sena_no_puede_dejar_el_pedido_saldado | Una seña de $10.000 sobre $10.000 responde 400 con mensaje; el mismo monto como Pago restante entra y salda | Una seña no puede dejar el pedido saldado (CU48) | reglas de negocio |
-| pedidos | test_el_alta_crea_el_pedido_con_sus_productos | Un POST con dos productos (uno sin precio, otro en Secado) responde 201 con los dos, el precio congelado del catálogo y la etapa con su fecha | El alta trae los productos en el mismo POST, en una transacción (CU40, CU44) | reglas de negocio |
+| pedidos | test_el_alta_crea_el_pedido_con_sus_productos | Un POST con dos productos (uno sin precio) responde 201 con los dos Pendientes y el precio congelado del catálogo en el que no lo trae | El alta trae los productos en el mismo POST, en una transacción (CU40, CU44) | reglas de negocio |
+| pedidos | test_una_pieza_nueva_nace_pendiente | Una fila del alta con etapa Secado responde 400 "Fila 2 (Aros Hedwig): Una pieza nueva nace Pendiente…" y no se crea nada; con Pendiente pasa | Las piezas nacen Pendientes y la etapa se avanza después, de a una (CU40; corrección del tutor) | reglas de negocio |
 | pedidos | test_si_falla_un_producto_no_queda_el_pedido | Con la segunda fila inválida responde 400 con "Fila 2: …" y no queda ni el pedido ni la primera fila; 'productos' que no es lista da 400; sin 'productos' el POST crea el pedido solo | ATOMIC_REQUESTS revierte el alta entera (CU40) | reglas de negocio |
 | pedidos | test_un_cobro_sin_tipo_es_una_sena | Un cobro sin 'tipo' en el cuerpo responde 200 y queda como Seña | El default del modelo también vale para la regla de cobro (CU48); antes daba 500 | reglas de negocio |
 | pedidos | test_dos_cobros_a_la_vez_no_pasan_el_total | Dos cobros de $6.000 sobre $10.000 lanzados a la vez desde dos hilos: uno responde 200, el otro 400 con las tres cifras, y queda un solo cobro | El candado de select_for_update en _bloquear (CU48); sin él los dos entran | reglas de negocio |
-| pedidos | test_el_put_quita_modifica_y_agrega_productos_en_un_pedido | Un PUT con la lista completa de productos cambia la entrega estimada, quita la pieza que no viene, cambia cantidad y etapa (con su fecha) de la que sigue, agrega la nueva con su etapa y precio congelado, y baja el pedido Listo a En producción | El guardado de la ficha es un solo pedido: update() y _sincronizar_productos (CU42, CU44, CU46, CU47; corrección del tutor) | reglas de negocio |
+| pedidos | test_el_put_quita_modifica_y_agrega_productos_en_un_pedido | Un PUT con la lista completa de productos cambia la entrega estimada, quita la pieza que no viene, cambia la cantidad de la que sigue (su etapa queda) y agrega la nueva, Pendiente y con el precio congelado; el estado del pedido no cambia | El guardado de la ficha es un solo pedido: update() y _sincronizar_productos (CU42, CU44, CU46, CU47; corrección del tutor) | reglas de negocio |
+| pedidos | test_el_put_no_cambia_la_etapa | Una fila guardada con la etapa salteada o retrocedida da 400 "Fila 2 (Aros Hedwig): La etapa no se cambia al guardar el pedido…", y una nueva en Secado, "Una pieza nueva nace Pendiente…"; nada cambia; con las etapas de siempre el PUT pasa | La etapa se avanza solo por _avanzar_etapa (CU42, CU46; corrección del tutor) | reglas de negocio |
 | pedidos | test_si_falla_una_fila_el_pedido_queda_como_estaba | Con una fila de un producto inexistente el PUT responde 400 "Fila 2: No existe un producto con ese id." y ni la entrega estimada, ni las piezas, ni el estado cambian | ATOMIC_REQUESTS revierte el guardado entero (CU42; corrección del tutor) | reglas de negocio |
-| pedidos | test_un_put_sin_productos_no_toca_las_piezas | Un PUT con los datos y sin la clave 'productos' cambia la entrega estimada y deja las dos piezas y el estado Listo como estaban | Una lista que no viene no se toca: leer_lista_si_vino en update() (CU42) | reglas de negocio |
-| pedidos | test_no_pasa_a_listo_con_piezas_sin_terminar | Sin productos y con una pieza sin terminar, cambiar_estado a Listo responde 400 con mensaje; con todo terminado pasa | _revisar_estado (CU42) | reglas de negocio |
-| pedidos | test_agregar_una_pieza_a_un_pedido_listo_lo_baja_a_en_produccion | Agregar un producto a un pedido Listo lo devuelve a En producción | _bajar_si_quedo_incompleto (CU44) | reglas de negocio |
-| pedidos | test_la_fecha_de_entrega_real_solo_la_escribe_entregado | Un PUT con fecha_entrega_real la ignora; pasar a Entregado escribe hoy; volver a Listo la borra | fecha_entrega_real read_only; _guardar_estado (CU42) | reglas de negocio |
+| pedidos | test_un_put_sin_productos_no_toca_las_piezas | Un PUT con los datos y sin la clave 'productos' cambia la entrega estimada y deja las dos piezas y el estado En producción como estaban | Una lista que no viene no se toca: leer_lista_si_vino en update() (CU42) | reglas de negocio |
+| pedidos | test_el_estado_avanza_de_a_uno_sin_saltear_ni_retroceder | De Pendiente a Listo, de En producción a Pendiente o a Entregado, y de Entregado a Listo responden 400 con el próximo estado ("El pedido está En producción: el próximo estado es Listo." / "El pedido ya está Entregado: es el último estado."); Pendiente → En producción → Listo → Entregado pasa | El orden de _revisar_estado (CU42; corrección del tutor) | reglas de negocio |
+| pedidos | test_no_pasa_a_listo_con_piezas_sin_terminar | Desde En producción, sin productos y con una pieza sin terminar, cambiar_estado a Listo responde 400 con mensaje; con todo terminado pasa | La regla de las piezas sin terminar de _revisar_estado (CU42) | reglas de negocio |
+| pedidos | test_un_pedido_listo_no_acepta_cambios_en_sus_productos | Con el pedido Listo, agregar, el PATCH de cantidad, quitar y el PUT con 'productos' responden 400 "El pedido está Listo: sus productos ya no se pueden agregar, quitar ni modificar." y nada cambia; el PUT sin 'productos' pasa | _revisar_productos_editables (CU44, CU46, CU47; decisión con la corrección del tutor) | reglas de negocio |
+| pedidos | test_la_etapa_avanza_de_a_una_sin_saltear_ni_retroceder | Por el PATCH de etapa, saltear, retroceder, pasar de Terminado y una etapa que no existe dan 400 con su mensaje ("«Aros Hedwig» está en Modelado: la próxima etapa es Secado."); Pendiente → … → Terminado pasa y anota la fecha de hoy | _revisar_etapa y _avanzar_etapa, la única puerta a la etapa (CU46; corrección del tutor) | reglas de negocio |
+| pedidos | test_la_fecha_de_entrega_real_solo_la_escribe_entregado | Un PUT con fecha_entrega_real la ignora; avanzando de a uno, solo Entregado escribe hoy; volver a Listo da 400 y la fecha queda | fecha_entrega_real read_only; _guardar_estado (CU42) | reglas de negocio |
 | pedidos | test_retiro_no_suma_el_costo_al_total | Con retiro y $2.000 de costo cargado, costo_envio_a_cobrar es $0 y el total $5.000; con envío a cargo mío, $2.000 y $7.000 | Solo el envío a cargo mío suma al total: costo_envio_a_cobrar (CU42) | reglas de negocio |
 | pedidos | test_la_forma_de_entrega_se_guarda_con_su_etiqueta | PUT con forma_entrega 'ENVIO' responde 400 en el campo; con RETIRO responde 200, devuelve forma_entrega_display "Retiro" y queda en la base | Forma de entrega con tres valores (CU42) | validación |
 | pedidos | test_un_id_de_producto_que_es_lista_u_objeto_da_400 | POST {"producto": [1]} y {"producto": {"id": 1}} responden 400 "No existe un producto con ese id." y no crean la línea | TypeError atrapado en agregar_producto (CU44) | validación |

@@ -58,10 +58,8 @@ export default function ModalEditarProductoDelPedido({
       return
     }
 
-    // NO se manda el estado, aunque el backend lo aceptaría: la etapa se
-    // cambia desde el desplegable de la tabla. Mandarla desde acá sin que
-    // haya cambiado haría que el backend moviera la fecha del cambio de
-    // etapa, que es justo la que dice desde cuándo la pieza está donde está.
+    // NO se manda la etapa: se avanza de a una con el botón de la tabla, al
+    // instante, y el guardado de la ficha no la cambia (corrección del tutor).
     onGuardar(productoDelPedido, {
       cantidad: Number(cantidad),
       precio,
