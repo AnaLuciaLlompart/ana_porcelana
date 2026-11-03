@@ -12,7 +12,7 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**172 pruebas**, todas en verde, en once apps (`usuarios` 17, `catalogo`
+**177 pruebas**, todas en verde, en once apps (`usuarios` 22, `catalogo`
 16, `materiales` 18, `categorias` 5, `productos` 27, `clientes` 7,
 `pedidos` 42, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
@@ -56,6 +56,11 @@ rendimiento.
 | usuarios | test_los_fallos_con_otras_mayusculas_suman_al_mismo_bloqueo | Los fallos con "Ana", "ANA" y "ana" llegan juntos al bloqueo, en una sola fila de AccessAttempt con el nombre guardado | Bloqueo por intentos fallidos sobre el nombre guardado (django-axes, CU01) | seguridad |
 | usuarios | test_cerrar_sesion_deja_sin_acceso_a_la_gestion | Antes del logout la gestión responde 200; después del POST a /api/auth/logout/, 403 | Cerrar sesión (CU02) | seguridad |
 | usuarios | test_cambiar_contrasena_exige_la_actual_y_la_nueva_sirve_para_entrar | Con la actual incorrecta 400 con mensaje; con la correcta 200, la sesión sigue viva, la vieja ya no entra y la nueva sí | Modificar contraseña y update_session_auth_hash (CU03) | seguridad |
+| usuarios | test_iniciar_sesion_otra_vez_cierra_la_sesion_anterior | Dos navegadores inician sesión con la misma usuaria: el primero pasa a 401 en /api/auth/sesion/ y 403 en la gestión, el segundo sigue en 200 y queda una sola fila en django_session | Una única sesión por usuaria (django-single-session, CU01; corrección del tutor) | seguridad |
+| usuarios | test_un_login_fallido_no_cierra_la_sesion_abierta | Un login con la contraseña incorrecta responde 401 y la sesión abierta en otro navegador sigue en 200 | Solo una contraseña correcta cierra las otras sesiones (CU01) | seguridad |
+| usuarios | test_cambiar_la_contrasena_cierra_las_otras_sesiones | Con otra sesión abierta que la librería no anotó, cambiar la contraseña deja a la que cambió en 200 y a la otra en 403 | Modificar contraseña cierra las otras sesiones, por la huella de Django (CU03) | seguridad |
+| usuarios | test_despues_de_cambiar_la_contrasena_otro_login_cierra_la_sesion | Después de cambiar la contraseña, un login en otro navegador con la nueva deja a la primera en 401 y a la segunda en 200 | La sesión con clave nueva de update_session_auth_hash queda anotada en UserSession (CU01, CU03) | seguridad |
+| usuarios | test_el_mismo_navegador_puede_iniciar_sesion_dos_veces | Con la sesión abierta, otro login del mismo navegador responde 200, la sesión sigue y queda una sola fila en django_session y una en UserSession | El flush() de iniciar_sesion esquiva el UpdateError del issue #11 de django-single-session (CU01) | seguridad |
 | finanzas | test_desde_posterior_a_hasta_da_400 | GET con desde 2026-02-01 y hasta 2026-01-01 responde 400 con mensaje | Validación del período (CU61, CU62) | validación |
 | finanzas | test_los_totales_del_periodo_son_correctos | Un cobro de $4.000 y un gasto de $1.500 en marzo dan ingresos, gastos y resultado $2.500 con una fila de cada; un cobro de abril y un gasto de febrero quedan afuera | Ingresos = cobros del período; fecha__range inclusivo (CU61, CU62) | reglas de negocio |
 | finanzas | test_exportar_sin_sesion_da_403 | GET /api/finanzas/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (CU61, CU62, corrección E10) | permisos |

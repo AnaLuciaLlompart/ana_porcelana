@@ -30,6 +30,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'axes',
+    # Una sola sesión por usuaria (sugerencia del tutor). Va después de
+    # django.contrib.admin: su ready() le suma una acción al admin de Usuario.
+    'single_session',
     'usuarios',
     'materiales',
     'categorias',
@@ -214,6 +217,12 @@ AXES_LOCKOUT_CALLABLE = 'usuarios.views.respuesta_bloqueo'
 # se trabaja. El default de Django son 2 semanas fijas.
 SESSION_COOKIE_AGE = 60 * 60
 SESSION_SAVE_EVERY_REQUEST = True
+
+# django-single-session: iniciar sesión cierra las otras sesiones de la
+# usuaria. Necesita las sesiones en la base (es el default; escrito, se ve
+# de qué depende). LOGOUT_ALL_SESSIONS queda en su default, True.
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SINGLE_USER_SESSION = True
 
 
 

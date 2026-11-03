@@ -320,6 +320,35 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   corta mientras se trabaja; el catálogo público no toca la sesión. La
   prueba del `Max-Age` compara contra la hora escrita, no contra el
   setting.
+  **Una única sesión por usuaria** (corrección del tutor, noviembre de
+  2026): iniciar sesión en otro navegador o dispositivo cierra las
+  anteriores, que vuelven al login como una vencida (403 en la gestión,
+  que el interceptor manda al login; 401 en `/api/auth/sesion/`). Se hace
+  con django-single-session 0.2.0, por sugerencia del tutor:
+  `single_session` en `INSTALLED_APPS`, `SINGLE_USER_SESSION = True` y
+  `SESSION_ENGINE` en la base (su default, escrito porque la librería lo
+  exige), en `base.py`; `LOGOUT_ALL_SESSIONS` queda en su default, `True`,
+  que con una sola sesión no cambia nada. La librería anota cada sesión en
+  su tabla `UserSession` desde la señal `user_logged_in`, y al entrar borra
+  las otras anotadas de la usuaria; la app va después de
+  `django.contrib.admin` porque su `ready()` le suma una acción al admin de
+  Usuario. Está sin mantener (última versión de febrero de 2023, declara
+  Django hasta 4.0; con 5.2 pasan las pruebas) y tiene dos errores, que se
+  cubren con una línea cada uno en `usuarios/views.py`. (1) El issue #11:
+  si el mismo navegador inicia sesión otra vez, `login()` conserva la
+  sesión, la librería la borra con las demás y falla al guardarla
+  (`UpdateError`, 500); por eso `iniciar_sesion` hace
+  `request.session.flush()` antes de `login()`, después de verificar la
+  contraseña, así un fallo no cierra nada. (2) `update_session_auth_hash`
+  mueve la sesión a una clave nueva y borra la vieja con su anotación, y un
+  login posterior en otro lado no la cerraría; por eso `cambiar_password`
+  crea la `UserSession` de la clave nueva. Que al cambiar la contraseña se
+  cierren las otras sesiones lo sigue haciendo Django, por la huella de la
+  contraseña que guarda cada sesión. Las cinco pruebas están en
+  `UnaSolaSesion`. El login del admin pasa por la misma señal (entrar al
+  admin cierra la sesión de la gestión) y no tiene el `flush`; es
+  herramienta de desarrollo. En el servidor hace falta reconstruir la
+  imagen del backend; la tabla la crea `arrancar.sh` con `migrate`.
 - **Denegación por defecto:** `IsAuthenticated` global en DRF. Los
   endpoints públicos del catálogo llevarán `AllowAny` explícito.
 - **El usuario del login no distingue mayúsculas; la contraseña sí**
@@ -1882,7 +1911,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 172 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 177 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con

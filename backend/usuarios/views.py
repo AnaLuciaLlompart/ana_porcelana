@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
+from single_session.models import UserSession
 
 from .models import Usuario
 
@@ -117,6 +118,11 @@ def iniciar_sesion(request):
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
+    # django-single-session (issue #11): si este navegador ya tiene la sesión
+    # de la usuaria, login() la conserva, la librería la borra junto con las
+    # demás y después falla al guardarla (UpdateError, 500). Vaciada, login()
+    # crea una nueva, que la librería todavía no anotó y no borra.
+    request.session.flush()
     login(request, usuario) # login exitoso: crea una fila en django_session y prepara la cookie
     # La cookie viaja aparte, en las cabeceras, y el JavaScript no la puede leer.
 
@@ -182,6 +188,10 @@ def cambiar_password(request):
     request.user.set_password(nueva)
     request.user.save()
     update_session_auth_hash(request, request.user)
+    # update_session_auth_hash mueve la sesión a una clave nueva y borra la
+    # vieja, y con ella la anotación de django-single-session. Sin esto, el
+    # próximo login en otro lado no cerraría esta sesión.
+    UserSession.objects.create(session_id=request.session.session_key, user=request.user)
 
     return Response({'detail': 'Contraseña actualizada.'})
 

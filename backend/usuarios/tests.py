@@ -1,9 +1,12 @@
 from axes.models import AccessAttempt
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, get_user_model
+from django.contrib.sessions.backends.db import SessionStore
+from django.contrib.sessions.models import Session
 from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APIClient
+from single_session.models import UserSession
 
 from pruebas.base import CONTRASENA, USUARIA, PruebaConSesion, PruebaSinSesion
 
@@ -234,3 +237,108 @@ class CerrarSesionYCambiarContrasena(PruebaConSesion):
         datos['password'] = nueva
         self.assertEqual(otro_navegador.post('/api/auth/login/', datos, format='json').status_code,
                          status.HTTP_200_OK)
+
+
+class UnaSolaSesion(PruebaSinSesion):
+    """Una única sesión por usuaria con django-single-session (corrección del tutor).
+
+    Cada APIClient es un navegador distinto, con su propia cookie.
+    """
+
+    NUEVA = 'Porcelana-nueva-2027'
+
+    def setUp(self):
+        super().setUp()
+        self.usuaria = get_user_model().objects.create_user(USUARIA, password=CONTRASENA)
+
+    def _entrar(self, cliente, password=CONTRASENA):
+        return cliente.post(
+            '/api/auth/login/', {'username': USUARIA, 'password': password}, format='json',
+        )
+
+    def _sesion_sin_anotar(self):
+        """Un navegador con una sesión que la librería no anotó.
+
+        Es como una que ya estaba abierta antes de instalarla: con la
+        librería, ni force_login abre una segunda sesión sin cerrar la otra.
+        """
+        sesion = SessionStore()
+        sesion[SESSION_KEY] = str(self.usuaria.pk)
+        sesion[BACKEND_SESSION_KEY] = 'django.contrib.auth.backends.ModelBackend'
+        sesion[HASH_SESSION_KEY] = self.usuaria.get_session_auth_hash()
+        sesion.create()
+        cliente = APIClient()
+        cliente.cookies[settings.SESSION_COOKIE_NAME] = sesion.session_key
+        return cliente
+
+    def test_iniciar_sesion_otra_vez_cierra_la_sesion_anterior(self):
+        """CU01: con dos logins de la misma usuaria queda válida solo la segunda; la primera recibe 401 y la gestión 403."""
+        primero, segundo = APIClient(), APIClient()
+        self.assertEqual(self._entrar(primero).status_code, status.HTTP_200_OK)
+        self.assertEqual(primero.get('/api/auth/sesion/').status_code, status.HTTP_200_OK)
+
+        self.assertEqual(self._entrar(segundo).status_code, status.HTTP_200_OK)
+
+        respuesta = primero.get('/api/auth/sesion/')
+        self.assertEqual(respuesta.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(respuesta.data['detail'], 'No hay sesión activa.')
+        self.assertEqual(primero.get('/api/materiales/').status_code, status.HTTP_403_FORBIDDEN)
+
+        self.assertEqual(segundo.get('/api/auth/sesion/').status_code, status.HTTP_200_OK)
+        self.assertEqual(segundo.get('/api/materiales/').status_code, status.HTTP_200_OK)
+        self.assertEqual(Session.objects.count(), 1)
+
+    def test_un_login_fallido_no_cierra_la_sesion_abierta(self):
+        """CU01: un login con la contraseña incorrecta da 401 y la sesión abierta sigue."""
+        abierta, intruso = APIClient(), APIClient()
+        self.assertEqual(self._entrar(abierta).status_code, status.HTTP_200_OK)
+
+        self.assertEqual(self._entrar(intruso, 'incorrecta').status_code,
+                         status.HTTP_401_UNAUTHORIZED)
+
+        self.assertEqual(abierta.get('/api/materiales/').status_code, status.HTTP_200_OK)
+
+    def test_cambiar_la_contrasena_cierra_las_otras_sesiones(self):
+        """CU03: la sesión que cambia la contraseña sigue y la otra pasa a 403."""
+        quien_cambia = APIClient()
+        self.assertEqual(self._entrar(quien_cambia).status_code, status.HTTP_200_OK)
+        otra = self._sesion_sin_anotar()
+        self.assertEqual(otra.get('/api/materiales/').status_code, status.HTTP_200_OK)
+
+        respuesta = quien_cambia.post(
+            '/api/auth/password/', {'password_actual': CONTRASENA, 'password_nueva': self.NUEVA},
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(quien_cambia.get('/api/materiales/').status_code, status.HTTP_200_OK)
+        self.assertEqual(otra.get('/api/materiales/').status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_despues_de_cambiar_la_contrasena_otro_login_cierra_la_sesion(self):
+        """CU01 y CU03: la sesión que cambió la contraseña también se cierra cuando se inicia sesión en otro lado."""
+        primero, segundo = APIClient(), APIClient()
+        self.assertEqual(self._entrar(primero).status_code, status.HTTP_200_OK)
+        respuesta = primero.post(
+            '/api/auth/password/', {'password_actual': CONTRASENA, 'password_nueva': self.NUEVA},
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(primero.get('/api/auth/sesion/').status_code, status.HTTP_200_OK)
+
+        self.assertEqual(self._entrar(segundo, self.NUEVA).status_code, status.HTTP_200_OK)
+
+        self.assertEqual(primero.get('/api/auth/sesion/').status_code,
+                         status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(segundo.get('/api/auth/sesion/').status_code, status.HTTP_200_OK)
+
+    def test_el_mismo_navegador_puede_iniciar_sesion_dos_veces(self):
+        """CU01: con la sesión ya abierta, otro login responde 200 y queda una sola sesión (issue #11 de django-single-session)."""
+        navegador = APIClient()
+        self.assertEqual(self._entrar(navegador).status_code, status.HTTP_200_OK)
+
+        # Sin el flush() de iniciar_sesion este login es un 500 (UpdateError).
+        self.assertEqual(self._entrar(navegador).status_code, status.HTTP_200_OK)
+
+        self.assertEqual(navegador.get('/api/auth/sesion/').status_code, status.HTTP_200_OK)
+        self.assertEqual(Session.objects.count(), 1)
+        self.assertEqual(UserSession.objects.count(), 1)

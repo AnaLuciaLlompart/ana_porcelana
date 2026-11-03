@@ -123,6 +123,7 @@ distinguir quién pregunta.
 | ReportLab | Arma los PDF: el comprobante de pago y las exportaciones |
 | openpyxl | Arma las planillas de Excel de las exportaciones |
 | django-axes | Bloqueo temporal tras varios intentos de login fallidos |
+| django-single-session | Una única sesión por usuaria: iniciar sesión en otro lugar cierra las anteriores |
 | gunicorn | Servidor de aplicación para producción. Atiende las peticiones con varios procesos en paralelo |
 
 **Frontend**
@@ -176,7 +177,7 @@ ana_porcelana/
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
 │   │   ├── tests.py             las 5 generales; las otras 141, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 172 y cómo correrlas
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 177 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -306,7 +307,9 @@ ofrecen una cookie inaccesible al código del cliente y un cierre de
 sesión efectivo del lado del servidor. El nombre de usuario del inicio de
 sesión no distingue mayúsculas: «ana» y «Ana» ingresan igual; la
 contraseña sí las distingue. Los intentos fallidos de ambas formas suman
-al mismo bloqueo.
+al mismo bloqueo. Hay una única sesión por usuaria: iniciar sesión en
+otro navegador o dispositivo cierra la anterior, que vuelve a la pantalla
+de ingreso igual que una sesión vencida por inactividad.
 
 **Denegación por defecto** en la API: todo endpoint exige autenticación
 salvo declaración explícita en contra. Una omisión produce un recurso
