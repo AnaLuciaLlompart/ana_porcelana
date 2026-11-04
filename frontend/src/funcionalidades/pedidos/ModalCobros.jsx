@@ -229,12 +229,13 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
               overflowY: 'auto',
             }}
           >
-            {/* El cliente y su email. El botón de copiarlo se sacó cuando el
-                comprobante pasó a mandarse por correo desde acá (pedido de
-                la usuaria). En el celular, si no entra, el email baja debajo
-                del usuario (flexWrap). */}
+            {/* El cliente y su email, los dos del mismo color (pedido de la
+                usuaria). El botón de copiar el email se sacó cuando el
+                comprobante pasó a mandarse por correo desde acá. En el
+                celular, si no entra, el email baja debajo del usuario
+                (flexWrap). */}
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 2 }}>
-              <span style={{ fontSize: 15, color: '#857078' }}>@{pedido.cliente_instagram}</span>
+              <span style={{ fontSize: 15, color: '#3D3238' }}>@{pedido.cliente_instagram}</span>
               <span style={{ minWidth: 0, fontSize: 15, color: '#3D3238', overflowWrap: 'anywhere' }}>
                 {pedido.cliente_email || 'Sin email cargado'}
               </span>

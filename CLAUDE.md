@@ -798,8 +798,10 @@ alta de pedido no tiene cobros, se evalúa solo sobre pedidos guardados.
 (corrección del tutor del 28/10/2026, A1; el orden y qué queda a la vista
 los eligió la usuaria con la corrección de los estados de noviembre de
 2026). Cuatro iconos por fila, y lo menos usado va en el ⋯
-(`MenuMasAcciones`, en `componentes/`): Ver, Último comprobante, Enviar
-último comprobante por correo y Eliminar, este en rojo. A la vista quedan las dos acciones del día a día
+(`MenuMasAcciones`, en `componentes/`): Ver y Eliminar, este en rojo
+(tuvo también "Último comprobante" y "Enviar último comprobante por
+correo"; la usuaria los sacó en noviembre de 2026: los comprobantes se
+hacen cobro por cobro desde el $ de Cobros). A la vista quedan las dos acciones del día a día
 del pedido, avanzar el estado y cobrar, y Editar. Es la única fila de un
 listado que no empieza con el ojo: la ficha (lápiz o número) muestra lo
 mismo y más. Avanzar estado (`ICONO_AVANZAR`, una flecha en un círculo
@@ -865,12 +867,14 @@ abre desde el primer botón de la fila y desde la cabecera de la ficha
 siendo una acción instantánea y no un campo del formulario (ver
 "Formulario o acción" en Patrón a seguir).
 
-**Último comprobante (CU60)** abre en otra pestaña el comprobante de pago
-del cobro más reciente; en el celular lo comparte (ver "En el celular, el
-comprobante se comparte", en Diseño visual). `PedidoListaSerializer` trae `ultimo_cobro`, su
-id o `null`, calculado con `max()` por (fecha, id) sobre lo que ya trajo
-el prefetch, así que el listado sigue en 4 consultas. Sin cobros, el ítem
-se apaga con "Este pedido todavía no tiene cobros".
+**"Último comprobante" salió del ⋯** (pedido de la usuaria, noviembre de
+2026), junto con "Enviar último comprobante por correo": abría en otra
+pestaña el comprobante del cobro más reciente (en el celular lo
+compartía) y se apagaba sin cobros. Los comprobantes se ven, se comparten
+y se mandan cobro por cobro desde `ModalCobros`. `PedidoListaSerializer`
+sigue trayendo `ultimo_cobro`, su id o `null`, calculado con `max()` por
+(fecha, id) sobre lo que ya trajo el prefetch (el listado sigue en 4
+consultas), aunque hoy ninguna pantalla lo usa.
 
 **Cada cobro tiene su comprobante de pago** (corrección del tutor del
 28/10/2026, C5): así queda el historial de cada pago, y no solo el del
@@ -921,17 +925,18 @@ pago con su monto y fecha, el saldo de hoy o "quedó saldado", el Instagram
 y la firma), la fila ADJUNTO con el nombre del PDF y "Ver PDF" (la misma
 `urlComprobanteDeCobro`), Cancelar y "Enviar" / "Enviando…"; el 400 y el
 503 se ven adentro, y al enviar quien lo abrió muestra `ModalAviso`
-"Comprobante enviado" con el texto del backend. Lo abren el sobre
+"Comprobante enviado" con el texto del backend. Lo abre el sobre
 (`ICONO_CORREO`) de cada cobro en `PestanaCobros` (prop opcional
-`onEnviarCorreo`; con él la fila llega a cuatro botones) y "Enviar último
-comprobante por correo" en el ⋯ del listado, que pide el pedido completo
-como el $ de Cobros. Las cinco pruebas están en
+`onEnviarCorreo`; con él la fila llega a cuatro botones); el ⋯ del
+listado tuvo "Enviar último comprobante por correo" y la usuaria lo sacó
+junto con "Último comprobante", así que `ModalCobros` es la única puerta.
+Las cinco pruebas están en
 `EnvioDelComprobantePorCorreo`.
 
 **Dónde queda cada comprobante, decidido por la usuaria.** En
 `ModalCobros`, el de cada pago, como historial, con su sobre para
-mandarlo por correo. En el ⋯ del listado, "Último comprobante" y "Enviar
-último comprobante por correo". El PDF del pedido sin cobro queda en el backend
+mandarlo por correo; es la única puerta, porque el ⋯ del listado ya no
+tiene nada del comprobante. El PDF del pedido sin cobro queda en el backend
 (`comprobante`), pero ninguna pantalla lo llama, como `publicar` y
 `quitar_del_catalogo`. Esto reemplaza lo que decía el pedido del tutor,
 que conservaba el del pedido en la cabecera de la ficha.
@@ -987,8 +992,9 @@ de la fila.
 
 **El email del cliente se ve en `ModalCobros`.** Arriba de las dos
 tarjetas va el @usuario y, al lado, el email ("Sin email cargado" si
-falta); en el celular, si no entra, baja debajo del usuario (`flexWrap`,
-sin clase en `index.css`). Tuvo al lado el botón de copiar de Clientes,
+falta), los dos en el color del texto principal (pedido de la usuaria;
+antes el usuario iba en gris); en el celular, si no entra, baja debajo
+del usuario (`flexWrap`, sin clase en `index.css`). Tuvo al lado el botón de copiar de Clientes,
 para tenerlo a mano al mandar el comprobante; salió cuando el comprobante
 pasó a mandarse por correo desde el mismo modal (pedido de la usuaria,
 noviembre de 2026), y con él la prop `onAviso`, el aviso "Email copiado"
@@ -1223,8 +1229,8 @@ verde a 18; el círculo entra con un saltito y el tilde se dibuja solo,
 con `element.animate()` y `pathLength="1"`, como el aviso flotante. El
 texto va centrado y Aceptar sigue en rosa, porque el verde es color de
 estado y no de botón. Con `error` es la misma forma en rojo (franja
-`#FAEAE8`, círculo rojo con el triángulo): la usan Pedidos cuando falla
-compartir el último comprobante y `BotonesExportar` cuando falla un
+`#FAEAE8`, círculo rojo con el triángulo): la usan `ModalCobros` cuando
+falla compartir un comprobante y `BotonesExportar` cuando falla un
 Excel (el rechazo de un cambio de estado, que antes iba acá, ahora se ve
 adentro de `ModalEstadoDelPedido`). Lo usan los seis listados con alta y
 edición (productos, pedidos, gastos, materiales, clientes y categorías)
@@ -2443,15 +2449,16 @@ puntos, `#8C5A66`).
 **En el celular, el comprobante se comparte** (corrección del tutor,
 E11). El botón de comprobante de cada cobro, en `ModalCobros`, pasa a
 ser Compartir: mismo lugar, el ícono de compartir y el title "Compartir
-comprobante". En el ⋯ del listado de Pedidos, "Último comprobante" pasa
-a "Compartir último comprobante". No se agrega un botón: se reemplaza,
-para que la fila no se recargue en pantalla chica. **Por qué:** en el
+comprobante". (El ⋯ del listado de Pedidos hacía lo mismo con "Último
+comprobante", hasta que la usuaria sacó el comprobante del ⋯ en noviembre
+de 2026.) No se agrega un botón: se reemplaza, para que la fila no se
+recargue en pantalla chica. **Por qué:** en el
 teléfono lo que se hace con el comprobante es mandárselo al cliente, y
 abrirlo en otra pestaña obligaba a descargarlo y adjuntarlo a mano; así
 abre el menú de compartir del teléfono (WhatsApp, Instagram) con el PDF.
 **La condición** son las dos cosas: pantalla chica (una línea con
-`window.matchMedia('(max-width: 768px)')`, en `ModalCobros` y en
-`Acciones` de `Pedidos.jsx`) y un navegador que comparta archivos
+`window.matchMedia('(max-width: 768px)')`, en `ModalCobros`) y un
+navegador que comparta archivos
 (`puedeCompartirArchivos()`, en `api/exportar.js`, que le pregunta a
 `navigator.canShare` por un PDF vacío). Si falta una, en la compu o en un
 celular cuyo navegador no comparte, se ve el comprobante como siempre.
@@ -2470,9 +2477,9 @@ necesita el despliegue.
 **Cuatro iconos por fila, como máximo** (corrección del tutor del
 28/10/2026, A1). Si una fila tiene más acciones, las menos usadas van en
 el ⋯ de `MenuMasAcciones`, con icono y texto. Hoy solo lo usa Pedidos
-(avanzar estado, cobros y lápiz a la vista; Ver, último comprobante,
-enviarlo por correo y eliminar en el ⋯); Productos (ojo, lápiz, dar de
-baja, papelera) y Gastos (ojo, lápiz, papelera) entran sin él. La fila de
+(avanzar estado, cobros y lápiz a la vista; Ver y eliminar en el ⋯);
+Productos (ojo, lápiz, dar de baja, papelera) y Gastos (ojo, lápiz,
+papelera) entran sin él. La fila de
 cada cobro en `ModalCobros` también llega a cuatro: comprobante, correo,
 lápiz y cruz.
 
@@ -2689,7 +2696,7 @@ normal, notebook o tablet apaisada, que es para lo que se diseñó todo y
 no lleva ninguna regla. Cada número está en los lugares que tienen que
 coincidir: el 768 en `index.css`, en `PANTALLA_CHICA` de `Layout.jsx` y,
 desde E11, en la línea que decide si el comprobante se comparte, en
-`ModalCobros.jsx` y en `Acciones` de `Pedidos.jsx`; el
+`ModalCobros.jsx`; el
 1440 en `index.css` y en `PANTALLA_GRANDE` de `DetalleProducto.jsx`. React
 decide qué dibujar y CSS cómo se ve: si los dos números difieren, hay un
 rango de anchos donde uno cree estar de un lado y el otro del otro.

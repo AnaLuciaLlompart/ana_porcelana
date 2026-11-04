@@ -4,15 +4,12 @@ import {
   exportarPedidosAExcel,
   listarPedidos,
   obtenerPedido,
-  pedirComprobanteDeCobro,
   resumenDePedidos,
-  urlComprobanteDeCobro,
   urlExportarPedidosPdf,
 } from './api'
 import ModalFiltros from './ModalFiltros'
 import ModalEliminarPedido from './ModalEliminarPedido'
 import ModalCobros from './ModalCobros'
-import ModalEnviarComprobante from './ModalEnviarComprobante'
 import ModalEstadoDelPedido from './ModalEstadoDelPedido'
 import ModalVerPedido from './ModalVerPedido'
 import {
@@ -29,9 +26,6 @@ import {
   ICONO_BORRAR,
   ICONO_BUSCAR,
   ICONO_COBRO,
-  ICONO_COMPARTIR,
-  ICONO_COMPROBANTE,
-  ICONO_CORREO,
   ICONO_EDITAR,
   ICONO_AVANZAR,
   ICONO_FILTROS,
@@ -59,7 +53,6 @@ import Toast from '../../componentes/Toast'
 import ModalAviso from '../../componentes/ModalAviso'
 import ChipSinContenido from '../../componentes/ChipSinContenido'
 import { BASE_GESTION } from '../../constantes'
-import { compartirArchivo, puedeCompartirArchivos } from '../../api/exportar'
 
 
 const estiloTh = {
@@ -145,33 +138,15 @@ function EncabezadoOrdenable({ campo, etiqueta, orden, onClick, justify, ancho }
 // el estado, que abre su modal (apagado en Entregado, el último); Cobros, el
 // modal de los cobros; Editar, la ficha, igual que el número de la primera
 // columna. Lo que no entra va en el ⋯: Ver, que abre el pedido en un modal
-// de solo lectura, el comprobante del último pago, que se abre en otra
-// pestaña (en el celular se comparte), enviarlo por correo, y eliminar.
-function Acciones({ pedido, onVer, onEditar, onEstado, onEliminar, onCobros, onCompartirComprobante, onEnviarCorreo }) {
-  // En el celular, si el navegador comparte archivos, el último comprobante
-  // se comparte en vez de abrirse (corrección E11). El 768 es el mismo de
-  // index.css y de PANTALLA_CHICA en Layout.jsx.
-  const comprobanteSeComparte = window.matchMedia('(max-width: 768px)').matches && puedeCompartirArchivos()
+// de solo lectura, y eliminar. Los comprobantes (verlos, compartirlos y
+// mandarlos por correo) se hacen cobro por cobro desde el $ de Cobros: la
+// usuaria sacó del ⋯ "Último comprobante" y "Enviar último comprobante por
+// correo".
+function Acciones({ pedido, onVer, onEditar, onEstado, onEliminar, onCobros }) {
   const entregado = pedido.estado === 'ENTREGADO'
 
   const masAcciones = [
     { texto: 'Ver', icono: ICONO_VER, onClick: () => onVer(pedido) },
-    {
-      texto: comprobanteSeComparte ? 'Compartir último comprobante' : 'Último comprobante',
-      icono: comprobanteSeComparte ? ICONO_COMPARTIR : ICONO_COMPROBANTE,
-      onClick: comprobanteSeComparte
-        ? () => onCompartirComprobante(pedido)
-        : () => window.open(urlComprobanteDeCobro(pedido.id, pedido.ultimo_cobro), '_blank', 'noopener,noreferrer'),
-      deshabilitado: pedido.ultimo_cobro === null,
-      motivo: 'Este pedido todavía no tiene cobros',
-    },
-    {
-      texto: 'Enviar último comprobante por correo',
-      icono: ICONO_CORREO,
-      onClick: () => onEnviarCorreo(pedido),
-      deshabilitado: pedido.ultimo_cobro === null,
-      motivo: 'Este pedido todavía no tiene cobros',
-    },
     { texto: 'Eliminar', icono: ICONO_BORRAR, color: '#C0442F', onClick: () => onEliminar(pedido) },
   ]
 
@@ -246,8 +221,6 @@ function Tabla({
   onEditar,
   onEliminar,
   onCobros,
-  onCompartirComprobante,
-  onEnviarCorreo,
   onEstado,
 }) {
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
@@ -445,8 +418,6 @@ function Tabla({
                       onEstado={onEstado}
                       onEliminar={onEliminar}
                       onCobros={onCobros}
-                      onCompartirComprobante={onCompartirComprobante}
-                      onEnviarCorreo={onEnviarCorreo}
                     />
                   </td>
                 </tr>
@@ -615,12 +586,6 @@ export default function Pedidos() {
   const [pedidoCobros, setPedidoCobros] = useState(null)
   // El pedido cuyo estado se está por avanzar, con su modal abierto.
   const [pedidoEstado, setPedidoEstado] = useState(null)
-  // El motivo por el que falló compartir el último comprobante desde el
-  // celular, o ''.
-  const [errorCompartir, setErrorCompartir] = useState('')
-  // El pedido COMPLETO y su último cobro, mientras está abierto el modal de
-  // enviar el comprobante por correo; null si no.
-  const [envioCorreo, setEnvioCorreo] = useState(null)
 
   const [toast, setToast] = useState('')
   const temporizador = useRef(null)
@@ -764,31 +729,6 @@ export default function Pedidos() {
     obtenerPedido(pedido.id)
       .then((res) => setPedidoCobros(res.data))
       .catch(() => setError('No se pudieron cargar los cobros del pedido.'))
-  }
-
-  // El "Compartir último comprobante" del ⋯ en el celular (corrección E11).
-  // Cerrar el menú de compartir sin elegir nada no avisa; un error, sí.
-  async function compartirUltimoComprobante(pedido) {
-    const fallo = await compartirArchivo(
-      () => pedirComprobanteDeCobro(pedido.id, pedido.ultimo_cobro),
-      `Comprobante del pedido #${pedido.id}`,
-    )
-    if (fallo) setErrorCompartir(fallo)
-  }
-
-  // "Enviar último comprobante por correo" del ⋯. El modal necesita el correo
-  // del cliente y los cobros, que el listado no trae: se pide el pedido
-  // completo, como para Cobros.
-  function abrirEnvioDeCorreo(pedido) {
-    obtenerPedido(pedido.id)
-      .then((res) => {
-        const completo = res.data
-        setEnvioCorreo({
-          pedido: completo,
-          cobro: completo.cobros.find((c) => c.id === completo.ultimo_cobro),
-        })
-      })
-      .catch(() => setError('No se pudo cargar el pedido.'))
   }
 
   // Al cerrar se recarga el listado: el saldo pudo cambiar, y con un filtro
@@ -1118,8 +1058,6 @@ export default function Pedidos() {
             onEditar={verPedido}
             onEliminar={(p) => setPedidoEliminando(p)}
             onCobros={abrirCobros}
-            onCompartirComprobante={compartirUltimoComprobante}
-            onEnviarCorreo={abrirEnvioDeCorreo}
             onEstado={(p) => setPedidoEstado(p)}
           />
         </>
@@ -1180,27 +1118,6 @@ export default function Pedidos() {
           pedido={pedidoEstado}
           onCerrar={() => setPedidoEstado(null)}
           onEstadoCambiado={estadoCambiado}
-        />
-      )}
-
-      {envioCorreo && (
-        <ModalEnviarComprobante
-          pedido={envioCorreo.pedido}
-          cobro={envioCorreo.cobro}
-          onCerrar={() => setEnvioCorreo(null)}
-          onEnviado={(texto) => {
-            setEnvioCorreo(null)
-            setAviso({ titulo: 'Comprobante enviado', texto })
-          }}
-        />
-      )}
-
-      {errorCompartir && (
-        <ModalAviso
-          error
-          titulo="No se pudo compartir"
-          texto={errorCompartir}
-          onCerrar={() => setErrorCompartir('')}
         />
       )}
 

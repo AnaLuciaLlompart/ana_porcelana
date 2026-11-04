@@ -6,8 +6,9 @@ import { ICONO_COMPROBANTE, correoDelComprobante } from './presentacion'
 // corrección del tutor): el destinatario, el asunto y el mensaje se revisan
 // y se editan antes de enviar, y el PDF adjunto se puede abrir. Se vale
 // solo, como ModalEstadoDelPedido: llama él a la API y le entrega el texto
-// de la respuesta a quien lo abrió (onEnviado), así sirve desde ModalCobros
-// y desde el ⋯ del listado. Capa 110, para quedar sobre ModalCobros.
+// de la respuesta a quien lo abrió (onEnviado). Hoy lo abre solo ModalCobros:
+// el ⋯ del listado lo tuvo y la usuaria lo sacó. Capa 110, para quedar sobre
+// ModalCobros.
 //
 // Para viene completo con el correo del cliente si lo tiene cargado; si no,
 // se escribe acá y no se guarda en el cliente (se carga desde Clientes).
