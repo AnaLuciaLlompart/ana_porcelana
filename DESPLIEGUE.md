@@ -769,9 +769,9 @@ Move-Item -Force .env.desarrollo .env
 ## El correo
 
 El sistema manda correo desde la cuenta de Gmail del emprendimiento
-(`ana.porcelanaaaa@gmail.com`): hoy, el enlace de "¿Olvidaste tu
-contraseña?" del login. Lo manda Django por SMTP con una contraseña de
-aplicación de Google; no se instala nada. Siempre desde la carpeta del
+(`ana.porcelanaaaa@gmail.com`): el enlace de "¿Olvidaste tu contraseña?"
+del login y el comprobante de un cobro, desde Cobros. Lo manda Django por
+SMTP con una contraseña de aplicación de Google; no se instala nada. Siempre desde la carpeta del
 proyecto.
 
 1. **Comprobar que el servidor puede salir a Gmail:**

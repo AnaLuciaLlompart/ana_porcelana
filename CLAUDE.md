@@ -380,8 +380,8 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   (`usuarios/correo.py`) va en HTML, con el botón "Elegir contraseña
   nueva" en rosa y el enlace debajo para copiarlo, y en texto plano como
   alternativa, con `armar_correo` de `config/correo.py` (ver "El correo
-  sale por Gmail") y dos plantillas en `usuarios/templates/usuarios/` (la
-  `.html` extiende `correo/base.html`; la `.txt` lleva `autoescape off`);
+  sale por Gmail") y dos plantillas en `usuarios/templates/` (la `.html`
+  extiende `correo_base.html`; la `.txt` lleva `autoescape off`);
   si Gmail falla, se registra en el log y la respuesta no cambia. Las siete pruebas están en
   `RecuperarContrasena`. En el frontend, las tres pantallas de acceso
   (`Login`, `RecuperarContrasena` y `RestablecerContrasena`, en
@@ -400,11 +400,15 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   y el correo sale en la terminal del runserver; `produccion.py` usa SMTP
   siempre; las pruebas usan el de memoria que pone el runner
   (`mail.outbox`). Los pasos del servidor están en DESPLIEGUE.md, "El
-  correo". **Todos los correos se arman con `armar_correo`**
+  correo". **Todos los correos (el enlace para restablecer la contraseña y
+  el comprobante de un cobro) se arman con `armar_correo`**
   (`config/correo.py`): texto plano, HTML sobre la plantilla base
-  `config/templates/correo/base.html` (el fondo, la tarjeta, el logo y
+  `config/templates/correo_base.html` (el fondo, la tarjeta, el logo y
   "Ana Porcelana"; esa carpeta está en `TEMPLATES['DIRS']`, y cada app
-  pone sus plantillas en su `templates/`) y el logo del sistema arriba
+  pone las suyas en su `templates/`, directo y sin la subcarpeta con el
+  nombre de la app que Django sugiere para evitar choques: los nombres
+  son únicos y a la usuaria no le gustaba carpeta sobre carpeta) y el
+  logo del sistema arriba
   de "Ana Porcelana", como en la hoja del login (pedido de la usuaria).
   El logo es `config/logo_correo.png`, el favicon de la gestión dibujado
   a 192 px (48 a 4×, para pantallas de alta resolución; Gmail no muestra
@@ -577,8 +581,9 @@ Eliminar. La tabla ordena por ÚLTIMO descendente, como el prototipo.
 de dos hojas copia el email del cliente y no el usuario (pedido de la
 usuaria); sin email cargado se apaga, con "Este cliente no tiene email
 cargado" en el title. El aviso dice "Email copiado" y no el email entero,
-que lo hacía largo (pedido de la usuaria); el mismo botón y el mismo aviso
-están en `ModalCobros` (ver Módulo Pedidos). Copiar
+que lo hacía largo (pedido de la usuaria); `ModalCobros` tuvo el mismo
+botón hasta que el comprobante pasó a mandarse por correo desde ahí (ver
+Módulo Pedidos). Copiar
 al portapapeles es la única acción sin efecto visible. El alta y la
 edición se confirman con `ModalAviso`, como en todos los listados (ver
 "Después de crear, las tres vuelven al listado con un modal de aviso");
@@ -793,8 +798,8 @@ alta de pedido no tiene cobros, se evalúa solo sobre pedidos guardados.
 (corrección del tutor del 28/10/2026, A1; el orden y qué queda a la vista
 los eligió la usuaria con la corrección de los estados de noviembre de
 2026). Cuatro iconos por fila, y lo menos usado va en el ⋯
-(`MenuMasAcciones`, en `componentes/`): Ver, Último comprobante y
-Eliminar, este en rojo. A la vista quedan las dos acciones del día a día
+(`MenuMasAcciones`, en `componentes/`): Ver, Último comprobante, Enviar
+último comprobante por correo y Eliminar, este en rojo. A la vista quedan las dos acciones del día a día
 del pedido, avanzar el estado y cobrar, y Editar. Es la única fila de un
 listado que no empieza con el ojo: la ficha (lápiz o número) muestra lo
 mismo y más. Avanzar estado (`ICONO_AVANZAR`, una flecha en un círculo
@@ -889,9 +894,44 @@ no existen). En el celular el mismo botón comparte el comprobante, con la
 prop `comprobanteSeComparte` (ver "En el celular, el comprobante se
 comparte", en Diseño visual).
 
+**El comprobante de un cobro se manda por correo** (corrección del tutor,
+noviembre de 2026). `POST /api/pedidos/<id>/cobros/<cobro_id>/enviar_comprobante/`
+(`enviar_comprobante`) recibe `para`, `asunto` y `mensaje`, que valida
+`EnvioDeComprobanteSerializer` (`EmailField` y dos `CharField` de 150 y
+2.000; un correo sin forma de correo da 400 con la clave `para`), busca el
+cobro con `_buscar_cobro` (uno ajeno, 400 como el comprobante) y manda el
+correo con `enviar_comprobante_de_cobro` (`pedidos/correo.py`): el mensaje
+de la usuaria en texto plano y en HTML sobre la plantilla base
+(`pedidos/templates/comprobante.html`, el mensaje con
+`linebreaksbr`, que lo escapa y conserva sus saltos de línea), el logo en
+línea y el PDF adjunto, el mismo de `generar_comprobante`, con el nombre de
+`nombre_del_archivo` (`comprobante.py`), que también usan las dos acciones
+que lo sirven. Si Gmail falla responde 503 "No se pudo enviar el correo.
+Probá de nuevo en un rato; si sigue pasando, revisá la configuración del
+correo del servidor.": acá sí se avisa, la usuaria tiene que saber que no
+salió; no escribe nada, así que no hay nada que revertir. El cliente ya
+tenía `email` (opcional): el modal lo trae de `cliente_email` y, si está
+vacío, se escribe ahí y no se guarda en el cliente (sería la segunda
+escritura entre módulos; se carga desde Clientes). En pantalla,
+`ModalEnviarComprobante` (capa 110) se vale solo, como
+`ModalEstadoDelPedido`: PARA, ASUNTO y MENSAJE editables y completos con
+los textos de `correoDelComprobante` (`pedidos/presentacion.js`: "Comprobante
+de pago · Pedido #14 · Ana Porcelana"; el saludo con `cliente_nombre`, el
+pago con su monto y fecha, el saldo de hoy o "quedó saldado", el Instagram
+y la firma), la fila ADJUNTO con el nombre del PDF y "Ver PDF" (la misma
+`urlComprobanteDeCobro`), Cancelar y "Enviar" / "Enviando…"; el 400 y el
+503 se ven adentro, y al enviar quien lo abrió muestra `ModalAviso`
+"Comprobante enviado" con el texto del backend. Lo abren el sobre
+(`ICONO_CORREO`) de cada cobro en `PestanaCobros` (prop opcional
+`onEnviarCorreo`; con él la fila llega a cuatro botones) y "Enviar último
+comprobante por correo" en el ⋯ del listado, que pide el pedido completo
+como el $ de Cobros. Las cinco pruebas están en
+`EnvioDelComprobantePorCorreo`.
+
 **Dónde queda cada comprobante, decidido por la usuaria.** En
-`ModalCobros`, el de cada pago, como historial. En el ⋯ del listado,
-"Último comprobante". El PDF del pedido sin cobro queda en el backend
+`ModalCobros`, el de cada pago, como historial, con su sobre para
+mandarlo por correo. En el ⋯ del listado, "Último comprobante" y "Enviar
+último comprobante por correo". El PDF del pedido sin cobro queda en el backend
 (`comprobante`), pero ninguna pantalla lo llama, como `publicar` y
 `quitar_del_catalogo`. Esto reemplaza lo que decía el pedido del tutor,
 que conservaba el del pedido en la cabecera de la ficha.
@@ -945,19 +985,16 @@ el `borrarCobro`; queda abierto mientras viaja y el rechazo se ve adentro.
 En A7 lo abría un botón en la cabecera de la ficha; en A1, el ⋯; hoy, el $
 de la fila.
 
-**El email del cliente se copia desde `ModalCobros`** (pedido de la
-usuaria: para tenerlo a mano al mandar el comprobante). Arriba de las dos
-tarjetas va el @usuario y, al lado, el email con el botón de copiar de
-Clientes pegado (`ICONO_COPIAR`, que `pedidos/presentacion.js` repite como
-los demás iconos). En la compu es un renglón; en el celular, si no entra,
-el email y el botón bajan juntos debajo del usuario (`flexWrap`, sin
-clase en `index.css`; lo eligió la usuaria entre tres formas). Sin email
-cargado dice "Sin email cargado" y el botón se apaga con el mismo title
-que en Clientes. El email lo trae
+**El email del cliente se ve en `ModalCobros`.** Arriba de las dos
+tarjetas va el @usuario y, al lado, el email ("Sin email cargado" si
+falta); en el celular, si no entra, baja debajo del usuario (`flexWrap`,
+sin clase en `index.css`). Tuvo al lado el botón de copiar de Clientes,
+para tenerlo a mano al mandar el comprobante; salió cuando el comprobante
+pasó a mandarse por correo desde el mismo modal (pedido de la usuaria,
+noviembre de 2026), y con él la prop `onAviso`, el aviso "Email copiado"
+de acá e `ICONO_COPIAR` de `pedidos/presentacion.js`. El email lo trae
 `PedidoDetalleSerializer` en `cliente_email`, solo en la ficha: el listado
-no lo muestra. El aviso "Email copiado" lo muestra quien abrió el modal,
-por la prop `onAviso`, como "Cobro registrado"; si copiar falla, el error
-va arriba de la lista.
+no lo muestra, y es lo que precarga PARA en `ModalEnviarComprobante`.
 
 **El error de los productos va pegado a su tabla.** `PestanaProductos`
 recibe una prop opcional `error` (`errorProductos` en la ficha), copiada
@@ -1975,7 +2012,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 184 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 189 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
@@ -2373,7 +2410,7 @@ nada. Entra con un saltito y el tilde se dibuja solo, con
 React ni `index.css`); se vuelve a animar con cada texto nuevo. Dura
 1,4 segundos (cada pantalla tiene su temporizador en `mostrarToast`),
 también los de avanzar una etapa en Inicio y en la ficha del pedido; el
-de copiar el email ("Email copiado", en Clientes y en `ModalCobros`) y
+de copiar el email ("Email copiado", en Clientes) y
 los del listado de Pedidos ("Cobro registrado" y el avance de estado,
 "Pedido listo"), 0,93. Lo usan las pantallas de la gestión; el catálogo
 tiene el suyo, `ToastCatalogo`.
@@ -2433,9 +2470,11 @@ necesita el despliegue.
 **Cuatro iconos por fila, como máximo** (corrección del tutor del
 28/10/2026, A1). Si una fila tiene más acciones, las menos usadas van en
 el ⋯ de `MenuMasAcciones`, con icono y texto. Hoy solo lo usa Pedidos
-(avanzar estado, cobros y lápiz a la vista; Ver, último comprobante y
-eliminar en el ⋯); Productos (ojo, lápiz, dar de baja, papelera) y Gastos
-(ojo, lápiz, papelera) entran sin él.
+(avanzar estado, cobros y lápiz a la vista; Ver, último comprobante,
+enviarlo por correo y eliminar en el ⋯); Productos (ojo, lápiz, dar de
+baja, papelera) y Gastos (ojo, lápiz, papelera) entran sin él. La fila de
+cada cobro en `ModalCobros` también llega a cuatro: comprobante, correo,
+lápiz y cruz.
 
 **Lápiz donde se puede modificar, ojo donde solo se mira.** La acción que
 abre una ficha editable se llama "Editar" (antes "Ver y editar"; desde

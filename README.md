@@ -315,7 +315,10 @@ de ingreso igual que una sesión vencida por inactividad.
 el enlace lleva un token firmado que vale 15 minutos y sirve una sola
 vez, y el pedido responde siempre lo mismo, exista o no el correo, para
 no revelar qué cuentas existen. Al restablecerla se cierran todas las
-sesiones y se levanta el bloqueo por intentos fallidos.
+sesiones y se levanta el bloqueo por intentos fallidos. Por el mismo
+camino, el comprobante de cada pago se le envía al cliente desde la
+gestión, con el PDF adjunto y el destinatario, el asunto y el mensaje a la
+vista antes de enviar.
 
 **Denegación por defecto** en la API: todo endpoint exige autenticación
 salvo declaración explícita en contra. Una omisión produce un recurso

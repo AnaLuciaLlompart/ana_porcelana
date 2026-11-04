@@ -3,6 +3,7 @@ import { ANCHO_MAXIMO } from '../../constantes'
 import {
   ICONO_COMPARTIR,
   ICONO_COMPROBANTE,
+  ICONO_CORREO,
   ICONO_CRUZ,
   ICONO_EDITAR,
   ICONO_MAS,
@@ -34,8 +35,9 @@ function FilaResumen({ etiqueta, valor, apagada, color }) {
 
 
 // La lista de cobros y el resumen de un pedido guardado. La usa solo
-// ModalCobros. onComprobante es opcional: sin él no se dibuja el botón del
-// comprobante de cada pago.
+// ModalCobros. onComprobante y onEnviarCorreo son opcionales: sin ellos no
+// se dibujan el botón del comprobante de cada pago ni el de mandarlo por
+// correo.
 export default function PestanaCobros({
   pedido,
   onRegistrar,
@@ -43,6 +45,7 @@ export default function PestanaCobros({
   onQuitar,
   onComprobante,
   comprobanteSeComparte = false,
+  onEnviarCorreo,
 }) {
   const chip = chipSaldo(pedido.saldo)
 
@@ -194,6 +197,18 @@ export default function PestanaCobros({
                   hover="#F0E2E4"
                   tamanoIcono={20}
                   icono={comprobanteSeComparte ? ICONO_COMPARTIR : ICONO_COMPROBANTE}
+                />
+              )}
+              {/* Enviar el comprobante de este pago por correo (corrección
+                  del tutor). Con él son cuatro botones, el máximo por fila. */}
+              {onEnviarCorreo && (
+                <BotonAccion
+                  onClick={() => onEnviarCorreo(cobro)}
+                  titulo="Enviar comprobante por correo"
+                  color="#8C5A66"
+                  hover="#F0E2E4"
+                  tamanoIcono={20}
+                  icono={ICONO_CORREO}
                 />
               )}
               <BotonAccion

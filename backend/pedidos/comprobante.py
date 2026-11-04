@@ -754,6 +754,17 @@ def _dibujar_pie(canvas, documento):
 # Lo único que se usa desde afuera
 # ---------------------------------------------------------------------
 
+def nombre_del_archivo(pedido, cobro=None):
+    """El nombre del PDF: el que propone el navegador al guardarlo y el del adjunto del correo.
+
+    Está acá y no repetido en cada lugar que lo usa (las dos acciones que
+    lo sirven y el envío por correo) para que sea el mismo siempre.
+    """
+    if cobro is None:
+        return f'comprobante-pedido-{pedido.id}.pdf'
+    return f'comprobante-pedido-{pedido.id}-cobro-{cobro.id}.pdf'
+
+
 def generar_comprobante(pedido, cobro=None):
     """Devuelve el PDF del comprobante de compra del pedido (CU60).
 

@@ -364,3 +364,16 @@ class PedidoDetalleSerializer(PedidoListaSerializer):
             'productos',
             'cobros',
         ]
+
+
+class EnvioDeComprobanteSerializer(serializers.Serializer):
+    """Lo que trae el POST de enviar el comprobante de un cobro por correo (CU60).
+
+    Solo de entrada y sin modelo: el envío no guarda nada. EmailField es lo
+    que rechaza un destinatario que no tiene forma de correo, con el mensaje
+    de DRF; los largos son los de un asunto y un mensaje razonables.
+    """
+
+    para = serializers.EmailField()
+    asunto = serializers.CharField(max_length=150)
+    mensaje = serializers.CharField(max_length=2000)

@@ -1,3 +1,5 @@
+import logging
+import smtplib
 from datetime import timedelta
 from decimal import Decimal
 
@@ -19,11 +21,13 @@ from config.paginacion import PaginacionDeListado
 from inicio.views import DIAS_ENTREGAS_PROXIMAS
 from productos.models import Producto
 
-from .comprobante import generar_comprobante
+from .comprobante import generar_comprobante, nombre_del_archivo
+from .correo import enviar_comprobante_de_cobro
 from .models import Cobro, Pedido, ProductoDelPedido
 from .presentacion import plata
 from .serializers import (
     CobroSerializer,
+    EnvioDeComprobanteSerializer,
     PedidoDetalleSerializer,
     PedidoListaSerializer,
     ProductoDelPedidoModificarSerializer,
@@ -32,6 +36,8 @@ from .serializers import (
 )
 
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
+
+logger = logging.getLogger(__name__)
 
 
 def _siguiente(opciones, actual):
@@ -1235,8 +1241,9 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
     def comprobante(self, request, pk=None):
         """CU60 - Generar comprobante de compra del pedido.
 
-        Devuelve un PDF para que la emprendedora lo abra, lo guarde y se
-        lo mande al cliente ella misma: el sistema no envía mails.
+        Devuelve un PDF para que la emprendedora lo abra o lo guarde. El
+        comprobante de cada cobro, además, se le manda al cliente por
+        correo desde el sistema (enviar_comprobante, más abajo).
 
         Acá solo se revisa que el pedido tenga productos y se arma la
         respuesta. El dibujo del PDF está en comprobante.py.
@@ -1274,7 +1281,7 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         return FileResponse(
             generar_comprobante(pedido),
             as_attachment=False,
-            filename=f'comprobante-pedido-{pedido.id}.pdf',
+            filename=nombre_del_archivo(pedido),
         )
 
     #   GET    /api/pedidos/1/cobros/3/comprobante/   el PDF de ese pago
@@ -1304,5 +1311,44 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         return FileResponse(
             generar_comprobante(pedido, cobro),
             as_attachment=False,
-            filename=f'comprobante-pedido-{pedido.id}-cobro-{cobro.id}.pdf',
+            filename=nombre_del_archivo(pedido, cobro),
         )
+
+    #   POST   /api/pedidos/1/cobros/3/enviar_comprobante/   lo manda por correo
+
+    @action(detail=True, methods=['post'],
+            url_path=r'cobros/(?P<cobro_id>\d+)/enviar_comprobante')
+    def enviar_comprobante(self, request, pk=None, cobro_id=None):
+        """CU60 - Enviar el comprobante de pago de un cobro por correo (corrección del tutor).
+
+        El cuerpo trae el destinatario, el asunto y el mensaje que la
+        usuaria revisó en el modal; el PDF es el mismo de
+        comprobante_de_cobro y va adjunto. Un cobro de otro pedido da 400,
+        como allá. Si Gmail falla responde 503 con el motivo: acá sí se
+        avisa, porque la usuaria tiene que saber que no salió. No escribe
+        nada en la base, así que no hay nada que revertir.
+        """
+        pedido = self.get_object()
+
+        cobro = self._buscar_cobro(pedido, cobro_id)
+        if cobro is None:
+            return Response(
+                {'detail': 'Ese cobro no pertenece a este pedido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        datos = EnvioDeComprobanteSerializer(data=request.data)
+        datos.is_valid(raise_exception=True)
+
+        try:
+            enviar_comprobante_de_cobro(pedido, cobro, **datos.validated_data)
+        except (smtplib.SMTPException, OSError):
+            logger.exception('No se pudo mandar el comprobante del cobro %s del pedido %s.',
+                             cobro.pk, pedido.pk)
+            return Response(
+                {'detail': 'No se pudo enviar el correo. Probá de nuevo en un rato; si sigue '
+                           'pasando, revisá la configuración del correo del servidor.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        return Response({'detail': f"Comprobante enviado a {datos.validated_data['para']}."})

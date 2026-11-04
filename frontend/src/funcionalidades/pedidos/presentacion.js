@@ -14,6 +14,7 @@
 // quien importe este archivo, no dentro de él, y chipSaldo la necesita
 // para armar su texto.
 import { formatearPrecio } from '../productos/presentacion'
+import { INSTAGRAM_USUARIO } from '../../constantes'
 
 export { formatearPrecio }
 
@@ -189,9 +190,35 @@ export const ICONO_COMPROBANTE = 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-
 // celular, donde el comprobante se comparte (corrección E11).
 export const ICONO_COMPARTIR = 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z'
 
-// Dos hojas superpuestas, el de copiar: el mismo de Clientes. Copia el
-// email del cliente en el modal de Cobros.
-export const ICONO_COPIAR = 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z'
+// El sobre: enviar el comprobante de un cobro por correo (corrección del
+// tutor), en la fila de cada cobro de ModalCobros y en el ⋯ del listado.
+export const ICONO_CORREO = 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'
+
+
+// El asunto y el mensaje que propone el modal de enviar el comprobante por
+// correo; la usuaria los edita antes de enviar. El saldo es el de hoy
+// (pedido.saldo): el detalle pago por pago va en el PDF adjunto.
+export function correoDelComprobante(pedido, cobro) {
+  const lineaDelSaldo = Number(pedido.saldo) > 0
+    ? `El saldo pendiente del pedido es ${formatearPrecio(pedido.saldo)}.`
+    : 'Con este pago el pedido quedó saldado. ¡Gracias!'
+
+  return {
+    asunto: `Comprobante de pago · Pedido #${pedido.id} · Ana Porcelana`,
+    mensaje: [
+      `Hola, ${pedido.cliente_nombre}:`,
+      '',
+      `Te mando el comprobante del pago de ${formatearPrecio(cobro.monto)} del `
+        + `${fmtFechaLarga(cobro.fecha)} por tu pedido #${pedido.id}. Va adjunto en PDF.`,
+      '',
+      lineaDelSaldo,
+      '',
+      `Cualquier duda, escribime por acá o por Instagram: @${INSTAGRAM_USUARIO}.`,
+      '',
+      'Ana Porcelana',
+    ].join('\n'),
+  }
+}
 
 // Una flecha dentro de un círculo, el de avanzar el estado del pedido: va
 // primero en la fila del listado y hace pareja con el $ de Cobros, que

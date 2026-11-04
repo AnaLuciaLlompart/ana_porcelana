@@ -1,8 +1,11 @@
 """Lo que comparten los correos que manda el sistema (usuarios y pedidos).
 
-Todos van en HTML sobre la plantilla correo/base.html (el fondo, la
+Todos van en HTML sobre la plantilla correo_base.html (el fondo, la
 tarjeta, el logo y "Ana Porcelana"), con una versión en texto plano como
-alternativa para el lector que no muestre HTML.
+alternativa para el lector que no muestre HTML. Las plantillas van
+directo en el templates/ de cada app, sin la subcarpeta con el nombre de
+la app que Django sugiere para evitar choques: acá los nombres son únicos
+(pedido de la usuaria).
 
 El logo va pegado adentro del correo como imagen en línea (un adjunto con
 Content-ID que el HTML nombra como cid:logo), y no como un enlace al

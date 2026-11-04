@@ -12,6 +12,7 @@ import { pedirExportacionExcel, urlDeExportacionPdf } from '../../api/exportar'
 // eliminarPedido       CU43 - borrar
 // urlComprobante       CU60 - generar comprobante
 // urlComprobanteDeCobro CU60 - generar el comprobante de un pago
+// enviarComprobanteDeCobro CU60 - mandar el comprobante de un pago por correo
 //
 // obtenerPedido no implementa un CU: trae la ficha completa que CU42
 // necesita para cargar el formulario de edición.
@@ -76,6 +77,12 @@ export function urlComprobanteDeCobro(id, cobroId) {
 // compartirlo desde el celular (corrección E11): ahí no se abre, se manda.
 export function pedirComprobanteDeCobro(id, cobroId) {
   return cliente.get(`/pedidos/${id}/cobros/${cobroId}/comprobante/`, { responseType: 'blob' })
+}
+
+// Enviar el comprobante de un cobro por correo (corrección del tutor), con
+// el destinatario, el asunto y el mensaje que la usuaria revisó en el modal.
+export function enviarComprobanteDeCobro(id, cobroId, datos) {
+  return cliente.post(`/pedidos/${id}/cobros/${cobroId}/enviar_comprobante/`, datos)
 }
 
 // El listado filtrado en PDF o Excel (corrección E10 del tutor, no un CU).

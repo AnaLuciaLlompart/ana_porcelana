@@ -9,8 +9,7 @@ import {
 import PestanaCobros from './PestanaCobros'
 import ModalCobro from './ModalCobro'
 import ModalQuitarCobro from './ModalQuitarCobro'
-import { ICONO_COPIAR } from './presentacion'
-import BotonAccion from '../../componentes/BotonAccion'
+import ModalEnviarComprobante from './ModalEnviarComprobante'
 import ModalAviso from '../../componentes/ModalAviso'
 import { compartirArchivo, puedeCompartirArchivos } from '../../api/exportar'
 
@@ -45,7 +44,7 @@ const estiloCartelError = {
 // Los cobros de un pedido (CU48 a CU51), en un modal y no en la ficha.
 // Recibe el pedido completo y no sabe quién lo abrió: cada cambio se lo
 // devuelve con onPedidoActualizado, junto con el aviso a mostrar.
-export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onAviso }) {
+export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado }) {
   // null cuando está cerrado. Abierto guarda o bien el cobro que se está
   // editando, o bien la cadena 'nuevo' para el alta: hacen falta los dos
   // casos y null ya significa "cerrado".
@@ -56,6 +55,10 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
   const [enviando, setEnviando] = useState(false)
   // El motivo por el que no se pudo compartir un comprobante, o ''.
   const [errorCompartir, setErrorCompartir] = useState('')
+  // El cobro cuyo comprobante se está por mandar por correo (su modal
+  // abierto), y el texto del aviso cuando ya se mandó.
+  const [cobroCorreo, setCobroCorreo] = useState(null)
+  const [avisoEnvio, setAvisoEnvio] = useState('')
 
   // En el celular, si el navegador comparte archivos, el comprobante se
   // comparte en vez de abrirse (corrección E11). El 768 es el mismo de
@@ -74,20 +77,6 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
       `Comprobante del pedido #${pedido.id}`,
     )
     if (fallo) setErrorCompartir(fallo)
-  }
-
-  // El email del cliente, para tenerlo a mano al mandar el comprobante. El
-  // aviso "Email copiado" lo muestra quien abrió el modal (onAviso), como el
-  // de "Cobro registrado".
-  async function copiarEmail() {
-    setError('')
-
-    try {
-      await navigator.clipboard.writeText(pedido.cliente_email)
-      onAviso('Email copiado')
-    } catch {
-      setError('No se pudo copiar el email.')
-    }
   }
 
   function abrirCobro(cobro) {
@@ -240,26 +229,15 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
               overflowY: 'auto',
             }}
           >
-            {/* El cliente y su email, con el botón de copiar pegado al
-                email. Sin email cargado, el botón se apaga, como en
-                Clientes. En la compu va todo en un renglón; en el celular,
-                si no entra, el email y el botón bajan juntos (flexWrap) y
-                el usuario queda arriba. */}
+            {/* El cliente y su email. El botón de copiarlo se sacó cuando el
+                comprobante pasó a mandarse por correo desde acá (pedido de
+                la usuaria). En el celular, si no entra, el email baja debajo
+                del usuario (flexWrap). */}
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 2 }}>
               <span style={{ fontSize: 15, color: '#857078' }}>@{pedido.cliente_instagram}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <span style={{ minWidth: 0, fontSize: 15, color: '#3D3238', overflowWrap: 'anywhere' }}>
-                  {pedido.cliente_email || 'Sin email cargado'}
-                </span>
-                <BotonAccion
-                  onClick={copiarEmail}
-                  titulo={pedido.cliente_email ? `Copiar ${pedido.cliente_email}` : 'Este cliente no tiene email cargado'}
-                  color="#8C5A66"
-                  hover="#F0E2E4"
-                  icono={ICONO_COPIAR}
-                  deshabilitado={!pedido.cliente_email}
-                />
-              </div>
+              <span style={{ minWidth: 0, fontSize: 15, color: '#3D3238', overflowWrap: 'anywhere' }}>
+                {pedido.cliente_email || 'Sin email cargado'}
+              </span>
             </div>
 
             {/* Con el modal del cobro abierto, el error se ve allá. */}
@@ -276,6 +254,7 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
               onQuitar={pedirQuitar}
               onComprobante={verOCompartirComprobante}
               comprobanteSeComparte={comprobanteSeComparte}
+              onEnviarCorreo={setCobroCorreo}
             />
           </div>
         </div>
@@ -304,6 +283,28 @@ export default function ModalCobros({ pedido, onCerrar, onPedidoActualizado, onA
           enviando={enviando}
           onCerrar={cerrarQuitar}
           onConfirmar={() => quitarCobro(cobroQuitando)}
+        />
+      )}
+
+      {/* Enviar el comprobante de un cobro por correo (corrección del
+          tutor). El modal llama él a la API; acá solo se muestra el aviso. */}
+      {cobroCorreo && (
+        <ModalEnviarComprobante
+          pedido={pedido}
+          cobro={cobroCorreo}
+          onCerrar={() => setCobroCorreo(null)}
+          onEnviado={(texto) => {
+            setCobroCorreo(null)
+            setAvisoEnvio(texto)
+          }}
+        />
+      )}
+
+      {avisoEnvio && (
+        <ModalAviso
+          titulo="Comprobante enviado"
+          texto={avisoEnvio}
+          onCerrar={() => setAvisoEnvio('')}
         />
       )}
 

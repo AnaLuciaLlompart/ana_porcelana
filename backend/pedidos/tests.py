@@ -2,10 +2,13 @@ import threading
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
+from smtplib import SMTPException
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.core.cache import cache
+from django.core.mail import EmailMultiAlternatives
 from django.db import connection
 from django.utils import timezone
 from openpyxl import load_workbook
@@ -580,6 +583,94 @@ class ComprobanteDeUnCobro(PruebaDePedido):
             respuesta['Content-Disposition'],
         )
         self.assertTrue(b''.join(respuesta.streaming_content).startswith(b'%PDF-'))
+
+
+class EnvioDelComprobantePorCorreo(PruebaDePedido):
+    """El comprobante de un cobro se manda por correo con el PDF adjunto (CU60; corrección del tutor).
+
+    El runner de Django pone el backend de correo en memoria: lo que se
+    manda queda en mail.outbox.
+    """
+
+    DATOS = {
+        'para': 'sofi@example.com',
+        'asunto': 'Comprobante de pago · Pedido',
+        'mensaje': 'Hola, Sofía:\n\nTe mando el comprobante <del pago>.\n\nAna Porcelana',
+    }
+
+    def setUp(self):
+        super().setUp()
+        self.agregar_pieza()
+        self.cobro = Cobro.objects.create(pedido=self.pedido, monto='1000.00')
+        self.url = url(self.pedido, f'cobros/{self.cobro.id}/enviar_comprobante/')
+
+    def test_envia_el_comprobante_con_el_pdf_adjunto(self):
+        """CU60: 200 y un correo al destinatario con el asunto, el mensaje en texto y en HTML (escapado, con saltos de línea y el logo) y el PDF adjunto."""
+        respuesta = self.client.post(self.url, self.DATOS, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_200_OK)
+        self.assertEqual(respuesta.data['detail'], 'Comprobante enviado a sofi@example.com.')
+
+        self.assertEqual(len(mail.outbox), 1)
+        correo = mail.outbox[0]
+        self.assertEqual(correo.to, ['sofi@example.com'])
+        self.assertEqual(correo.subject, self.DATOS['asunto'])
+        self.assertEqual(correo.body, self.DATOS['mensaje'])
+
+        html, tipo = correo.alternatives[0]
+        self.assertEqual(tipo, 'text/html')
+        self.assertIn('Hola, Sofía:<br>', html)
+        self.assertIn('Te mando el comprobante &lt;del pago&gt;.', html)
+        self.assertIn('src="cid:logo"', html)
+
+        # Dos adjuntos: el logo en línea y el PDF.
+        logo, pdf = correo.attachments
+        self.assertEqual(logo['Content-ID'], '<logo>')
+        nombre, contenido, tipo_pdf = pdf
+        self.assertEqual(nombre, f'comprobante-pedido-{self.pedido.id}-cobro-{self.cobro.id}.pdf')
+        self.assertEqual(tipo_pdf, 'application/pdf')
+        self.assertTrue(contenido.startswith(b'%PDF-'))
+
+    def test_un_correo_invalido_o_sin_asunto_da_400(self):
+        """CU60: un destinatario sin forma de correo da 400 con la clave para; sin asunto, con asunto; y no sale ningún correo."""
+        respuesta = self.client.post(self.url, {**self.DATOS, 'para': 'no-es-un-correo'}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('para', respuesta.data)
+
+        respuesta = self.client.post(self.url, {**self.DATOS, 'asunto': ''}, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('asunto', respuesta.data)
+
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_el_cobro_de_otro_pedido_da_400(self):
+        """CU60: con el cobro de otro pedido responde 400 con mensaje y no sale ningún correo."""
+        otro_pedido = Pedido.objects.create(cliente=self.cliente)
+        ajeno = Cobro.objects.create(pedido=otro_pedido, monto='1000.00')
+
+        respuesta = self.client.post(
+            url(self.pedido, f'cobros/{ajeno.id}/enviar_comprobante/'), self.DATOS, format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['detail'], 'Ese cobro no pertenece a este pedido.')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_sin_sesion_da_403(self):
+        """Denegación por defecto: sin sesión el envío responde 403 y no sale ningún correo."""
+        respuesta = APIClient().post(self.url, self.DATOS, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_si_el_correo_falla_responde_503(self):
+        """CU60: si Gmail rechaza el envío, 503 con un mensaje claro para el modal."""
+        with mock.patch.object(EmailMultiAlternatives, 'send', side_effect=SMTPException('sin conexión')):
+            respuesta = self.client.post(self.url, self.DATOS, format='json')
+
+        self.assertEqual(respuesta.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(
+            respuesta.data['detail'],
+            'No se pudo enviar el correo. Probá de nuevo en un rato; si sigue pasando, '
+            'revisá la configuración del correo del servidor.',
+        )
 
 
 class RendimientoDelListado(PruebaSinSesion):

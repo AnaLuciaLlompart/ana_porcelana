@@ -12,15 +12,15 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**184 pruebas**, todas en verde, en once apps (`usuarios` 29, `catalogo`
+**189 pruebas**, todas en verde, en once apps (`usuarios` 29, `catalogo`
 16, `materiales` 18, `categorias` 5, `productos` 27, `clientes` 7,
-`pedidos` 42, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
+`pedidos` 47, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 100 |
-| validación | 24 |
-| permisos | 17 |
+| reglas de negocio | 103 |
+| validación | 25 |
+| permisos | 18 |
 | catálogo | 13 |
 | rendimiento | 8 |
 | seguridad | 17 |
@@ -181,6 +181,11 @@ rendimiento.
 | pedidos | test_comprobante_de_un_cobro_sin_sesion_da_403 | GET /api/pedidos/<id>/cobros/<cobro_id>/comprobante/ sin sesión responde 403 | Denegación por defecto (CU60) | permisos |
 | pedidos | test_el_listado_trae_el_cobro_mas_reciente | Sin cobros, ultimo_cobro es null; con dos, es el de fecha mayor aunque se haya cargado antes | ultimo_cobro de PedidoListaSerializer, para "Último comprobante" (CU60) | reglas de negocio |
 | pedidos | test_el_comprobante_de_un_cobro_ajeno_da_400 | Con el cobro de otro pedido responde 400 "Ese cobro no pertenece a este pedido."; con el propio, 200, application/pdf y el nombre comprobante-pedido-<id>-cobro-<cobro_id>.pdf | Un comprobante por cobro, buscado con _buscar_cobro (CU60) | reglas de negocio |
+| pedidos | test_envia_el_comprobante_con_el_pdf_adjunto | POST con para, asunto y mensaje responde 200; el correo va al destinatario con ese asunto, el mensaje en texto plano y en HTML (escapado, con saltos de línea y el logo en línea) y el PDF adjunto con su nombre | Enviar el comprobante de un cobro por correo (CU60; corrección del tutor) | reglas de negocio |
+| pedidos | test_un_correo_invalido_o_sin_asunto_da_400 | Un destinatario sin forma de correo da 400 con la clave para; sin asunto, con la clave asunto; no sale ningún correo | EnvioDeComprobanteSerializer (CU60) | validación |
+| pedidos | test_el_cobro_de_otro_pedido_da_400 | Enviar el comprobante del cobro de otro pedido responde 400 con mensaje y no sale ningún correo | _buscar_cobro también al enviar (CU60) | reglas de negocio |
+| pedidos | test_sin_sesion_da_403 | Sin sesión, el envío responde 403 y no sale ningún correo | Denegación por defecto (CU60) | permisos |
+| pedidos | test_si_el_correo_falla_responde_503 | Si Gmail rechaza el envío (SMTPException), 503 con el mensaje que muestra el modal | El envío fallido se avisa: acá la usuaria tiene que enterarse (CU60) | reglas de negocio |
 | pedidos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres pedidos con productos y cobros, una página del listado hace 5 consultas (sin contar la sesión): el COUNT de la paginación y las 4 de siempre | select_related y prefetch_related en PedidoViewSet.get_queryset (CU41) | rendimiento |
 | pedidos | test_el_listado_viene_paginado | Con ?pagina= devuelve 12 de 13 y el count; con por_pagina=24, los 13; sin pagina, la lista entera | PaginacionDeListado, opcional (CU41, corrección D3) | rendimiento |
 | pedidos | test_el_total_y_el_saldo_de_la_base_son_los_de_las_propiedades | con_totales() da el mismo total y saldo que las propiedades, con y sin envío a cobrar | Pedido.objects.con_totales() (CU41, corrección D3) | reglas de negocio |

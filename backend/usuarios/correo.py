@@ -43,8 +43,8 @@ def enviar_enlace_de_restablecimiento(usuaria):
         armar_correo(
             ASUNTO,
             usuaria.email,
-            render_to_string('usuarios/restablecer.txt', contexto),
-            'usuarios/restablecer.html',
+            render_to_string('restablecer.txt', contexto),
+            'restablecer.html',
             contexto,
         ).send()
     except (smtplib.SMTPException, OSError):
