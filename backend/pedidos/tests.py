@@ -660,6 +660,31 @@ class EnvioDelComprobantePorCorreo(PruebaDePedido):
         self.assertEqual(respuesta.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(len(mail.outbox), 0)
 
+    def test_el_asunto_no_admite_saltos_de_linea(self):
+        """CU60: un asunto con salto de línea (el intento de meter otra cabecera) da 400 con la clave asunto y no sale ningún correo."""
+        respuesta = self.client.post(
+            self.url, {**self.DATOS, 'asunto': 'Hola\nBcc: otro@example.com'}, format='json',
+        )
+        self.assertEqual(respuesta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(respuesta.data['asunto'], ['El asunto no puede tener saltos de línea.'])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_hay_un_limite_de_envios_por_hora(self):
+        """CU60: los primeros 20 envíos de la hora salen; el 21 responde 429 con el mensaje del límite y Retry-After, y no sale."""
+        for envio in range(1, 21):
+            with self.subTest(envio=envio):
+                self.assertEqual(self.client.post(self.url, self.DATOS, format='json').status_code,
+                                 status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 20)
+
+        respuesta = self.client.post(self.url, self.DATOS, format='json')
+        self.assertEqual(respuesta.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertTrue(respuesta.data['detail'].startswith(
+            'Llegaste al límite de 20 comprobantes por correo por hora. Probá de nuevo en ',
+        ))
+        self.assertTrue(respuesta.has_header('Retry-After'))
+        self.assertEqual(len(mail.outbox), 20)
+
     def test_si_el_correo_falla_responde_503(self):
         """CU60: si Gmail rechaza el envío, 503 con un mensaje claro para el modal."""
         with mock.patch.object(EmailMultiAlternatives, 'send', side_effect=SMTPException('sin conexión')):

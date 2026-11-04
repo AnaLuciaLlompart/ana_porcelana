@@ -377,3 +377,11 @@ class EnvioDeComprobanteSerializer(serializers.Serializer):
     para = serializers.EmailField()
     asunto = serializers.CharField(max_length=150)
     mensaje = serializers.CharField(max_length=2000)
+
+    def validate_asunto(self, asunto):
+        # Un salto de línea en una cabecera es el intento clásico de meter
+        # otra (un Bcc). Django ya lo frena con BadHeaderError; acá se
+        # responde 400 con mensaje en vez de un 500.
+        if '\n' in asunto or '\r' in asunto:
+            raise serializers.ValidationError('El asunto no puede tener saltos de línea.')
+        return asunto

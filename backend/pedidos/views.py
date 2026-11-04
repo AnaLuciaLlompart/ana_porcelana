@@ -1,4 +1,5 @@
 import logging
+import math
 import smtplib
 from datetime import timedelta
 from decimal import Decimal
@@ -8,8 +9,9 @@ from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError, ValidationError
+from rest_framework.exceptions import ParseError, Throttled, ValidationError
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from clientes.models import Cliente
 from config.exportar import Columna, ExportarMixin, describir_rango
@@ -38,6 +40,30 @@ from .serializers import (
 # Views: aplica las reglas de negocio, verifica permisos, orquesta el serializer y model
 
 logger = logging.getLogger(__name__)
+
+
+class EnvioDeComprobanteThrottle(UserRateThrottle):
+    """El límite de envíos del comprobante por correo: 20 por hora por usuaria.
+
+    Es una defensa para una sesión robada: con el límite general (200 por
+    minuto) podría mandar correos desde la cuenta del emprendimiento sin
+    parar. El mensaje lo arma el throttle al lanzar Throttled él mismo, con
+    el número de la tasa, porque el de DRF es genérico y el modal lo muestra
+    tal cual.
+    """
+    scope = 'enviar_comprobante'
+
+    def allow_request(self, request, view):
+        if super().allow_request(request, view):
+            return True
+        espera = math.ceil(self.wait() or 0)
+        minutos = max(1, math.ceil(espera / 60))
+        excepcion = Throttled(detail=(
+            f'Llegaste al límite de {self.num_requests} comprobantes por correo por hora. '
+            f'Probá de nuevo en {minutos} minutos.'
+        ))
+        excepcion.wait = espera  # DRF lo manda en la cabecera Retry-After
+        raise excepcion
 
 
 def _siguiente(opciones, actual):
@@ -1317,7 +1343,8 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
     #   POST   /api/pedidos/1/cobros/3/enviar_comprobante/   lo manda por correo
 
     @action(detail=True, methods=['post'],
-            url_path=r'cobros/(?P<cobro_id>\d+)/enviar_comprobante')
+            url_path=r'cobros/(?P<cobro_id>\d+)/enviar_comprobante',
+            throttle_classes=[EnvioDeComprobanteThrottle])
     def enviar_comprobante(self, request, pk=None, cobro_id=None):
         """CU60 - Enviar el comprobante de pago de un cobro por correo (corrección del tutor).
 
@@ -1326,7 +1353,9 @@ class PedidoViewSet(ExportarMixin, viewsets.ModelViewSet):
         comprobante_de_cobro y va adjunto. Un cobro de otro pedido da 400,
         como allá. Si Gmail falla responde 503 con el motivo: acá sí se
         avisa, porque la usuaria tiene que saber que no salió. No escribe
-        nada en la base, así que no hay nada que revertir.
+        nada en la base, así que no hay nada que revertir. Tiene su propio
+        límite, 20 por hora (EnvioDeComprobanteThrottle), que reemplaza al
+        general en esta acción.
         """
         pedido = self.get_object()
 

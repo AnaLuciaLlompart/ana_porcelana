@@ -913,7 +913,20 @@ línea y el PDF adjunto, el mismo de `generar_comprobante`, con el nombre de
 que lo sirven. Si Gmail falla responde 503 "No se pudo enviar el correo.
 Probá de nuevo en un rato; si sigue pasando, revisá la configuración del
 correo del servidor.": acá sí se avisa, la usuaria tiene que saber que no
-salió; no escribe nada, así que no hay nada que revertir. El cliente ya
+salió; no escribe nada, así que no hay nada que revertir. Dos defensas
+más (noviembre de 2026): un asunto con salto de línea, el intento clásico
+de meter otra cabecera, da 400 "El asunto no puede tener saltos de
+línea." (`validate_asunto`; Django ya lo frenaba con `BadHeaderError`,
+pero respondía 500), y la acción tiene su propio límite,
+`EnvioDeComprobanteThrottle` (`UserRateThrottle`, scope
+`'enviar_comprobante'`, 20 por hora por usuaria, que en esa acción
+reemplaza a los globales): el 21.º responde 429 con "Llegaste al límite
+de 20 comprobantes por correo por hora. Probá de nuevo en N minutos." y
+`Retry-After`, y el modal lo muestra adentro. El mensaje lo arma el
+throttle lanzando `Throttled` él mismo, con el número de la tasa, porque
+el de DRF es genérico. Es una defensa para una sesión robada, que con el
+límite general podría mandar 200 correos por minuto desde la cuenta del
+emprendimiento. El cliente ya
 tenía `email` (opcional): el modal lo trae de `cliente_email` y, si está
 vacío, se escribe ahí y no se guarda en el cliente (sería la segunda
 escritura entre módulos; se carga desde Clientes). En pantalla,
@@ -2018,7 +2031,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 189 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 191 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con

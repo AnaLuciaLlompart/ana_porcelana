@@ -184,6 +184,7 @@ REST_FRAMEWORK = {
         'login': '5/minute', #5 intentos de login por minuto
         'catalogo': '60/minute', # el catálogo público: lo comparten las tres vistas de la app catalogo, por IP
         'recuperar': '5/hour', # pedidos del enlace para restablecer la contraseña, por IP (RecuperarThrottle)
+        'enviar_comprobante': '20/hour', # el comprobante de un cobro por correo, por usuaria (EnvioDeComprobanteThrottle)
     },
 }
 

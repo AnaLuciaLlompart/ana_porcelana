@@ -12,18 +12,18 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**189 pruebas**, todas en verde, en once apps (`usuarios` 29, `catalogo`
+**191 pruebas**, todas en verde, en once apps (`usuarios` 29, `catalogo`
 16, `materiales` 18, `categorias` 5, `productos` 27, `clientes` 7,
-`pedidos` 47, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
+`pedidos` 49, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
 | reglas de negocio | 103 |
-| validación | 25 |
+| validación | 26 |
 | permisos | 18 |
 | catálogo | 13 |
 | rendimiento | 8 |
-| seguridad | 17 |
+| seguridad | 18 |
 
 **Cobertura: 89 %** del código del backend (2.588 sentencias, 283 sin
 ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye la app
@@ -186,6 +186,8 @@ rendimiento.
 | pedidos | test_el_cobro_de_otro_pedido_da_400 | Enviar el comprobante del cobro de otro pedido responde 400 con mensaje y no sale ningún correo | _buscar_cobro también al enviar (CU60) | reglas de negocio |
 | pedidos | test_sin_sesion_da_403 | Sin sesión, el envío responde 403 y no sale ningún correo | Denegación por defecto (CU60) | permisos |
 | pedidos | test_si_el_correo_falla_responde_503 | Si Gmail rechaza el envío (SMTPException), 503 con el mensaje que muestra el modal | El envío fallido se avisa: acá la usuaria tiene que enterarse (CU60) | reglas de negocio |
+| pedidos | test_el_asunto_no_admite_saltos_de_linea | Un asunto con salto de línea (el intento de meter otra cabecera) da 400 con la clave asunto y no sale ningún correo | validate_asunto: 400 con mensaje donde Django respondía 500 (CU60) | validación |
+| pedidos | test_hay_un_limite_de_envios_por_hora | Los primeros 20 envíos de la hora salen; el 21 responde 429 con el mensaje del límite y Retry-After, y no sale | EnvioDeComprobanteThrottle: 20 por hora por usuaria, una defensa para una sesión robada (CU60) | seguridad |
 | pedidos | test_el_listado_hace_una_cantidad_fija_de_consultas | Con tres pedidos con productos y cobros, una página del listado hace 5 consultas (sin contar la sesión): el COUNT de la paginación y las 4 de siempre | select_related y prefetch_related en PedidoViewSet.get_queryset (CU41) | rendimiento |
 | pedidos | test_el_listado_viene_paginado | Con ?pagina= devuelve 12 de 13 y el count; con por_pagina=24, los 13; sin pagina, la lista entera | PaginacionDeListado, opcional (CU41, corrección D3) | rendimiento |
 | pedidos | test_el_total_y_el_saldo_de_la_base_son_los_de_las_propiedades | con_totales() da el mismo total y saldo que las propiedades, con y sin envío a cobrar | Pedido.objects.con_totales() (CU41, corrección D3) | reglas de negocio |

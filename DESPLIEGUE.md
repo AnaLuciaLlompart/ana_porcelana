@@ -799,6 +799,14 @@ proyecto.
    URL_SITIO=https://anaporcelana.com.ar
    ```
 
+   Dejar el archivo legible solo por tu usuario, porque ahora tiene adentro
+   la contraseña de aplicación (Compose lo lee con tu usuario, así que no
+   cambia nada más):
+
+   ```bash
+   chmod 600 .env
+   ```
+
    Y recrear el backend con las variables nuevas (sin `--build`: no hay
    dependencias nuevas):
 
