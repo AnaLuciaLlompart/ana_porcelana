@@ -73,6 +73,17 @@ tiene las herramientas de revisión y prueba (`pip-audit`, y más adelante
 `coverage`), que se instalan solo en mi máquina. Es la misma separación
 que `dependencies` y `devDependencies` en `package.json`.
 
+**`frontend/package.json` tiene un `overrides` para `minimatch`**
+(noviembre de 2026): ESLint 10 pide `minimatch` 10, que tiene un aviso de
+Dependabot (#15, denegación de servicio por patrones; afecta solo a quien
+corre el linter), y la corregida es la 11. El `overrides` le dice a npm
+que para todo el árbol use `^11.0.1`; en el árbol solo ESLint la usa,
+así que no toca nada de producción. Verificado: `npm run lint` da los
+mismos 10 errores conocidos y el build pasa. Se saca el día que ESLint
+pida `minimatch` 11 por su cuenta (`npm ls minimatch` lo muestra). Las
+dependencias de desarrollo de npm no viajan al servidor: el Dockerfile
+compila y nginx sirve solo lo compilado.
+
 ---
 
 ## Estructura
