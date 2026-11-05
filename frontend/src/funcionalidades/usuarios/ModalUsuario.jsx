@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { crearUsuario, modificarUsuario } from './api'
 import { modificarMisDatos } from '../../api/cliente'
-import CampoContrasena from './CampoContrasena'
+import CampoContrasena from '../../componentes/CampoContrasena'
 import { CAMPOS } from './presentacion'
 import { MINIMO_CONTRASENA } from '../auth/presentacion'
 import { estiloCampo, estiloEtiqueta, estiloNombreCampo } from '../clientes/ModalCliente'
@@ -73,6 +73,10 @@ export default function ModalUsuario({ usuario, misDatos = false, onCerrar, onGu
   // correo repetido y el de contraseña débil. Van separados de los locales
   // porque no se pueden recalcular mientras escribe: los sabe el servidor.
   const [erroresServidor, setErroresServidor] = useState({})
+  // Si el servidor pidió la contraseña actual aunque acá no pareciera
+  // hacer falta, el campo se queda hasta que se guarde: no depende de un
+  // error que escribir borra.
+  const [servidorPidioContrasena, setServidorPidioContrasena] = useState(false)
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -83,16 +87,21 @@ export default function ModalUsuario({ usuario, misDatos = false, onCerrar, onGu
   const cambiaLaLlave =
     misDatos &&
     (datos.username.trim() !== usuario.username || datos.email.trim() !== usuario.email)
-  const pideActual = cambiaLaLlave || Boolean(erroresServidor.password_actual)
+  const pideActual = cambiaLaLlave || servidorPidioContrasena
   const conContrasena = !editando
 
   const errores = tocado ? { ...validar(datos, { conContrasena, pideActual }), ...erroresServidor } : {}
 
   function cambiar(clave, valor) {
     setDatos((d) => ({ ...d, [clave]: valor }))
-    // Lo que dijo el servidor era sobre los datos anteriores, así que al
-    // corregir cualquier campo deja de valer.
-    setErroresServidor({})
+    // Lo que dijo el servidor sobre ESTE campo era sobre el valor anterior,
+    // así que deja de valer; los errores de los otros campos siguen hasta
+    // que se corrijan, para no tener que descubrirlos de a uno.
+    setErroresServidor((e) => {
+      const resto = { ...e }
+      delete resto[clave]
+      return resto
+    })
   }
 
   async function guardar() {
@@ -115,7 +124,7 @@ export default function ModalUsuario({ usuario, misDatos = false, onCerrar, onGu
       let respuesta
       if (misDatos) {
         respuesta = await modificarMisDatos(
-          cambiaLaLlave ? { ...limpios, password_actual: datos.password_actual } : limpios
+          pideActual ? { ...limpios, password_actual: datos.password_actual } : limpios
         )
       } else if (editando) {
         respuesta = await modificarUsuario(usuario.id, limpios)
@@ -141,6 +150,7 @@ export default function ModalUsuario({ usuario, misDatos = false, onCerrar, onGu
           }
         }
         setErroresServidor(porCampo)
+        if (porCampo.password_actual) setServidorPidioContrasena(true)
 
         if (Object.keys(porCampo).length === 0) {
           setError('No se pudieron guardar los datos.')

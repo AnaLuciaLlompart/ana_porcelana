@@ -58,9 +58,10 @@ class EnvioDeComprobanteThrottle(UserRateThrottle):
             return True
         espera = math.ceil(self.wait() or 0)
         minutos = max(1, math.ceil(espera / 60))
+        cuanto = '1 minuto' if minutos == 1 else f'{minutos} minutos'
         excepcion = Throttled(detail=(
             f'Llegaste al límite de {self.num_requests} comprobantes por correo por hora. '
-            f'Probá de nuevo en {minutos} minutos.'
+            f'Probá de nuevo en {cuanto}.'
         ))
         excepcion.wait = espera  # DRF lo manda en la cabecera Retry-After
         raise excepcion

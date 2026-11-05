@@ -1,41 +1,19 @@
 import { useState } from 'react'
 import { cambiarPassword } from '../../api/cliente'
-import BotonAccion from '../../componentes/BotonAccion'
-
-// Los dos estados del ojo que muestra y oculta la contraseña.
-const OJO = 'M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
-const OJO_TACHADO = 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.477 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21'
-
-// El mismo mínimo que aplica el MinimumLengthValidator de Django, así el
-// aviso de acá no puede contradecir al error del servidor.
-const MINIMO = 8
-
-const estiloEtiqueta = {
-  display: 'block',
-  fontFamily: "'Quicksand', sans-serif",
-  fontWeight: 600,
-  fontSize: 13,
-  color: '#857078',
-  letterSpacing: '.06em',
-  marginBottom: 7,
-}
+import CampoContrasena from '../../componentes/CampoContrasena'
+import { MINIMO_CONTRASENA } from './presentacion'
 
 export default function ModalCambiarPassword({ onCerrar, onGuardado }) {
   const [actual, setActual] = useState('')
   const [nueva, setNueva] = useState('')
   const [repetir, setRepetir] = useState('')
 
-  // Un booleano por campo: cada ojo muestra solo el suyo.
-  const [verActual, setVerActual] = useState(false)
-  const [verNueva, setVerNueva] = useState(false)
-  const [verRepetir, setVerRepetir] = useState(false)
-
   const [tocado, setTocado] = useState(false)
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   const errActual = !actual.trim()
-  const errNueva = nueva.length < MINIMO
+  const errNueva = nueva.length < MINIMO_CONTRASENA
   const errRepetir = repetir !== nueva || !repetir
 
   async function guardar() {
@@ -60,14 +38,15 @@ export default function ModalCambiarPassword({ onCerrar, onGuardado }) {
     }
   }
 
+  // Los tres campos son CampoContrasena, el mismo de la gestión de
+  // usuarios: cada uno con su ojo. Recién después del primer intento de
+  // guardar se marcan en rojo.
   const campos = [
     {
       id: 'actual',
       etiqueta: 'CONTRASEÑA ACTUAL',
       valor: actual,
       onCambiar: setActual,
-      ver: verActual,
-      onVer: () => setVerActual((v) => !v),
       hayError: errActual,
       ayuda: '',
       ayudaError: 'Ingresá tu contraseña actual.',
@@ -79,11 +58,9 @@ export default function ModalCambiarPassword({ onCerrar, onGuardado }) {
       etiqueta: 'CONTRASEÑA NUEVA',
       valor: nueva,
       onCambiar: setNueva,
-      ver: verNueva,
-      onVer: () => setVerNueva((v) => !v),
       hayError: errNueva,
-      ayuda: `Mínimo ${MINIMO} caracteres`,
-      ayudaError: `La contraseña nueva necesita al menos ${MINIMO} caracteres.`,
+      ayuda: `Mínimo ${MINIMO_CONTRASENA} caracteres`,
+      ayudaError: `La contraseña nueva necesita al menos ${MINIMO_CONTRASENA} caracteres.`,
       autoComplete: 'new-password',
       // La línea separa lo que sos de lo que vas a ser: arriba la que
       // tenés, abajo la que viene.
@@ -94,8 +71,6 @@ export default function ModalCambiarPassword({ onCerrar, onGuardado }) {
       etiqueta: 'REPETIR CONTRASEÑA NUEVA',
       valor: repetir,
       onCambiar: setRepetir,
-      ver: verRepetir,
-      onVer: () => setVerRepetir((v) => !v),
       hayError: errRepetir,
       ayuda: '',
       ayudaError: 'Las dos contraseñas no coinciden.',
@@ -185,76 +160,23 @@ export default function ModalCambiarPassword({ onCerrar, onGuardado }) {
             overflowY: 'auto',
           }}
         >
-          {campos.map((campo) => {
-            const marcado = tocado && campo.hayError
-            const ayuda = marcado ? campo.ayudaError : campo.ayuda
+          {campos.map((campo) => (
+            <div key={campo.id}>
+              {campo.divisor && (
+                <div style={{ height: 1, background: '#EBE0E2', margin: '4px 0 20px' }} />
+              )}
 
-            return (
-              <div key={campo.id}>
-                {campo.divisor && (
-                  <div style={{ height: 1, background: '#EBE0E2', margin: '20px 0 30px' }} />
-                )}
-
-                <label htmlFor={campo.id} style={estiloEtiqueta}>
-                  {campo.etiqueta}
-                </label>
-
-                <div style={{ position: 'relative' }}>
-                  <input
-                    id={campo.id}
-                    // Alternar el type es lo que muestra y oculta el texto.
-                    type={campo.ver ? 'text' : 'password'}
-                    value={campo.valor}
-                    onChange={(e) => campo.onCambiar(e.target.value)}
-                    autoComplete={campo.autoComplete}
-                    style={{
-                      width: '100%',
-                      // El padding de la derecha le hace lugar al ojo, que
-                      // va encima del input.
-                      padding: '10px 44px 10px 13px',
-                      border: marcado ? '1px solid #C0442F' : '1px solid #EBE0E2',
-                      background: 'white',
-                      fontSize: 16,
-                      color: '#3D3238',
-                      borderRadius: 5,
-                      outline: 'none',
-                      fontFamily: 'inherit',
-                    }}
-                  />
-
-                  <div
-                    style={{
-                      position: 'absolute',
-                      right: 6,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                    }}
-                  >
-                    <BotonAccion
-                      onClick={campo.onVer}
-                      titulo={campo.ver ? 'Ocultar' : 'Mostrar'}
-                      color="#857078"
-                      hover="#F0E2E4"
-                      icono={campo.ver ? OJO_TACHADO : OJO}
-                      lado={32}
-                    />
-                  </div>
-                </div>
-
-                {ayuda && (
-                  <p
-                    style={{
-                      margin: '6px 0 0',
-                      fontSize: 13,
-                      color: marcado ? '#C0442F' : '#B08791',
-                    }}
-                  >
-                    {ayuda}
-                  </p>
-                )}
-              </div>
-            )
-          })}
+              <CampoContrasena
+                id={campo.id}
+                etiqueta={campo.etiqueta}
+                valor={campo.valor}
+                onCambiar={campo.onCambiar}
+                error={tocado && campo.hayError ? campo.ayudaError : ''}
+                ayuda={campo.ayuda}
+                autoComplete={campo.autoComplete}
+              />
+            </div>
+          ))}
 
           {error && (
             <p

@@ -425,6 +425,11 @@ class RecuperarContrasena(PruebaSinSesion):
         self.assertEqual(logo['Content-ID'], '<logo>')
         self.assertIn('src="cid:logo"', html)
         self.assertEqual(correo.message().get_content_type(), 'multipart/related')
+        # Nada de la plantilla se cuela en el correo (un comentario {# #} de
+        # varias líneas se imprime tal cual: Django solo lo entiende en una).
+        self.assertNotIn('{#', html)
+        self.assertNotIn('{%', html)
+        self.assertIn('Accesorios hechos a mano con', html)
 
         # Un correo que no está registrado: la misma respuesta y ningún correo más.
         respuesta = self._pedir_enlace('nadie@example.com')

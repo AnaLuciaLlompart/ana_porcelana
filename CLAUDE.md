@@ -326,7 +326,11 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   **Una única sesión por usuaria** (corrección del tutor, noviembre de
   2026): iniciar sesión en otro navegador o dispositivo cierra las
   anteriores, que vuelven al login como una vencida (403 en la gestión,
-  que el interceptor manda al login; 401 en `/api/auth/sesion/`). Se hace
+  que el interceptor de `api/cliente.js` manda al login después de
+  confirmar con un GET a `/api/auth/sesion/` que no hay sesión: desde los
+  dos roles un 403 también puede ser "no sos superadministradora", y un
+  fallo de CSRF siempre lo fue, con la sesión viva; esos se dejan pasar a
+  la pantalla; 401 en `/api/auth/sesion/`). Se hace
   con django-single-session 0.2.0, por sugerencia del tutor:
   `single_session` en `INSTALLED_APPS`, `SINGLE_USER_SESSION = True` y
   `SESSION_ENGINE` en la base (su default, escrito porque la librería lo
@@ -359,8 +363,9 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   2026; antes "¿Olvidaste tu contraseña?") lleva a `/gestion/recuperar`, que pide el
   correo: `POST /api/auth/recuperar/` responde siempre 200 con el mismo
   texto, exista o no el correo, para no revelar qué cuentas existen, y
-  manda el enlace a cada usuaria activa con ese correo (`email__iexact`;
-  el campo no es único). El enlace es `URL_SITIO` +
+  manda el enlace a la usuaria activa con ese correo (`email__iexact` y
+  `.first()`: desde los dos roles el correo es único sin distinguir
+  mayúsculas, antes era un `for` porque no lo era). El enlace es `URL_SITIO` +
   `/gestion/restablecer/<uid>/<token>`, con el uid en base64 y el token de
   `default_token_generator`: vale 15 minutos (`PASSWORD_RESET_TIMEOUT`) y
   sirve una sola vez, porque lleva la contraseña en su firma. También lleva
@@ -626,9 +631,14 @@ cerradas; acá, la pantalla. Vive en `funcionalidades/usuarios/`:
 `darDeBajaUsuario`, `reactivarUsuario`, `eliminarUsuario`),
 `presentacion.js` (`CAMPOS`, `chipEstado`, `fmtFechaHora`),
 `Usuarios.jsx`, `ModalUsuario.jsx`,
-`ModalVerUsuario.jsx`, `ModalContrasenaDeUsuario.jsx`,
-`ModalEliminarUsuario.jsx` y `CampoContrasena.jsx`. `modificarMisDatos`
-está en `api/cliente.js`, con las de auth, porque es de la sesión.
+`ModalVerUsuario.jsx`, `ModalContrasenaDeUsuario.jsx` y
+`ModalEliminarUsuario.jsx`. `CampoContrasena.jsx`, el campo de contraseña
+con el ojo, nació acá y está en `componentes/` porque también lo usa
+`ModalCambiarPassword` de Mi cuenta, que antes dibujaba el suyo. Los
+iconos de la fila (ojo, lápiz, prohibido y el tilde en un círculo de
+Reactivar) se importan de `productos/presentacion.js`, no se copian.
+`modificarMisDatos` está en `api/cliente.js`, con las de auth, porque es
+de la sesión.
 
 **Las contraseñas no se pueden ver, ni la superadministradora.** Django
 guarda solo la huella (PBKDF2 con sal) y no hay vuelta atrás; un sistema
@@ -688,8 +698,8 @@ ningún modal de ver.
 `presentacion.js`, los mismos del modal Ver), los cuatro con asterisco y
 con `autoComplete="off"` (pedido de la usuaria: en CORREO el navegador
 ofrecía los correos ya escritos, y acá se cargan los datos de otra
-persona), y solo en el alta CONTRASEÑA y REPETIR CONTRASEÑA, con el ojo (`CampoContrasena`, que comparte con
-`ModalContrasenaDeUsuario`) y las mismas comprobaciones que
+persona), y solo en el alta CONTRASEÑA y REPETIR CONTRASEÑA, con el ojo (`CampoContrasena`, de `componentes/`, el mismo de
+`ModalCambiarPassword` y `ModalContrasenaDeUsuario`) y las mismas comprobaciones que
 `ModalCambiarPassword` (`MINIMO_CONTRASENA`, que coincidan). Los errores
 por campo del backend (usuario o correo
 repetidos, contraseña débil) van debajo de su campo; un `detail`, en la

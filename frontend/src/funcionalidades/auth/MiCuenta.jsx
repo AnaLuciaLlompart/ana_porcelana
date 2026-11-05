@@ -4,14 +4,12 @@ import ModalCambiarPassword from './ModalCambiarPassword'
 import Toast from '../../componentes/Toast'
 import { ICONO_CANDADO } from './presentacion'
 
-// Import que cruza de funcionalidad, con el mismo criterio de siempre: el
+// Imports que cruzan de funcionalidad, con el mismo criterio de siempre: el
 // formulario del usuario nació en la gestión de usuarios y Mis datos lo usa
-// desde ahí, con la prop misDatos.
+// desde ahí, con la prop misDatos; el lápiz de "Editar" es el de los
+// listados, exportado por Productos.
 import ModalUsuario from '../usuarios/ModalUsuario'
-
-// El lápiz de "Editar", el mismo de los listados: acá edita los datos de la
-// tarjeta.
-const ICONO_EDITAR = 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+import { ICONO_EDITAR } from '../productos/presentacion'
 
 const estiloBoton = {
   display: 'flex',

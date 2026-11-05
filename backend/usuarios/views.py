@@ -3,7 +3,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sessions.models import Session
-from django.db.models import Case, Q, Value, When
+from django.db.models import Case, Count, Q, Value, When
 from django.http import JsonResponse
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -253,9 +253,11 @@ def recuperar_contrasena(request):
     if not isinstance(email, str) or not email.strip():
         return Response({'detail': 'Ingresá tu correo.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # El correo no es único en el modelo: a cada usuaria activa que lo tenga
-    # le llega su enlace, como hace el PasswordResetForm de Django.
-    for usuaria in Usuario.objects.filter(email__iexact=email.strip(), is_active=True):
+    # El correo es único sin distinguir mayúsculas (dos roles), así que hay a
+    # lo sumo una usuaria con él; si está dada de baja o no existe, no se
+    # manda nada y la respuesta es la misma.
+    usuaria = Usuario.objects.filter(email__iexact=email.strip(), is_active=True).first()
+    if usuaria is not None:
         enviar_enlace_de_restablecimiento(usuaria)
 
     return Response({'detail': 'Si el correo está registrado, te enviamos un enlace '
@@ -478,11 +480,17 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         """La línea de arriba del listado y los números de los dos chips.
 
         Cuentan sobre TODOS los usuarios, la superadministradora incluida.
+        Es una sola consulta: el total y los activos salen de un aggregate,
+        y los dados de baja son la diferencia.
         """
+        cuentas = Usuario.objects.aggregate(
+            usuarios=Count('id'),
+            activos=Count('id', filter=Q(is_active=True)),
+        )
         datos = {
-            'usuarios': Usuario.objects.count(),
-            'activos': Usuario.objects.filter(is_active=True).count(),
-            'dados_de_baja': Usuario.objects.filter(is_active=False).count(),
+            'usuarios': cuentas['usuarios'],
+            'activos': cuentas['activos'],
+            'dados_de_baja': cuentas['usuarios'] - cuentas['activos'],
         }
 
         return Response(ResumenDeUsuariosSerializer(datos).data)

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { cambiarPasswordDeUsuario } from './api'
-import CampoContrasena from './CampoContrasena'
+import CampoContrasena from '../../componentes/CampoContrasena'
 import { MINIMO_CONTRASENA } from '../auth/presentacion'
 
 // La superadministradora le pone una contraseña nueva a un administrador.

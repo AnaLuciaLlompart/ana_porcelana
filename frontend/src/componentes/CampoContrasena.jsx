@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import BotonAccion from '../../componentes/BotonAccion'
-import { OJO, OJO_TACHADO } from '../auth/presentacion'
-import { estiloCampo, estiloEtiqueta, estiloNombreCampo } from '../clientes/ModalCliente'
+import BotonAccion from './BotonAccion'
+import { OJO, OJO_TACHADO } from '../funcionalidades/auth/presentacion'
+import { estiloCampo, estiloEtiqueta, estiloNombreCampo } from '../funcionalidades/clientes/ModalCliente'
 
-// Un campo de contraseña con el ojo que la muestra y la oculta, como los de
-// ModalCambiarPassword. Lo comparten ModalUsuario (la contraseña del alta y
-// la actual de Mis datos) y ModalContrasenaDeUsuario. Cada campo tiene su
-// propio ojo: mostrar uno no muestra los demás.
+// Un campo de contraseña con el ojo que la muestra y la oculta. Lo usan
+// ModalCambiarPassword (Mi cuenta), ModalUsuario (la contraseña del alta y
+// la actual de Mis datos) y ModalContrasenaDeUsuario. Nació en la gestión
+// de usuarios y vino a componentes/ cuando Mi cuenta pasó a usarlo. Cada
+// campo tiene su propio ojo: mostrar uno no muestra los demás.
 export default function CampoContrasena({ id, etiqueta, valor, onCambiar, error, ayuda, autoComplete }) {
   const [ver, setVer] = useState(false)
 

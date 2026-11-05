@@ -24,10 +24,13 @@ ni carga tipografías.
         </tr>
 {% block contenido %}{% endblock %}
       </table>
-      {# El corazón lleva el selector de variación de texto (U+FE0E), que le
-         pide al lector de correo dibujarlo como letra, con este color, y no
-         como el emoji rojo; Gmail no muestra SVG, así que acá no va el de las
-         pantallas. #}
+      {% comment %}
+        El corazón lleva el selector de variación de texto (U+FE0E), que le
+        pide al lector de correo dibujarlo como letra, con este color, y no
+        como el emoji rojo; Gmail no muestra SVG, así que acá no va el de las
+        pantallas. (Es {% comment %} y no {# #}: el de numeral es de una sola
+        línea, y uno de varias se imprime en el correo.)
+      {% endcomment %}
       <p style="margin:20px 0 0;font-family:Arial,sans-serif;font-size:13px;color:#B08791;">Accesorios hechos a mano con &#x2665;&#xFE0E;</p>
     </td>
   </tr>

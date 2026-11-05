@@ -212,8 +212,8 @@ docker compose exec backend python manage.py createsuperuser
 ```
 
 Pide usuario, correo, nombre, apellido y contraseña: los cuatro datos son
-obligatorios, y el correo es adonde llega el enlace de "¿Olvidaste tu
-contraseña?". Es la única cuenta que se crea por comando. Las demás
+obligatorios, y el correo es adonde llega el enlace de "Restablecer
+contraseña". Es la única cuenta que se crea por comando. Las demás
 personas que entran a la gestión, los administradores, los da de alta
 ella desde la pantalla Usuarios; sus propios datos los cambia desde Mi
 cuenta, con el botón Editar. Si después vas a subir los datos de tu PC (ver Copias
@@ -896,8 +896,8 @@ desde la PC se ponen las mismas cuatro variables en el `.env` de la PC.
   `ALLOWED_HOSTS`, el dominio con y sin `www`.
 - **nginx sigue en http después de emitir el certificado**: falta el
   `docker compose restart frontend` del paso 8.
-- **La contraseña de un usuario se perdió**: en el login, "¿Olvidaste tu
-  contraseña?" manda el enlace al correo cargado en la cuenta (ver El
+- **La contraseña de un usuario se perdió**: en el login, "Restablecer
+  contraseña" manda el enlace al correo cargado en la cuenta (ver El
   correo). Si es un administrador, la superadministradora se la cambia
   desde Usuarios, con el candado de su fila. Si es la superadministradora
   y el correo no llega:

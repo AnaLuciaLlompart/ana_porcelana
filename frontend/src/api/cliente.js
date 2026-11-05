@@ -10,16 +10,30 @@ const cliente = axios.create({
   xsrfHeaderName: 'X-CSRFToken', //cookie de CSRF
 }) // axios lee la cookie csrftoken y copia su valor en la cabecera X-CSRFToken, en cada POST, PUT, PATCH y DELETE
 
-// Un 403 significa que la sesión ya no sirve (venció o se cerró del lado
-// del servidor): con IsAuthenticated global, el backend responde eso a todo
-// pedido sin sesión. Se vuelve al login recargando la página, que descarta
-// el estado de la gestión. Es 403 y no 401: el 401 lo devuelven el login
-// con credenciales incorrectas y /auth/sesion/ sin sesión, y ahí no hay que
-// hacer nada. El error se propaga igual, para que cada pantalla lo maneje.
+// Un 403 suele significar que la sesión ya no sirve (venció o se cerró del
+// lado del servidor): con IsAuthenticated global, el backend responde eso a
+// todo pedido sin sesión. Pero desde los dos roles también es 403 "no sos
+// superadministradora" (y siempre lo fue un fallo de CSRF), con la sesión
+// viva. Para distinguirlos se le pregunta al backend si hay sesión, con un
+// axios pelado para no pasar otra vez por acá: si /auth/sesion/ dice 401,
+// se vuelve al login recargando la página, que descarta el estado de la
+// gestión; si dice 200, el 403 es de permisos y se deja pasar. El error se
+// propaga igual, para que cada pantalla lo maneje. Es 403 y no 401: el 401
+// lo devuelven el login con credenciales incorrectas y /auth/sesion/ sin
+// sesión, y ahí no hay que hacer nada.
+async function haySesion() {
+  try {
+    await axios.get('/api/auth/sesion/', { withCredentials: true })
+    return true
+  } catch (error) {
+    return error.response?.status !== 401
+  }
+}
+
 cliente.interceptors.response.use(
   (respuesta) => respuesta,
-  (error) => {
-    if (error.response?.status === 403) {
+  async (error) => {
+    if (error.response?.status === 403 && !(await haySesion())) {
       window.location.assign(`${BASE_GESTION}/login`)
     }
     return Promise.reject(error)
