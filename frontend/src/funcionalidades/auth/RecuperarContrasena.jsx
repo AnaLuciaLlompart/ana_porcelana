@@ -7,7 +7,7 @@ import {
   estiloBotonPrincipal, estiloCampo, estiloEnlace, estiloEtiqueta, estiloTarjeta,
 } from './presentacion'
 
-// "¿Olvidaste tu contraseña?": pide el correo y el backend manda el enlace
+// "Restablecer contraseña": pide el correo y el backend manda el enlace
 // (corrección del tutor). El backend responde lo mismo exista o no el
 // correo, y la pantalla muestra ese texto tal cual.
 function mensajeDeError(err) {

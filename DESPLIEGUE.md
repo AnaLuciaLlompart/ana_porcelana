@@ -773,7 +773,7 @@ Move-Item -Force .env.desarrollo .env
 ## El correo
 
 El sistema manda correo desde la cuenta de Gmail del emprendimiento
-(`ana.porcelanaaaa@gmail.com`): el enlace de "¿Olvidaste tu contraseña?"
+(`ana.porcelanaaaa@gmail.com`): el enlace de "Restablecer contraseña"
 del login y el comprobante de un cobro, desde Cobros. Lo manda Django por
 SMTP con una contraseña de aplicación de Google; no se instala nada. Siempre desde la carpeta del
 proyecto.
@@ -840,7 +840,7 @@ proyecto.
    docker compose exec backend python manage.py shell -c "from django.contrib.auth import get_user_model; u = get_user_model().objects.get(username='Ana'); u.email = 'analuciallompart@gmail.com'; u.save()"
    ```
 
-Desde entonces, "¿Olvidaste tu contraseña?" en el login manda el enlace a
+Desde entonces, "Restablecer contraseña" en el login manda el enlace a
 ese correo. Vale 15 minutos y sirve una sola vez; al usarlo se cierran
 todas las sesiones y se levanta el bloqueo por intentos fallidos. Si
 Gmail falla, el login responde igual y el motivo queda en

@@ -355,7 +355,8 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   imagen del backend; la tabla la crea `arrancar.sh` con `migrate`.
 - **La contraseña se recupera por correo** (corrección del tutor,
   noviembre de 2026), con lo que trae Django y sin librerías. En el login,
-  "¿Olvidaste tu contraseña?" lleva a `/gestion/recuperar`, que pide el
+  "Restablecer contraseña" (texto elegido por la usuaria en noviembre de
+  2026; antes "¿Olvidaste tu contraseña?") lleva a `/gestion/recuperar`, que pide el
   correo: `POST /api/auth/recuperar/` responde siempre 200 con el mismo
   texto, exista o no el correo, para no revelar qué cuentas existen, y
   manda el enlace a cada usuaria activa con ese correo (`email__iexact`;
@@ -2524,6 +2525,15 @@ Nunito Sans 400 para texto y tablas. Cargadas desde Google Fonts en
 
 **Estilo:** bordes de 1px sin sombras marcadas, radios de 6 a 10px,
 mucho espacio en blanco.
+
+**El corazón de "Accesorios hechos a mano con ♥" nunca es un emoji**
+(pedido de la usuaria, noviembre de 2026). En las pantallas es el SVG
+`ICONO_CORAZON` de `catalogo/presentacion.js`, con `currentColor`, como
+en la portada del catálogo: el carácter ♥ (U+2665) lo dibuja cada sistema
+como quiere, Windows como letra e iPhone y Android como emoji rojo. En el
+correo (`correo_base.html`), donde Gmail no muestra SVG, va el carácter
+con el selector de variación de texto (`&#x2665;&#xFE0E;`), que le pide
+al lector dibujarlo como letra.
 
 **Patrón de listado:** título + botón de alta a la derecha → barra de
 herramientas → tabla o grilla → sección colapsable de dados de baja al

@@ -47,7 +47,7 @@ export default function Login() {
   }
 
   return (
-    <PaginaDeAcceso subtitulo="Ingresá con tu usuario para administrar tu emprendimiento">
+    <PaginaDeAcceso>
       <form onSubmit={manejarEnvio} style={estiloTarjeta}>
         <div>
           <label htmlFor="username" style={estiloEtiqueta}>Usuario</label>
@@ -100,14 +100,16 @@ export default function Login() {
             </button>
           </div>
 
-          {/* Recuperar la contraseña por correo (corrección del tutor). */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          {/* Recuperar la contraseña por correo (corrección del tutor). Con
+              aire arriba y abajo, para que no quede pegado ni al campo ni a
+              Iniciar sesión (pedido de la usuaria). */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14, marginBottom: 8 }}>
             <button
               type="button"
               onClick={() => navegar(`${BASE_GESTION}/recuperar`)}
               style={estiloEnlace}
             >
-              ¿Olvidaste tu contraseña?
+              Restablecer contraseña
             </button>
           </div>
         </div>
