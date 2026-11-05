@@ -10,4 +10,5 @@ urlpatterns = [
     path('recuperar/', views.recuperar_contrasena, name='recuperar-contrasena'),
     path('restablecer/<str:uidb64>/<str:token>/', views.restablecer_contrasena,
          name='restablecer-contrasena'),
+    path('mis_datos/', views.mis_datos, name='mis-datos'),
 ]

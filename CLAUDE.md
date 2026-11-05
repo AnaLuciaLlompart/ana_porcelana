@@ -94,7 +94,9 @@ En el frontend, carpetas por funcionalidad dentro de
 afuera: `api/cliente.js`, `api/exportar.js`, `contexto/AuthContext.jsx`,
 `componentes/Layout.jsx`.
 
-Apps terminadas: `usuarios` (CU01–CU03), `materiales` (CU04–CU10),
+Apps terminadas: `usuarios` (CU01–CU03, más la gestión de usuarios con
+dos roles, corrección del tutor de noviembre de 2026, que no es un CU del
+listado), `materiales` (CU04–CU10),
 `categorias` (CU11–CU16), `productos` (CU17–CU35), `clientes`
 (CU36–CU39), `pedidos`, que incluye los cobros (CU40–CU51), `gastos`
 (CU52–CU59) y `catalogo` (CU63–CU70). De **informes** (CU60–CU62) están
@@ -311,8 +313,9 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
 
 ## Decisiones cerradas — no proponer cambiarlas
 
-- **Autenticación por sesión, no JWT.** Un solo backend, una sola
-  usuaria, cookie HttpOnly, logout efectivo. El argumento de CORS no
+- **Autenticación por sesión, no JWT.** Un solo backend, pocas usuarias
+  de confianza (la superadministradora y los administradores que ella da
+  de alta; ver "Dos roles"), cookie HttpOnly, logout efectivo. El argumento de CORS no
   aplica: tengo origen único. Ya lo descartamos dos veces. La sesión
   vence a la hora sin uso (`SESSION_COOKIE_AGE = 60 * 60` en `base.py`;
   corrección del tutor, noviembre de 2026; antes eran 24 h), y
@@ -347,7 +350,8 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   contraseña que guarda cada sesión. Las cinco pruebas están en
   `UnaSolaSesion`. El login del admin pasa por la misma señal (entrar al
   admin cierra la sesión de la gestión) y no tiene el `flush`; es
-  herramienta de desarrollo. En el servidor hace falta reconstruir la
+  herramienta de desarrollo, y entra solo la superadministradora, la
+  única con `is_staff`. En el servidor hace falta reconstruir la
   imagen del backend; la tabla la crea `arrancar.sh` con `migrate`.
 - **La contraseña se recupera por correo** (corrección del tutor,
   noviembre de 2026), con lo que trae Django y sin librerías. En el login,
@@ -417,6 +421,68 @@ Gastos y "Sin productos" en CONTENIDO de Pedidos, en ámbar, el color de
   enlace al sitio, así se ve también abriendo el correo sin llegar al
   servidor. Estilos en línea, tablas y `Arial`, porque Gmail no lee hojas
   de estilo ni carga tipografías.
+- **Dos roles: la superadministradora y los administradores** (corrección
+  del tutor, noviembre de 2026). Sin campo nuevo: la superadministradora
+  es la cuenta con `is_superuser` (la de `createsuperuser`, una sola), y
+  los administradores los da de alta ella desde la pantalla Usuarios, con
+  `create_user`, que los deja con `is_staff` e `is_superuser` en False:
+  usan toda la gestión menos esa pantalla y no entran al admin de Django.
+  La regla vive en el backend, en `EsSuperadministradora`
+  (`usuarios/views.py`), que llevan `UsuarioViewSet` (`/api/usuarios/`,
+  montado desde `usuarios/urls_gestion.py`; `usuarios/urls.py` sigue
+  siendo `/api/auth/`) y `mis_datos` (`PATCH /api/auth/mis_datos/`): un
+  administrador recibe 403 también por la API; en la pantalla no ve el
+  ítem Usuarios y `/gestion/usuarios` lo manda a Inicio
+  (`SoloSuperadministradora`, en `rutas.jsx`). El rol no se cambia desde la
+  API (`is_superuser` e `is_staff` no son campos de escritura de ningún
+  serializer) y sobre la superadministradora no se puede hacer nada desde
+  la gestión de usuarios: PUT, PATCH, DELETE y las tres acciones responden
+  400 "La superadministradora no se gestiona desde acá."; el 403 queda
+  para "no sos superadministradora". Usuario, nombre, apellido y correo son
+  obligatorios, y el usuario y el correo únicos sin distinguir mayúsculas:
+  dos `UniqueConstraint` sobre `Lower()` en el modelo (migración
+  `0002_dos_roles`; la del correo excluye el vacío, por los usuarios sin
+  correo de las pruebas), con el mensaje amable en `validate_username` y
+  `validate_email` de `UsuarioSerializer`, que es la única puerta (el
+  `UniqueValidator` que DRF arma por el `unique` del campo distingue
+  mayúsculas y se saca con `extra_kwargs`). `REQUIRED_FIELDS` hace que
+  `createsuperuser` pida los cuatro datos. Antes de migrar con datos hay
+  que revisar que no haya dos usuarios ni dos correos que difieran solo en
+  mayúsculas. La sesión (`/api/auth/sesion/` y el login) y Mis datos
+  responden el mismo `UsuarioSerializer` que el listado, con
+  `es_superadministradora`: una sola forma del usuario en toda la API
+  (antes la sesión respondía `nombre`, que ninguna pantalla leía).
+  **La baja de un usuario es `is_active` en False**, desde `dar_de_baja`:
+  Django no autentica inactivos, así que no entra (el login dice "Usuario
+  o contraseña incorrectos." y axes cuenta el fallo igual) y
+  `recuperar_contrasena` no le manda el enlace; su sesión abierta se
+  cierra en el momento (DRF tampoco autentica a un inactivo, y además se
+  borran las anotadas por django-single-session). Un dado de baja queda
+  de solo lectura, como toda entidad de baja: PUT, PATCH y
+  `cambiar_password` responden 400 hasta `reactivar`. **Dar de baja no es
+  eliminar**, como en Materiales (pedido de la usuaria): `destroy` borra
+  al administrador para siempre, también a uno dado de baja, después de
+  cerrar sus sesiones y de borrar sus intentos de axes, que se guardan por
+  nombre y le contarían a un usuario nuevo con el mismo nombre; eliminar
+  es para corregir una carga mal hecha. **Cambiarle la contraseña a un administrador**
+  (`cambiar_password`, con `ContrasenaNuevaSerializer` y los validadores
+  de CU03 contra ese usuario) le cierra la sesión y, como `reactivar`,
+  libera su bloqueo de axes (`axes.utils.reset`), igual que restablecer:
+  un administrador bloqueado entra con la contraseña nueva que le pone
+  ella. **Mis datos** (`mis_datos`): la superadministradora edita sus
+  cuatro datos desde Mi cuenta, con las mismas reglas; si cambia el
+  usuario o el correo (la llave de la recuperación) exige
+  `password_actual`, que se comprueba con `authenticate()` y no con
+  `check_password()`, para que una equivocada cuente para axes como un
+  fallo del login (y bloquee al quinto); por eso ese 400 es un `return` y
+  no un `raise`, como el 401 del login. Nombre y apellido no la piden. El
+  rol, el estado y la contraseña en el cuerpo se ignoran. Los
+  administradores no editan sus datos (los cambia ella desde Usuarios)
+  pero sí su contraseña, desde Mi cuenta (CU03). Las pruebas están en
+  `GestionDeUsuarios` (11) y `MisDatos` (5), y `test_usuarios_y_mis_datos_sin_sesion_dan_403`
+  en `PermisosDeLaGestion`; `PruebaConSesion` sigue creando a `ana` con
+  `create_user`, así toda la suite prueba de paso que una administradora
+  usa toda la gestión. La pantalla está en "Módulo Usuarios".
 - **Denegación por defecto:** `IsAuthenticated` global en DRF. Los
   endpoints públicos del catálogo llevarán `AllowAny` explícito.
 - **El usuario del login no distingue mayúsculas; la contraseña sí**
@@ -546,6 +612,124 @@ Un producto sin categorías depende solo de su propio estado.
 
 Eliminar una categoría no elimina sus productos: solo borra las
 asociaciones. Los que queden sin categorías siguen visibles.
+
+---
+
+## Módulo Usuarios (corrección del tutor: dos roles)
+
+No es un caso de uso del listado: es la administración de quiénes pueden
+entrar a la gestión. Las reglas están en "Dos roles", en Decisiones
+cerradas; acá, la pantalla. Vive en `funcionalidades/usuarios/`:
+`api.js` (una función por endpoint: `listarUsuarios`, `resumenDeUsuarios`,
+`crearUsuario`, `modificarUsuario`, `cambiarPasswordDeUsuario`,
+`darDeBajaUsuario`, `reactivarUsuario`, `eliminarUsuario`),
+`presentacion.js` (`CAMPOS`, `chipEstado`, `fmtFechaHora`),
+`Usuarios.jsx`, `ModalUsuario.jsx`,
+`ModalVerUsuario.jsx`, `ModalContrasenaDeUsuario.jsx`,
+`ModalEliminarUsuario.jsx` y `CampoContrasena.jsx`. `modificarMisDatos`
+está en `api/cliente.js`, con las de auth, porque es de la sesión.
+
+**Las contraseñas no se pueden ver, ni la superadministradora.** Django
+guarda solo la huella (PBKDF2 con sal) y no hay vuelta atrás; un sistema
+que las muestra es uno que las guarda en claro. La usuaria lo pidió y se
+le explicó: la única forma de saber la contraseña de alguien es elegirla
+al crearlo o cambiársela con el candado. Se propuso un botón "Generar
+una" que armara una al azar y la dejara a la vista, se escribió y la
+usuaria lo sacó (noviembre de 2026): no se vuelve a proponer.
+
+**El candado se queda y el alta pide la contraseña** (decidido por la
+usuaria, noviembre de 2026, por costo y beneficio). Se evaluó la
+alternativa de la invitación por correo: el alta sin contraseña
+(`create_user` sin ella la deja inutilizable), un correo con el mismo
+enlace de restablecer para que cada persona elija la suya, "Reenviar
+invitación" en el ⋯ y el candado afuera. Es mejor diseño (nadie conoce
+una contraseña ajena) pero se apartaba de lo que pidió el tutor, hacía
+que crear un usuario dependiera del correo y costaba dos o tres horas
+sobre algo ya hecho y probado. Queda como trabajo futuro en el informe. Lo
+que hay se defiende así: la contraseña del alta es la inicial, como la
+de cualquier cuenta que te crean; la persona la cambia desde Mi cuenta y,
+si la olvida, tiene el correo; el candado es el rescate cuando el correo
+falla, como en el admin de Django.
+
+**El listado sigue el patrón de Clientes** (D3): "Gestión de Usuarios" y
+"Nuevo usuario"; la línea "N usuarios · N activos · N dados de baja"
+(`/usuarios/resumen/`, sobre todos); buscador con debounce de 300 ms
+(usuario, nombre, apellido o correo) y dos `ChipFiltro`, "Activos" y
+"Dados de baja", que se excluyen (el elegido manda `?estado=`); tabla
+`fixed` de mínimo 940 con USUARIO (16%), NOMBRE Y APELLIDO (22), CORREO
+(22, con puntos suspensivos y el correo en el `title`), ESTADO (20, por el
+chip "Superadministradora") y ACCIONES (20, por los cuatro botones: 156px
+en 160 de celda a 940), `EncabezadoOrdenable` local (`username`, `nombre`,
+`email`, `estado`), `vigente`, `version`, el 404 que vuelve una página y
+`Paginacion` con filas por página. ESTADO es un chip (`chipEstado`, en
+`presentacion.js`): Activo (verde), Baja (rojo) o, en la fila de la
+superadministradora, "Superadministradora" en rosa; esa fila no tiene
+acciones y la celda lleva el title "La superadministradora no se gestiona
+desde acá". Aparece en la lista para que la lista diga quiénes pueden
+entrar, completa; esconderla dejaría una lista que no muestra a quien la
+está mirando. **La fila lleva siempre los mismos cuatro botones, en el
+mismo lugar** (decidido por la usuaria, en lugar de las ramas de
+Materiales): Ver (ojo), Editar (lápiz), Cambiar contraseña (el candado de
+Mi cuenta, `ICONO_CANDADO` en `auth/presentacion.js`) y el ⋯
+(`MenuMasAcciones`, el de Pedidos) con Dar de baja o Reactivar, según el
+estado, y Eliminar en rojo. En un dado de baja el lápiz y el candado van
+apagados con el motivo del backend en el title ("El usuario está dado de
+baja. Reactivalo para poder modificarlo."). Ver abre `ModalVerUsuario`,
+copiado de `ModalVerCliente`: los cuatro campos apagados, el chip de
+ESTADO, CUENTA CREADA y ÚLTIMO INGRESO ("Todavía no entró" si nunca
+entró), con `date_joined` y `last_login`, que `UsuarioSerializer` manda de
+solo lectura, en `fmtFechaHora` ("4 nov 2026, 18:32"; el backend ya manda
+la hora en la zona del proyecto, así que corta el texto). Sin pie, como
+ningún modal de ver.
+
+**Alta y edición en un modal**, `ModalUsuario`, copiado de `ModalCliente`
+(importa sus estilos): USUARIO, NOMBRE, APELLIDO y CORREO (`CAMPOS`, en
+`presentacion.js`, los mismos del modal Ver), los cuatro con asterisco y
+con `autoComplete="off"` (pedido de la usuaria: en CORREO el navegador
+ofrecía los correos ya escritos, y acá se cargan los datos de otra
+persona), y solo en el alta CONTRASEÑA y REPETIR CONTRASEÑA, con el ojo (`CampoContrasena`, que comparte con
+`ModalContrasenaDeUsuario`) y las mismas comprobaciones que
+`ModalCambiarPassword` (`MINIMO_CONTRASENA`, que coincidan). Los errores
+por campo del backend (usuario o correo
+repetidos, contraseña débil) van debajo de su campo; un `detail`, en la
+caja roja. El mismo modal con la prop `misDatos` es "Mis datos" de Mi
+cuenta: edición sin contraseña, más CONTRASEÑA ACTUAL, que aparece solo
+cuando el usuario o el correo escritos difieren de los guardados (o si el
+servidor la pidió), y al guardar `actualizarUsuario` de `AuthContext`
+pisa la sesión y la tarjeta muestra los datos nuevos sin recargar, con el
+aviso flotante "Datos guardados". Una pantalla aparte sería para una ficha
+con más contenido, y acá no la hay.
+
+**Las acciones.** Alta y edición confirman con `ModalAviso` ("Usuario
+creado" / «juan» quedó creado y ya puede iniciar sesión.; "Cambios
+guardados"); Cambiar contraseña (`ModalContrasenaDeUsuario`: CONTRASEÑA
+NUEVA y REPETIR, sin la actual, porque la cambia la superadministradora;
+el error de `password_nueva` debajo del campo), dar de baja y reactivar
+avisan con el aviso flotante ("Contraseña actualizada", "Usuario dado de
+baja", "Usuario reactivado"). Dar de baja pregunta con `ModalConfirmar`
+("Dar de baja" / "¿Dar de baja a «juan»? No va a poder entrar y su sesión
+se cierra ahora. Lo podés reactivar cuando quieras." / "Dar de baja");
+reactivar va al instante. `cambiarEstado(usuario, accion, aviso)` recibe
+la función de la API, como en Materiales. Eliminar abre
+`ModalEliminarUsuario`, copiado de `ModalEliminarMaterial` ("¿Estás
+segura de eliminar a «juan»?", "Esta acción no se puede deshacer. Si solo
+querés que no pueda entrar, dalo de baja en lugar de eliminarlo: la baja
+se puede revertir.", Eliminar en rojo, el rechazo adentro), y la fila
+desaparece sin aviso, como en Materiales y Clientes.
+
+**Mi cuenta** es una tarjeta sin cabecera (tuvo DATOS DE ACCESO y después
+MIS DATOS; la usuaria la sacó): USUARIO, NOMBRE Y APELLIDO y CORREO para
+todos, y debajo "Cambiar contraseña" (para todos) y "Editar", con el
+lápiz (solo la superadministradora; abre el modal "Mis datos"). Un
+administrador ve los datos y ningún botón para editarlos, sin nota (tuvo
+una, "Estos datos los cambia la superadministradora desde Usuarios.", y la
+usuaria la sacó). El
+ítem "Usuarios" va último en `NAV` de `Layout.jsx`, con
+`soloSuperadministradora: true`, y el render lo salta para un
+administrador; `/gestion/usuarios` va dentro de `SoloSuperadministradora`
+en `rutas.jsx`, que lo manda a Inicio. Verificado en Chrome sin ventana a
+1366 y 384 (noviembre de 2026): el recorrido completo como
+superadministradora y como administrador, 54 comprobaciones.
 
 ---
 
@@ -2015,7 +2199,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
   y uno se fue el 1/11 con `estiloAyuda`). Seis
   vienen de antes del catálogo y no son de él:
   `react-refresh/only-export-components` en `componentes/Paginacion.jsx`
-  (línea 11), `contexto/AuthContext.jsx` (39) y
+  (línea 11), `contexto/AuthContext.jsx` (45) y
   `funcionalidades/clientes/ModalCliente.jsx` (7, 16, 23 y 31). Los
   otros cuatro son de D3, `react-hooks/set-state-in-effect`: un `setState`
   sincrónico al principio de un efecto, para vaciar una lista cuando no
@@ -2031,14 +2215,14 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
 
 ## Pruebas
 
-**Hay 191 pruebas automatizadas del backend**, con `APITestCase` de DRF:
+**Hay 208 pruebas automatizadas del backend**, con `APITestCase` de DRF:
 en el `tests.py` de cada app (las diez tienen) y en `pruebas/tests.py`
 las que no son de una app en particular (el achicado de imágenes).
 Corren con `python manage.py test` desde `backend/`; una app sola con
 `python manage.py test <app>`. El listado completo, con qué verifica
 cada una, el CU o la regla que cubre y su grupo, está en
 `pruebas/PRUEBAS.md`, que se actualiza al agregar una prueba. La
-cobertura es del 89 % (`coverage run manage.py test` y
+cobertura es del 91 % (`coverage run manage.py test` y
 `coverage report`; `.coveragerc` excluye la app `pruebas`, las
 migraciones y los settings).
 
@@ -2053,7 +2237,11 @@ se recarga tocando la fecha del archivo.
 **La base compartida vive en `pruebas/base.py`.** `PruebaSinSesion`
 limpia la caché en `setUp`, porque los throttles guardan ahí sus
 contadores y sin eso una prueba hace fallar a la siguiente con un 429 al
-azar. `PruebaConSesion` además crea la usuaria y entra con `force_login`:
+azar. `PruebaConSesion` además crea la usuaria `ana` con `create_user`
+(una administradora, sin `is_superuser`: así toda la suite prueba de paso
+que una administradora usa toda la gestión; `GestionDeUsuarios` y
+`MisDatos` crean su propia superadministradora con `create_superuser`) y
+entra con `force_login`:
 `client.login()` pasa por los backends y el de axes exige un request.
 Las de rendimiento (`assertNumQueries`) autentican con
 `force_authenticate`, que no toca la base, para contar solo las
@@ -2443,9 +2631,9 @@ rosa (ver "Cuatro componentes compartidos" en Las altas). **`ModalCobros`
 no tiene pie**: su único botón era Cerrar, que repetía la cruz de la
 cabecera, y la usuaria lo sacó, en la compu y en el celular. Cada cobro
 se guarda en el momento, así que no hay ninguna acción principal que
-poner abajo. **Los cinco modales de ver tampoco tienen pie**
-(`ModalVerCliente`, `ModalVerMaterial`, `ModalVerGasto`, `ModalVerPedido`
-y `ModalVerProducto`; regla de la usuaria): un modal de ver no da acceso
+poner abajo. **Los seis modales de ver tampoco tienen pie**
+(`ModalVerCliente`, `ModalVerMaterial`, `ModalVerGasto`, `ModalVerPedido`,
+`ModalVerProducto` y `ModalVerUsuario`; regla de la usuaria): un modal de ver no da acceso
 a editar, y Cerrar repetía la cruz. Antes los de cliente, gasto, pedido y
 producto tenían Cerrar y Editar, y el de material, Cerrar. Para editar
 está el lápiz de la fila.
@@ -2455,9 +2643,10 @@ está el lápiz de la fila.
 `#8C5A66`), Avanzar estado (flecha en un círculo, `#8C5A66`), Cobros
 (signo $ en un círculo, `#8C5A66`), Comprobante
 (hoja con la punta doblada, `#8C5A66`), Compartir (tres círculos unidos,
-`#8C5A66`), Dar de baja (prohibido, `#D9A441`), Reactivar
-(tilde, `#4E8C6A`), Eliminar (papelera, `#C0442F`), Más acciones (tres
-puntos, `#8C5A66`).
+`#8C5A66`), Cambiar contraseña (candado, `#8C5A66`; en la fila de un
+usuario y en Mi cuenta), Dar de baja (prohibido, `#D9A441`), Reactivar
+(tilde, `#4E8C6A`; en Usuarios, el tilde en un círculo de Materiales),
+Eliminar (papelera, `#C0442F`), Más acciones (tres puntos, `#8C5A66`).
 
 **En el celular, el comprobante se comparte** (corrección del tutor,
 E11). El botón de comprobante de cada cobro, en `ModalCobros`, pasa a
@@ -2489,10 +2678,11 @@ necesita el despliegue.
 
 **Cuatro iconos por fila, como máximo** (corrección del tutor del
 28/10/2026, A1). Si una fila tiene más acciones, las menos usadas van en
-el ⋯ de `MenuMasAcciones`, con icono y texto. Hoy solo lo usa Pedidos
-(avanzar estado, cobros y lápiz a la vista; Ver y eliminar en el ⋯);
-Productos (ojo, lápiz, dar de baja, papelera) y Gastos (ojo, lápiz,
-papelera) entran sin él. La fila de
+el ⋯ de `MenuMasAcciones`, con icono y texto. Lo usan Pedidos (avanzar
+estado, cobros y lápiz a la vista; Ver y eliminar en el ⋯) y Usuarios
+(ojo, lápiz y candado a la vista; dar de baja o reactivar, y eliminar, en
+el ⋯); Productos (ojo, lápiz, dar de baja, papelera) y Gastos (ojo,
+lápiz, papelera) entran sin él. La fila de
 cada cobro en `ModalCobros` también llega a cuatro: comprobante, correo,
 lápiz y cruz.
 
@@ -2500,10 +2690,10 @@ lápiz y cruz.
 abre una ficha editable se llama "Editar" (antes "Ver y editar"; desde
 que existe el ojo, ver es otra acción) y lleva el lápiz: en los
 listados de Productos (grilla, tabla y el bloque "Baja por su categoría",
-cuyos productos están activos), Pedidos y Gastos. El ojo queda para lo
-que se abre en solo lectura: los modales Ver de Materiales, Clientes,
-Gastos, Productos y Pedidos (en Pedidos, el ojo va en el ⋯, con su
-texto). El $ de Cobros no son los billetes de Gastos a propósito: cobrar
+cuyos productos están activos), Pedidos, Gastos y Usuarios. El ojo queda
+para lo que se abre en solo lectura: los modales Ver de Materiales,
+Clientes, Gastos, Productos, Pedidos y Usuarios (en Pedidos, el ojo va en
+el ⋯, con su texto). El $ de Cobros no son los billetes de Gastos a propósito: cobrar
 es plata que entra y gastar, plata que sale.
 
 En Productos (corrección del tutor del 28/10/2026, A1) un producto activo

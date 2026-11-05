@@ -204,8 +204,8 @@ AXES_FAILURE_LIMIT = 5                      # al quinto fallo seguido se bloquea
 AXES_COOLOFF_TIME = timedelta(minutes=30)   # cuánto dura el bloqueo
 # Se bloquea la combinación usuario + IP: un atacante desde otra IP no
 # puede dejar afuera a la usuaria, y ella no queda afuera por intentos
-# ajenos. Bloquear solo por usuario, con una sola usuaria, sería bloquear
-# el sistema entero.
+# ajenos. Bloquear solo por usuario, con pocas usuarias, sería dejar
+# afuera a cualquiera de ellas desde cualquier lado.
 AXES_LOCKOUT_PARAMETERS = [['username', 'ip_address']]
 AXES_RESET_ON_SUCCESS = True                # un login correcto borra los fallos previos
 # Respuesta cuando está bloqueado: JSON con 'detail' y 429, que es lo que

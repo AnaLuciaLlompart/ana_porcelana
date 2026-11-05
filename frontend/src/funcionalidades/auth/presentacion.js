@@ -9,6 +9,10 @@ export const OJO_TACHADO = 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-
 // aviso de acá no puede contradecir al error del servidor.
 export const MINIMO_CONTRASENA = 8
 
+// El candado de "Cambiar contraseña": en Mi cuenta y en la fila de cada
+// administrador de la gestión de usuarios.
+export const ICONO_CANDADO = 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
+
 export const estiloTarjeta = {
   background: 'white',
   border: '1px solid #EBE0E2',

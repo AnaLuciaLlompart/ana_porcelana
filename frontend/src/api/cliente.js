@@ -63,5 +63,12 @@ export function restablecerContrasena(uid, token, passwordNueva) {
   return cliente.post(`/auth/restablecer/${uid}/${token}/`, { password_nueva: passwordNueva })
 }
 
+// Mis datos (corrección del tutor: dos roles): la superadministradora cambia
+// su usuario, nombre, apellido y correo. Si cambia el usuario o el correo,
+// datos lleva también password_actual. Un administrador recibe 403.
+export function modificarMisDatos(datos) {
+  return cliente.patch('/auth/mis_datos/', datos)
+}
+
 
 export default cliente

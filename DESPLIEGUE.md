@@ -205,15 +205,19 @@ En este punto el sitio responde por http pero **todavía no funciona**: la
 configuración de producción manda todo a https, y https no existe hasta
 el paso 8. Es lo esperado.
 
-### 7. Crear la usuaria
+### 7. Crear la superadministradora
 
 ```bash
 docker compose exec backend python manage.py createsuperuser
 ```
 
-Pide usuario, correo (puede quedar vacío) y contraseña. Si después vas a
-subir los datos de tu PC (ver Copias de seguridad), este usuario se
-reemplaza por el que tengas en tu base.
+Pide usuario, correo, nombre, apellido y contraseña: los cuatro datos son
+obligatorios, y el correo es adonde llega el enlace de "¿Olvidaste tu
+contraseña?". Es la única cuenta que se crea por comando. Las demás
+personas que entran a la gestión, los administradores, los da de alta
+ella desde la pantalla Usuarios; sus propios datos los cambia desde Mi
+cuenta, con el botón Editar. Si después vas a subir los datos de tu PC (ver Copias
+de seguridad), este usuario se reemplaza por el que tengas en tu base.
 
 ### 8. El certificado
 
@@ -825,9 +829,11 @@ proyecto.
    accepted`).
 
 5. **Cargar tu correo en la usuaria**, que es adonde llega el enlace. Va
-   tu correo personal, el que leés, y no el del emprendimiento. La primera
-   línea muestra el que tiene; la segunda lo carga (`Ana` es el usuario
-   con el que entrás, como está escrito):
+   tu correo personal, el que leés, y no el del emprendimiento. Se carga
+   desde la gestión, en Mi cuenta → Editar, junto con el nombre y el
+   apellido (cambiar el correo pide tu contraseña actual). Si no podés
+   entrar, el comando: la primera línea muestra el que tiene; la segunda
+   lo carga (`Ana` es el usuario con el que entrás, como está escrito):
 
    ```bash
    docker compose exec backend python manage.py shell -c "from django.contrib.auth import get_user_model; u = get_user_model().objects.get(username='Ana'); print(repr(u.email))"
@@ -864,7 +870,9 @@ desde la PC se ponen las mismas cuatro variables en el `.env` de la PC.
   … `is duplicated`** (el PostgreSQL instalado en la PC lo dice en
   castellano: `no se pudo crear el índice único` … `está duplicada`): una
   migración agregó un nombre único y en la base hay dos registros con el
-  mismo nombre (el log dice cuál). Se vuelve a la
+  mismo nombre (el log dice cuál). Pasa también con la migración de los
+  dos roles (`usuarios 0002`) si hay dos usuarios, o dos correos, que
+  difieran solo en mayúsculas (`Ana` y `ana`). Se vuelve a la
   versión anterior ("Volver atrás", en Actualizar el sistema), se renombra
   uno de los dos desde la gestión y se actualiza de nuevo.
 - **"No se pudo cargar el catálogo."** En el servidor antes del
@@ -888,9 +896,11 @@ desde la PC se ponen las mismas cuatro variables en el `.env` de la PC.
   `ALLOWED_HOSTS`, el dominio con y sin `www`.
 - **nginx sigue en http después de emitir el certificado**: falta el
   `docker compose restart frontend` del paso 8.
-- **La contraseña de la usuaria se perdió**: en el login, "¿Olvidaste tu
-  contraseña?" manda el enlace al correo cargado en la usuaria (ver El
-  correo). Si el correo no está cargado o no llega:
+- **La contraseña de un usuario se perdió**: en el login, "¿Olvidaste tu
+  contraseña?" manda el enlace al correo cargado en la cuenta (ver El
+  correo). Si es un administrador, la superadministradora se la cambia
+  desde Usuarios, con el candado de su fila. Si es la superadministradora
+  y el correo no llega:
   `docker compose exec backend python manage.py changepassword <usuaria>`.
 - **En la PC, el puerto 80 está ocupado**: `netstat -ano | findstr :80`
   dice qué programa lo usa.

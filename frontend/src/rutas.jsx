@@ -20,6 +20,7 @@ import Gastos from './funcionalidades/gastos/Gastos'
 import DetalleGasto from './funcionalidades/gastos/DetalleGasto'
 import AltaGasto from './funcionalidades/gastos/AltaGasto'
 import Finanzas from './funcionalidades/finanzas/Finanzas'
+import Usuarios from './funcionalidades/usuarios/Usuarios'
 import Inicio from './funcionalidades/inicio/Inicio'
 import Catalogo from './funcionalidades/catalogo/Catalogo'
 import DetalleCatalogo from './funcionalidades/catalogo/DetalleCatalogo'
@@ -45,6 +46,18 @@ function Publico() {
 
   if (cargando) return <p style={{ padding: 32 }}>Cargando…</p>
   if (usuario) return <Navigate to={BASE_GESTION} replace />
+
+  return <Outlet />
+}
+
+// La gestión de usuarios es solo de la superadministradora (corrección del
+// tutor: dos roles). Va adentro de Protegido, así que acá ya hay sesión: un
+// administrador que escriba la dirección a mano va a Inicio. La regla de
+// verdad está en el backend, que le responde 403.
+function SoloSuperadministradora() {
+  const { usuario } = useAuth()
+
+  if (!usuario.es_superadministradora) return <Navigate to={BASE_GESTION} replace />
 
   return <Outlet />
 }
@@ -105,6 +118,9 @@ const router = createBrowserRouter(
             <Route path="gastos/nuevo" element={<AltaGasto />} />  {/* El alta es otra pantalla, que crea al final. Va ANTES que /gastos/:id para que "nuevo" no se lea como un id. */}
             <Route path="gastos/:id" element={<DetalleGasto />} />
             <Route path="finanzas" element={<Finanzas />} />
+            <Route element={<SoloSuperadministradora />}>
+              <Route path="usuarios" element={<Usuarios />} />
+            </Route>
           </Route>
         </Route>
 

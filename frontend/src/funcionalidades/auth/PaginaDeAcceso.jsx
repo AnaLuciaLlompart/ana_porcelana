@@ -40,14 +40,9 @@ export default function PaginaDeAcceso({ subtitulo, children }) {
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#8C5A66" strokeWidth="1.4">
-              <circle cx="12" cy="7" r="3" />
-              <circle cx="7.2" cy="10.5" r="3" />
-              <circle cx="16.8" cy="10.5" r="3" />
-              <circle cx="9.2" cy="15.4" r="3" />
-              <circle cx="14.8" cy="15.4" r="3" />
-              <circle cx="12" cy="11.6" r="1.5" fill="#8C5A66" stroke="none" />
-            </svg>
+            {/* La misma flor del ícono de la pestaña (pedido de la usuaria):
+                se muestra el archivo del favicon, así hay un solo dibujo. */}
+            <img src={FAVICON_GESTION} alt="" width={34} height={34} />
           </div>
           <h1 style={{
             margin: 0,

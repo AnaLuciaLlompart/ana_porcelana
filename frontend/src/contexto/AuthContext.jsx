@@ -29,8 +29,14 @@ export function AuthProvider({ children }) {
     setUsuario(null)
   }
 
+  // Lo que responde Mis datos tiene la misma forma que la sesión: se pisa
+  // el usuario y el nombre nuevo se ve sin recargar.
+  function actualizarUsuario(datos) {
+    setUsuario(datos)
+  }
+
   return (
-    <AuthContext.Provider value={{ usuario, cargando, entrar, salir }}>
+    <AuthContext.Provider value={{ usuario, cargando, entrar, salir, actualizarUsuario }}>
       {children}
     </AuthContext.Provider>
   )

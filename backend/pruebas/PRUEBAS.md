@@ -12,24 +12,24 @@ sino la infraestructura de pruebas y las herramientas de administración.
 
 ## Resumen
 
-**191 pruebas**, todas en verde, en once apps (`usuarios` 29, `catalogo`
+**208 pruebas**, todas en verde, en once apps (`usuarios` 46, `catalogo`
 16, `materiales` 18, `categorias` 5, `productos` 27, `clientes` 7,
 `pedidos` 49, `gastos` 25, `finanzas` 6, `inicio` 4, `pruebas` 5).
 
 | Grupo | Pruebas |
 |---|---|
-| reglas de negocio | 103 |
-| validación | 26 |
-| permisos | 18 |
+| reglas de negocio | 109 |
+| validación | 29 |
+| permisos | 21 |
 | catálogo | 13 |
 | rendimiento | 8 |
-| seguridad | 18 |
+| seguridad | 28 |
 
-**Cobertura: 89 %** del código del backend (2.588 sentencias, 283 sin
+**Cobertura: 91 %** del código del backend (3.271 sentencias, 294 sin
 ejecutar), medida con `coverage 7.16.2`. El porcentaje excluye la app
 `pruebas` entera (las pruebas y los comandos), las migraciones,
 `manage.py`, los settings y los arranques asgi/wsgi (ver `.coveragerc`). Lo que más falta son las acciones de sub-recursos
-de `productos/views.py` (72 %) y `pedidos/views.py` (73 %) que no están
+de `productos/views.py` (78 %) y `pedidos/views.py` (85 %) que no están
 en este listado.
 
 ## Listado
@@ -47,6 +47,7 @@ rendimiento.
 | usuarios | test_gastos_sin_sesion_da_403 | Lo mismo sobre /api/gastos/ | Denegación por defecto | permisos |
 | usuarios | test_finanzas_sin_sesion_da_403 | GET a /api/finanzas/ con un período válido sin sesión responde 403 | Denegación por defecto (CU61, CU62) | permisos |
 | usuarios | test_inicio_sin_sesion_da_403 | GET a /api/inicio/ sin sesión responde 403 | Denegación por defecto | permisos |
+| usuarios | test_usuarios_y_mis_datos_sin_sesion_dan_403 | GET, POST, PUT, PATCH y DELETE a /api/usuarios/ y PATCH a /api/auth/mis_datos/ sin sesión responden 403 | Denegación por defecto en la gestión de usuarios (dos roles, corrección del tutor) | permisos |
 | usuarios | test_admin_sin_sesion_redirige_al_login | GET a /admin/ sin sesión redirige (302) a /admin/login/ | El admin es herramienta de desarrollo y también exige sesión | permisos |
 | usuarios | test_post_sin_token_csrf_da_403 | Con sesión pero sin token CSRF, un POST responde 403 | Protección CSRF de SessionAuthentication | seguridad |
 | usuarios | test_cookie_de_sesion_lleva_httponly | La cookie sessionid del login lleva HttpOnly y Max-Age de 1 hora (3.600 s) | Autenticación por sesión con cookie HttpOnly; la sesión vence a la hora sin uso y se renueva en cada pedido (corrección del tutor) | seguridad |
@@ -68,6 +69,22 @@ rendimiento.
 | usuarios | test_restablecer_cierra_las_sesiones_abiertas | Una sesión abierta por el login queda afuera al restablecer: 403 en la gestión, 401 en /api/auth/sesion/ y ninguna fila en django_session | Restablecer cierra todas las sesiones (la huella de Django y las anotadas por django-single-session) | seguridad |
 | usuarios | test_restablecer_libera_el_bloqueo_de_axes | Con la usuaria bloqueada por cinco fallos, restablecer borra los AccessAttempt y el login con la nueva responde 200 | Restablecer libera el bloqueo de axes (axes.utils.reset) | seguridad |
 | usuarios | test_pedir_el_enlace_tiene_un_limite_por_hora | El sexto pedido del enlace en una hora desde la misma IP responde 429 con Retry-After | RecuperarThrottle: 5 pedidos por hora por IP | seguridad |
+| usuarios | test_un_administrador_recibe_403_en_la_gestion_de_usuarios | Con la sesión de un administrador, el listado, el resumen, el alta, PUT, PATCH, DELETE y las tres acciones de /api/usuarios/ responden 403 con el mensaje; materiales, pedidos e inicio responden 200 | Dos roles: EsSuperadministradora en el backend (corrección del tutor) | permisos |
+| usuarios | test_la_superadministradora_da_de_alta_modifica_lista_busca_filtra_y_pagina | El alta responde 201 sin la contraseña, con is_staff e is_superuser en False, con date_joined y con last_login en None, y la nueva entra; PUT y PATCH 200; el listado trae es_superadministradora por fila, busca por apellido, correo y usuario, filtra por estado (uno inválido da 400), ordena (una columna inválida da 400) y pagina; el resumen cuenta todos | UsuarioViewSet: alta, modificación y listado D3 de la gestión de usuarios | reglas de negocio |
+| usuarios | test_usuario_o_correo_repetidos_sin_distinguir_mayusculas_dan_400 | "JUAN" y "Juan@Example.com" dan 400 con su mensaje en el alta; "ANA" y "ANA@EXAMPLE.COM" en la modificación; el propio usuario y correo en otra mayúscula pasan | Usuario y correo únicos sin distinguir mayúsculas (validate_username y validate_email, respaldados por las UniqueConstraint sobre Lower) | validación |
+| usuarios | test_nombre_apellido_o_correo_vacios_y_contrasena_debil_dan_400 | Cada campo obligatorio vacío o ausente da 400 con su clave; un correo sin forma de correo, 400; "12345678", el usuario y el correo como contraseña dan 400 con la clave password; con todo bien, 201 | Los cuatro datos obligatorios y los validadores de contraseña de Django contra el usuario nuevo | validación |
+| usuarios | test_cambiar_la_contrasena_de_un_administrador_cierra_su_sesion_y_entra_con_la_nueva | Una débil da 400 con la clave password_nueva y la sesión del administrador sigue; con una válida, su sesión pasa a 403 en la gestión y 401 en /api/auth/sesion/, no entra con la vieja y sí con la nueva | cambiar_password de la gestión de usuarios cierra las sesiones del usuario | seguridad |
+| usuarios | test_dar_de_baja_cierra_la_sesion_y_no_deja_entrar_ni_recuperar_y_reactivar_lo_devuelve | Dado de baja: su sesión pasa a 403 y 401, el login dice "Usuario o contraseña incorrectos.", recuperar responde 200 sin mandar correo, darlo de baja otra vez da 400, el resumen y el filtro BAJA lo cuentan; reactivado entra, y reactivarlo otra vez da 400 | La baja es is_active en False: Django no autentica inactivos y recuperar los filtra | seguridad |
+| usuarios | test_un_dado_de_baja_no_se_modifica_ni_se_le_cambia_la_contrasena | PUT, PATCH y cambiar_password sobre un dado de baja dan 400 con el mensaje y no cambian nada; reactivado, los tres responden 200 | Un dado de baja queda de solo lectura, como toda entidad de baja | reglas de negocio |
+| usuarios | test_nada_se_puede_hacer_sobre_la_superadministradora | PUT, PATCH, DELETE y las tres acciones sobre la superadministradora dan 400 "La superadministradora no se gestiona desde acá." y no cambian nada; un PUT con is_superuser, is_staff, is_active, date_joined y last_login en el cuerpo los ignora | La superadministradora no se gestiona desde la API; el rol, el estado y las fechas no son campos de escritura | reglas de negocio |
+| usuarios | test_eliminar_un_administrador_es_definitivo | DELETE sobre un administrador con sesión abierta y un intento fallido responde 204: el usuario, su sesión y sus AccessAttempt desaparecen, su navegador pasa a 403 y el login da 401; un dado de baja también se elimina | Dar de baja no es eliminar (como en Materiales): destroy cierra las sesiones y borra los intentos de axes antes de borrar | reglas de negocio |
+| usuarios | test_la_sesion_y_el_login_dicen_el_rol_y_traen_los_datos | /api/auth/sesion/ responde es_superadministradora True con usuario, nombre, apellido y correo; el login de un administrador responde False con sus datos, y su sesión lo mismo | La sesión y el login responden UsuarioSerializer, con el rol que decide el ítem Usuarios | reglas de negocio |
+| usuarios | test_cambiar_la_contrasena_y_reactivar_liberan_el_bloqueo_de_axes | Con el administrador bloqueado por cinco fallos, cambiarle la contraseña borra los AccessAttempt y entra con la nueva; bloqueado otra vez y dado de baja, reactivarlo los borra y entra | cambiar_password y reactivar llaman a axes.utils.reset, como restablecer | seguridad |
+| usuarios | test_cambia_nombre_y_apellido_sin_contrasena | PATCH a /api/auth/mis_datos/ con nombre y apellido responde 200 con los datos nuevos, que la sesión también muestra; un nombre vacío da 400 y no cambia nada | Mis datos: nombre y apellido no piden la contraseña | reglas de negocio |
+| usuarios | test_cambiar_el_correo_o_el_usuario_exige_la_contrasena_actual | Sin password_actual, 400 con su mensaje; con una equivocada, 400 "La contraseña actual es incorrecta." y queda un AccessAttempt con un fallo; el mismo correo que ya tiene no la pide; con la correcta, 200 y entra con el usuario nuevo | Mis datos comprueba la contraseña con authenticate(): una equivocada cuenta para axes, y el 400 es un return para que el intento quede | seguridad |
+| usuarios | test_usuario_o_correo_de_otro_sin_distinguir_mayusculas_dan_400 | "JUAN" y "Juan@Example.com", del administrador, dan 400 con el mismo mensaje que en la gestión y nada cambia | Mis datos reusa las validaciones de UsuarioSerializer | validación |
+| usuarios | test_el_rol_el_estado_y_la_contrasena_en_el_cuerpo_se_ignoran | Un PATCH a Mis datos con is_superuser, is_staff, is_active, es_superadministradora y password los deja como estaban; la sesión sigue en 200 | Mis datos no tiene rol, estado ni contraseña como campos de escritura | seguridad |
+| usuarios | test_un_administrador_recibe_403_pero_cambia_su_propia_contrasena | PATCH a /api/auth/mis_datos/ con la sesión de un administrador da 403 y no cambia nada; POST a /api/auth/password/ le responde 200 y sigue adentro | Mis datos es solo de la superadministradora; CU03 sigue siendo de todos | permisos |
 | finanzas | test_desde_posterior_a_hasta_da_400 | GET con desde 2026-02-01 y hasta 2026-01-01 responde 400 con mensaje | Validación del período (CU61, CU62) | validación |
 | finanzas | test_los_totales_del_periodo_son_correctos | Un cobro de $4.000 y un gasto de $1.500 en marzo dan ingresos, gastos y resultado $2.500 con una fila de cada; un cobro de abril y un gasto de febrero quedan afuera | Ingresos = cobros del período; fecha__range inclusivo (CU61, CU62) | reglas de negocio |
 | finanzas | test_exportar_sin_sesion_da_403 | GET /api/finanzas/exportar/ sin sesión responde 403, con formato pdf y con excel | Denegación por defecto (CU61, CU62, corrección E10) | permisos |

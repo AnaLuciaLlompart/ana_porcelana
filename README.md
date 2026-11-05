@@ -20,7 +20,8 @@ su mayoría no derivan en una compra.
 
 El sistema comprende **dos ámbitos diferenciados**:
 
-- **Módulo de gestión**, de acceso privado, para la emprendedora.
+- **Módulo de gestión**, de acceso privado, para la emprendedora y las
+  personas que ella autorice.
 - **Catálogo público**, accesible sin identificación, para que los
   clientes consulten los productos y ordenen el contacto inicial.
 
@@ -164,7 +165,7 @@ ana_porcelana/
 │   │   ├── listados.py          lo que comparten los filtros de los listados
 │   │   ├── exportar.py          exportar los listados a PDF y Excel
 │   │   ├── wsgi.py · asgi.py    puntos de entrada para producción
-│   ├── usuarios/                modelo de usuario y autenticación
+│   ├── usuarios/                modelo de usuario, autenticación y gestión de usuarios (dos roles)
 │   ├── materiales/
 │   ├── categorias/
 │   ├── productos/
@@ -176,8 +177,8 @@ ana_porcelana/
 │   ├── catalogo/                catálogo público: tres endpoints de lectura sin sesión; sin modelos propios
 │   ├── pruebas/                 pruebas automatizadas; sin modelos propios
 │   │   ├── base.py              utilidades comunes de las pruebas
-│   │   ├── tests.py             las 5 generales; las otras 141, en el tests.py de cada app
-│   │   ├── PRUEBAS.md           qué cubre cada una de las 184 y cómo correrlas
+│   │   ├── tests.py             las 5 generales; las otras 203, en el tests.py de cada app
+│   │   ├── PRUEBAS.md           qué cubre cada una de las 208 y cómo correrlas
 │   │   └── management/commands/
 │   │       ├── cargar_datos_prueba.py   genera datos de prueba (1 o 3 años)
 │   │       └── achicar_imagenes.py      achica las fotos ya guardadas
@@ -214,7 +215,8 @@ ana_porcelana/
 │       │   ├── LayoutPublico.jsx  encabezado, navegación y pie del catálogo público
 │       │   └── PiePublico.jsx     el pie del catálogo público
 │       ├── funcionalidades/
-│       │   ├── auth/
+│       │   ├── auth/            inicio de sesión, recuperar la contraseña y Mi cuenta
+│       │   ├── usuarios/        gestión de usuarios, solo para la superadministradora
 │       │   ├── materiales/
 │       │   ├── categorias/
 │       │   ├── productos/       listado, alta por pasos y ficha
@@ -302,14 +304,24 @@ Las decisiones y su fundamento están documentados por separado. Un
 resumen de las principales:
 
 **Autenticación por sesión** en lugar de token autocontenido (JWT). El
-sistema tiene un único backend y una única usuaria; las sesiones manejadas por Django
+sistema tiene un único backend y pocos usuarios de confianza; las sesiones manejadas por Django
 ofrecen una cookie inaccesible al código del cliente y un cierre de
 sesión efectivo del lado del servidor. El nombre de usuario del inicio de
 sesión no distingue mayúsculas: «ana» y «Ana» ingresan igual; la
 contraseña sí las distingue. Los intentos fallidos de ambas formas suman
-al mismo bloqueo. Hay una única sesión por usuaria: iniciar sesión en
+al mismo bloqueo. Hay una única sesión por usuario: iniciar sesión en
 otro navegador o dispositivo cierra la anterior, que vuelve a la pantalla
 de ingreso igual que una sesión vencida por inactividad.
+
+**Dos roles.** La superadministradora, la cuenta creada al instalar el
+sistema, da de alta a los administradores desde la pantalla Usuarios:
+ellos usan toda la gestión salvo esa pantalla. El rol no se cambia desde
+la aplicación y la regla se verifica en el backend, no solo en la
+interfaz. La baja de un usuario es lógica: deja de poder ingresar, su
+sesión abierta se cierra en el momento y puede reactivarse. El usuario y
+el correo son únicos sin distinguir mayúsculas, y el correo es
+obligatorio porque es adonde llega el enlace de recuperación de la
+contraseña.
 
 **Recuperación de la contraseña por correo**, con lo que trae Django:
 el enlace lleva un token firmado que vale 15 minutos y sirve una sola
@@ -569,8 +581,8 @@ su fundamento.
 
 El sistema no contempla la edición concurrente de un mismo registro: si
 se modifica desde dos sesiones simultáneas, la última en guardar
-prevalece. La restricción no resulta significativa con una única
-usuaria. Las reglas que involucran varias filas —el total cobrado de un
+prevalece. La restricción no resulta significativa con tan pocos
+usuarios. Las reglas que involucran varias filas —el total cobrado de un
 pedido, su estado frente a las piezas sin terminar, el monto de un
 gasto— sí se protegen: cada pedido a la API es una transacción y esas
 reglas se verifican con la fila bloqueada, de modo que dos operaciones
