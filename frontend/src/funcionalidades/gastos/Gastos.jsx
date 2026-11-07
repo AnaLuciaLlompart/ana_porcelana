@@ -26,27 +26,30 @@ import Paginacion from '../../componentes/Paginacion'
 import { BASE_GESTION } from '../../constantes'
 
 
+// La frase de los materiales que pasaron a disponibilidad Alta, o '' si
+// ninguno. Va detrás del texto de "Gasto creado" y de "Cambios guardados".
+function fraseDeAlta(n) {
+  if (!n) return ''
+  return n === 1 ? ' 1 material pasó a disponibilidad Alta.' : ` ${n} materiales pasaron a disponibilidad Alta.`
+}
+
 // El título y el texto del modal de aviso, según lo que dejó en el state la
 // pantalla de la que se viene (el alta, el gasto que creó; la ficha, el que
-// guardó), o null si no dejó nada. Si al guardar algún material pasó a
-// disponibilidad Alta, el modal lo cuenta.
+// guardó), o null si no dejó nada. Si al crear o guardar algún material pasó
+// a disponibilidad Alta, el modal lo cuenta.
 function avisoDeLaNavegacion(state) {
   if (state?.creado) {
     return {
       titulo: 'Gasto creado',
-      texto: `El gasto #${state.creado} quedó creado y ya aparece en el listado.`,
+      texto: `El gasto #${state.creado} quedó creado y ya aparece en el listado.${fraseDeAlta(state.pasaronAAlta)}`,
     }
   }
 
   if (!state?.guardado) return null
 
-  const n = state.pasaronAAlta || 0
-  const alta =
-    n === 0 ? '' : n === 1 ? ' 1 material pasó a disponibilidad Alta.' : ` ${n} materiales pasaron a disponibilidad Alta.`
-
   return {
     titulo: 'Cambios guardados',
-    texto: `El gasto #${state.guardado} quedó guardado.${alta}`,
+    texto: `El gasto #${state.guardado} quedó guardado.${fraseDeAlta(state.pasaronAAlta)}`,
   }
 }
 

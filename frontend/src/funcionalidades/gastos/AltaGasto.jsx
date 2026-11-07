@@ -12,8 +12,16 @@ import ModalConfirmar from '../../componentes/ModalConfirmar'
 
 import DatosDelGasto from './DatosDelGasto'
 import MaterialesDelGasto from './MaterialesDelGasto'
+import ModalActualizarDisponibilidad from './ModalActualizarDisponibilidad'
 import ModalMaterial from './ModalMaterial'
-import { ICONO_FLECHA, filaEnMemoria, hoy, mensajeDeError, montoEnMemoria } from './presentacion'
+import {
+  ICONO_FLECHA,
+  filaEnMemoria,
+  hoy,
+  mensajeDeError,
+  montoEnMemoria,
+  sePuedePasarAAlta,
+} from './presentacion'
 
 
 // Con qué arranca el formulario en un alta: el tipo Materiales y la fecha de
@@ -66,6 +74,11 @@ export default function AltaGasto() {
   // puede crear, pero antes se pregunta. La pregunta de salir no va acá: la
   // hace el bloqueo de navegación de abajo.
   const [modalSinFilas, setModalSinFilas] = useState(false)
+
+  // La pregunta de la disponibilidad: si entre los materiales cargados hay
+  // alguno activo en Media o Baja, "Crear gasto" pregunta si pasarlos a Alta
+  // antes de crear (pedido de la usuaria, para no tener que acordarse).
+  const [preguntarDisponibilidad, setPreguntarDisponibilidad] = useState(false)
 
   // Un id provisorio por fila, negativo para que no choque con los de la
   // base. Las filas lo usan de key.
@@ -169,7 +182,9 @@ export default function AltaGasto() {
 
 
   // "Crear gasto": primero revisa los datos. Un gasto de materiales sin
-  // filas se puede crear, pero nace en $0, así que antes se pregunta.
+  // filas se puede crear, pero nace en $0, así que antes se pregunta. Con
+  // filas, si alguna es de un material que puede pasar a disponibilidad
+  // Alta, se pregunta eso; si no, se crea directo.
   function terminar() {
     setErrorMateriales('')
 
@@ -184,6 +199,10 @@ export default function AltaGasto() {
       setModalSinFilas(true)
       return
     }
+    if (borrador.tipo === 'MATERIALES' && borrador.materiales.some(sePuedePasarAAlta)) {
+      setPreguntarDisponibilidad(true)
+      return
+    }
     crear()
   }
 
@@ -191,8 +210,13 @@ export default function AltaGasto() {
   // backend lo guarda todo en una transacción, así que si algo falla no
   // queda nada creado. Si el error viene con la clave 'materiales', fue una
   // fila y va pegado a la tabla; si no, fue el gasto y va en los datos.
-  async function crear() {
+  //
+  // idsAAlta son las filas que se tildaron en la pregunta de la
+  // disponibilidad: viajan con pasar_a_alta y el backend las pasa a Alta en
+  // la misma transacción.
+  async function crear(idsAAlta = []) {
     setModalSinFilas(false)
+    setPreguntarDisponibilidad(false)
     setCreando(true)
 
     const esDeMateriales = borrador.tipo === 'MATERIALES'
@@ -209,6 +233,7 @@ export default function AltaGasto() {
         material: fila.material,
         cantidad: fila.cantidad,
         precio_unitario: fila.precio_unitario,
+        pasar_a_alta: idsAAlta.includes(fila.id),
       }))
     } else {
       datos.monto = borrador.monto
@@ -221,9 +246,12 @@ export default function AltaGasto() {
       // replace: el alta ya se consumió, y Atrás no tiene que volver a un
       // formulario lleno de lo que ya se creó. Sin bloqueo: se vuelve al
       // listado, que muestra el aviso que le llega en el state, como en
-      // pedidos.
+      // pedidos, y cuenta los materiales que el backend pasó a Alta de verdad.
       saltearBloqueo.current = true
-      navegar(`${BASE_GESTION}/gastos`, { replace: true, state: { creado: res.data.id } })
+      navegar(`${BASE_GESTION}/gastos`, {
+        replace: true,
+        state: { creado: res.data.id, pasaronAAlta: res.data.materiales_cambiados?.length || 0 },
+      })
     } catch (err) {
       const mensaje = `No se pudo crear el gasto: ${mensajeDeError(err)}`
 
@@ -312,8 +340,8 @@ export default function AltaGasto() {
         />
 
         {/* La tabla aparece con el tipo Materiales, como en la ficha. Sin
-            onAlta ni onAltaTodos: la disponibilidad se marca desde la
-            ficha, cuando el gasto ya existe. */}
+            onAlta ni onAltaTodos: en el alta la disponibilidad no se marca
+            en la tabla, la pregunta aparece al tocar "Crear gasto". */}
         {borrador.tipo === 'MATERIALES' && (
           <MaterialesDelGasto
             gasto={gastoEnMemoria}
@@ -401,7 +429,18 @@ export default function AltaGasto() {
           texto="Este gasto no tiene materiales cargados: se va a crear en $0. ¿Crear igual?"
           textoAccion="Crear igual"
           onCerrar={() => setModalSinFilas(false)}
-          onConfirmar={crear}
+          onConfirmar={() => crear()}
+        />
+      )}
+
+      {/* Solo las filas que pueden pasar a Alta: las de un material activo
+          que está en Media o Baja. */}
+      {preguntarDisponibilidad && (
+        <ModalActualizarDisponibilidad
+          filas={borrador.materiales.filter(sePuedePasarAAlta)}
+          onCerrar={() => setPreguntarDisponibilidad(false)}
+          onOmitir={() => crear()}
+          onGuardar={(ids) => crear(ids)}
         />
       )}
     </div>

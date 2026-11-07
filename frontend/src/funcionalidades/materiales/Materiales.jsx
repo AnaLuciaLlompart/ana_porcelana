@@ -526,7 +526,7 @@ function Grilla({ materiales, cargando, paginacion, onVer, onEditar, onEliminar,
 const FILAS_VISIBLES = 4
 const ALTO_FILA = 58
 
-function AvisoReponer({ materiales, onReponer }) {
+function AvisoReponer({ materiales }) {
   // El encabezado abre y cierra la lista, para ahorrar lugar. Arranca
   // abierta. useState va antes del return: un hook no puede quedar
   // salteado según lo que llegue.
@@ -628,40 +628,20 @@ function AvisoReponer({ materiales, onReponer }) {
         >
           <span style={{ fontSize: 15, color: '#3D3238' }}>{m.nombre}</span>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span
-              style={{
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 14,
-                borderRadius: 20,
-                padding: '4px 14px',
-                border: '1px solid #C0442F',
-                background: '#FAEAE8',
-                color: '#C0442F',
-              }}
-            >
-              Baja
-            </span>
-
-            <button
-              onClick={() => onReponer(m)}
-              className="btn-reponer"
-              style={{
-                padding: '6px 14px',
-                border: '1px solid #EBE0E2',
-                background: 'white',
-                color: '#8C5A66',
-                borderRadius: 5,
-                cursor: 'pointer',
-                fontFamily: "'Quicksand', sans-serif",
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              Reponer
-            </button>
-          </div>
+          <span
+            style={{
+              fontFamily: "'Quicksand', sans-serif",
+              fontWeight: 600,
+              fontSize: 14,
+              borderRadius: 20,
+              padding: '4px 14px',
+              border: '1px solid #C0442F',
+              background: '#FAEAE8',
+              color: '#C0442F',
+            }}
+          >
+            Baja
+          </span>
         </div>
       ))}
       </div>
@@ -972,10 +952,7 @@ export default function Materiales() {
 
       </div>
 
-      <AvisoReponer
-        materiales={porReponer}
-        onReponer={(m) => setMaterialEditando(m)}
-      />
+      <AvisoReponer materiales={porReponer} />
 
       {error && (
         <p style={{ color: '#C0442F', marginBottom: 16 }}>{error}</p>

@@ -1305,11 +1305,11 @@ pieza nueva nace Pendiente y en el alta se ve solo su chip, sin "Avanzar
 a …" (`PestanaProductos` sin `onAvanzarEtapa`): la etapa se avanza
 después, de a una, desde la ficha o desde Inicio (corrección del tutor;
 antes el alta tenía el selector de etapa y la mandaba en la fila).
-En el alta de gastos no se ofrece "Marcar en disponibilidad Alta": esos
-endpoints necesitan un gasto creado, y escribir sobre Materiales antes de
-registrar la compra no corresponde; se marca desde la ficha. Por eso
-`MaterialesDelGasto` recibe `onAlta` y `onAltaTodos` opcionales, y sin
-ellos no dibuja esos botones.
+En el alta de gastos la tabla no tiene la flecha de "Marcar en
+disponibilidad Alta" ni "Marcar todos": la disponibilidad se pregunta al
+tocar "Crear gasto" (ver "El alta pregunta por la disponibilidad", en
+Módulo Gastos). Por eso `MaterialesDelGasto` recibe `onAlta` y
+`onAltaTodos` opcionales, y sin ellos no dibuja esos botones.
 
 **Crear es un solo POST, que se guarda entero o no se guarda** (corrección
 del tutor, noviembre de 2026). Antes era una cadena de los endpoints de la
@@ -1513,9 +1513,13 @@ sumarían cada una sin la otra.
 **El alta trae los materiales en el mismo POST** (corrección del tutor,
 noviembre de 2026), como el pedido: `POST /api/gastos/` acepta
 `materiales`, una lista con lo mismo que recibe `registrar_material` por
-fila, y `create()` guarda el gasto y las filas en la misma transacción y
-recalcula el monto una sola vez al final. Si una fila falla, responde 400
-con `{'materiales': ['Fila 2 (Porcelana): …']}` y no queda nada; un gasto
+fila, más `pasar_a_alta` como en el PUT de la ficha, y `create()` guarda
+el gasto y las filas en la misma transacción, recalcula el monto una sola
+vez al final y pasa a Alta las marcadas con `_marcar_disponibilidad_alta`;
+la respuesta suma `materiales_cambiados`, como la del PUT. Si una fila
+falla, responde 400
+con `{'materiales': ['Fila 2 (Porcelana): …']}` y no queda nada, ni el
+gasto ni ningún cambio de disponibilidad; un gasto
 de publicidad u otro con `materiales` responde lo mismo que la acción
 ("Solo un gasto de materiales lleva…"). Las reglas de la fila (tipo,
 material existente, no repetido, cantidad y precio) viven en
@@ -1581,11 +1585,45 @@ vacía. La respuesta es:
   "gasto": { ...el gasto completo con sus filas ya actualizadas... } }
 ```
 
-`materiales_cambiados` es lo que el modal "Cambios guardados" usa para
-decir cuántos pasaron a Alta (hoy lo trae el PUT de la ficha, ver
-"Disponibilidad Alta, parte del Guardar"). Antes servía para un Deshacer
-en el aviso flotante, con el PATCH de `/api/materiales/<id>/` y la
-disponibilidad anterior; salió cuando la ficha pasó a ser un formulario.
+`materiales_cambiados` es lo que los modales "Gasto creado" y "Cambios
+guardados" usan para decir cuántos pasaron a Alta (hoy lo traen el POST
+del alta y el PUT de la ficha, ver "El alta pregunta por la
+disponibilidad" y "Disponibilidad Alta, parte del Guardar"). Antes servía
+para un Deshacer en el aviso flotante, con el PATCH de
+`/api/materiales/<id>/` y la disponibilidad anterior; salió cuando la
+ficha pasó a ser un formulario. Desde la pantalla hay dos puertas, y las
+dos terminan en `_marcar_disponibilidad_alta`, en la misma transacción
+que el resto del gasto: en el alta, la pregunta al crear; en la ficha, la
+flecha de cada fila y "Marcar todos". La disponibilidad solo puede pasar
+a Alta: el campo `pasar_a_alta` es un sí o no, y no hay forma de mandar
+otro valor ni de bajarla desde el gasto.
+
+**El alta pregunta por la disponibilidad** (pedido de la usuaria,
+noviembre de 2026, para no tener que acordarse de marcarla). Al tocar
+"Crear gasto", después de las comprobaciones de Datos y de la pregunta
+"Crear sin materiales" (que sale sin filas), si alguna fila es de un
+material activo en Media o Baja (`sePuedePasarAAlta`, en
+`gastos/presentacion.js`: la misma condición que `sePuedeMarcarEnAlta` de
+`MaterialesDelGasto`, escrita dos veces porque la usuaria pidió no tocar
+la edición, y la del backend es la que vale), en lugar de crear abre
+`ModalActualizarDisponibilidad`, con el patrón de `ModalConfirmar` (capa
+110, cabecera rosa "Actualizar disponibilidad", la pregunta "¿Actualizar
+la disponibilidad de estos materiales?" en el cuerpo). Lista solo esas
+filas, cada una con su casilla (la de "Es un pedido personalizado", con
+`accentColor` rosa; toda la fila es un `label`), el nombre y la
+disponibilidad con su color; tildada dice "Baja → Alta" en verde, como la
+celda de la ficha. Vienen tildadas: en el alta todo es la compra que se
+está registrando (decidido por la usuaria). El cuerpo se desliza si hay
+muchas; cabecera y pie quedan fijos. **Omitir** crea sin marcar ninguna;
+**Guardar** crea con `pasar_a_alta` en las tildadas (`crear(idsAAlta)`,
+que lleva los ids provisorios de las filas); la cruz y el fondo cierran
+sin crear nada. Con todo en Alta o sin filas no aparece. El listado
+recibe `pasaronAAlta` en el `state` y "Gasto creado" suma "1 material pasó
+a disponibilidad Alta." (`fraseDeAlta`, en `Gastos.jsx`, la misma de
+"Cambios guardados"). La ficha no cambió: sigue con la flecha y "Marcar
+todos" (pedido de la usuaria). Verificado por el proxy y en Chrome sin
+ventana a 1366 y 384 (noviembre de 2026); no lleva pruebas
+automatizadas nuevas, por pedido de la usuaria.
 
 **Un solo serializer de Gasto, no dos como Pedido:** el listado necesita
 igual los materiales de cada gasto, porque la tabla muestra cuántos son y
@@ -2227,7 +2265,7 @@ textos recortados y con todas las imágenes en `object-fit: cover`.
   sincrónico al principio de un efecto, para vaciar una lista cuando no
   hay nada que pedir, en `componentes/LayoutPublico.jsx` (251),
   `funcionalidades/categorias/Categorias.jsx` (341) y
-  `funcionalidades/materiales/Materiales.jsx` (765 y 803). El
+  `funcionalidades/materiales/Materiales.jsx` (745 y 783). El
   `exhaustive-deps` de Materiales ya no aparece.
 
 
@@ -2596,7 +2634,9 @@ que entren cuatro justas las filas miden siempre lo mismo
 `maxHeight` de cuatro filas con `overflowY: 'auto'`; el título queda fijo
 arriba. **El título es un botón que esconde y muestra las filas**, con una
 flechita a la derecha que gira; arranca abierto y no se recuerda al salir
-de la pantalla.
+de la pantalla. Cada fila es el nombre y el chip "Baja", sin botón: tuvo
+"Reponer", que abría el modal de edición del material, y la usuaria lo
+sacó (noviembre de 2026).
 
 **Las tres listas de Inicio van paginadas desde el backend** (pedido de la
 usuaria, para no tener que deslizar dentro de cada panel; reemplaza al
@@ -3021,8 +3061,9 @@ dice.
 - `fila-pestanas`: la `BarraDePasos` del alta de producto (la ficha ya no
   tiene pestañas: es un acordeón); se desliza de lado, con los pasos sin
   partirse y menos padding.
-- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 32
-  modales (`ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
+- `modal-fondo` y `modal-caja`: el fondo oscuro y la caja de los 39
+  modales (contados con grep en noviembre de 2026, con los de Usuarios y
+  `ModalActualizarDisponibilidad`; `ModalConfirmar` y `ModalAviso` cuentan uno cada uno, aunque
   se dibujen en varios lugares); 8px de aire y hasta 96dvh de alto (dvh y
   no vh, por el mismo motivo del 100dvh del Layout: vh no descuenta la
   barra del navegador y la caja quedaba tapada abajo).

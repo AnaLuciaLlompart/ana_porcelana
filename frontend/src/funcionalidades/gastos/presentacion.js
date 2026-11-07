@@ -69,6 +69,14 @@ export function filaEnMemoria(id, datos, material) {
   }
 }
 
+// Si el material de una fila se puede pasar a disponibilidad Alta: activo y
+// que no esté ya en Alta, la misma condición que aplica el backend
+// (_marcar_disponibilidad_alta). La usa la pregunta del alta; la ficha tiene
+// la suya, sePuedeMarcarEnAlta, en MaterialesDelGasto.
+export function sePuedePasarAAlta(fila) {
+  return fila.material_estado === 'ACTIVO' && fila.material_disponibilidad !== 'ALTA'
+}
+
 // El monto del borrador. Para materiales es la misma cuenta que
 // _recalcular_monto en gastos/views.py: la suma de los subtotales de las
 // filas. Para los otros tipos es lo que se escribió en el campo. Number()

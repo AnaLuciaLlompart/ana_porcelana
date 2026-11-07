@@ -293,11 +293,14 @@ class GastoViewSet(ExportarMixin, viewsets.ModelViewSet):
 
         Además de los datos del gasto, el cuerpo puede traer 'materiales':
         una lista con lo mismo que recibe registrar_material por fila
-        ('material', 'cantidad', 'precio_unitario'). Todo se guarda en la
-        misma transacción (ATOMIC_REQUESTS): si una fila falla, la
-        respuesta es 400 con la clave 'materiales' y el número de la fila,
-        y no queda ni el gasto. Sin 'materiales' es el alta de siempre, y
-        un gasto de materiales sin filas nace en 0.
+        ('material', 'cantidad', 'precio_unitario'), más 'pasar_a_alta' si
+        hay que marcar el material en disponibilidad Alta, como en la ficha.
+        Todo se guarda en la misma transacción (ATOMIC_REQUESTS): si una
+        fila falla, la respuesta es 400 con la clave 'materiales' y el
+        número de la fila, y no queda ni el gasto ni cambia ninguna
+        disponibilidad. Sin 'materiales' es el alta de siempre, y un gasto
+        de materiales sin filas nace en 0. La respuesta es el gasto con una
+        clave más, 'materiales_cambiados': los que pasaron a Alta.
 
         Corrección del tutor: antes el frontend creaba el gasto y después
         mandaba una fila por pedido, y un fallo a mitad dejaba un gasto a
@@ -311,15 +314,26 @@ class GastoViewSet(ExportarMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         gasto = serializer.save()
 
+        a_alta = []
         for numero, datos in enumerate(filas, start=1):
             try:
-                self._registrar_material(gasto, datos)
+                fila = self._registrar_material(gasto, datos)
             except (ParseError, ValidationError) as error:
                 raise error_de_fila('materiales', numero, self._nombre_del_material(datos), error)
 
+            if datos.get('pasar_a_alta'):
+                a_alta.append(fila.material)
+
         self._recalcular_monto(gasto)
 
-        return Response(self.get_serializer(gasto).data, status=status.HTTP_201_CREATED)
+        # Al final, con la misma regla que la ficha: solo pasan a Alta los
+        # materiales activos que no estaban ya en Alta.
+        cambiados = self._marcar_disponibilidad_alta(a_alta)
+
+        datos = self.get_serializer(gasto).data
+        datos['materiales_cambiados'] = cambiados
+
+        return Response(datos, status=status.HTTP_201_CREATED)
 
     @staticmethod
     def _nombre_del_material(datos):

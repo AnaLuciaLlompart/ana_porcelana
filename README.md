@@ -459,14 +459,16 @@ cero, una situación válida. En lugar de impedirlo, la interfaz lo
 advierte antes de crearlo y lo señala en el listado.
 
 **Una única operación escribe sobre otro módulo.** Registrar la compra
-de un material indica que volvió a haber existencias, de modo que desde
-el gasto puede marcarse en disponibilidad alta, de a uno o en conjunto.
-La marca forma parte del formulario del gasto y se aplica al guardarlo,
-en la misma transacción que el resto de los cambios. La regla reside en
-el backend —solo se modifican los materiales activos que no estaban ya
-en ese nivel— y la respuesta informa qué materiales cambiaron, para que
-la pantalla lo comunique al volver al listado. Un error se corrige desde
-el módulo de materiales.
+de un material indica que volvió a haber existencias. Al crear un gasto
+de materiales, si alguno de los materiales cargados está en
+disponibilidad media o baja, el sistema pregunta si actualizarla y
+propone pasarlos a alta; al editar el gasto, se marcan de a uno o en
+conjunto. En los dos casos el cambio viaja con el resto del gasto y se
+aplica en la misma transacción. La regla reside en el backend —la
+disponibilidad solo puede pasar a alta, y solo en los materiales
+activos que no estaban ya en ese nivel— y la respuesta informa qué
+materiales cambiaron, para que la pantalla lo comunique al volver al
+listado. Un error se corrige desde el módulo de materiales.
 
 **Cantidad en texto libre** en la composición de productos. Las
 cantidades del oficio no admiten una unidad uniforme —«dos gotas»,
