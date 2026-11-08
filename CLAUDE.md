@@ -2012,6 +2012,7 @@ contexto porque se dibujan dentro de ese `Outlet`.
 /mensaje                 Mensaje               CU70
 /como-hacer-un-pedido    ComoHacerUnPedido
 /tips                    Tips
+/privacidad              Privacidad            Ley 25.326, enlazada desde el pie
 *                        PaginaNoEncontrada    "No encontramos esa página" y un enlace al catálogo
 ```
 
@@ -2023,9 +2024,23 @@ prefijo (`/pedidos`) y las desconocidas dentro de `/gestion`.
 En `funcionalidades/catalogo/`: `api.js`, `filtros.js`, `seleccion.js`,
 `presentacion.js`, `Catalogo.jsx`, `TarjetaCatalogo.jsx`,
 `FiltrosCatalogo.jsx`, `DetalleCatalogo.jsx`, `MiSeleccion.jsx`,
-`Mensaje.jsx`, `ComoHacerUnPedido.jsx`, `Tips.jsx`, `CajaMensaje.jsx`,
-`ToastCatalogo.jsx` y `PaginaNoEncontrada.jsx`. En `componentes/`:
-`LayoutPublico.jsx`, `PiePublico.jsx` e `IconoInstagram.jsx`.
+`Mensaje.jsx`, `ComoHacerUnPedido.jsx`, `Tips.jsx`, `Privacidad.jsx`,
+`CajaMensaje.jsx`, `ToastCatalogo.jsx` y `PaginaNoEncontrada.jsx`. En
+`componentes/`: `LayoutPublico.jsx`, `PiePublico.jsx` e
+`IconoInstagram.jsx`.
+
+**La página de Privacidad es por la Ley 25.326** (pedido de la usuaria,
+noviembre de 2026): la gestión guarda datos de los clientes y hay que
+decir cuáles, para qué y cómo pedir que se corrijan o se borren. El texto
+es de la usuaria, tal cual, en una tarjeta como las de Tips, con el
+correo del emprendimiento como `mailto:`. El enlace va solo en la franja
+del copyright del pie ("© 2026 Ana Porcelana · Privacidad"), no en la
+barra ni en el panel ☰. El texto nombra lo que guardan Cliente
+(instagram, nombre, apellido, email) y Pedido (detalle, pagos y
+dirección): si se suma un dato personal a esos modelos, hay que
+actualizarlo. "Solo usa las cookies necesarias" es cierto: el sitio
+público no pone cookies propias; la selección vive en `localStorage`, que
+no viaja a ningún lado.
 
 **`LayoutPublico` es independiente de `Layout`:** no usa `AuthContext`
 ni nada de gestión. Tiene la franja celeste, el encabezado pegado arriba

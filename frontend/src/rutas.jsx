@@ -28,6 +28,7 @@ import MiSeleccion from './funcionalidades/catalogo/MiSeleccion'
 import Mensaje from './funcionalidades/catalogo/Mensaje'
 import ComoHacerUnPedido from './funcionalidades/catalogo/ComoHacerUnPedido'
 import Tips from './funcionalidades/catalogo/Tips'
+import Privacidad from './funcionalidades/catalogo/Privacidad'
 import PaginaNoEncontrada from './funcionalidades/catalogo/PaginaNoEncontrada'
 
 
@@ -82,6 +83,7 @@ const router = createBrowserRouter(
         <Route path="/mensaje" element={<Mensaje />} />
         <Route path="/como-hacer-un-pedido" element={<ComoHacerUnPedido />} />
         <Route path="/tips" element={<Tips />} />
+        <Route path="/privacidad" element={<Privacidad />} />
         <Route path="*" element={<PaginaNoEncontrada />} />
       </Route>
 

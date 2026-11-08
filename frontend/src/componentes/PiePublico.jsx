@@ -6,7 +6,7 @@ import IconoInstagram from './IconoInstagram'
 // columnas del diseño: la marca, PRODUCTOS (las categorías de tipo de
 // accesorio, que filtran el catálogo igual que el árbol), AYUDA (las dos
 // páginas de texto) y CONTACTO (Instagram); y debajo el copyright, con el
-// año calculado para que no envejezca.
+// año calculado para que no envejezca, y el enlace a Privacidad.
 //
 // Recibe los grupos de categorías que arma el layout y alElegir, que sube
 // la página al elegir una categoría desde acá abajo.
@@ -117,7 +117,10 @@ export default function PiePublico({ grupos, alElegir }) {
 
       <div style={{ borderTop: '1px solid #E0E8EB' }}>
         <p style={{ maxWidth: 1200, margin: '0 auto', padding: '14px 16px', fontSize: 13, color: '#64727A' }}>
-          © {new Date().getFullYear()} Ana Porcelana
+          © {new Date().getFullYear()} Ana Porcelana ·{' '}
+          <Link to="/privacidad" onClick={alElegir} className="catalogo-item" style={{ textDecoration: 'none', color: '#64727A' }}>
+            Privacidad
+          </Link>
         </p>
       </div>
     </footer>
