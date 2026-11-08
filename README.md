@@ -40,9 +40,10 @@ El sistema comprende **dos ámbitos diferenciados**:
 | Cobros | CU48–CU51 | Completo |
 | Gastos | CU52–CU59 | Completo |
 | Informes | CU60–CU62 | Completo |
-| Catálogo público | CU63–CU70 | Completo |
+| Usuarios | CU63–CU68 | Completo |
+| Catálogo público | CU69–CU76 | Completo |
 
-70 de 70 casos de uso implementados, con backend y frontend completos
+76 de 76 casos de uso implementados, con backend y frontend completos
 en todos los módulos.
 
 ---
